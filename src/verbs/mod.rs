@@ -1,3 +1,4 @@
+pub mod bw;
 pub mod caption;
 pub mod concat;
 pub mod cover;
