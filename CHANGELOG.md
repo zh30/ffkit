@@ -4,6 +4,10 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.22.1] — 2026-09-15
+
+- README.md is English by default; Chinese lives in README.zh.md (edit both together)
+
 ## [0.22.0] — 2026-09-15
 
 - GitHub Release zips (binary + skill + `install.sh`) on every versioned merge to `main`
