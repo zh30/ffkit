@@ -58,6 +58,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Vignette(args) => verbs::vignette::run(args, &g),
         Cmd::Bw(args) => verbs::bw::run(args, &g),
         Cmd::Volume(args) => verbs::volume::run(args, &g),
+        Cmd::Blur(args) => verbs::blur::run(args, &g),
         Cmd::Batch(args) => batch::run(args, &g),
         Cmd::Graph { plan } => graph::run(plan, &g),
         Cmd::Ffmpeg { because, args } => ffmpeg_raw::run(because, args, &g),

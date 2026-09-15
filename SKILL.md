@@ -1,7 +1,7 @@
 ---
 name: ffkit
-description: Operate local video and audio with the ffkit CLI wrapping FFmpeg: probe, cut, concat, fit, overlay, caption (mux or burn-in), extract, transcode, deliver (9:16 social export), speed, music, jumpcut, cover stills, fade in/out, title/hook text, loop, stabilize, reverse, grade, zoom/punch-in, sharpen, vignette, black-and-white, volume dB, loudness, batch, filter graphs, and raw ffmpeg with --because. Use when the user mentions a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, captions, overlay, BGM, cover, thumbnail, fade, title, hook, loop, shake, reverse, color grade, zoom, punch-in, sharpen, vignette, black and white, volume, louder, quieter, transcode, ffmpeg, Reel/Short/TikTok/YouTube, or asks to trim, join, resize, speed up, add a track, cut silence, extract a cover, burn or mux subtitles, export a Reel, or produce a visual/audio effect. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
-version: 0.18.0
+description: Operate local video and audio with the ffkit CLI wrapping FFmpeg: probe, cut, concat, fit, overlay, caption (mux or burn-in), extract, transcode, deliver (9:16 social export), speed, music, jumpcut, cover, fade, title, loop, stabilize, reverse, grade, zoom, sharpen, vignette, bw, volume, blur, loudness, batch, graphs, and raw ffmpeg with --because. Use when the user mentions a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, captions, overlay, BGM, cover, thumbnail, fade, title, hook, loop, shake, reverse, grade, zoom, sharpen, vignette, black and white, volume, blur, transcode, ffmpeg, Reel/Short/TikTok/YouTube, or asks to trim, join, resize, speed up, add a track, cut silence, extract a cover, burn subtitles, export a Reel, or produce a visual/audio effect. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
+version: 0.19.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -19,7 +19,7 @@ If `ffkit version --check` fails, or `ffkit --version` is not this file's `versi
 2. Prefer **lossless**. `cut` and mux-only work stream-copy unless `--accurate` is required.
 3. Route: a **verb** if the table names one; else **graph**.
 4. `ffkit ffmpeg --because REASON -- …` only when REASON names the missing verb or graph field in one line. `--because` is required.
-5. Picture changed (fit, overlay, caption, crop, colour, gif, cover, fade, title, stabilize, reverse, grade, zoom, sharpen, vignette, bw): `ffkit look OUTPUT`. Overlay, caption, title: `look --at T` while the graphic is on screen. Cover: inspect the PNG. Fade: `look --at 0` should be darker than mid-clip.
+5. Picture changed (fit, overlay, caption, crop, colour, gif, cover, fade, title, stabilize, reverse, grade, zoom, sharpen, vignette, bw, blur): `ffkit look OUTPUT`. Overlay, caption, title: `look --at T` while the graphic is on screen. Cover: inspect the PNG. Fade: `look --at 0` should be darker than mid-clip.
 6. Never write onto the user's source. `--overwrite` only replaces an output this job created or the user named.
 
 A write step is done when the process exits 0 and the output probe matches the request. A picture step is done when `Look:` names a real PNG you inspected (or `Look: PATH (pixels not inspected; agent has no image view)`). Overlay/caption is done when that PNG is from `--at`, not only `--tiles`.
@@ -58,6 +58,7 @@ A write step is done when the process exits 0 and the output probe matches the r
 | sharpen / 锐化 / 更清晰 | `ffkit sharpen IN -o OUT` |
 | vignette / 暗角 / Reels 暗角 | `ffkit vignette IN -o OUT` |
 | black and white / 黑白 | `ffkit bw IN -o OUT` |
+| blur / 模糊 | `ffkit blur IN --sigma 2 -o OUT` |
 | show me the picture | `ffkit look OUT --tiles 3x2` and/or `--at T` (repeat `--at`) |
 | every file in this folder | `ffkit batch DIR -o OUTDIR -- transcode --preset h264` |
 | filter chain no verb covers | `ffkit graph plan.json` — see [references/graph.md](references/graph.md) |
