@@ -16,9 +16,9 @@ libx264 + yuv420p rejects odd widths/heights. `fit` and `transcode --preset h264
 
 A single-pass `ffmpeg -i in out.gif` looks dirty. `transcode --preset gif` runs palettegen + paletteuse. GIF has no audio; do not probe for it.
 
-## Subtitles / libass
+## Subtitles
 
-`caption --mode burn` needs an ffmpeg built with libass (`subtitles` filter). `ffkit doctor --json` lists it under `filters`. Without it, use `--mode mux` (soft subs) or install ffmpeg with `--enable-libass`. Paths go through `subtitles=filename=…`; colons in the path are escaped (`:` → `\:`). CJK glyphs: `--font` (e.g. `PingFang SC` on macOS).
+`caption --mode burn` rasterizes SRT cues and `overlay`s them (works without libass / `drawtext`). Pass `--font` if no Arial/DejaVu is on disk. Place text in the frame’s lower safe zone (~15% from the bottom). `--mode mux` keeps toggleable soft subs and does not show in-feed on mute.
 
 ## iPhone VFR
 

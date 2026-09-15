@@ -4,6 +4,10 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-15
+
+- `caption --mode burn` rasterizes SRT and overlays PNGs; no libass/`drawtext` required
+
 ## [0.2.0] — 2026-09-15
 
 - `ffkit deliver`: one-shot 9:16 social export (1080×1920, 30 fps, −14 LUFS, H.264+AAC+faststart)
