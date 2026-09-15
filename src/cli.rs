@@ -111,6 +111,9 @@ pub enum Cmd {
     Sharpen(SharpenArgs),
     /// Darken the corners (Reels vignette)
     Vignette(VignetteArgs),
+    /// Strip color (black and white)
+    #[command(name = "bw")]
+    Bw(BwArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -470,6 +473,13 @@ pub struct VignetteArgs {
     /// vignette angle in radians (smaller = stronger; default PI/4)
     #[arg(long, default_value_t = 0.785)]
     pub angle: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct BwArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
 }
 
 #[derive(clap::Args, Debug)]

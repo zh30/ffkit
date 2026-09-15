@@ -1042,6 +1042,55 @@ fn vignette_darkens_corners() {
 }
 
 #[test]
+fn bw_drops_chroma() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("bw.mp4");
+    let v = run_json(&["bw", f.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let src = dir.path().join("s.png");
+    let bw = dir.path().join("b.png");
+    assert_eq!(
+        run_json(&[
+            "look",
+            f.to_str().unwrap(),
+            "--at",
+            "0.3",
+            "-o",
+            src.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    assert_eq!(
+        run_json(&[
+            "look",
+            out.to_str().unwrap(),
+            "--at",
+            "0.3",
+            "-o",
+            bw.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    let chroma = |p: &std::path::Path| {
+        let img = image::open(p).unwrap().to_rgb8();
+        img.pixels()
+            .map(|px| {
+                (px[0] as i32 - px[1] as i32).unsigned_abs() as u64
+                    + (px[1] as i32 - px[2] as i32).unsigned_abs() as u64
+                    + (px[2] as i32 - px[0] as i32).unsigned_abs() as u64
+            })
+            .sum::<u64>()
+    };
+    let a = chroma(&src);
+    let b = chroma(&bw);
+    assert!(b < a / 4, "bw should collapse chroma ({a} -> {b})");
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])
