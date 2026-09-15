@@ -330,6 +330,85 @@ fn caption_and_loudnorm() {
 }
 
 #[test]
+fn caption_burn_overlay_without_libass() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = dir.path().join("blue.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0x0033aa:s=320x240:d=1:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&f)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:01,000\nHELLO\n").unwrap();
+    let out = dir.path().join("burn.mp4");
+    let mut args = vec![
+        "caption".to_string(),
+        f.to_string_lossy().into_owned(),
+        "--srt".into(),
+        srt.to_string_lossy().into_owned(),
+        "--mode".into(),
+        "burn".into(),
+        "-o".into(),
+        out.to_string_lossy().into_owned(),
+    ];
+    let arial = "/System/Library/Fonts/Supplemental/Arial.ttf";
+    if std::path::Path::new(arial).is_file() {
+        args.push("--font".into());
+        args.push(arial.into());
+    }
+    let argv: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    let v = run_json(&argv);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["renderer"], "overlay", "{v}");
+    assert_eq!(v["probe"]["has_video"], true);
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 0.8);
+
+    let frame = dir.path().join("cap.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let white = img
+        .pixels()
+        .filter(|p| p[0] > 230 && p[1] > 230 && p[2] > 230)
+        .count();
+    assert!(
+        white > 20,
+        "burned caption should put near-white glyphs on the blue frame, got {white} white pixels"
+    );
+}
+
+#[test]
 fn deliver_social_1080x1920() {
     if !has_ffmpeg() {
         return;
