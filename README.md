@@ -14,8 +14,26 @@
 
 ## 安装
 
+从 [Releases](https://github.com/zh30/ffkit/releases/latest) 下载**对应系统的 zip**（附件里带 `ffkit` 二进制的那个，不要用 Source code zip），解压后：
+
 ```bash
-git clone <this-repo> && cd ffkit
+./ffkit doctor --json          # 解压即可用
+./install.sh                   # 拷到 PATH 并写入 Agent skill
+ffkit version --check
+```
+
+| 系统 | 附件 |
+|------|------|
+| macOS Apple Silicon | `ffkit-*-aarch64-apple-darwin.zip` |
+| macOS Intel | `ffkit-*-x86_64-apple-darwin.zip` |
+| Linux x86_64 | `ffkit-*-x86_64-unknown-linux-gnu.zip` |
+
+浏览器下载后 macOS 若拦截：`xattr -d com.apple.quarantine ffkit` 再 `./install.sh`。
+
+从源码装（需要 Rust 1.80+）：
+
+```bash
+git clone https://github.com/zh30/ffkit && cd ffkit
 cargo install --path .
 ffkit install-skill
 ffkit doctor --json
@@ -37,17 +55,18 @@ ffkit version --json
 ffkit version --check    # 已安装的 skill 拷贝和二进制不一致则失败
 ```
 
-发新版：
+`install-skill` 会在每个 skill 目录写入 `VERSION` 戳。若 `ffkit version --check` 失败，先 `ffkit install-skill` 再让 Agent reload。变更记在 [`CHANGELOG.md`](CHANGELOG.md)。
+
+每次合入 `main` 都会打一个 GitHub Release（`vX.Y.Z`），附件是可解压即用的 zip。发新版：
 
 ```bash
+# 在 PR 里：改代码/文档 → 写 CHANGELOG [Unreleased] →  bump
 ./scripts/bump-version.sh patch   # 或 minor / major / 0.2.0
 cargo test
-cargo install --path . --force
-ffkit install-skill
-# 可选：git tag v$(ffkit --version | awk '{print $2}')
+# 合入 main 后 Actions 打包并创建 Release；本地补打：
+./scripts/pack-release.sh
+./scripts/publish-release.sh
 ```
-
-`install-skill` 会在每个 skill 目录写入 `VERSION` 戳。若 `ffkit version --check` 失败，先 `ffkit install-skill` 再让 Agent reload。变更记在 [`CHANGELOG.md`](CHANGELOG.md)。
 
 ## 给 Agent 用
 
@@ -118,6 +137,6 @@ cargo clippy --all-targets -- -D warnings
 cargo fmt
 ```
 
-改动词时同步改 `SKILL.md` Hands 表。版本只通过 `scripts/bump-version.sh` 改，不要手改一处漏另一处。
+改动词时同步改 `SKILL.md` Hands 表。行为或安装方式变了，同步改 README / SKILL.md / `references/` / CHANGELOG。版本只通过 `scripts/bump-version.sh` 改，不要手改一处漏另一处。每个合入 `main` 的变更都必须 bump，合入后必须有对应的 GitHub Release。
 
 SemVer：MAJOR = 破坏 CLI 或 skill 工作流（删动词、改 JSON 合同）；MINOR = 新动词或新能力；PATCH = 修复与文档。
