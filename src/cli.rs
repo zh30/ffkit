@@ -105,6 +105,8 @@ pub enum Cmd {
     Reverse(ReverseArgs),
     /// Contrast / saturation / brightness pop (Reels look)
     Grade(GradeArgs),
+    /// Punch-in / Ken Burns-style center zoom
+    Zoom(ZoomArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -434,6 +436,16 @@ pub struct GradeArgs {
     pub saturation: f64,
     #[arg(long, default_value_t = 0.02, allow_hyphen_values = true)]
     pub brightness: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ZoomArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// 1.25 = 25% punch-in on the center
+    #[arg(long, default_value_t = 1.25)]
+    pub factor: f64,
 }
 
 #[derive(clap::Args, Debug)]

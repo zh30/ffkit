@@ -879,6 +879,66 @@ fn grade_raises_chroma() {
 }
 
 #[test]
+fn zoom_keeps_frame_but_changes_pixels() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("z.mp4");
+    let v = run_json(&[
+        "zoom",
+        f.to_str().unwrap(),
+        "--factor",
+        "1.5",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"], 320, "{v}");
+    assert_eq!(v["probe"]["height"], 240, "{v}");
+    let a = dir.path().join("s.png");
+    let b = dir.path().join("z.png");
+    assert_eq!(
+        run_json(&[
+            "look",
+            f.to_str().unwrap(),
+            "--at",
+            "0.3",
+            "-o",
+            a.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    assert_eq!(
+        run_json(&[
+            "look",
+            out.to_str().unwrap(),
+            "--at",
+            "0.3",
+            "-o",
+            b.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    let pa = image::open(&a).unwrap().to_rgb8();
+    let pb = image::open(&b).unwrap().to_rgb8();
+    let diff: u64 = pa
+        .pixels()
+        .zip(pb.pixels())
+        .map(|(x, y)| {
+            (x[0] as i16 - y[0] as i16).unsigned_abs() as u64
+                + (x[1] as i16 - y[1] as i16).unsigned_abs() as u64
+                + (x[2] as i16 - y[2] as i16).unsigned_abs() as u64
+        })
+        .sum();
+    assert!(
+        diff > 10_000,
+        "1.5x center crop should change pixels (diff={diff})"
+    );
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])
