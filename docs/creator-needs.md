@@ -25,7 +25,9 @@ Creators say one sentence to a tool (“make this a Reel”, “add captions so 
 |-----------------|-------|-----|
 | “Export for Reels / TikTok / Shorts” | Agent must chain `fit --aspect 9:16`, `transcode --preset h264`, `loudnorm -I -14` (three encodes, easy to skip loudness) | No single delivery verb; `platforms.md` is a cheat sheet, not a command |
 | “Burn captions, I watch on mute” | `caption --mode burn` needs ffmpeg **libass** (`subtitles` filter). Typical Homebrew ffmpeg 9 has neither libass nor `drawtext` | Burn fails on this class of machine; mux-only captions do not show in-feed |
-| Karaoke / word-by-word ASS | Not offered | Deferred (plan non-goal) |
+| “Speeding up the take / slow-mo” | No verb; agent would invent `setpts`/`atempo` | Talking-head 1.1–2× and slow-mo are default short-form edits |
+| “Add a track / trending audio under the voice” | No mix/duck verb | Mark Studios (2026): music under speech is the Reels/TikTok default mix |
+| Karaoke / word-by-word ASS | Not offered | Deferred |
 | Silence jump-cuts, multicam, HDR/LUT, Whisper, B-roll, publish APIs | Not offered | Deferred |
 
 `fit` + `transcode` + `loudnorm` can *approximate* a social export if the agent never skips a step. That is not how creators speak, and it is not how this skill should route.
@@ -35,4 +37,7 @@ Creators say one sentence to a tool (“make this a Reel”, “add captions so 
 1. **Short-form delivery pack** — one verb `ffkit deliver` that outputs 1080×1920 9:16, 30 fps, H.264 + AAC + `faststart`, EBU-style **−14 LUFS / −1.5 dBTP**, in a single JSON contract. Maps to “做成 Reel / TikTok / Shorts / 导出到三平台”.
 2. **Captions that work without libass** — burn SRT by rasterizing cues and `overlay` (always present). Maps to “烧字幕 / 静音也能看”. Do not depend on `subtitles` / `ass` / `drawtext`.
 
-Stop after these two land as PRs to `main`. Further directions stay in the deferred table.
+Landed as PRs to `main` (0.2.0 / 0.3.0). Next:
+
+3. **Speed** — `ffkit speed --factor N` with `setpts` + chained `atempo` (pitch kept). Maps to “加速 / 慢动作 / 1.5x”.
+4. **Music under speech** — `ffkit music --track BGM` with `sidechaincompress` ducking. Maps to “加 BGM / 配乐压人声”.
