@@ -87,6 +87,8 @@ pub enum Cmd {
     Deliver(DeliverArgs),
     /// Change playback speed (talking-head 1.1–2×, slow-mo)
     Speed(SpeedArgs),
+    /// Mix a music bed under speech, with ducking
+    Music(MusicArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -300,6 +302,22 @@ pub struct SpeedArgs {
     /// Playback factor: 2 = twice as fast, 0.5 = slow-mo
     #[arg(long)]
     pub factor: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct MusicArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Music / trending-audio file
+    #[arg(long)]
+    pub track: PathBuf,
+    /// Linear gain on the bed before ducking (0.05–1)
+    #[arg(long, default_value_t = 0.18)]
+    pub gain: f64,
+    /// Duck the bed when speech is present
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+    pub duck: bool,
 }
 
 #[derive(clap::Args, Debug)]
