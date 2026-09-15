@@ -28,7 +28,8 @@ Creators say one sentence to a tool (“make this a Reel”, “add captions so 
 | “Speeding up the take / slow-mo” | No verb; agent would invent `setpts`/`atempo` | Talking-head 1.1–2× and slow-mo are default short-form edits |
 | “Add a track / trending audio under the voice” | No mix/duck verb | Mark Studios (2026): music under speech is the Reels/TikTok default mix |
 | Karaoke / word-by-word ASS | Not offered | Deferred |
-| Silence jump-cuts, multicam, HDR/LUT, Whisper, B-roll, publish APIs | Not offered | Deferred |
+| “Cut the dead air / jump cuts” | No silence detector | Talking-head default edit |
+| Multicam, HDR/LUT, Whisper, B-roll, publish APIs | Not offered | Deferred |
 
 `fit` + `transcode` + `loudnorm` can *approximate* a social export if the agent never skips a step. That is not how creators speak, and it is not how this skill should route.
 
@@ -41,3 +42,5 @@ Landed as PRs to `main` (0.2.0 / 0.3.0). Next:
 
 3. **Speed** — `ffkit speed --factor N` with `setpts` + chained `atempo` (pitch kept). Maps to “加速 / 慢动作 / 1.5x”.
 4. **Music under speech** — `ffkit music --track BGM` with `sidechaincompress` ducking. Maps to “加 BGM / 配乐压人声”.
+5. **Silence jump-cuts** — `ffkit jumpcut`. Maps to “剪掉停顿 / jump cut”.
+6. **Social cover still** — `ffkit cover`. Maps to “封面 / 封面图 / thumbnail”.

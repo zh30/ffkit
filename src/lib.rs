@@ -45,6 +45,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Deliver(args) => verbs::deliver::run(args, &g),
         Cmd::Speed(args) => verbs::speed::run(args, &g),
         Cmd::Music(args) => verbs::music::run(args, &g),
+        Cmd::Jumpcut(args) => verbs::jumpcut::run(args, &g),
         Cmd::Batch(args) => batch::run(args, &g),
         Cmd::Graph { plan } => graph::run(plan, &g),
         Cmd::Ffmpeg { because, args } => ffmpeg_raw::run(because, args, &g),

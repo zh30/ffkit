@@ -4,6 +4,10 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-09-15
+
+- `ffkit jumpcut`: drop internal silence for talking-head jump cuts
+
 ## [0.5.0] — 2026-09-15
 
 - `ffkit music --track`: loop a bed under speech with sidechain ducking
