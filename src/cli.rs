@@ -93,6 +93,8 @@ pub enum Cmd {
     Music(MusicArgs),
     /// Cut internal silence (talking-head jump cuts)
     Jumpcut(JumpcutArgs),
+    /// Map speech islands in a long take, then lossless/cheap assemble
+    Rough(RoughArgs),
     /// 9:16 still for Reels / TikTok / Shorts covers
     Cover(CoverArgs),
     /// Fade video and audio in and/or out
@@ -398,6 +400,26 @@ pub struct JumpcutArgs {
     /// Keep this much silence on each side of a cut, seconds
     #[arg(long, default_value_t = 0.05)]
     pub pad: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct RoughArgs {
+    pub input: PathBuf,
+    /// Assemble keeps here. Omit to only list speech islands as JSON.
+    #[arg(short, long)]
+    pub output: Option<PathBuf>,
+    /// Silence threshold in dBFS
+    #[arg(long, default_value_t = -30.0, allow_hyphen_values = true)]
+    pub threshold: f64,
+    /// Minimum silence length to split on, seconds (longer than jumpcut: keep breaths)
+    #[arg(long, default_value_t = 0.5)]
+    pub min_duration: f64,
+    /// Keep this much silence on each side of a keep, seconds
+    #[arg(long, default_value_t = 0.12)]
+    pub pad: f64,
+    /// Stream-copy keeps (fast, keyframe-sloppy). Default encodes only the keep windows.
+    #[arg(long)]
+    pub copy: bool,
 }
 
 #[derive(clap::Args, Debug)]
