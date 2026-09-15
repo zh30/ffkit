@@ -819,6 +819,66 @@ fn reverse_first_frame_differs_from_source() {
 }
 
 #[test]
+fn grade_raises_chroma() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("pop.mp4");
+    let v = run_json(&[
+        "grade",
+        f.to_str().unwrap(),
+        "--saturation",
+        "2",
+        "--contrast",
+        "1",
+        "--brightness",
+        "0",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let src = dir.path().join("s.png");
+    let grd = dir.path().join("g.png");
+    assert_eq!(
+        run_json(&[
+            "look",
+            f.to_str().unwrap(),
+            "--at",
+            "0.3",
+            "-o",
+            src.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    assert_eq!(
+        run_json(&[
+            "look",
+            out.to_str().unwrap(),
+            "--at",
+            "0.3",
+            "-o",
+            grd.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    let chroma = |p: &std::path::Path| {
+        let img = image::open(p).unwrap().to_rgb8();
+        img.pixels()
+            .map(|px| {
+                (px[0] as i32 - px[1] as i32).unsigned_abs() as u64
+                    + (px[1] as i32 - px[2] as i32).unsigned_abs() as u64
+                    + (px[2] as i32 - px[0] as i32).unsigned_abs() as u64
+            })
+            .sum::<u64>()
+    };
+    let a = chroma(&src);
+    let b = chroma(&grd);
+    assert!(b > a, "sat 2.0 should raise chroma ({a} -> {b})");
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])
