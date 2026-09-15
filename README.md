@@ -95,6 +95,7 @@ ffkit transcode clip.mp4 --preset gif -o preview.gif --json
 | `fade` | 画面和声音淡入淡出（`--in` / `--out`） |
 | `title` | 片头/hook 大字（`--text`，不依赖 libass） |
 | `loop` | 把成片重复 N 遍（Shorts 循环加长） |
+| `stabilize` | 手持防抖（deshake） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |
 | `ffmpeg` | 受保护的原生 ffmpeg，**必须** `--because REASON` |

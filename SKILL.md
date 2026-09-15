@@ -1,7 +1,7 @@
 ---
 name: ffkit
-description: Operate local video and audio with the ffkit CLI wrapping FFmpeg: probe, cut, concat, fit, overlay, caption (mux or burn-in), extract, transcode, deliver (9:16 social export), speed, music, jumpcut, cover stills, fade in/out, title/hook text, loop, loudness, batch, filter graphs, and raw ffmpeg with --because. Use when the user mentions a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, captions, overlay, BGM, cover, thumbnail, fade, title, hook, loop, transcode, ffmpeg, Reel/Short/TikTok/YouTube, or asks to trim, join, resize, speed up, add a track, cut silence, extract a cover, burn or mux subtitles, export a Reel, or produce a visual/audio effect. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
-version: 0.10.0
+description: Operate local video and audio with the ffkit CLI wrapping FFmpeg: probe, cut, concat, fit, overlay, caption (mux or burn-in), extract, transcode, deliver (9:16 social export), speed, music, jumpcut, cover stills, fade in/out, title/hook text, loop, stabilize, loudness, batch, filter graphs, and raw ffmpeg with --because. Use when the user mentions a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, captions, overlay, BGM, cover, thumbnail, fade, title, hook, loop, shake, stabilize, transcode, ffmpeg, Reel/Short/TikTok/YouTube, or asks to trim, join, resize, speed up, add a track, cut silence, extract a cover, burn or mux subtitles, export a Reel, or produce a visual/audio effect. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
+version: 0.11.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -19,7 +19,7 @@ If `ffkit version --check` fails, or `ffkit --version` is not this file's `versi
 2. Prefer **lossless**. `cut` and mux-only work stream-copy unless `--accurate` is required.
 3. Route: a **verb** if the table names one; else **graph**.
 4. `ffkit ffmpeg --because REASON -- …` only when REASON names the missing verb or graph field in one line. `--because` is required.
-5. Picture changed (fit, overlay, caption, crop, colour, gif, cover, fade, title): `ffkit look OUTPUT`. Overlay, caption, title: `look --at T` while the graphic is on screen. Cover: inspect the PNG. Fade: `look --at 0` should be darker than mid-clip.
+5. Picture changed (fit, overlay, caption, crop, colour, gif, cover, fade, title, stabilize): `ffkit look OUTPUT`. Overlay, caption, title: `look --at T` while the graphic is on screen. Cover: inspect the PNG. Fade: `look --at 0` should be darker than mid-clip.
 6. Never write onto the user's source. `--overwrite` only replaces an output this job created or the user named.
 
 A write step is done when the process exits 0 and the output probe matches the request. A picture step is done when `Look:` names a real PNG you inspected (or `Look: PATH (pixels not inspected; agent has no image view)`). Overlay/caption is done when that PNG is from `--at`, not only `--tiles`.
@@ -50,6 +50,7 @@ A write step is done when the process exits 0 and the output probe matches the r
 | fade in / fade out / 淡入淡出 | `ffkit fade IN --in 0.3 --out 0.3 -o OUT` |
 | hook text / title card / 片头字 | `ffkit title IN --text "WAIT" --duration 0.8 -o OUT` then `look --at 0.2` |
 | loop / repeat / 循环播放加长 | `ffkit loop IN --times 3 -o OUT` |
+| stabilize / 防抖 / shaky handheld | `ffkit stabilize IN -o OUT` |
 | show me the picture | `ffkit look OUT --tiles 3x2` and/or `--at T` (repeat `--at`) |
 | every file in this folder | `ffkit batch DIR -o OUTDIR -- transcode --preset h264` |
 | filter chain no verb covers | `ffkit graph plan.json` — see [references/graph.md](references/graph.md) |

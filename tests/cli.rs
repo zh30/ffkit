@@ -744,6 +744,28 @@ fn loop_triples_duration() {
 }
 
 #[test]
+fn stabilize_keeps_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("steady.mp4");
+    let v = run_json(&[
+        "stabilize",
+        f.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["has_video"], true, "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(d > 0.8 && d < 1.3, "deshake should keep ~1s, got {d}; {v}");
+    assert_eq!(v["extra"]["filter"], "deshake");
+    assert!(out.metadata().unwrap().len() > 0);
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])
