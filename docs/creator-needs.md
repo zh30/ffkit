@@ -48,3 +48,5 @@ Landed as PRs to `main` (0.2.0 / 0.3.0). Next:
 8. **Hook title card** — `ffkit title --text`. Maps to “片头字 / hook”.
 9. **Loop / replay length** — `ffkit loop --times`. Maps to “循环 / 加长 Shorts”.
 10. **Stabilize handheld** — `ffkit stabilize` (`deshake`). Maps to “防抖 / 稳定”.
+11. **Reverse** — `ffkit reverse`. Maps to “倒放”.
+12. **Color grade / pop** — `ffkit grade`. Maps to “调色 / 更艳 / Reels 质感”.

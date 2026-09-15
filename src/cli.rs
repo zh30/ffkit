@@ -101,6 +101,8 @@ pub enum Cmd {
     Loop(LoopArgs),
     /// Reduce handheld shake (deshake)
     Stabilize(StabilizeArgs),
+    /// Play the clip backwards
+    Reverse(ReverseArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -410,6 +412,13 @@ pub struct StabilizeArgs {
     /// Search radius on y (pixels)
     #[arg(long, default_value_t = 16)]
     pub ry: u32,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ReverseArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
 }
 
 #[derive(clap::Args, Debug)]
