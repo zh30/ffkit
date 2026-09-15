@@ -1,7 +1,7 @@
 ---
 name: ffkit
-description: Operate local video and audio with the ffkit CLI wrapping FFmpeg: probe, cut, concat, fit, overlay, caption (mux or burn-in), extract, transcode, deliver (9:16 social export), speed, music, jumpcut, cover stills, fade in/out, title/hook text, loudness, batch, filter graphs, and raw ffmpeg with --because. Use when the user mentions a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, captions, overlay, BGM, cover, thumbnail, fade, title, hook, transcode, ffmpeg, Reel/Short/TikTok/YouTube, or asks to trim, join, resize, speed up, add a track, cut silence, extract a cover, burn or mux subtitles, export a Reel, or produce a visual/audio effect. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
-version: 0.9.0
+description: Operate local video and audio with the ffkit CLI wrapping FFmpeg: probe, cut, concat, fit, overlay, caption (mux or burn-in), extract, transcode, deliver (9:16 social export), speed, music, jumpcut, cover stills, fade in/out, title/hook text, loop, loudness, batch, filter graphs, and raw ffmpeg with --because. Use when the user mentions a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, captions, overlay, BGM, cover, thumbnail, fade, title, hook, loop, transcode, ffmpeg, Reel/Short/TikTok/YouTube, or asks to trim, join, resize, speed up, add a track, cut silence, extract a cover, burn or mux subtitles, export a Reel, or produce a visual/audio effect. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
+version: 0.10.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -49,6 +49,7 @@ A write step is done when the process exits 0 and the output probe matches the r
 | cover / thumbnail / 封面 | `ffkit cover IN --at T -o cover.png` (1080x1920 still) |
 | fade in / fade out / 淡入淡出 | `ffkit fade IN --in 0.3 --out 0.3 -o OUT` |
 | hook text / title card / 片头字 | `ffkit title IN --text "WAIT" --duration 0.8 -o OUT` then `look --at 0.2` |
+| loop / repeat / 循环播放加长 | `ffkit loop IN --times 3 -o OUT` |
 | show me the picture | `ffkit look OUT --tiles 3x2` and/or `--at T` (repeat `--at`) |
 | every file in this folder | `ffkit batch DIR -o OUTDIR -- transcode --preset h264` |
 | filter chain no verb covers | `ffkit graph plan.json` — see [references/graph.md](references/graph.md) |

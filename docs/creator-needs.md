@@ -46,3 +46,5 @@ Landed as PRs to `main` (0.2.0 / 0.3.0). Next:
 6. **Social cover still** — `ffkit cover`. Maps to “封面 / 封面图 / thumbnail”.
 7. **Fade in/out** — `ffkit fade`. Maps to “淡入淡出”.
 8. **Hook title card** — `ffkit title --text`. Maps to “片头字 / hook”.
+9. **Loop / replay length** — `ffkit loop --times`. Maps to “循环 / 加长 Shorts”.
+10. **Stabilize handheld** — `ffkit stabilize` (`deshake`). Maps to “防抖 / 稳定”.
