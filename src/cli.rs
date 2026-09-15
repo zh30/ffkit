@@ -109,6 +109,8 @@ pub enum Cmd {
     Zoom(ZoomArgs),
     /// Sharpen after social re-encode
     Sharpen(SharpenArgs),
+    /// Darken the corners (Reels vignette)
+    Vignette(VignetteArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -458,6 +460,16 @@ pub struct SharpenArgs {
     /// luma unsharp amount (0.3–2)
     #[arg(long, default_value_t = 1.0)]
     pub amount: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct VignetteArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// vignette angle in radians (smaller = stronger; default PI/4)
+    #[arg(long, default_value_t = 0.785)]
+    pub angle: f64,
 }
 
 #[derive(clap::Args, Debug)]
