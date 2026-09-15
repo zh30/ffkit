@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::cli::{CaptionArgs, CaptionMode, Globals};
+use crate::cli::{CaptionArgs, CaptionMode, CaptionSafe, Globals};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -79,7 +79,7 @@ fn burn_overlay(
         argv.push(png);
     }
 
-    let margin = "trunc(H*0.15)";
+    let y = overlay_y(args.safe);
     let mut fc = String::new();
     let mut last = "0:v".to_string();
     for (i, cue) in cues.iter().enumerate() {
@@ -90,7 +90,7 @@ fn burn_overlay(
             format!("v{i}")
         };
         fc.push_str(&format!(
-            "[{last}][{ov_idx}:v]overlay=x=(W-w)/2:y=H-h-{margin}:enable='between(t,{:.3},{:.3})'[{out_lab}]",
+            "[{last}][{ov_idx}:v]overlay=x=(W-w)/2:y={y}:enable='between(t,{:.3},{:.3})'[{out_lab}]",
             cue.start, cue.end
         ));
         if i + 1 != cues.len() {
@@ -116,6 +116,22 @@ fn burn_overlay(
         "renderer": "overlay",
         "cues": cues.len(),
         "font": font_path.display().to_string(),
+        "safe": match args.safe {
+            CaptionSafe::Social => "social",
+            CaptionSafe::Off => "off",
+        },
+        "bottom_frac": match args.safe {
+            CaptionSafe::Social => 0.20,
+            CaptionSafe::Off => 0.15,
+        },
     }));
     Ok(c)
+}
+
+fn overlay_y(safe: CaptionSafe) -> &'static str {
+    match safe {
+        // Cross-post 2026 chrome: bottom ~20% (TikTok 320–350px / Reels up to 450px on 1920).
+        CaptionSafe::Social => "H-h-trunc(H*0.20)",
+        CaptionSafe::Off => "H-h-trunc(H*0.15)",
+    }
 }

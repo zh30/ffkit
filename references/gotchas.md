@@ -18,7 +18,7 @@ A single-pass `ffmpeg -i in out.gif` looks dirty. `transcode --preset gif` runs 
 
 ## Subtitles
 
-`caption --mode burn` rasterizes SRT cues and `overlay`s them (works without libass / `drawtext`). Pass `--font` if no Arial/DejaVu is on disk. Place text in the frame’s lower safe zone (~15% from the bottom). `--mode mux` keeps toggleable soft subs and does not show in-feed on mute.
+`caption --mode burn` rasterizes SRT cues and `overlay`s them (works without libass / `drawtext`). Default `--safe social` sits the burn-in **above the bottom 20%** (TikTok/Reels chrome; top 15% is also dead). `--safe off` is the old 15% bottom margin. Pass `--font` if no Arial/DejaVu is on disk. `--mode mux` keeps toggleable soft subs and does not show in-feed on mute.
 
 ## iPhone VFR
 

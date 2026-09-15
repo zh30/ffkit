@@ -4,6 +4,11 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-09-15
+
+- `caption --mode burn` defaults to `--safe social` (above the bottom 20% of the frame)
+- Remaining 2026 creator-gap research in `docs/creator-needs.md`
+
 ## [0.22.1] — 2026-09-15
 
 - README.md is English by default; Chinese lives in README.zh.md (edit both together)

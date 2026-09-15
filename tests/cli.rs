@@ -409,6 +409,92 @@ fn caption_burn_overlay_without_libass() {
 }
 
 #[test]
+fn caption_burn_social_clears_bottom_fifth() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = dir.path().join("blue.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0x0033aa:s=360x640:d=1:rate=30",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:v",
+            "libx264",
+        ])
+        .arg(&f)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:01,000\nHELLO\n").unwrap();
+    let out = dir.path().join("burn.mp4");
+    let mut args = vec![
+        "caption".to_string(),
+        f.to_string_lossy().into_owned(),
+        "--srt".into(),
+        srt.to_string_lossy().into_owned(),
+        "--mode".into(),
+        "burn".into(),
+        "-o".into(),
+        out.to_string_lossy().into_owned(),
+    ];
+    let arial = "/System/Library/Fonts/Supplemental/Arial.ttf";
+    if std::path::Path::new(arial).is_file() {
+        args.push("--font".into());
+        args.push(arial.into());
+    }
+    let argv: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    let v = run_json(&argv);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["safe"], "social", "{v}");
+    assert!((v["extra"]["bottom_frac"].as_f64().unwrap() - 0.20).abs() < 1e-6);
+
+    let frame = dir.path().join("cap.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let (w, h) = img.dimensions();
+    let y0 = (h as f64 * 0.80).ceil() as u32;
+    let mut white_all = 0u32;
+    let mut white_bottom = 0u32;
+    for y in 0..h {
+        for x in 0..w {
+            let p = img.get_pixel(x, y);
+            if p[0] > 230 && p[1] > 230 && p[2] > 230 {
+                white_all += 1;
+                if y >= y0 {
+                    white_bottom += 1;
+                }
+            }
+        }
+    }
+    assert!(
+        white_all > 20,
+        "caption glyphs should be visible, got {white_all} white pixels"
+    );
+    assert_eq!(
+        white_bottom, 0,
+        "social safe-zone must keep burn-in above the bottom 20% ({white_bottom} white pixels in y>={y0} of {w}x{h})"
+    );
+}
+
+#[test]
 fn deliver_social_1080x1920() {
     if !has_ffmpeg() {
         return;

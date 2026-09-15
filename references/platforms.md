@@ -10,6 +10,6 @@ Destination implied by the user (Reels, Shorts, TikTok, YouTube, GIF) picks fram
 | Podcast audio | no picture | — | `-I -16 --tp -1.5` | `extract` to wav/m4a, then `loudnorm` |
 | GIF preview | short, ≤480px wide | — | no audio | `transcode --preset gif` |
 
-Safe-area captions on 9:16: keep burn-in away from the top and bottom ~250 px (platform UI). `look` the result.
+Safe-area captions on 9:16: `caption --mode burn` defaults to `--safe social` (above the bottom 20%). Union rectangle is ~900×1400 centered in 1080×1920. `look` the result.
 
 If the user says "export" / "post" / "deliver" without a platform, `ffkit deliver --platform social` (same 1080×1920 pack). A plain cut or extract keeps the source format.
