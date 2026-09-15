@@ -54,3 +54,5 @@ Landed as PRs to `main` (0.2.0 / 0.3.0). Next:
 14. **Sharpen** — `ffkit sharpen`. Maps to “更清晰 / 锐化”.
 15. **Vignette** — `ffkit vignette`. Maps to “暗角”.
 16. **Black and white** — `ffkit bw`. Maps to “黑白”.
+17. **Simple volume** — `ffkit volume --db`. Maps to “再大声一点 / 小声点”.
+18. **Blur** — `ffkit blur`. Maps to “模糊 / 马赛克感”.

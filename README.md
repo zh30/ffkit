@@ -102,6 +102,7 @@ ffkit transcode clip.mp4 --preset gif -o preview.gif --json
 | `sharpen` | 锐化（unsharp） |
 | `vignette` | 暗角 |
 | `bw` | 黑白 |
+| `volume` | 音量 ±dB（平台响度请用 `loudnorm`） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |
 | `ffmpeg` | 受保护的原生 ffmpeg，**必须** `--because REASON` |

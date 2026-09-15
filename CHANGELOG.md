@@ -4,6 +4,10 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-09-15
+
+- `ffkit volume --db`: simple gain (not LUFS)
+
 ## [0.17.0] — 2026-09-15
 
 - `ffkit bw`: strip color (`hue=s=0`)

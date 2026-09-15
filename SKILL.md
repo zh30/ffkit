@@ -1,7 +1,7 @@
 ---
 name: ffkit
-description: Operate local video and audio with the ffkit CLI wrapping FFmpeg: probe, cut, concat, fit, overlay, caption (mux or burn-in), extract, transcode, deliver (9:16 social export), speed, music, jumpcut, cover stills, fade in/out, title/hook text, loop, stabilize, reverse, grade, zoom/punch-in, sharpen, vignette, black-and-white, loudness, batch, filter graphs, and raw ffmpeg with --because. Use when the user mentions a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, captions, overlay, BGM, cover, thumbnail, fade, title, hook, loop, shake, reverse, color grade, zoom, punch-in, sharpen, vignette, black and white, transcode, ffmpeg, Reel/Short/TikTok/YouTube, or asks to trim, join, resize, speed up, add a track, cut silence, extract a cover, burn or mux subtitles, export a Reel, or produce a visual/audio effect. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
-version: 0.17.0
+description: Operate local video and audio with the ffkit CLI wrapping FFmpeg: probe, cut, concat, fit, overlay, caption (mux or burn-in), extract, transcode, deliver (9:16 social export), speed, music, jumpcut, cover stills, fade in/out, title/hook text, loop, stabilize, reverse, grade, zoom/punch-in, sharpen, vignette, black-and-white, volume dB, loudness, batch, filter graphs, and raw ffmpeg with --because. Use when the user mentions a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, captions, overlay, BGM, cover, thumbnail, fade, title, hook, loop, shake, reverse, color grade, zoom, punch-in, sharpen, vignette, black and white, volume, louder, quieter, transcode, ffmpeg, Reel/Short/TikTok/YouTube, or asks to trim, join, resize, speed up, add a track, cut silence, extract a cover, burn or mux subtitles, export a Reel, or produce a visual/audio effect. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
+version: 0.18.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -41,6 +41,7 @@ A write step is done when the process exits 0 and the output probe matches the r
 | burn captions / mute viewing | `ffkit caption IN --srt subs.srt --mode burn -o OUT` then `look --at` a cue time (raster overlay; no libass) |
 | extract audio / a frame / subs | `ffkit extract IN -o OUT.wav` (extension picks the stream; `--at T` for a still) |
 | louder / match LUFS | `ffkit loudnorm IN -o OUT` (`-I -16` podcast, `-I -14` social) |
+| a bit louder / quieter / 音量 | `ffkit volume IN --db 3 -o OUT` (not LUFS; use loudnorm to match platforms) |
 | web mp4 / webm / gif | `ffkit transcode IN --preset h264 -o OUT.mp4` (`webm`, `gif`) |
 | make this a Reel / TikTok / Short / 9:16 social export | `ffkit deliver IN --platform reels -o OUT` (1080x1920, 30fps, −14 LUFS, h264+aac+faststart) |
 | speed up / slow-mo / 1.5x | `ffkit speed IN --factor 1.5 -o OUT` (2 = twice as fast; pitch kept) |
