@@ -20,4 +20,5 @@ pub mod stabilize;
 pub mod title;
 pub mod transcode;
 pub mod vignette;
+pub mod volume;
 pub mod zoom;

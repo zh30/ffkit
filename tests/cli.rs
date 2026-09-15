@@ -1091,6 +1091,56 @@ fn bw_drops_chroma() {
 }
 
 #[test]
+fn volume_db_lowers_mean() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("quiet.mp4");
+    let v = run_json(&[
+        "volume",
+        f.to_str().unwrap(),
+        "--db",
+        "-6",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let mean = v["extra"]["mean_volume"]
+        .as_f64()
+        .expect("mean_volume in extra");
+    let src = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-i",
+            f.to_str().unwrap(),
+            "-af",
+            "volumedetect",
+            "-vn",
+            "-f",
+            "null",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let err = String::from_utf8_lossy(&src.stderr);
+    let src_mean = err
+        .lines()
+        .find_map(|l| {
+            l.split("mean_volume:")
+                .nth(1)
+                .and_then(|r| r.split_whitespace().next())
+                .and_then(|t| t.parse::<f64>().ok())
+        })
+        .expect("source mean_volume");
+    assert!(
+        mean < src_mean - 2.5,
+        "−6 dB should drop mean_volume ({src_mean} -> {mean}); {v}"
+    );
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])

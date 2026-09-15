@@ -114,6 +114,8 @@ pub enum Cmd {
     /// Strip color (black and white)
     #[command(name = "bw")]
     Bw(BwArgs),
+    /// Raise or lower gain in dB (not LUFS)
+    Volume(VolumeArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -480,6 +482,16 @@ pub struct BwArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct VolumeArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Gain in dB (negative = quieter)
+    #[arg(long, allow_hyphen_values = true)]
+    pub db: f64,
 }
 
 #[derive(clap::Args, Debug)]
