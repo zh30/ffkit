@@ -4,6 +4,10 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.24.1] — 2026-09-15
+
+- `broll` delays the insert with `setpts` so `--at` plays B-roll from its first frame (short clips no longer freeze)
+
 ## [0.24.0] — 2026-09-15
 
 - `ffkit broll --insert --at --duration`: cut away to B-roll; A-roll audio and duration stay

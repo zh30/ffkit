@@ -40,14 +40,19 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.input);
     argv.push("-i");
     argv.push(&args.insert);
+    // Shift B so its first frame lands at --at on A's timeline. Without this,
+    // a short insert (e.g. 0.5s B at --at 1) has already EOF'd and overlay
+    // freezes the last frame for the whole window.
     let fc = format!(
-        "[1:v]{scale},setsar=1,format=yuv420p[br];[0:v][br]overlay=0:0:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
+        "[1:v]{scale},setsar=1,format=yuv420p,setpts=PTS-STARTPTS+{at:.3}/TB[br];[0:v][br]overlay=0:0:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
     );
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if a.has_audio {
         argv.extend(["-map", "0:a", "-c:a", "copy"]);
     }
     argv.extend(["-c:v", "libx264", "-preset", "fast", "-crf", "18"]);
+    // Delayed B can outlast A on the overlay timeline; pin output to A-roll length.
+    argv.extend(["-t", &format!("{:.3}", a.duration)]);
     argv.push(&args.output);
 
     let inputs: Vec<&Path> = vec![&args.input, &args.insert];
