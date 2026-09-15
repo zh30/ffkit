@@ -1,0 +1,59 @@
+pub mod batch;
+pub mod cli;
+pub mod contract;
+pub mod doctor;
+pub mod embed;
+pub mod engine;
+pub mod error;
+pub mod ffmpeg_raw;
+pub mod graph;
+pub mod install;
+pub mod look;
+pub mod paths;
+pub mod probe;
+pub mod spawn;
+pub mod time;
+pub mod verbs;
+pub mod version;
+
+use clap::CommandFactory;
+
+use crate::cli::{Cli, Cmd, Globals};
+use crate::contract::Contract;
+use crate::error::Error;
+
+pub fn run(cli: Cli) -> Result<Contract, Error> {
+    let g = Globals::from(&cli);
+    match cli.cmd {
+        Cmd::Doctor => doctor::run(&g),
+        Cmd::Probe { input } => {
+            let p = probe::probe(&input, g.timeout)?;
+            Ok(Contract::ok("probe", Some(paths::display(&input)), Some(p)))
+        }
+        Cmd::Look(args) => look::run(args, &g),
+        Cmd::Cut(args) => verbs::cut::run(args, &g),
+        Cmd::Concat(args) => verbs::concat::run(args, &g),
+        Cmd::Fit(args) => verbs::fit::run(args, &g),
+        Cmd::Extract(args) => verbs::extract::run(args, &g),
+        Cmd::Overlay(args) => verbs::overlay::run(args, &g),
+        Cmd::Caption(args) => verbs::caption::run(args, &g),
+        Cmd::Loudnorm(args) => verbs::loudnorm::run(args, &g),
+        Cmd::Transcode(args) => verbs::transcode::run(args, &g),
+        Cmd::Batch(args) => batch::run(args, &g),
+        Cmd::Graph { plan } => graph::run(plan, &g),
+        Cmd::Ffmpeg { because, args } => ffmpeg_raw::run(because, args, &g),
+        Cmd::InstallSkill => install::run(g.dry_run),
+        Cmd::Version { check } => version::run(check),
+    }
+}
+
+pub fn clap_command() -> clap::Command {
+    Cli::command()
+}
+
+pub fn verb_names() -> Vec<String> {
+    clap_command()
+        .get_subcommands()
+        .map(|c| c.get_name().to_string())
+        .collect()
+}
