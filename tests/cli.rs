@@ -508,6 +508,60 @@ fn music_ducks_bed_to_talk_duration() {
 }
 
 #[test]
+fn jumpcut_drops_middle_silence() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = dir.path().join("gaps.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1.2:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1.2",
+            "-af",
+            "volume=0:enable='between(t,0.4,0.9)'",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&f)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let out = dir.path().join("tight.mp4");
+    let v = run_json(&[
+        "jumpcut",
+        f.to_str().unwrap(),
+        "--min-duration",
+        "0.25",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        d > 0.5 && d < 1.05,
+        "1.2s with ~0.5s silence should land under 1.05s, got {d}; {v}"
+    );
+    assert!(v["extra"]["removed_seconds"].as_f64().unwrap() > 0.2, "{v}");
+    assert!(out.metadata().unwrap().len() > 0);
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])

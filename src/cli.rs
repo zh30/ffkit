@@ -89,6 +89,8 @@ pub enum Cmd {
     Speed(SpeedArgs),
     /// Mix a music bed under speech, with ducking
     Music(MusicArgs),
+    /// Cut internal silence (talking-head jump cuts)
+    Jumpcut(JumpcutArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -318,6 +320,22 @@ pub struct MusicArgs {
     /// Duck the bed when speech is present
     #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     pub duck: bool,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct JumpcutArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Silence threshold in dBFS (more negative = quieter counts as speech)
+    #[arg(long, default_value_t = -30.0, allow_hyphen_values = true)]
+    pub threshold: f64,
+    /// Minimum silence length to cut, seconds
+    #[arg(long, default_value_t = 0.3)]
+    pub min_duration: f64,
+    /// Keep this much silence on each side of a cut, seconds
+    #[arg(long, default_value_t = 0.05)]
+    pub pad: f64,
 }
 
 #[derive(clap::Args, Debug)]
