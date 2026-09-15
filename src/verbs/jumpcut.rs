@@ -4,7 +4,6 @@ use crate::cli::{Globals, JumpcutArgs};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
-use crate::spawn::{self, Argv};
 
 pub fn run(args: JumpcutArgs, g: &Globals) -> Result<Contract, Error> {
     if args.min_duration <= 0.0 || args.min_duration > 30.0 {
@@ -23,9 +22,15 @@ pub fn run(args: JumpcutArgs, g: &Globals) -> Result<Contract, Error> {
     let silences = if g.dry_run {
         Vec::new()
     } else {
-        detect_silences(&args, g, probe.duration)?
+        crate::silence::detect(
+            &args.input,
+            args.threshold,
+            args.min_duration,
+            g.timeout,
+            false,
+        )?
     };
-    let keeps = keep_ranges(probe.duration, &silences, args.pad);
+    let keeps = crate::silence::keep_ranges(probe.duration, &silences, args.pad);
     if keeps.is_empty() {
         return Err(Error::input(
             "jumpcut: clip is all silence at this threshold",
@@ -71,74 +76,6 @@ pub fn run(args: JumpcutArgs, g: &Globals) -> Result<Contract, Error> {
     })))
 }
 
-fn detect_silences(
-    args: &JumpcutArgs,
-    g: &Globals,
-    duration: f64,
-) -> Result<Vec<(f64, f64)>, Error> {
-    let mut detect = Argv::ffmpeg();
-    detect.push("-i");
-    detect.push(&args.input);
-    let af = format!(
-        "silencedetect=noise={}dB:d={}",
-        args.threshold, args.min_duration
-    );
-    detect.extend(["-af", &af, "-vn", "-f", "null", "-"]);
-    let spawned = spawn::run(&detect, g.timeout, false)?;
-    let spawned = spawn::require_ok(&detect, spawned)?;
-    let stderr = spawn::stderr_str(&spawned);
-    Ok(parse_silences(&stderr, duration))
-}
-
-pub(crate) fn parse_silences(stderr: &str, duration: f64) -> Vec<(f64, f64)> {
-    let mut starts = Vec::new();
-    let mut ends = Vec::new();
-    for line in stderr.lines() {
-        if let Some(rest) = line.split("silence_start:").nth(1) {
-            if let Ok(v) = rest.split_whitespace().next().unwrap_or("").parse::<f64>() {
-                starts.push(v);
-            }
-        }
-        if let Some(rest) = line.split("silence_end:").nth(1) {
-            let tok = rest.split('|').next().unwrap_or(rest);
-            if let Ok(v) = tok.split_whitespace().next().unwrap_or("").parse::<f64>() {
-                ends.push(v);
-            }
-        }
-    }
-    let mut out = Vec::new();
-    let n = starts.len().min(ends.len());
-    for i in 0..n {
-        if ends[i] > starts[i] {
-            out.push((starts[i], ends[i]));
-        }
-    }
-    if starts.len() > ends.len() {
-        let s = *starts.last().unwrap();
-        if duration > s {
-            out.push((s, duration));
-        }
-    }
-    out
-}
-
-pub(crate) fn keep_ranges(duration: f64, silences: &[(f64, f64)], pad: f64) -> Vec<(f64, f64)> {
-    let mut keeps = Vec::new();
-    let mut t = 0.0;
-    for &(raw_s, raw_e) in silences {
-        let s = (raw_s + pad).min(raw_e);
-        let e = (raw_e - pad).max(s);
-        if s > t + 0.02 {
-            keeps.push((t, s));
-        }
-        t = e.max(t);
-    }
-    if duration > t + 0.02 {
-        keeps.push((t, duration));
-    }
-    keeps
-}
-
 fn concat_graph(keeps: &[(f64, f64)], has_video: bool) -> String {
     let n = keeps.len();
     let mut fc = String::new();
@@ -165,21 +102,19 @@ fn concat_graph(keeps: &[(f64, f64)], has_video: bool) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn parse_pair() {
         let log = "\
 [silencedetect @ 0x] silence_start: 0.4
 [silencedetect @ 0x] silence_end: 0.9 | silence_duration: 0.5
 ";
-        let s = parse_silences(log, 1.2);
+        let s = crate::silence::parse_silences(log, 1.2);
         assert_eq!(s, vec![(0.4, 0.9)]);
     }
 
     #[test]
     fn keep_splits_middle_silence() {
-        let k = keep_ranges(1.2, &[(0.4, 0.9)], 0.05);
+        let k = crate::silence::keep_ranges(1.2, &[(0.4, 0.9)], 0.05);
         assert_eq!(k.len(), 2);
         assert!((k[0].1 - 0.45).abs() < 1e-6);
         assert!((k[1].0 - 0.85).abs() < 1e-6);

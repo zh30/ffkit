@@ -2,6 +2,10 @@
 
 Read this when a command looks right but the output is wrong, or ffmpeg errors on a filter.
 
+## Rough cut vs jumpcut
+
+`rough` is for a long take after recording: audio-only `silencedetect` (16 kHz mono, no video decode), then either list the islands or encode **only the keep windows** and concat. `jumpcut` re-encodes the whole filtergraph — fine for a short social clip, slow on a 20-minute 4K dump. `rough --copy` is stream-copy (fast, cuts sit on keyframes).
+
 ## Stream copy vs re-encode
 
 `cut` without `--accurate` is keyframe-accurate (`-c copy`). The first frame may sit a few hundred milliseconds before `--start`. Frame-exact cuts need `--accurate` (re-encodes).

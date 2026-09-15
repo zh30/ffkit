@@ -14,6 +14,7 @@ pub mod paths;
 pub mod pipeline;
 pub mod probe;
 pub mod raster;
+pub mod silence;
 pub mod spawn;
 pub mod srt;
 pub mod time;
@@ -48,6 +49,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Speed(args) => verbs::speed::run(args, &g),
         Cmd::Music(args) => verbs::music::run(args, &g),
         Cmd::Jumpcut(args) => verbs::jumpcut::run(args, &g),
+        Cmd::Rough(args) => verbs::rough::run(args, &g),
         Cmd::Cover(args) => verbs::cover::run(args, &g),
         Cmd::Fade(args) => verbs::fade::run(args, &g),
         Cmd::Title(args) => verbs::title::run(args, &g),

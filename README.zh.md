@@ -110,6 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `speed` | 变速（`--factor 2` 加速一倍，口播保持音调） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
 | `jumpcut` | 剪掉口播里的静音停顿 |
+| `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |
 | `cover` | 导出 9:16 封面图（1080×1920） |
 | `fade` | 画面和声音淡入淡出（`--in` / `--out`） |
 | `title` | 片头/hook 大字（`--text`，不依赖 libass） |

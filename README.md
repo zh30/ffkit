@@ -110,6 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `speed` | `--factor 2` is 2×; talking-head keeps pitch |
 | `music` | Bed under speech with ducking (`--track`) |
 | `jumpcut` | Cut silence inside a talking-head take |
+| `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
 | `cover` | 9:16 cover still (1080×1920) |
 | `fade` | Video and audio fade (`--in` / `--out`) |
 | `title` | First-second hook card (`--text`, no libass) |

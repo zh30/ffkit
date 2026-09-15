@@ -91,3 +91,22 @@ User: 口播切一段 B-roll，声音继续.
 ```
 
 Do not write `-o` onto the user's source; pick a new path. Then `ffkit look` at `--at` and after the window.
+
+## Rough cut a long take
+
+User: 刚录完，帮我粗剪。
+
+First `ffkit rough take.mp4 --json` (no `-o`) and quote `extra.keeps` / `speech_seconds`. Then assemble:
+
+```json
+{
+  "goal": "去掉长停顿，拼成一条能看的粗剪",
+  "input": "take.mp4",
+  "expect": { "has_audio": true, "has_video": true, "ext": "mp4" },
+  "steps": [
+    { "tool": "rough", "label": "粗剪", "argv": ["$src", "--min-duration", "0.5", "-o", "rough.mp4"] }
+  ]
+}
+```
+
+`jumpcut` is the wrong hand for a 20-minute dump (it re-encodes the whole timeline). `rough --copy` is faster and keyframe-sloppy.

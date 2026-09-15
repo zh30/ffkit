@@ -16,6 +16,7 @@ pub mod loudnorm;
 pub mod music;
 pub mod overlay;
 pub mod reverse;
+pub mod rough;
 pub mod sharpen;
 pub mod speed;
 pub mod stabilize;

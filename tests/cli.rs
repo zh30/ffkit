@@ -843,6 +843,94 @@ fn jumpcut_drops_middle_silence() {
     assert!(out.metadata().unwrap().len() > 0);
 }
 
+fn gappy_talk(dir: &Path) -> PathBuf {
+    let f = dir.join("gaps.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1.2:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1.2",
+            "-af",
+            "volume=0:enable='between(t,0.4,0.9)'",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&f)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    f
+}
+
+#[test]
+fn rough_lists_speech_islands_without_writing() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = gappy_talk(dir.path());
+    let v = run_json(&[
+        "rough",
+        f.to_str().unwrap(),
+        "--min-duration",
+        "0.25",
+        "--pad",
+        "0.05",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["tool"], "rough");
+    assert!(v["output"].is_null(), "{v}");
+    let kept = v["extra"]["kept"].as_u64().unwrap();
+    assert!(kept >= 2, "expected two speech islands, got {v}");
+    let speech = v["extra"]["speech_seconds"].as_f64().unwrap();
+    assert!(
+        speech > 0.4 && speech < 1.05,
+        "speech should be the take minus the hole, got {speech}; {v}"
+    );
+}
+
+#[test]
+fn rough_assembles_only_speech() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = gappy_talk(dir.path());
+    let out = dir.path().join("rough.mp4");
+    let v = run_json(&[
+        "rough",
+        f.to_str().unwrap(),
+        "--min-duration",
+        "0.25",
+        "--pad",
+        "0.05",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        d > 0.5 && d < 1.05,
+        "assembled rough cut should drop the hole, got {d}; {v}"
+    );
+    assert_eq!(v["probe"]["has_audio"], true, "{v}");
+    assert!(out.metadata().unwrap().len() > 0);
+}
+
 #[test]
 fn cover_is_1080x1920_png() {
     if !has_ffmpeg() {
