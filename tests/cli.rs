@@ -766,6 +766,59 @@ fn stabilize_keeps_duration() {
 }
 
 #[test]
+fn reverse_first_frame_differs_from_source() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("rev.mp4");
+    let v = run_json(&["reverse", f.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(d > 0.8 && d < 1.3, "reverse should keep ~1s, got {d}; {v}");
+    let a = dir.path().join("src.png");
+    let b = dir.path().join("rev.png");
+    assert_eq!(
+        run_json(&[
+            "look",
+            f.to_str().unwrap(),
+            "--at",
+            "0",
+            "-o",
+            a.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    assert_eq!(
+        run_json(&[
+            "look",
+            out.to_str().unwrap(),
+            "--at",
+            "0",
+            "-o",
+            b.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    let pa = image::open(&a).unwrap().to_rgb8();
+    let pb = image::open(&b).unwrap().to_rgb8();
+    let diff: u64 = pa
+        .pixels()
+        .zip(pb.pixels())
+        .map(|(x, y)| {
+            (x[0] as i16 - y[0] as i16).unsigned_abs() as u64
+                + (x[1] as i16 - y[1] as i16).unsigned_abs() as u64
+                + (x[2] as i16 - y[2] as i16).unsigned_abs() as u64
+        })
+        .sum();
+    assert!(
+        diff > 10_000,
+        "reversed t=0 should not match source t=0 (diff={diff})"
+    );
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])

@@ -51,6 +51,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Title(args) => verbs::title::run(args, &g),
         Cmd::Loop(args) => verbs::r#loop::run(args, &g),
         Cmd::Stabilize(args) => verbs::stabilize::run(args, &g),
+        Cmd::Reverse(args) => verbs::reverse::run(args, &g),
         Cmd::Batch(args) => batch::run(args, &g),
         Cmd::Graph { plan } => graph::run(plan, &g),
         Cmd::Ffmpeg { because, args } => ffmpeg_raw::run(because, args, &g),

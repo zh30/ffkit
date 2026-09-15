@@ -4,6 +4,10 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-09-15
+
+- `ffkit reverse`: play picture and sound backwards
+
 ## [0.11.0] — 2026-09-15
 
 - `ffkit stabilize`: deshake handheld footage
