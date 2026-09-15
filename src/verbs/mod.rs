@@ -17,3 +17,4 @@ pub mod speed;
 pub mod stabilize;
 pub mod title;
 pub mod transcode;
+pub mod zoom;

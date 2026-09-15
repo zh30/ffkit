@@ -50,3 +50,5 @@ Landed as PRs to `main` (0.2.0 / 0.3.0). Next:
 10. **Stabilize handheld** — `ffkit stabilize` (`deshake`). Maps to “防抖 / 稳定”.
 11. **Reverse** — `ffkit reverse`. Maps to “倒放”.
 12. **Color grade / pop** — `ffkit grade`. Maps to “调色 / 更艳 / Reels 质感”.
+13. **Punch-in zoom** — `ffkit zoom`. Maps to “推近 / 放大脸”.
+14. **Sharpen** — `ffkit sharpen`. Maps to “更清晰 / 锐化”.
