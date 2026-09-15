@@ -330,6 +330,33 @@ fn caption_and_loudnorm() {
 }
 
 #[test]
+fn deliver_social_1080x1920() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("reel.mp4");
+    let v = run_json(&[
+        "deliver",
+        f.to_str().unwrap(),
+        "--platform",
+        "reels",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"], 1080, "{v}");
+    assert_eq!(v["probe"]["height"], 1920, "{v}");
+    assert_eq!(v["probe"]["has_audio"], true, "{v}");
+    assert_eq!(v["probe"]["has_video"], true, "{v}");
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 0.8, "{v}");
+    assert_eq!(v["extra"]["frame"], "1080x1920");
+    assert!((v["extra"]["target_i"].as_f64().unwrap() + 14.0).abs() < 0.01);
+    assert!(out.metadata().unwrap().len() > 0);
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])

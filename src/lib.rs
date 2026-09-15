@@ -39,6 +39,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Caption(args) => verbs::caption::run(args, &g),
         Cmd::Loudnorm(args) => verbs::loudnorm::run(args, &g),
         Cmd::Transcode(args) => verbs::transcode::run(args, &g),
+        Cmd::Deliver(args) => verbs::deliver::run(args, &g),
         Cmd::Batch(args) => batch::run(args, &g),
         Cmd::Graph { plan } => graph::run(plan, &g),
         Cmd::Ffmpeg { because, args } => ffmpeg_raw::run(because, args, &g),

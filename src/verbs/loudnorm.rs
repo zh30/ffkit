@@ -12,10 +12,7 @@ pub fn run(args: LoudnormArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("loudnorm: input has no audio stream"));
     }
 
-    let filter = format!(
-        "loudnorm=I={}:TP={}:LRA={}:print_format=json",
-        args.i, args.tp, args.lra
-    );
+    let filter = measure_filter(args.i, args.tp, args.lra);
 
     // Keep loglevel high enough for loudnorm's JSON on stderr.
     let mut measure = Argv::ffmpeg();
@@ -45,21 +42,8 @@ pub fn run(args: LoudnormArgs, g: &Globals) -> Result<Contract, Error> {
     let spawned = spawn::run(&measure, g.timeout, false)?;
     let spawned = spawn::require_ok(&measure, spawned)?;
     let stderr = spawn::stderr_str(&spawned);
-    let measured = extract_json_object(&stderr)
-        .ok_or_else(|| Error::ffmpeg("loudnorm first pass did not print JSON"))?;
-    let meas: serde_json::Value = serde_json::from_str(&measured)?;
-
-    let second = format!(
-        "loudnorm=I={}:TP={}:LRA={}:measured_I={}:measured_TP={}:measured_LRA={}:measured_thresh={}:offset={}:linear=true",
-        args.i,
-        args.tp,
-        args.lra,
-        num(&meas, "input_i"),
-        num(&meas, "input_tp"),
-        num(&meas, "input_lra"),
-        num(&meas, "input_thresh"),
-        num(&meas, "target_offset"),
-    );
+    let meas = parse_measured(&stderr)?;
+    let second = apply_filter(args.i, args.tp, args.lra, &meas);
 
     let mut apply = ffmpeg_base(g.progress);
     apply.push("-i");
@@ -80,6 +64,27 @@ pub fn run(args: LoudnormArgs, g: &Globals) -> Result<Contract, Error> {
         "measured": meas,
     }));
     Ok(contract)
+}
+
+pub(crate) fn measure_filter(i: f64, tp: f64, lra: f64) -> String {
+    format!("loudnorm=I={i}:TP={tp}:LRA={lra}:print_format=json")
+}
+
+pub(crate) fn apply_filter(i: f64, tp: f64, lra: f64, meas: &serde_json::Value) -> String {
+    format!(
+        "loudnorm=I={i}:TP={tp}:LRA={lra}:measured_I={}:measured_TP={}:measured_LRA={}:measured_thresh={}:offset={}:linear=true",
+        num(meas, "input_i"),
+        num(meas, "input_tp"),
+        num(meas, "input_lra"),
+        num(meas, "input_thresh"),
+        num(meas, "target_offset"),
+    )
+}
+
+pub(crate) fn parse_measured(stderr: &str) -> Result<serde_json::Value, Error> {
+    let measured = extract_json_object(stderr)
+        .ok_or_else(|| Error::ffmpeg("loudnorm first pass did not print JSON"))?;
+    Ok(serde_json::from_str(&measured)?)
 }
 
 fn num(v: &serde_json::Value, key: &str) -> String {

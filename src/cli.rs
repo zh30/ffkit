@@ -83,6 +83,8 @@ pub enum Cmd {
     Loudnorm(LoudnormArgs),
     /// Transcode to a delivery preset (h264, webm, gif)
     Transcode(TranscodeArgs),
+    /// One-shot 9:16 social export (Reels / TikTok / Shorts)
+    Deliver(DeliverArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -268,6 +270,24 @@ pub enum TranscodePreset {
     H264,
     Webm,
     Gif,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DeliverArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Destination canvas; all map to 1080x1920 / -14 LUFS
+    #[arg(long, value_enum, default_value_t = DeliverPlatform::Social)]
+    pub platform: DeliverPlatform,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum DeliverPlatform {
+    Social,
+    Reels,
+    Tiktok,
+    Shorts,
 }
 
 #[derive(clap::Args, Debug)]

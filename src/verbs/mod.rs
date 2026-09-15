@@ -1,6 +1,7 @@
 pub mod caption;
 pub mod concat;
 pub mod cut;
+pub mod deliver;
 pub mod extract;
 pub mod fit;
 pub mod loudnorm;
