@@ -1432,6 +1432,8 @@ fn pack_release_zip_runs() {
     assert!(unzip.success());
     let folder = dest.join(format!("ffkit-{ver}-{target}"));
     assert!(folder.join("SKILL.md").is_file());
+    assert!(folder.join("README.md").is_file());
+    assert!(folder.join("README.zh.md").is_file());
     assert!(folder.join("install.sh").is_file());
     assert!(folder.join("references/pipeline.md").is_file());
     assert!(folder.join("references/recipes.md").is_file());

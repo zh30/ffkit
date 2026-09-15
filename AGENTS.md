@@ -24,13 +24,14 @@ cargo run -- probe FILE --json
 - Adding a verb only when a plan step is repeatedly error-prone as raw ffmpeg. clap subcommand + `src/verbs/<name>.rs` + one Hands row. `tests/contract.rs` fails if they drift.
 - **One SemVer** for skill + CLI. Canonical: `Cargo.toml` `version`. `SKILL.md` frontmatter `version:` must match (`build.rs` fails the compile otherwise). **Every change that lands on `main` bumps the version** (`scripts/bump-version.sh patch|minor|major`). Record the change under `CHANGELOG.md` `[Unreleased]` before bumping (the script opens a new dated heading).
 - **GitHub Release after every merge.** Push to `main` publishes `vX.Y.Z` with platform zips (`scripts/pack-release.sh` + `scripts/publish-release.sh`). Users install from the zip, not from Source code. Do not merge a PR whose Cargo.toml version is ≤ the latest Release.
-- When behavior, flags, install, or the agent loop change, update the matching copy in the same PR: `README.md`, `SKILL.md`, `references/`, `CHANGELOG.md`. Do not leave docs describing the old flow.
+- When behavior, flags, install, or the agent loop change, update the matching copy in the same PR: `README.md` **and** `README.zh.md` (English is default; Chinese is extra), `SKILL.md`, `references/`, `CHANGELOG.md`. Do not edit one README language and leave the other stale. `tests/contract.rs` checks shared facts and heading counts.
 - After a local install: `cargo install --path . --force && ffkit install-skill`. `ffkit version --check` must stay green. Do not hardcode the version in README.
 - Picture-changing verbs must stay on the `look` path in the skill workflow.
 - Source files are never valid `-o` targets.
 
 ## Layout
 
+- `README.md` — English (GitHub default). `README.zh.md` — Chinese. Edit both together.
 - `SKILL.md` — loaded by Grok / Claude Code / Codex / Cursor
 - `references/` — pipeline schema, recipes, gotchas, graph, platforms; one hop from SKILL.md
 - `src/` — CLI + verbs

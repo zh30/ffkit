@@ -36,15 +36,46 @@ fn skill_version_matches_crate() {
     assert_eq!(version, env!("CARGO_PKG_VERSION"));
 }
 
+const README_LANGS: &[(&str, &str)] = &[
+    ("README.md", include_str!("../README.md")),
+    ("README.zh.md", include_str!("../README.zh.md")),
+];
+
 #[test]
-fn readme_points_at_releases() {
-    let readme = include_str!("../README.md");
-    assert!(
-        readme.contains("/releases"),
-        "README must tell users to download the GitHub Release zip"
-    );
-    assert!(
-        readme.contains("install.sh"),
-        "README must mention ./install.sh from the Release zip"
-    );
+fn readme_languages_stay_in_sync() {
+    let verbs = verb_names();
+    let facts = [
+        "/releases",
+        "install.sh",
+        "ffkit pipeline",
+        "README.md",
+        "README.zh.md",
+    ];
+    let mut heading_counts = Vec::new();
+    for (name, body) in README_LANGS {
+        for fact in facts {
+            assert!(
+                body.contains(fact),
+                "{name} must contain `{fact}` (keep README languages in sync)"
+            );
+        }
+        for verb in &verbs {
+            let mentioned = body.contains(&format!("`{verb}`"))
+                || body.contains(&format!("`ffkit {verb}"))
+                || body.contains(&format!("ffkit {verb} "));
+            assert!(
+                mentioned,
+                "{name} must mention verb `{verb}` like the other README language"
+            );
+        }
+        let headings = body.lines().filter(|l| l.starts_with("##")).count();
+        heading_counts.push((*name, headings));
+    }
+    let first = heading_counts[0].1;
+    for (name, n) in &heading_counts {
+        assert_eq!(
+            *n, first,
+            "{name} has {n} ## headings, README.md has {first}; keep the same sections"
+        );
+    }
 }
