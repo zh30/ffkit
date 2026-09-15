@@ -92,6 +92,7 @@ ffkit transcode clip.mp4 --preset gif -o preview.gif --json
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `cover` | 导出 9:16 封面图（1080×1920） |
+| `fade` | 画面和声音淡入淡出（`--in` / `--out`） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |
 | `ffmpeg` | 受保护的原生 ffmpeg，**必须** `--because REASON` |

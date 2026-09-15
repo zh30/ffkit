@@ -93,6 +93,8 @@ pub enum Cmd {
     Jumpcut(JumpcutArgs),
     /// 9:16 still for Reels / TikTok / Shorts covers
     Cover(CoverArgs),
+    /// Fade video and audio in and/or out
+    Fade(FadeArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -348,6 +350,19 @@ pub struct CoverArgs {
     /// Timestamp to grab; default 0
     #[arg(long)]
     pub at: Option<String>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct FadeArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Fade-in seconds (0 = none)
+    #[arg(long = "in", default_value_t = 0.25)]
+    pub fade_in: f64,
+    /// Fade-out seconds (0 = none)
+    #[arg(long = "out", default_value_t = 0.25)]
+    pub fade_out: f64,
 }
 
 #[derive(clap::Args, Debug)]

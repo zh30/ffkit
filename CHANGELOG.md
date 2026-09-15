@@ -4,6 +4,10 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-09-15
+
+- `ffkit fade --in/--out`: video + audio fade
+
 ## [0.7.0] — 2026-09-15
 
 - `ffkit cover`: 1080×1920 still for Reels / TikTok / Shorts thumbnails
