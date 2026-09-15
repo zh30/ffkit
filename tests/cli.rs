@@ -354,6 +354,97 @@ fn broll_cutaway_keeps_audio_and_duration() {
     );
 }
 
+fn color_clip_dur(dir: &Path, name: &str, color: &str, seconds: f64) -> PathBuf {
+    let out = dir.join(name);
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            &format!("color=c={color}:s=320x240:d={seconds}:rate=30"),
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&out)
+        .status()
+        .expect("color clip");
+    assert!(status.success());
+    out
+}
+
+/// B-roll shorter than --at, first half red / second half green.
+/// Without setpts the window would freeze on green (B already EOF).
+#[test]
+fn broll_plays_insert_from_start() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let aroll = color_clip_dur(dir.path(), "a.mp4", "0x0033aa", 2.0);
+    let red = color_clip_dur(dir.path(), "red.mp4", "0xcc0000", 0.25);
+    let green = color_clip_dur(dir.path(), "green.mp4", "0x00cc00", 0.25);
+    let insert = dir.path().join("b.mp4");
+    let concat = run_json(&[
+        "concat",
+        red.to_str().unwrap(),
+        green.to_str().unwrap(),
+        "-o",
+        insert.to_str().unwrap(),
+    ]);
+    assert_eq!(concat["status"], "ok", "{concat}");
+    let out = dir.path().join("cutaway.mp4");
+    let v = run_json(&[
+        "broll",
+        aroll.to_str().unwrap(),
+        "--insert",
+        insert.to_str().unwrap(),
+        "--at",
+        "0.80",
+        "--duration",
+        "0.50",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 2.0).abs() < 0.2, "A-roll duration ~2s, got {d}; {v}");
+
+    let frame = |at: &str, name: &str| {
+        let p = dir.path().join(name);
+        let look = run_json(&[
+            "look",
+            out.to_str().unwrap(),
+            "--at",
+            at,
+            "-o",
+            p.to_str().unwrap(),
+        ]);
+        assert_eq!(look["status"], "ok", "{look}");
+        mean_rgb(&p)
+    };
+    let early = frame("0.90", "early.png");
+    let late = frame("1.15", "late.png");
+    let after = frame("1.50", "after.png");
+    assert!(
+        early.0 > early.1 + 20.0,
+        "start of cutaway must be B's first half (red), not frozen last frame; got {early:?}"
+    );
+    assert!(
+        late.1 > late.0 + 20.0,
+        "later in the window must be B's second half (green); got {late:?}"
+    );
+    assert!(
+        after.2 > after.0 + 20.0,
+        "after the window A-roll blue returns, got {after:?}"
+    );
+}
+
 #[test]
 fn raw_ffmpeg_and_graph() {
     if !has_ffmpeg() {
