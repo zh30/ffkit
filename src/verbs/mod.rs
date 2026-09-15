@@ -1,5 +1,6 @@
 pub mod caption;
 pub mod concat;
+pub mod cover;
 pub mod cut;
 pub mod deliver;
 pub mod extract;

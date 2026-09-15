@@ -4,6 +4,10 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-09-15
+
+- `ffkit cover`: 1080×1920 still for Reels / TikTok / Shorts thumbnails
+
 ## [0.6.0] — 2026-09-15
 
 - `ffkit jumpcut`: drop internal silence for talking-head jump cuts

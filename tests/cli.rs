@@ -562,6 +562,29 @@ fn jumpcut_drops_middle_silence() {
 }
 
 #[test]
+fn cover_is_1080x1920_png() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("cover.png");
+    let v = run_json(&[
+        "cover",
+        f.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"], 1080, "{v}");
+    assert_eq!(v["probe"]["height"], 1920, "{v}");
+    assert_eq!(v["extra"]["frame"], "1080x1920");
+    assert!(out.metadata().unwrap().len() > 0);
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])
