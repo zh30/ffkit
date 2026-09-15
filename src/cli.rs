@@ -85,6 +85,8 @@ pub enum Cmd {
     Transcode(TranscodeArgs),
     /// One-shot 9:16 social export (Reels / TikTok / Shorts)
     Deliver(DeliverArgs),
+    /// Change playback speed (talking-head 1.1–2×, slow-mo)
+    Speed(SpeedArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -288,6 +290,16 @@ pub enum DeliverPlatform {
     Reels,
     Tiktok,
     Shorts,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SpeedArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Playback factor: 2 = twice as fast, 0.5 = slow-mo
+    #[arg(long)]
+    pub factor: f64,
 }
 
 #[derive(clap::Args, Debug)]

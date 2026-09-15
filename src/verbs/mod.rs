@@ -6,4 +6,5 @@ pub mod extract;
 pub mod fit;
 pub mod loudnorm;
 pub mod overlay;
+pub mod speed;
 pub mod transcode;

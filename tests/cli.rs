@@ -436,6 +436,32 @@ fn deliver_social_1080x1920() {
 }
 
 #[test]
+fn speed_2x_halves_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("fast.mp4");
+    let v = run_json(&[
+        "speed",
+        f.to_str().unwrap(),
+        "--factor",
+        "2",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        d > 0.35 && d < 0.7,
+        "2x of 1s clip should be ~0.5s, got {d}; {v}"
+    );
+    assert_eq!(v["extra"]["factor"], 2.0);
+    assert!(out.metadata().unwrap().len() > 0);
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])

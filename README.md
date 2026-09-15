@@ -88,6 +88,7 @@ ffkit transcode clip.mp4 --preset gif -o preview.gif --json
 | `loudnorm` | EBU R128 两遍（`-I -14` 社交，`-I -16` 播客） |
 | `transcode` | 预设 `h264` / `webm` / `gif` |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
+| `speed` | 变速（`--factor 2` 加速一倍，口播保持音调） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |
 | `ffmpeg` | 受保护的原生 ffmpeg，**必须** `--because REASON` |
