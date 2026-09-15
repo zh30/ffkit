@@ -462,6 +462,52 @@ fn speed_2x_halves_duration() {
 }
 
 #[test]
+fn music_ducks_bed_to_talk_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let talk = fixture(dir.path());
+    let bed = dir.path().join("bed.wav");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=220:duration=2",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&bed)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let out = dir.path().join("mix.mp4");
+    let v = run_json(&[
+        "music",
+        talk.to_str().unwrap(),
+        "--track",
+        bed.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["has_audio"], true, "{v}");
+    assert_eq!(v["probe"]["has_video"], true, "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        d > 0.8 && d < 1.4,
+        "mix should follow the 1s talk, not the 2s bed; got {d}; {v}"
+    );
+    assert_eq!(v["extra"]["duck"], true);
+    assert!(out.metadata().unwrap().len() > 0);
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])

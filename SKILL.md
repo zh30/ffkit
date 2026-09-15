@@ -1,7 +1,7 @@
 ---
 name: ffkit
-description: Operate local video and audio with the ffkit CLI wrapping FFmpeg: probe, cut, concat, fit, overlay, caption (mux or burn-in via overlay, no libass), extract, transcode, deliver (9:16 social export), speed, loudness, batch, filter graphs, and raw ffmpeg with --because. Use when the user mentions a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, captions, overlay, transcode, ffmpeg, Reel/Short/TikTok/YouTube, or asks to trim, join, resize, speed up, slow motion, extract audio, burn or mux subtitles, export a Reel, normalise loudness, or produce a visual/audio effect. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
-version: 0.4.0
+description: Operate local video and audio with the ffkit CLI wrapping FFmpeg: probe, cut, concat, fit, overlay, caption (mux or burn-in via overlay, no libass), extract, transcode, deliver (9:16 social export), speed, music (BGM with ducking), loudness, batch, filter graphs, and raw ffmpeg with --because. Use when the user mentions a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, captions, overlay, BGM, transcode, ffmpeg, Reel/Short/TikTok/YouTube, or asks to trim, join, resize, speed up, add a track, extract audio, burn or mux subtitles, export a Reel, normalise loudness, or produce a visual/audio effect. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
+version: 0.5.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -44,6 +44,7 @@ A write step is done when the process exits 0 and the output probe matches the r
 | web mp4 / webm / gif | `ffkit transcode IN --preset h264 -o OUT.mp4` (`webm`, `gif`) |
 | make this a Reel / TikTok / Short / 9:16 social export | `ffkit deliver IN --platform reels -o OUT` (1080x1920, 30fps, −14 LUFS, h264+aac+faststart) |
 | speed up / slow-mo / 1.5x | `ffkit speed IN --factor 1.5 -o OUT` (2 = twice as fast; pitch kept) |
+| add BGM / 配乐 / duck music under speech | `ffkit music IN --track bed.mp3 -o OUT` (ducks the bed when voice is present) |
 | show me the picture | `ffkit look OUT --tiles 3x2` and/or `--at T` (repeat `--at`) |
 | every file in this folder | `ffkit batch DIR -o OUTDIR -- transcode --preset h264` |
 | filter chain no verb covers | `ffkit graph plan.json` — see [references/graph.md](references/graph.md) |

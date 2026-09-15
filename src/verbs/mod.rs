@@ -5,6 +5,7 @@ pub mod deliver;
 pub mod extract;
 pub mod fit;
 pub mod loudnorm;
+pub mod music;
 pub mod overlay;
 pub mod speed;
 pub mod transcode;
