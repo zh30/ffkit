@@ -52,3 +52,5 @@ Landed as PRs to `main` (0.2.0 / 0.3.0). Next:
 12. **Color grade / pop** — `ffkit grade`. Maps to “调色 / 更艳 / Reels 质感”.
 13. **Punch-in zoom** — `ffkit zoom`. Maps to “推近 / 放大脸”.
 14. **Sharpen** — `ffkit sharpen`. Maps to “更清晰 / 锐化”.
+15. **Vignette** — `ffkit vignette`. Maps to “暗角”.
+16. **Black and white** — `ffkit bw`. Maps to “黑白”.

@@ -55,6 +55,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Grade(args) => verbs::grade::run(args, &g),
         Cmd::Zoom(args) => verbs::zoom::run(args, &g),
         Cmd::Sharpen(args) => verbs::sharpen::run(args, &g),
+        Cmd::Vignette(args) => verbs::vignette::run(args, &g),
         Cmd::Batch(args) => batch::run(args, &g),
         Cmd::Graph { plan } => graph::run(plan, &g),
         Cmd::Ffmpeg { because, args } => ffmpeg_raw::run(because, args, &g),

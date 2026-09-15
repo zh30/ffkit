@@ -999,6 +999,49 @@ fn sharpen_raises_edge_energy() {
 }
 
 #[test]
+fn vignette_darkens_corners() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("v.mp4");
+    let v = run_json(&["vignette", f.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let png = dir.path().join("f.png");
+    assert_eq!(
+        run_json(&[
+            "look",
+            out.to_str().unwrap(),
+            "--at",
+            "0.3",
+            "-o",
+            png.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    let img = image::open(&png).unwrap().to_luma8();
+    let (w, h) = img.dimensions();
+    let luma = |x0: u32, y0: u32, ww: u32, hh: u32| {
+        let mut s = 0u64;
+        let mut n = 0u64;
+        for y in y0..(y0 + hh).min(h) {
+            for x in x0..(x0 + ww).min(w) {
+                s += img.get_pixel(x, y)[0] as u64;
+                n += 1;
+            }
+        }
+        s / n.max(1)
+    };
+    let corner = luma(0, 0, 12, 12);
+    let center = luma(w / 2 - 8, h / 2 - 8, 16, 16);
+    assert!(
+        corner < center,
+        "vignette corners should be darker than center ({corner} vs {center})"
+    );
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])

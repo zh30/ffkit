@@ -4,6 +4,10 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-09-15
+
+- `ffkit vignette`: darken corners for a Reels look
+
 ## [0.15.0] — 2026-09-15
 
 - `ffkit sharpen`: unsharp after social re-encode
