@@ -1,7 +1,7 @@
 ---
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
-version: 0.23.0
+version: 0.24.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -20,7 +20,7 @@ If `ffkit` is missing, install the GitHub Release zip that matches this skill's 
 3. **Probe** each input (`ffkit probe FILE --json`). Numbers in the plan come from that.
 4. **Run the plan.** Two or more writing steps: pipeline JSON then `ffkit pipeline plan.json --json` — [pipeline.md](references/pipeline.md). `goal` is the restated outcome; `expect` is the numbers that make it true; `$src` is `input`, `$in` is the previous output. Adapt a recipe only after they agreed to that scheme — [recipes.md](references/recipes.md). One writing step: that verb. No matching verb: `graph`, then `ffmpeg --because`.
 5. Prefer **lossless** (`cut` copy, mux captions, `loop` concat) unless pixels or samples must change.
-6. Picture changed: `ffkit look`. Overlay/`caption`/`title`: `--at` a time the graphic is on. Fade: `--at 0` vs mid. Cover: inspect the PNG.
+6. Picture changed: `ffkit look`. Overlay/`caption`/`title`: `--at` a time the graphic is on. `broll`: `--at` the cutaway and a time after it. Fade: `--at 0` vs mid. Cover: inspect the PNG.
 7. Never write onto the user's source.
 
 Done when the **original task** is true (`expect` / probe match, and look if the picture changed)—not when the last process exited 0. If `verified` is false, the file exists; revise the plan.
@@ -44,6 +44,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | motion / loop | `speed`, `reverse`, `loop`, `stabilize`, `fade` |
 | picture | `grade`, `bw`, `vignette`, `sharpen`, `blur` |
 | logo / PiP | `overlay` |
+| B-roll cutaway | `broll` (`--insert --at --duration`; A-roll audio stays) |
 | extract | `extract` |
 | many files | `batch` |
 | no verb | `graph` — [graph.md](references/graph.md) |

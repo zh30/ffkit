@@ -77,6 +77,8 @@ pub enum Cmd {
     Extract(ExtractArgs),
     /// Overlay an image or video (logo, PiP)
     Overlay(OverlayArgs),
+    /// Cut away to B-roll; keep A-roll audio and duration
+    Broll(BrollArgs),
     /// Burn or mux subtitles
     Caption(CaptionArgs),
     /// EBU R128 loudness normalisation (two-pass)
@@ -256,6 +258,25 @@ pub struct OverlayArgs {
     pub x: Option<String>,
     #[arg(long)]
     pub y: Option<String>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct BrollArgs {
+    /// A-roll (talking head)
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// B-roll clip to cut away to
+    #[arg(long)]
+    pub insert: PathBuf,
+    /// Start of the cutaway on the A-roll
+    #[arg(long)]
+    pub at: String,
+    /// How long the cutaway lasts
+    #[arg(long)]
+    pub duration: f64,
+    #[arg(long, value_enum, default_value_t = FitMode::Crop)]
+    pub fit: FitMode,
 }
 
 #[derive(clap::Args, Debug)]

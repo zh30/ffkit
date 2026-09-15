@@ -4,6 +4,10 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-09-15
+
+- `ffkit broll --insert --at --duration`: cut away to B-roll; A-roll audio and duration stay
+
 ## [0.23.0] — 2026-09-15
 
 - `caption --mode burn` defaults to `--safe social` (above the bottom 20% of the frame)

@@ -102,6 +102,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …) |
 | `extract` | Audio, a frame, or subtitles from the output extension |
 | `overlay` | Logo, watermark, picture-in-picture |
+| `broll` | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay |
 | `caption` | `--mode mux` soft subs; `burn` overlay raster (no libass); `--safe social` clears the bottom 20% |
 | `loudnorm` | EBU R128 two-pass (`-I -14` social, `-I -16` podcast) |
 | `transcode` | Presets `h264` / `webm` / `gif` |
