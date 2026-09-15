@@ -4,6 +4,10 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-09-15
+
+- `ffkit grade`: Reels-style contrast/saturation/brightness pop (`eq`)
+
 ## [0.12.0] — 2026-09-15
 
 - `ffkit reverse`: play picture and sound backwards

@@ -103,6 +103,8 @@ pub enum Cmd {
     Stabilize(StabilizeArgs),
     /// Play the clip backwards
     Reverse(ReverseArgs),
+    /// Contrast / saturation / brightness pop (Reels look)
+    Grade(GradeArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -419,6 +421,19 @@ pub struct ReverseArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct GradeArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    #[arg(long, default_value_t = 1.12, allow_hyphen_values = true)]
+    pub contrast: f64,
+    #[arg(long, default_value_t = 1.18, allow_hyphen_values = true)]
+    pub saturation: f64,
+    #[arg(long, default_value_t = 0.02, allow_hyphen_values = true)]
+    pub brightness: f64,
 }
 
 #[derive(clap::Args, Debug)]
