@@ -116,6 +116,8 @@ pub enum Cmd {
     Bw(BwArgs),
     /// Raise or lower gain in dB (not LUFS)
     Volume(VolumeArgs),
+    /// Gaussian blur the picture
+    Blur(BlurArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -492,6 +494,16 @@ pub struct VolumeArgs {
     /// Gain in dB (negative = quieter)
     #[arg(long, allow_hyphen_values = true)]
     pub db: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct BlurArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Gaussian sigma (0.5–20)
+    #[arg(long, default_value_t = 2.0)]
+    pub sigma: f64,
 }
 
 #[derive(clap::Args, Debug)]
