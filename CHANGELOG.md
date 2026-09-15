@@ -4,6 +4,11 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.22.0] — 2026-09-15
+
+- GitHub Release zips (binary + skill + `install.sh`) on every versioned merge to `main`
+- README install path is the Release zip; Source code zip is not the bundle
+
 ## [0.21.0] — 2026-09-15
 
 - Pipeline plans take `input` (`$src`), previous output (`$in`), step `label`, and `expect` (sets `verified`)

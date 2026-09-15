@@ -1,7 +1,7 @@
 ---
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
-version: 0.21.0
+version: 0.22.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -11,7 +11,7 @@ The user talks to you. You propose a scheme. Then you use these hands to finish 
 
 `ffkit` is the hands. Flags: `ffkit <verb> --help`. Numbers: `--json` / `--json-brief`. Shared: `--dry-run`, `--json`, `--overwrite`, `--timeout`, `--progress`.
 
-If `ffkit version --check` fails, `ffkit install-skill` and reload. After a missing-tool failure, `ffkit doctor --json`.
+If `ffkit` is missing, install the GitHub Release zip that matches this skill's `version:` (not Source code), then `./install.sh`. If `ffkit version --check` fails, `ffkit install-skill` and reload. After a missing-tool failure, `ffkit doctor --json`.
 
 ## Workflow
 

@@ -1399,3 +1399,49 @@ fn install_skill_dry_run() {
     assert!(v["status"] == "ok" || v["status"] == "dry_run", "{v}");
     assert!(!v["extra"]["targets"].as_array().unwrap().is_empty());
 }
+
+#[test]
+fn pack_release_zip_runs() {
+    let dir = tempfile::tempdir().unwrap();
+    let dist = dir.path();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let pack = root.join("scripts/pack-release.sh");
+    let status = Command::new("bash")
+        .arg(&pack)
+        .env("BIN", env!("CARGO_BIN_EXE_ffkit"))
+        .env("DIST", dist)
+        .current_dir(root)
+        .status()
+        .expect("pack-release.sh");
+    assert!(status.success(), "pack-release.sh failed");
+    let host =
+        String::from_utf8(Command::new("rustc").args(["-vV"]).output().unwrap().stdout).unwrap();
+    let target = host
+        .lines()
+        .find_map(|l| l.strip_prefix("host: "))
+        .expect("rustc host");
+    let ver = env!("CARGO_PKG_VERSION");
+    let zip = dist.join(format!("ffkit-{ver}-{target}.zip"));
+    assert!(zip.is_file(), "missing {zip:?}");
+    let dest = dist.join("out");
+    std::fs::create_dir_all(&dest).unwrap();
+    let unzip = Command::new("unzip")
+        .args(["-q", zip.to_str().unwrap(), "-d", dest.to_str().unwrap()])
+        .status()
+        .expect("unzip");
+    assert!(unzip.success());
+    let folder = dest.join(format!("ffkit-{ver}-{target}"));
+    assert!(folder.join("SKILL.md").is_file());
+    assert!(folder.join("install.sh").is_file());
+    assert!(folder.join("references/pipeline.md").is_file());
+    assert!(folder.join("references/recipes.md").is_file());
+    let bin = folder.join("ffkit");
+    let out = Command::new(&bin)
+        .args(["--json", "version"])
+        .output()
+        .expect("zip ffkit version");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v: Value = serde_json::from_str(&stdout).unwrap_or_else(|_| panic!("{stdout}"));
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["ffkit"], ver, "{v}");
+}

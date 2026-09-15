@@ -1,0 +1,18 @@
+ffkit — unzip and run
+
+./ffkit --help
+./ffkit doctor --json
+
+To put the CLI on PATH and install the Agent skill:
+
+./install.sh
+
+Needs ffmpeg and ffprobe on PATH (macOS: brew install ffmpeg).
+
+macOS "cannot be opened" after a browser download:
+
+xattr -d com.apple.quarantine ffkit
+./install.sh
+
+Use the platform zip attached to the GitHub Release.
+Do not install from the "Source code (zip)" asset — that is the repo, not the runnable bundle.

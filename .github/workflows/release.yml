@@ -1,0 +1,64 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  pack:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: aarch64-apple-darwin
+            extra: ""
+          - os: macos-14
+            target: x86_64-apple-darwin
+            extra: x86_64-apple-darwin
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            extra: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Extra rustc target
+        if: matrix.extra != ''
+        run: rustup target add ${{ matrix.extra }}
+      - name: Install zip
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y zip
+      - name: Pack
+        run: |
+          set -euo pipefail
+          if [ -n "${{ matrix.extra }}" ]; then
+            cargo build --release --locked --target ${{ matrix.target }}
+            BIN="target/${{ matrix.target }}/release/ffkit"
+          else
+            cargo build --release --locked
+            BIN="target/release/ffkit"
+          fi
+          TARGET=${{ matrix.target }} BIN="$BIN" ./scripts/pack-release.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffkit-${{ matrix.target }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  publish:
+    needs: pack
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/publish-release.sh

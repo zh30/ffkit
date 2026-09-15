@@ -72,5 +72,5 @@ cl.write_text(ct.replace(needle, insert, 1))
 print(f"{old} -> {new}")
 PY
 
-echo "Next: cargo test && cargo install --path . --force && ffkit install-skill"
-echo "Tag (optional): git tag v${next}"
+echo "Next: cargo test, merge the PR. Push to main publishes GitHub Release v${next}."
+echo "Local pack: ./scripts/pack-release.sh && ./scripts/publish-release.sh"

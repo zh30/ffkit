@@ -35,3 +35,16 @@ fn skill_version_matches_crate() {
     let version = ffkit::embed::parse_skill_version(skill).expect("frontmatter version:");
     assert_eq!(version, env!("CARGO_PKG_VERSION"));
 }
+
+#[test]
+fn readme_points_at_releases() {
+    let readme = include_str!("../README.md");
+    assert!(
+        readme.contains("/releases"),
+        "README must tell users to download the GitHub Release zip"
+    );
+    assert!(
+        readme.contains("install.sh"),
+        "README must mention ./install.sh from the Release zip"
+    );
+}
