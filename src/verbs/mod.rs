@@ -1,4 +1,5 @@
 pub mod blur;
+pub mod broll;
 pub mod bw;
 pub mod caption;
 pub mod concat;

@@ -40,6 +40,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Fit(args) => verbs::fit::run(args, &g),
         Cmd::Extract(args) => verbs::extract::run(args, &g),
         Cmd::Overlay(args) => verbs::overlay::run(args, &g),
+        Cmd::Broll(args) => verbs::broll::run(args, &g),
         Cmd::Caption(args) => verbs::caption::run(args, &g),
         Cmd::Loudnorm(args) => verbs::loudnorm::run(args, &g),
         Cmd::Transcode(args) => verbs::transcode::run(args, &g),

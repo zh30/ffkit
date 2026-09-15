@@ -249,6 +249,111 @@ fn overlay_and_refuse_source() {
     assert_eq!(v["error"]["kind"], "input");
 }
 
+fn color_clip(dir: &Path, name: &str, color: &str) -> PathBuf {
+    let out = dir.join(name);
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            &format!("color=c={color}:s=320x240:d=1:rate=30"),
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&out)
+        .status()
+        .expect("color clip");
+    assert!(status.success());
+    out
+}
+
+fn mean_rgb(png: &Path) -> (f64, f64, f64) {
+    let img = image::open(png).expect("png").to_rgb8();
+    let n = img.pixels().len() as f64;
+    let mut r = 0.0;
+    let mut g = 0.0;
+    let mut b = 0.0;
+    for p in img.pixels() {
+        r += f64::from(p[0]);
+        g += f64::from(p[1]);
+        b += f64::from(p[2]);
+    }
+    (r / n, g / n, b / n)
+}
+
+#[test]
+fn broll_cutaway_keeps_audio_and_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let aroll = color_clip(dir.path(), "a.mp4", "0x0033aa");
+    let insert = color_clip(dir.path(), "b.mp4", "0xcc0000");
+    let out = dir.path().join("cutaway.mp4");
+    let v = run_json(&[
+        "broll",
+        aroll.to_str().unwrap(),
+        "--insert",
+        insert.to_str().unwrap(),
+        "--at",
+        "0.35",
+        "--duration",
+        "0.30",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["tool"], "broll");
+    assert_eq!(v["probe"]["has_audio"], true, "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        (d - 1.0).abs() < 0.15,
+        "A-roll duration must stay ~1s, got {d}; {v}"
+    );
+
+    let frame = |at: &str, name: &str| {
+        let p = dir.path().join(name);
+        let look = run_json(&[
+            "look",
+            out.to_str().unwrap(),
+            "--at",
+            at,
+            "-o",
+            p.to_str().unwrap(),
+        ]);
+        assert_eq!(look["status"], "ok", "{look}");
+        mean_rgb(&p)
+    };
+    let before = frame("0.10", "t0.png");
+    let mid = frame("0.50", "t1.png");
+    let after = frame("0.90", "t2.png");
+    assert!(
+        before.2 > before.0 + 20.0,
+        "before cutaway should be A-roll blue, got {before:?}"
+    );
+    assert!(
+        mid.0 > mid.2 + 20.0,
+        "during cutaway should be B-roll red, got {mid:?}"
+    );
+    assert!(
+        after.2 > after.0 + 20.0,
+        "after cutaway should return to A-roll blue, got {after:?}"
+    );
+}
+
 #[test]
 fn raw_ffmpeg_and_graph() {
     if !has_ffmpeg() {

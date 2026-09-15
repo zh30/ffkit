@@ -74,3 +74,20 @@ User: 给这段做张 9:16 封面.
 ```
 
 Inspect the PNG (it is the output; no extra `look` unless they asked to compare times).
+
+## B-roll under speech
+
+User: 口播切一段 B-roll，声音继续.
+
+```json
+{
+  "goal": "0.5s 切走 B-roll，口播声音不断",
+  "input": "talk.mp4",
+  "expect": { "has_audio": true, "has_video": true, "ext": "mp4" },
+  "steps": [
+    { "tool": "broll", "label": "切 B-roll", "argv": ["$src", "--insert", "broll.mp4", "--at", "1", "--duration", "0.5", "-o", "with-broll.mp4"] }
+  ]
+}
+```
+
+Do not write `-o` onto the user's source; pick a new path. Then `ffkit look` at `--at` and after the window.
