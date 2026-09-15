@@ -11,6 +11,7 @@ pub mod graph;
 pub mod install;
 pub mod look;
 pub mod paths;
+pub mod pipeline;
 pub mod probe;
 pub mod raster;
 pub mod spawn;
@@ -61,6 +62,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Blur(args) => verbs::blur::run(args, &g),
         Cmd::Batch(args) => batch::run(args, &g),
         Cmd::Graph { plan } => graph::run(plan, &g),
+        Cmd::Pipeline { plan } => pipeline::run(plan, &g),
         Cmd::Ffmpeg { because, args } => ffmpeg_raw::run(because, args, &g),
         Cmd::InstallSkill => install::run(g.dry_run),
         Cmd::Version { check } => version::run(check),

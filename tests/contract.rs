@@ -11,7 +11,7 @@ fn skill_mentions_every_verb() {
             || skill.contains(&format!("ffkit {name} "));
         assert!(
             mentioned,
-            "SKILL.md must mention verb `{name}` so the routing table cannot drift from clap"
+            "SKILL.md Hands inventory must mention verb `{name}` so clap cannot drift"
         );
     }
 }

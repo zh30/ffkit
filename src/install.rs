@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use serde_json::json;
 
 use crate::contract::Contract;
-use crate::embed::{self, GOTCHAS, GRAPH, PLATFORMS, SKILL_MD};
+use crate::embed::{self, GOTCHAS, GRAPH, PIPELINE, PLATFORMS, SKILL_MD};
 use crate::error::Error;
 
 pub fn run(dry_run: bool) -> Result<Contract, Error> {
@@ -26,6 +26,7 @@ pub fn run(dry_run: bool) -> Result<Contract, Error> {
         std::fs::write(dir.join("references/gotchas.md"), GOTCHAS)?;
         std::fs::write(dir.join("references/graph.md"), GRAPH)?;
         std::fs::write(dir.join("references/platforms.md"), PLATFORMS)?;
+        std::fs::write(dir.join("references/pipeline.md"), PIPELINE)?;
         written.push(json!({
             "path": dir.display().to_string(),
             "wrote": true,
