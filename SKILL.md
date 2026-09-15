@@ -1,7 +1,7 @@
 ---
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
-version: 0.20.0
+version: 0.21.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -15,15 +15,15 @@ If `ffkit version --check` fails, `ffkit install-skill` and reload. After a miss
 
 ## Workflow
 
-1. **Chat** until you can restate the outcome in one sentence in their language (what they will post or keep). That sentence is the original task.
+1. **Chat** until you can restate the outcome in one sentence in their language (what they will post or keep). The original task is the **last agreed** outcome, not the first message.
 2. **Propose a plan** of 3–7 steps in their language (not flag soup). If they asked to review first, stop here. If they change the plan, execute the new one.
 3. **Probe** each input (`ffkit probe FILE --json`). Numbers in the plan come from that.
-4. **Run the plan.** Two or more writing steps: write pipeline JSON (`goal` = the restated outcome) and `ffkit pipeline plan.json --json` — [pipeline.md](references/pipeline.md). One writing step: that verb. No matching verb: `graph`, then `ffmpeg --because`.
+4. **Run the plan.** Two or more writing steps: pipeline JSON then `ffkit pipeline plan.json --json` — [pipeline.md](references/pipeline.md). `goal` is the restated outcome; `expect` is the numbers that make it true; `$src` is `input`, `$in` is the previous output. Adapt a recipe only after they agreed to that scheme — [recipes.md](references/recipes.md). One writing step: that verb. No matching verb: `graph`, then `ffmpeg --because`.
 5. Prefer **lossless** (`cut` copy, mux captions, `loop` concat) unless pixels or samples must change.
 6. Picture changed: `ffkit look`. Overlay/`caption`/`title`: `--at` a time the graphic is on. Fade: `--at 0` vs mid. Cover: inspect the PNG.
 7. Never write onto the user's source.
 
-Done when the **original task** is true (probe matches, and look if the picture changed)—not when the last process exited 0.
+Done when the **original task** is true (`expect` / probe match, and look if the picture changed)—not when the last process exited 0. If `verified` is false, the file exists; revise the plan.
 
 Ask one question only when it changes the file and probe cannot answer it. Which cut is interesting, and what looks cinematic, stay with the user.
 
@@ -68,7 +68,8 @@ Notes: …
 
 ## References
 
-- [pipeline.md](references/pipeline.md) — the plan file `ffkit pipeline` runs
+- [pipeline.md](references/pipeline.md) — the plan file `ffkit pipeline` runs (`$src`, `$in`, `expect`)
+- [recipes.md](references/recipes.md) — schemes to adapt after the user agrees
 - [gotchas.md](references/gotchas.md) — VFR, even sizes, concat copy, GIF palette
 - [graph.md](references/graph.md) — filter graph when verbs cannot express a step
 - [platforms.md](references/platforms.md) — Reels / Shorts / YouTube / GIF

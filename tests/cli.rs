@@ -1237,6 +1237,96 @@ fn pipeline_runs_cut_then_fit() {
 }
 
 #[test]
+fn pipeline_src_in_and_expect() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let cut = dir.path().join("01.mp4");
+    let out = dir.path().join("reel.mp4");
+    let plan_path = dir.path().join("plan.json");
+    let plan = serde_json::json!({
+        "goal": "9:16 clip of the first half second",
+        "input": f.to_str().unwrap(),
+        "expect": {
+            "aspect": "9:16",
+            "width": 1080,
+            "height": 1920,
+            "duration_gt": 0.35,
+            "duration_lt": 0.7,
+            "has_video": true,
+            "ext": "mp4"
+        },
+        "steps": [
+            {
+                "tool": "cut",
+                "label": "剪前半秒",
+                "argv": ["$src", "--start", "0", "--end", "0.5", "-o", cut.to_str().unwrap()]
+            },
+            {
+                "tool": "fit",
+                "label": "竖屏",
+                "argv": ["$in", "--aspect", "9:16", "--fit", "pad", "-o", out.to_str().unwrap()]
+            }
+        ]
+    });
+    std::fs::write(&plan_path, serde_json::to_string(&plan).unwrap()).unwrap();
+    let v = run_json(&["pipeline", plan_path.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["verified"], true, "{v}");
+    assert_eq!(v["extra"]["expect"]["ok"], true, "{v}");
+    assert_eq!(v["extra"]["steps"][0]["label"], "剪前半秒");
+    assert_eq!(v["probe"]["width"], 1080, "{v}");
+    assert_eq!(v["probe"]["height"], 1920, "{v}");
+    assert!(out.metadata().unwrap().len() > 0);
+}
+
+#[test]
+fn pipeline_expect_mismatch_keeps_file() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("out.mp4");
+    let plan_path = dir.path().join("plan.json");
+    let plan = serde_json::json!({
+        "goal": "should be two seconds (it will not)",
+        "input": f.to_str().unwrap(),
+        "expect": { "duration_gt": 2.0 },
+        "steps": [{
+            "tool": "cut",
+            "argv": ["$src", "--start", "0", "--end", "0.5", "-o", out.to_str().unwrap()]
+        }]
+    });
+    std::fs::write(&plan_path, serde_json::to_string(&plan).unwrap()).unwrap();
+    let v = run_json(&["pipeline", plan_path.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["verified"], false, "{v}");
+    assert_eq!(v["extra"]["expect"]["ok"], false, "{v}");
+    assert!(out.metadata().unwrap().len() > 0);
+}
+
+#[test]
+fn pipeline_in_on_first_step_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let plan_path = dir.path().join("plan.json");
+    let plan = serde_json::json!({
+        "goal": "no previous output",
+        "steps": [{
+            "tool": "cut",
+            "argv": ["$in", "--start", "0", "--end", "0.5", "-o", "out.mp4"]
+        }]
+    });
+    std::fs::write(&plan_path, serde_json::to_string(&plan).unwrap()).unwrap();
+    let v = run_json(&["pipeline", plan_path.to_str().unwrap()]);
+    assert_eq!(v["status"], "failed", "{v}");
+    let msg = v["error"]["message"].as_str().unwrap_or("");
+    assert!(msg.contains("$in"), "{v}");
+}
+
+#[test]
 fn pipeline_rejects_nested_pipeline() {
     let dir = tempfile::tempdir().unwrap();
     let plan_path = dir.path().join("plan.json");

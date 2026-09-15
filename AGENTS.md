@@ -30,6 +30,6 @@ cargo run -- probe FILE --json
 ## Layout
 
 - `SKILL.md` — loaded by Grok / Claude Code / Codex / Cursor
-- `references/` — gotchas, graph schema, platforms; one hop from SKILL.md
+- `references/` — pipeline schema, recipes, gotchas, graph, platforms; one hop from SKILL.md
 - `src/` — CLI + verbs
 - `tests/` — fixture round-trips against a local ffmpeg
