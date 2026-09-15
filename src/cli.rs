@@ -107,6 +107,8 @@ pub enum Cmd {
     Grade(GradeArgs),
     /// Punch-in / Ken Burns-style center zoom
     Zoom(ZoomArgs),
+    /// Sharpen after social re-encode
+    Sharpen(SharpenArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -446,6 +448,16 @@ pub struct ZoomArgs {
     /// 1.25 = 25% punch-in on the center
     #[arg(long, default_value_t = 1.25)]
     pub factor: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SharpenArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// luma unsharp amount (0.3–2)
+    #[arg(long, default_value_t = 1.0)]
+    pub amount: f64,
 }
 
 #[derive(clap::Args, Debug)]

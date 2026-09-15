@@ -939,6 +939,66 @@ fn zoom_keeps_frame_but_changes_pixels() {
 }
 
 #[test]
+fn sharpen_raises_edge_energy() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("sh.mp4");
+    let v = run_json(&[
+        "sharpen",
+        f.to_str().unwrap(),
+        "--amount",
+        "1.5",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let src = dir.path().join("s.png");
+    let shp = dir.path().join("k.png");
+    assert_eq!(
+        run_json(&[
+            "look",
+            f.to_str().unwrap(),
+            "--at",
+            "0.3",
+            "-o",
+            src.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    assert_eq!(
+        run_json(&[
+            "look",
+            out.to_str().unwrap(),
+            "--at",
+            "0.3",
+            "-o",
+            shp.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    let edge = |p: &std::path::Path| {
+        let img = image::open(p).unwrap().to_luma8();
+        let (w, h) = img.dimensions();
+        let mut e = 0u64;
+        for y in 0..h.saturating_sub(1) {
+            for x in 0..w.saturating_sub(1) {
+                let p0 = img.get_pixel(x, y)[0] as i16;
+                let pr = img.get_pixel(x + 1, y)[0] as i16;
+                let pd = img.get_pixel(x, y + 1)[0] as i16;
+                e += (p0 - pr).unsigned_abs() as u64 + (p0 - pd).unsigned_abs() as u64;
+            }
+        }
+        e
+    };
+    let a = edge(&src);
+    let b = edge(&shp);
+    assert!(b > a, "unsharp should raise edge energy ({a} -> {b})");
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])

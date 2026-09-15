@@ -99,6 +99,7 @@ ffkit transcode clip.mp4 --preset gif -o preview.gif --json
 | `reverse` | 倒放画面和声音 |
 | `grade` | 调色（对比/饱和/亮度，Reels 默认微抬） |
 | `zoom` | 中心推近（`--factor 1.25`） |
+| `sharpen` | 锐化（unsharp） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |
 | `ffmpeg` | 受保护的原生 ffmpeg，**必须** `--because REASON` |
