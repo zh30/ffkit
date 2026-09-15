@@ -102,7 +102,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…） |
 | `extract` | 按输出扩展名抽音频、帧、字幕 |
 | `overlay` | logo、水印、画中画 |
-| `caption` | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass） |
+| `caption` | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass）；`--safe social` 避开底部 20% |
 | `loudnorm` | EBU R128 两遍（`-I -14` 社交，`-I -16` 播客） |
 | `transcode` | 预设 `h264` / `webm` / `gif` |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |

@@ -267,6 +267,9 @@ pub struct CaptionArgs {
     pub srt: PathBuf,
     #[arg(long, value_enum, default_value_t = CaptionMode::Burn)]
     pub mode: CaptionMode,
+    /// Burn-in placement: `social` clears bottom 20% / top 15% (TikTok/Reels chrome); `off` is the old 15% bottom margin
+    #[arg(long, value_enum, default_value_t = CaptionSafe::Social)]
+    pub safe: CaptionSafe,
     #[arg(long)]
     pub font: Option<String>,
 }
@@ -275,6 +278,12 @@ pub struct CaptionArgs {
 pub enum CaptionMode {
     Burn,
     Mux,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum CaptionSafe {
+    Social,
+    Off,
 }
 
 #[derive(clap::Args, Debug)]
