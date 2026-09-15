@@ -4,6 +4,11 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-09-15
+
+- Pipeline plans take `input` (`$src`), previous output (`$in`), step `label`, and `expect` (sets `verified`)
+- Recipe schemes in `references/recipes.md` to adapt after the user agrees
+
 ## [0.20.0] — 2026-09-15
 
 - Skill loop is chat → proposed scheme → hands finish the original task (not a verb menu)

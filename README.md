@@ -65,7 +65,7 @@ Agent 应加载 **ffkit** skill（`/ffkit` 或自动触发）：先跟用户把�
 
 ```bash
 ffkit probe clip.mp4 --json
-ffkit pipeline plan.json --json    # 多步方案
+ffkit pipeline plan.json --json    # 多步方案（$src / $in / expect）
 ffkit look branded.mp4 --at 1 -o frame.png
 ```
 
@@ -102,7 +102,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `volume` | 音量 ±dB（平台响度请用 `loudnorm`） |
 | `blur` | 高斯模糊（`--sigma`） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
-| `pipeline` | 按 JSON 方案顺序执行多步（Agent 的「方案」） |
+| `pipeline` | 按 JSON 方案顺序执行多步（`$src` / `$in` / `expect`） |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |
 | `ffmpeg` | 受保护的原生 ffmpeg，**必须** `--because REASON` |
 | `install-skill` | 把 skill 写入宿主目录 |
