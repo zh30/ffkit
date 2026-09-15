@@ -585,6 +585,66 @@ fn cover_is_1080x1920_png() {
 }
 
 #[test]
+fn fade_in_darkens_first_frame() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("faded.mp4");
+    let v = run_json(&[
+        "fade",
+        f.to_str().unwrap(),
+        "--in",
+        "0.4",
+        "--out",
+        "0.2",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 0.8, "{v}");
+    let start = dir.path().join("t0.png");
+    let mid = dir.path().join("t5.png");
+    assert_eq!(
+        run_json(&[
+            "look",
+            out.to_str().unwrap(),
+            "--at",
+            "0",
+            "-o",
+            start.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    assert_eq!(
+        run_json(&[
+            "look",
+            out.to_str().unwrap(),
+            "--at",
+            "0.5",
+            "-o",
+            mid.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    let luma = |p: &Path| {
+        let img = image::open(p).unwrap().to_rgb8();
+        let s: u64 = img
+            .pixels()
+            .map(|px| px[0] as u64 + px[1] as u64 + px[2] as u64)
+            .sum();
+        s / (img.width() as u64 * img.height() as u64)
+    };
+    let a = luma(&start);
+    let b = luma(&mid);
+    assert!(
+        a < b,
+        "fade-in first frame should be darker than mid-clip ({a} vs {b})"
+    );
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])

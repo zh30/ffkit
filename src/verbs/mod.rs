@@ -4,6 +4,7 @@ pub mod cover;
 pub mod cut;
 pub mod deliver;
 pub mod extract;
+pub mod fade;
 pub mod fit;
 pub mod jumpcut;
 pub mod loudnorm;

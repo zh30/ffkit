@@ -44,3 +44,5 @@ Landed as PRs to `main` (0.2.0 / 0.3.0). Next:
 4. **Music under speech** — `ffkit music --track BGM` with `sidechaincompress` ducking. Maps to “加 BGM / 配乐压人声”.
 5. **Silence jump-cuts** — `ffkit jumpcut`. Maps to “剪掉停顿 / jump cut”.
 6. **Social cover still** — `ffkit cover`. Maps to “封面 / 封面图 / thumbnail”.
+7. **Fade in/out** — `ffkit fade`. Maps to “淡入淡出”.
+8. **Hook title card** — `ffkit title --text`. Maps to “片头字 / hook”.
