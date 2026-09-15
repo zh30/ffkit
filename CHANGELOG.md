@@ -4,6 +4,11 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-09-15
+
+- Skill loop is chat → proposed scheme → hands finish the original task (not a verb menu)
+- `ffkit pipeline plan.json` runs that scheme (stops on first failure)
+
 ## [0.19.0] — 2026-09-15
 
 - `ffkit blur --sigma`: gaussian blur (`gblur`)

@@ -1201,6 +1201,76 @@ fn blur_lowers_edge_energy() {
 }
 
 #[test]
+fn pipeline_runs_cut_then_fit() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let cut = dir.path().join("01.mp4");
+    let out = dir.path().join("reel.mp4");
+    let plan_path = dir.path().join("plan.json");
+    let plan = serde_json::json!({
+        "goal": "9:16 clip of the first half second",
+        "steps": [
+            {
+                "tool": "cut",
+                "argv": [f.to_str().unwrap(), "--start", "0", "--end", "0.5", "-o", cut.to_str().unwrap()]
+            },
+            {
+                "tool": "fit",
+                "argv": [cut.to_str().unwrap(), "--aspect", "9:16", "--fit", "pad", "-o", out.to_str().unwrap()]
+            }
+        ]
+    });
+    std::fs::write(&plan_path, serde_json::to_string(&plan).unwrap()).unwrap();
+    let v = run_json(&["pipeline", plan_path.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["tool"], "pipeline");
+    assert_eq!(v["extra"]["goal"], "9:16 clip of the first half second");
+    assert_eq!(v["probe"]["width"], 1080, "{v}");
+    assert_eq!(v["probe"]["height"], 1920, "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(d > 0.35 && d < 0.7, "cut to 0.5s then fit, got {d}; {v}");
+    assert_eq!(v["extra"]["steps"].as_array().unwrap().len(), 2);
+    assert!(out.metadata().unwrap().len() > 0);
+}
+
+#[test]
+fn pipeline_rejects_nested_pipeline() {
+    let dir = tempfile::tempdir().unwrap();
+    let plan_path = dir.path().join("plan.json");
+    let plan = serde_json::json!({
+        "goal": "must not recurse",
+        "steps": [{"tool": "pipeline", "argv": ["other.json"]}]
+    });
+    std::fs::write(&plan_path, serde_json::to_string(&plan).unwrap()).unwrap();
+    let v = run_json(&["pipeline", plan_path.to_str().unwrap()]);
+    assert_eq!(v["status"], "failed", "{v}");
+    let msg = v["error"]["message"].as_str().unwrap_or("");
+    assert!(msg.contains("pipeline"), "{v}");
+}
+
+#[test]
+fn pipeline_ffmpeg_step_needs_because() {
+    let dir = tempfile::tempdir().unwrap();
+    let plan_path = dir.path().join("plan.json");
+    let out = dir.path().join("out.mp4");
+    let plan = serde_json::json!({
+        "goal": "raw ffmpeg without because",
+        "steps": [{
+            "tool": "ffmpeg",
+            "argv": ["--", "-i", "in.mp4", out.to_str().unwrap()]
+        }]
+    });
+    std::fs::write(&plan_path, serde_json::to_string(&plan).unwrap()).unwrap();
+    let v = run_json(&["pipeline", plan_path.to_str().unwrap()]);
+    assert_eq!(v["status"], "failed", "{v}");
+    let msg = v["error"]["message"].as_str().unwrap_or("");
+    assert!(msg.contains("because"), "{v}");
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])

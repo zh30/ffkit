@@ -1,8 +1,8 @@
 # ffkit
 
-给本地 AI Agent 用的 FFmpeg 桥梁：skill 是大脑，Rust CLI 是手，本机 `ffmpeg` / `ffprobe` 是引擎。素材不上传、不走云 API。
+给本地 AI Agent 用的 FFmpeg 桥梁：用户跟 Agent 聊要什么成片，Agent 先出方案，再调用 `ffkit` 的手去执行。本机 `ffmpeg` / `ffprobe` 是引擎。素材不上传。
 
-Agent 接到「剪前 5 秒、做成 9:16、加 logo」时，应走 `ffkit`，而不是现场拼一条 ffmpeg。
+不要把 skill 当成「模糊 / 暗角 / 黑白」按钮面板。多步成片写成 `pipeline` JSON，一次跑完。
 
 ## 依赖
 
@@ -10,7 +10,7 @@ Agent 接到「剪前 5 秒、做成 9:16、加 logo」时，应走 `ffkit`，�
 - 本机 `ffmpeg` 和 `ffprobe` 在 `PATH` 上  
   macOS：`brew install ffmpeg`
 
-能力面等于 **这一份 ffmpeg 的编译选项**。`ffkit doctor --json` 列出实际有的 encoder / filter。烧字幕（`caption --mode burn`）需要带 libass 的构建；没有就用 `--mode mux`。
+能力面等于 **这一份 ffmpeg 的编译选项**。`ffkit doctor --json` 列出实际有的 encoder / filter。`caption --mode burn` 走 overlay 栅格化，不依赖 libass。
 
 ## 安装
 
@@ -57,7 +57,7 @@ ffkit install-skill
 - 抽成 wav，响度对齐到 -16 LUFS
 - 右上角加 logo.png，再转成 GIF
 
-Agent 应加载 **ffkit** skill（`/ffkit` 或自动触发），按 probe → 动词 → look → JSON 数字汇报。完整工作流在 [`SKILL.md`](SKILL.md)。
+Agent 应加载 **ffkit** skill（`/ffkit` 或自动触发）：先跟用户把成片说清楚并给出方案，再用 `ffkit pipeline`（或单步动词）执行，最后对照**最初目标**用 `--json` 数字汇报。完整工作流在 [`SKILL.md`](SKILL.md)。
 
 ## 自己跑 CLI
 
@@ -65,11 +65,8 @@ Agent 应加载 **ffkit** skill（`/ffkit` 或自动触发），按 probe → �
 
 ```bash
 ffkit probe clip.mp4 --json
-ffkit cut clip.mp4 --start 0 --end 5 -o cut.mp4 --json
-ffkit fit cut.mp4 --aspect 9:16 --fit pad -o vertical.mp4 --json
-ffkit overlay vertical.mp4 --image logo.png --position top-right -o branded.mp4 --json
+ffkit pipeline plan.json --json    # 多步方案
 ffkit look branded.mp4 --at 1 -o frame.png
-ffkit transcode clip.mp4 --preset gif -o preview.gif --json
 ```
 
 ### 动词
@@ -105,12 +102,13 @@ ffkit transcode clip.mp4 --preset gif -o preview.gif --json
 | `volume` | 音量 ±dB（平台响度请用 `loudnorm`） |
 | `blur` | 高斯模糊（`--sigma`） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
+| `pipeline` | 按 JSON 方案顺序执行多步（Agent 的「方案」） |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |
 | `ffmpeg` | 受保护的原生 ffmpeg，**必须** `--because REASON` |
 | `install-skill` | 把 skill 写入宿主目录 |
 | `version` | 二进制 / 嵌入 skill / 已安装拷贝；`--check` 校验 |
 
-三层路由：动词 → `graph` → `ffkit ffmpeg --because … --`。最后一层要写清「哪个动词或 graph 字段不够」。
+对话出方案，方案落成 `pipeline`。单步用动词；没有动词再用 `graph`，再不行才 `ffmpeg --because`（写清哪个动词或 graph 字段不够）。
 
 ## 开发
 
@@ -120,6 +118,6 @@ cargo clippy --all-targets -- -D warnings
 cargo fmt
 ```
 
-改动词时同步改 `SKILL.md` 路由表。版本只通过 `scripts/bump-version.sh` 改，不要手改一处漏另一处。
+改动词时同步改 `SKILL.md` Hands 表。版本只通过 `scripts/bump-version.sh` 改，不要手改一处漏另一处。
 
 SemVer：MAJOR = 破坏 CLI 或 skill 工作流（删动词、改 JSON 合同）；MINOR = 新动词或新能力；PATCH = 修复与文档。

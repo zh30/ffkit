@@ -1,91 +1,74 @@
 ---
 name: ffkit
-description: Operate local video and audio with the ffkit CLI wrapping FFmpeg: probe, cut, concat, fit, overlay, caption (mux or burn-in), extract, transcode, deliver (9:16 social export), speed, music, jumpcut, cover, fade, title, loop, stabilize, reverse, grade, zoom, sharpen, vignette, bw, volume, blur, loudness, batch, graphs, and raw ffmpeg with --because. Use when the user mentions a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, captions, overlay, BGM, cover, thumbnail, fade, title, hook, loop, shake, reverse, grade, zoom, sharpen, vignette, black and white, volume, blur, transcode, ffmpeg, Reel/Short/TikTok/YouTube, or asks to trim, join, resize, speed up, add a track, cut silence, extract a cover, burn subtitles, export a Reel, or produce a visual/audio effect. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
-version: 0.19.0
+description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
+version: 0.20.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
 # ffkit
 
-Hands: run `ffkit <verb>`. Flags live in `ffkit <verb> --help` (do not guess flags). Numbers come from `--json` or `--json-brief`, never from memory.
+The user talks to you. You propose a scheme. Then you use these hands to finish **that original task**.
 
-Shared flags on every writing verb: `--dry-run`, `--json`, `--json-brief`, `--overwrite`, `--timeout SECONDS`, `--progress`.
+`ffkit` is the hands. Flags: `ffkit <verb> --help`. Numbers: `--json` / `--json-brief`. Shared: `--dry-run`, `--json`, `--overwrite`, `--timeout`, `--progress`.
 
-If `ffkit version --check` fails, or `ffkit --version` is not this file's `version`, run `ffkit install-skill` and reload this skill. After a missing-tool failure, run `ffkit doctor --json`.
+If `ffkit version --check` fails, `ffkit install-skill` and reload. After a missing-tool failure, `ffkit doctor --json`.
 
 ## Workflow
 
-1. **Probe** each input you will plan from (`ffkit probe INPUT --json`). Plan from those numbers.
-2. Prefer **lossless**. `cut` and mux-only work stream-copy unless `--accurate` is required.
-3. Route: a **verb** if the table names one; else **graph**.
-4. `ffkit ffmpeg --because REASON -- …` only when REASON names the missing verb or graph field in one line. `--because` is required.
-5. Picture changed (fit, overlay, caption, crop, colour, gif, cover, fade, title, stabilize, reverse, grade, zoom, sharpen, vignette, bw, blur): `ffkit look OUTPUT`. Overlay, caption, title: `look --at T` while the graphic is on screen. Cover: inspect the PNG. Fade: `look --at 0` should be darker than mid-clip.
-6. Never write onto the user's source. `--overwrite` only replaces an output this job created or the user named.
+1. **Chat** until you can restate the outcome in one sentence in their language (what they will post or keep). That sentence is the original task.
+2. **Propose a plan** of 3–7 steps in their language (not flag soup). If they asked to review first, stop here. If they change the plan, execute the new one.
+3. **Probe** each input (`ffkit probe FILE --json`). Numbers in the plan come from that.
+4. **Run the plan.** Two or more writing steps: write pipeline JSON (`goal` = the restated outcome) and `ffkit pipeline plan.json --json` — [pipeline.md](references/pipeline.md). One writing step: that verb. No matching verb: `graph`, then `ffmpeg --because`.
+5. Prefer **lossless** (`cut` copy, mux captions, `loop` concat) unless pixels or samples must change.
+6. Picture changed: `ffkit look`. Overlay/`caption`/`title`: `--at` a time the graphic is on. Fade: `--at 0` vs mid. Cover: inspect the PNG.
+7. Never write onto the user's source.
 
-A write step is done when the process exits 0 and the output probe matches the request. A picture step is done when `Look:` names a real PNG you inspected (or `Look: PATH (pixels not inspected; agent has no image view)`). Overlay/caption is done when that PNG is from `--at`, not only `--tiles`.
+Done when the **original task** is true (probe matches, and look if the picture changed)—not when the last process exited 0.
 
-## Request → verb
+Ask one question only when it changes the file and probe cannot answer it. Which cut is interesting, and what looks cinematic, stay with the user.
 
-| User says | Do |
-|-----------|----|
-| what's in this file / how long | `ffkit probe FILE --json` |
-| cut / trim this range | `ffkit cut IN --start T --end T -o OUT` |
-| frame-exact cut | `ffkit cut IN --start T --end T --accurate -o OUT` |
-| stitch these clips | `ffkit concat A B C -o OUT` |
-| crossfade two clips | `ffkit concat A B --transition fade --duration 0.5 -o OUT` |
-| make it 9:16 / square / 16:9 | `ffkit fit IN --aspect 9:16 --fit pad -o OUT` (or `--fit crop`) |
-| resize to a width/height | `ffkit fit IN --width 1080 -o OUT` |
-| rotate / flip | `ffkit fit IN --rotate 90 --flip h -o OUT` |
-| logo / watermark / PiP | `ffkit overlay IN --image logo.png --position top-right -o OUT` then `look --at` a visible time |
-| mux captions (toggleable) | `ffkit caption IN --srt subs.srt --mode mux -o OUT` |
-| burn captions / mute viewing | `ffkit caption IN --srt subs.srt --mode burn -o OUT` then `look --at` a cue time (raster overlay; no libass) |
-| extract audio / a frame / subs | `ffkit extract IN -o OUT.wav` (extension picks the stream; `--at T` for a still) |
-| louder / match LUFS | `ffkit loudnorm IN -o OUT` (`-I -16` podcast, `-I -14` social) |
-| a bit louder / quieter / 音量 | `ffkit volume IN --db 3 -o OUT` (not LUFS; use loudnorm to match platforms) |
-| web mp4 / webm / gif | `ffkit transcode IN --preset h264 -o OUT.mp4` (`webm`, `gif`) |
-| make this a Reel / TikTok / Short / 9:16 social export | `ffkit deliver IN --platform reels -o OUT` (1080x1920, 30fps, −14 LUFS, h264+aac+faststart) |
-| speed up / slow-mo / 1.5x | `ffkit speed IN --factor 1.5 -o OUT` (2 = twice as fast; pitch kept) |
-| add BGM / 配乐 / duck music under speech | `ffkit music IN --track bed.mp3 -o OUT` (ducks the bed when voice is present) |
-| cut silence / jump cuts / 剪掉停顿 | `ffkit jumpcut IN -o OUT` |
-| cover / thumbnail / 封面 | `ffkit cover IN --at T -o cover.png` (1080x1920 still) |
-| fade in / fade out / 淡入淡出 | `ffkit fade IN --in 0.3 --out 0.3 -o OUT` |
-| hook text / title card / 片头字 | `ffkit title IN --text "WAIT" --duration 0.8 -o OUT` then `look --at 0.2` |
-| loop / repeat / 循环播放加长 | `ffkit loop IN --times 3 -o OUT` |
-| stabilize / 防抖 / shaky handheld | `ffkit stabilize IN -o OUT` |
-| reverse / 倒放 | `ffkit reverse IN -o OUT` |
-| grade / 调色 / 更艳 / Reels pop | `ffkit grade IN -o OUT` (defaults: contrast 1.12, sat 1.18) |
-| zoom / punch-in / 推近 | `ffkit zoom IN --factor 1.25 -o OUT` |
-| sharpen / 锐化 / 更清晰 | `ffkit sharpen IN -o OUT` |
-| vignette / 暗角 / Reels 暗角 | `ffkit vignette IN -o OUT` |
-| black and white / 黑白 | `ffkit bw IN -o OUT` |
-| blur / 模糊 | `ffkit blur IN --sigma 2 -o OUT` |
-| show me the picture | `ffkit look OUT --tiles 3x2` and/or `--at T` (repeat `--at`) |
-| every file in this folder | `ffkit batch DIR -o OUTDIR -- transcode --preset h264` |
-| filter chain no verb covers | `ffkit graph plan.json` — see [references/graph.md](references/graph.md) |
-| a flag no graph field covers | `ffkit ffmpeg --because "REASON" -- -i IN … OUT` |
-| machine missing tools | `ffkit doctor --json` |
-| skill/binary version | `ffkit version --json` (`--check` fails on stale installed copies) |
+## Hands
 
-Ask one question only when it changes the file and probe cannot answer it (destination platform, caption source). Otherwise pick a default, say it, run.
+`ffkit --help` is the full list. Match an agreed plan step to a tool. Compose several rows when the job needs several steps.
 
-This skill executes an edit. It does not decide which cut is interesting, whether a face should be cropped, or what looks cinematic.
+| Plan step | Hands |
+|-----------|-------|
+| inspect | `doctor`, `probe`, `look` (`--tiles` / `--at`) |
+| trim / join | `cut`, `concat` (`--transition fade` for two clips) |
+| frame / size | `fit`, `zoom` |
+| export | `deliver`, `transcode` |
+| captions / mute | `caption` (`--mode burn` or `--mode mux`) |
+| hook text | `title` |
+| cover still | `cover` |
+| speech / music | `jumpcut`, `music`, `loudnorm`, `volume` |
+| motion / loop | `speed`, `reverse`, `loop`, `stabilize`, `fade` |
+| picture | `grade`, `bw`, `vignette`, `sharpen`, `blur` |
+| logo / PiP | `overlay` |
+| extract | `extract` |
+| many files | `batch` |
+| no verb | `graph` — [graph.md](references/graph.md) |
+| still uncovered | `ffmpeg` `--because "REASON"` `-- -i IN … OUT` |
+
+`pipeline` runs the scheme. `install-skill` and `version` are setup, not plan steps.
 
 ## Report
 
-Reply in the user's language; keep these labels in English. Numbers from `--json`.
+User language for the prose; keep these labels in English. Numbers from `--json`. Quote the plan you ran.
 
 ```
-Done: OUT — 59.98s 1080x1920 30fps h264 aac
-Steps: probe -> cut 0:00-0:05 (lossless) -> fit 9:16 pad -> overlay logo -> look --at 1
-Check: probe matches the request (verified: true)
-Look: OUT_frame.png (logo top-right at 1s)
+Plan: 剪掉停顿 → 片头字 → 烧字幕 → 导出 Reel
+Done: reel.mp4 — 58.2s 1080x1920 30fps h264 aac
+Steps: probe -> jumpcut -> title -> caption burn -> deliver reels -> look --at 1
+Check: matches “做成 Reel 并能静音看完” (verified: true)
+Look: reel_frame.png (hook readable, captions clear of the bottom UI)
 Notes: …
 ```
 
-A raw ffmpeg step puts the `--because` text in `Notes:`. Failure: `Failed:` with the contract `error.message` quoted, not paraphrased. `Look: not needed` when the picture did not change.
+`Failed:` quote `error.message`. A pipeline failure names the step. `Look: not needed` when the picture did not change.
 
 ## References
 
-- [gotchas.md](references/gotchas.md) — VFR, even sizes, concat copy, GIF palette, libass / mux
-- [graph.md](references/graph.md) — JSON filter graph when verbs are not enough
-- [platforms.md](references/platforms.md) — Reels / Shorts / YouTube / GIF delivery
+- [pipeline.md](references/pipeline.md) — the plan file `ffkit pipeline` runs
+- [gotchas.md](references/gotchas.md) — VFR, even sizes, concat copy, GIF palette
+- [graph.md](references/graph.md) — filter graph when verbs cannot express a step
+- [platforms.md](references/platforms.md) — Reels / Shorts / YouTube / GIF

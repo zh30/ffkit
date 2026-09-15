@@ -2,6 +2,7 @@ pub const SKILL_MD: &str = include_str!("../SKILL.md");
 pub const GOTCHAS: &str = include_str!("../references/gotchas.md");
 pub const GRAPH: &str = include_str!("../references/graph.md");
 pub const PLATFORMS: &str = include_str!("../references/platforms.md");
+pub const PIPELINE: &str = include_str!("../references/pipeline.md");
 
 /// Cargo.toml version. Skill + CLI ship as one SemVer.
 pub fn binary_version() -> &'static str {

@@ -125,6 +125,11 @@ pub enum Cmd {
         /// Graph plan JSON file
         plan: PathBuf,
     },
+    /// Run a multi-step edit plan (the agent's scheme)
+    Pipeline {
+        /// Pipeline JSON (goal + steps)
+        plan: PathBuf,
+    },
     /// Guarded raw ffmpeg (verb and graph first; --because required)
     Ffmpeg {
         /// Why no verb or graph field covers this (one line)
