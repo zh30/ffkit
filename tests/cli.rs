@@ -718,6 +718,32 @@ fn title_hook_puts_white_on_blue() {
 }
 
 #[test]
+fn loop_triples_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("looped.mp4");
+    let v = run_json(&[
+        "loop",
+        f.to_str().unwrap(),
+        "--times",
+        "3",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        d > 2.7 && d < 3.4,
+        "3× a 1s clip should be ~3s, got {d}; {v}"
+    );
+    assert_eq!(v["extra"]["times"], 3);
+    assert!(out.metadata().unwrap().len() > 0);
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])
