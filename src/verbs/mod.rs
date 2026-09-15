@@ -11,4 +11,5 @@ pub mod loudnorm;
 pub mod music;
 pub mod overlay;
 pub mod speed;
+pub mod title;
 pub mod transcode;

@@ -645,6 +645,79 @@ fn fade_in_darkens_first_frame() {
 }
 
 #[test]
+fn title_hook_puts_white_on_blue() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = dir.path().join("blue.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0x0033aa:s=320x240:d=1:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&f)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let out = dir.path().join("hook.mp4");
+    let mut args = vec![
+        "title".to_string(),
+        f.to_string_lossy().into_owned(),
+        "--text".into(),
+        "HELLO".into(),
+        "--duration".into(),
+        "0.6".into(),
+        "-o".into(),
+        out.to_string_lossy().into_owned(),
+    ];
+    let arial = "/System/Library/Fonts/Supplemental/Arial.ttf";
+    if std::path::Path::new(arial).is_file() {
+        args.push("--font".into());
+        args.push(arial.into());
+    }
+    let argv: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    let v = run_json(&argv);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["text"], "HELLO");
+    let frame = dir.path().join("t.png");
+    assert_eq!(
+        run_json(&[
+            "look",
+            out.to_str().unwrap(),
+            "--at",
+            "0.2",
+            "-o",
+            frame.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    let img = image::open(&frame).unwrap().to_rgb8();
+    let white = img
+        .pixels()
+        .filter(|p| p[0] > 230 && p[1] > 230 && p[2] > 230)
+        .count();
+    assert!(white > 20, "title should paint white glyphs, got {white}");
+}
+
+#[test]
 fn ffmpeg_requires_because() {
     let out = ffkit()
         .args(["ffmpeg", "--", "-i", "in.mp4", "out.mp4"])

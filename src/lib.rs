@@ -48,6 +48,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Jumpcut(args) => verbs::jumpcut::run(args, &g),
         Cmd::Cover(args) => verbs::cover::run(args, &g),
         Cmd::Fade(args) => verbs::fade::run(args, &g),
+        Cmd::Title(args) => verbs::title::run(args, &g),
         Cmd::Batch(args) => batch::run(args, &g),
         Cmd::Graph { plan } => graph::run(plan, &g),
         Cmd::Ffmpeg { because, args } => ffmpeg_raw::run(because, args, &g),

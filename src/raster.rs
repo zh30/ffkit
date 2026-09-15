@@ -3,9 +3,22 @@ use image::{Rgba, RgbaImage};
 use crate::error::Error;
 
 pub fn render_caption(text: &str, font_bytes: &[u8], video_w: u32) -> Result<RgbaImage, Error> {
+    render_text(text, font_bytes, video_w, 14.0)
+}
+
+pub fn render_title(text: &str, font_bytes: &[u8], video_w: u32) -> Result<RgbaImage, Error> {
+    render_text(text, font_bytes, video_w, 8.0)
+}
+
+fn render_text(
+    text: &str,
+    font_bytes: &[u8],
+    video_w: u32,
+    divisor: f32,
+) -> Result<RgbaImage, Error> {
     let font = fontdue::Font::from_bytes(font_bytes, fontdue::FontSettings::default())
         .map_err(|e| Error::input(format!("font parse: {e}")))?;
-    let px = ((video_w as f32) / 14.0).clamp(16.0, 64.0);
+    let px = ((video_w as f32) / divisor).clamp(16.0, 96.0);
     let pad = (px * 0.35).round() as u32;
     let lines: Vec<&str> = text.lines().filter(|l| !l.is_empty()).collect();
     if lines.is_empty() {
