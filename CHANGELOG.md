@@ -4,6 +4,10 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-09-15
+
+- `ffkit stabilize`: deshake handheld footage
+
 ## [0.10.0] — 2026-09-15
 
 - `ffkit loop --times`: lossless concat-repeat for Shorts replay length
