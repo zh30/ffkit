@@ -24,7 +24,7 @@ jobs:
             extra: ""
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - name: Extra rustc target
         if: matrix.extra != ''
@@ -43,7 +43,7 @@ jobs:
             BIN="target/release/ffkit"
           fi
           TARGET=${{ matrix.target }} BIN="$BIN" ./scripts/pack-release.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: ffkit-${{ matrix.target }}
           path: dist/*.zip
@@ -53,8 +53,8 @@ jobs:
     needs: pack
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
         with:
           path: dist
           merge-multiple: true
