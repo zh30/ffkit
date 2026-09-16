@@ -8,7 +8,7 @@ Read this when a command looks right but the output is wrong, or ffmpeg errors o
 
 ## Music duck / sidechaincompress
 
-`music --duck` pins both audio legs to `aformat=sample_fmts=dbl` before `sidechaincompress`. That filter only accepts double samples; Ubuntu/apt ffmpeg will not insert the converter for you (Homebrew 9 often will).
+`music --duck` runs `aformat=sample_fmts=dbl` on **both** `sidechaincompress` inputs, after `volume`. That filter only accepts packed double; Ubuntu/apt ffmpeg will not insert the converter (Homebrew 9 often will). Do not aformat-then-volume — `volume` would convert away from dbl again.
 
 ## Stream copy vs re-encode
 
