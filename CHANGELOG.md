@@ -4,6 +4,10 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.25.1] — 2026-09-16
+
+- `music --duck` pins both legs to `aformat=dbl` so Ubuntu/apt ffmpeg can negotiate `sidechaincompress`
+
 ## [0.25.0] — 2026-09-15
 
 - `ffkit rough`: list speech islands (audio-only detect), then assemble only those windows — not a full-timeline re-encode
