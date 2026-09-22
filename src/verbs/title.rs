@@ -58,9 +58,10 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
         match args.position.as_str() {
             "center" => ("(W-w)/2", "(H-h)/2"),
             "top" => ("(W-w)/2", "trunc(H*0.18)"),
+            "bottom" => ("(W-w)/2", "trunc(H*0.78)"),
             other => {
                 return Err(Error::input(format!(
-                    "--position {other}: use center or top"
+                    "--position {other}: use center, top or bottom"
                 )));
             }
         }

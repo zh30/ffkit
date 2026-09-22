@@ -44,6 +44,8 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Progress(args) => verbs::progress::run(args, &g),
         Cmd::Freeze(args) => verbs::freeze::run(args, &g),
         Cmd::Censor(args) => verbs::censor::run(args, &g),
+        Cmd::Crop(args) => verbs::crop::run(args, &g),
+        Cmd::Vdenoise(args) => verbs::vdenoise::run(args, &g),
         Cmd::Boomerang(args) => verbs::boomerang::run(args, &g),
         Cmd::Chapter(args) => verbs::chapter::run(args, &g),
         Cmd::Autocrop(args) => verbs::autocrop::run(args, &g),

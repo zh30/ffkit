@@ -5088,3 +5088,180 @@ fn grade_warm_shifts_red_up_and_blue_down() {
         "warm grade opens R-B spread ({r0}-{b0} -> {r1}-{b1}); {v}"
     );
 }
+
+#[test]
+fn vdenoise_smooths_noisy_footage() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let noisy = dir.path().join("n.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=gray:duration=1:size=320x240:rate=30,noise=alls=30:allf=t",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "18",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&noisy)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "noisy fixture");
+    let out = dir.path().join("d.mp4");
+    let v = run_json(&[
+        "vdenoise",
+        noisy.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--strength",
+        "8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // Sample variance of a flat crop: denoised footage is smoother.
+    let spread = |f: &Path| -> f64 {
+        let px = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                "crop=120:120:100:60",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout;
+        let n = px.len() as f64;
+        let mean = px.iter().map(|&b| f64::from(b)).sum::<f64>() / n;
+        px.iter()
+            .map(|&b| (f64::from(b) - mean).powi(2))
+            .sum::<f64>()
+            / n
+    };
+    let (before, after) = (spread(&noisy), spread(&out));
+    assert!(
+        after < before * 0.7,
+        "denoise cuts noise variance: {before} -> {after}; {v}"
+    );
+}
+
+#[test]
+fn crop_region_and_aspect_reframe() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "crop",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--region",
+        "40:20:200:100",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let dims = |f: &Path| -> (u64, u64) {
+        let p = run_json(&["probe", f.to_str().unwrap()]);
+        let pr = &p["probe"];
+        (
+            pr["width"].as_u64().unwrap_or(0),
+            pr["height"].as_u64().unwrap_or(0),
+        )
+    };
+    assert_eq!(dims(&out), (200, 100), "region crop dims; {v}");
+    let out2 = dir.path().join("sq.mp4");
+    let v = run_json(&[
+        "crop",
+        src.to_str().unwrap(),
+        "-o",
+        out2.to_str().unwrap(),
+        "--aspect",
+        "1:1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let (w, h) = dims(&out2);
+    assert_eq!(w, h, "1:1 aspect gives a square ({w}x{h}); {v}");
+    let v = run_json(&[
+        "crop",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+        "--region",
+        "300:200:64:64",
+    ]);
+    assert_eq!(v["status"], "failed", "out-of-frame region refused; {v}");
+}
+
+#[test]
+fn title_position_bottom_puts_text_low() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let bot = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        bot.to_str().unwrap(),
+        "--text",
+        "HELLO",
+        "--position",
+        "bottom",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // Diff against the source frame per band: text should land in the bottom
+    // quarter while the top quarter stays untouched.
+    let band_diff = |y: u32| -> u64 {
+        let px = |f: &Path| -> Vec<u8> {
+            Command::new("ffmpeg")
+                .args(["-i"])
+                .arg(f)
+                .args([
+                    "-vf",
+                    &format!("select=eq(n\\,10),crop=320:60:0:{y}"),
+                    "-frames:v",
+                    "1",
+                    "-f",
+                    "rawvideo",
+                    "-pix_fmt",
+                    "gray",
+                    "-",
+                ])
+                .output()
+                .unwrap()
+                .stdout
+        };
+        px(&src)
+            .iter()
+            .zip(px(&bot).iter())
+            .map(|(a, b)| a.abs_diff(*b) as u64)
+            .sum()
+    };
+    let (top_band, bot_band) = (band_diff(0), band_diff(180));
+    assert!(
+        bot_band > top_band * 4,
+        "title edits the bottom band (top diff {top_band} vs bottom {bot_band}); {v}"
+    );
+}

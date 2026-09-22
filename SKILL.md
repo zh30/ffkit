@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.44.0
+version: 0.45.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -45,6 +45,8 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | cover still | `cover` |
 
 | speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--audio` swap the track, `--mix` keep the original under it), `loudnorm`, `volume` |
+| grainy low-light footage | `vdenoise` (`--strength`, nlmeans — slow on long clips) |
+| reframe / crop out an edge | `crop` (`--region x:y:w:h` or `--aspect 1:1`/`9:16` centered) |
 | motion / loop | `speed`, `reverse`, `loop`, `stabilize`, `fade` |
 | picture | `grade` (+ `--lut` .cube), `bw`, `vignette`, `sharpen`, `blur` |
 | logo / PiP | `overlay` |
@@ -79,6 +81,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | burned-in logo/watermark | `delogo` (`--x --y --w --h`; `--at`/`--dur` only some of the time) |
 | smooth slow-mo | `speed --factor 0.5 --interp` |
 | styled title text | `title --size 2 --color ff0000` |
+| lower-third placement | `title --position bottom` (or `top`/`center`) |
 | container metadata tags | `meta` (`--title`/`--artist`/`--comment`) |
 | fix display rotation flag | `meta --rotate 90` (lossless; clears with `--rotate 0`) |
 | room tone on a voice | `reverb` (`--size room|hall|cave`, `--wet 0..0.9`) |

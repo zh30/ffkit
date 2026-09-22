@@ -140,7 +140,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
 | `cover` | 9:16 cover still (1080×1920) |
 | `fade` | Video and audio fade (`--in` / `--out`) |
-| `title` | Burned-in hook text; `--at`, `--tile`, `--size`, `--color` | First-second hook card (`--text`, no libass) |
+| `title` | Burned-in hook text; `--at`, `--tile`, `--size`, `--color`, `--position top|center|bottom` | First-second hook card (`--text`, no libass) |
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) |
 | `stabilize` | Handheld deshake |
 | `reverse` | Play picture and sound backwards |
@@ -151,6 +151,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `bw` | Black and white |
 | `volume` | Gain ±dB (platform loudness is `loudnorm`) |
 | `blur` | Gaussian blur (`--sigma`) |
+| `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30 (nlmeans; slow on long clips) |
+| `crop` | Crop a `--region x:y:w:h` box, or `--aspect W:H` center-reframe (1:1, 9:16) |
 | `batch` | One verb on every media file in a directory |
 | `pipeline` | Run a JSON scheme in order (`$src` / `$in` / `expect`) |
 | `graph` | JSON filter graph, see [`references/graph.md`](references/graph.md) |

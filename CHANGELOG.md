@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.45.0] — 2026-09-22
+
+- `ffkit vdenoise`: spatial video denoise for grainy footage (`--strength` 0.5–30) via `nlmeans`
+- `ffkit crop`: crop a `--region x:y:w:h` box or `--aspect W:H` center-reframe
+- `title --position bottom`: lower-third placement (joins `top`/`center`)
+
 ## [0.44.0] — 2026-09-22
 
 - `ffkit bleep`: censor-tone over a window (`--at`/`--dur`, `--freq`, `--level`) — silences the source and mixes a delayed `sine`

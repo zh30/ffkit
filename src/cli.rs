@@ -161,6 +161,10 @@ pub enum Cmd {
     Grade(GradeArgs),
     /// Punch-in / Ken Burns-style center zoom
     Zoom(ZoomArgs),
+    /// Spatial video denoise for grainy low-light footage
+    Vdenoise(VdenoiseArgs),
+    /// Crop a region or reframe to an aspect
+    Crop(CropArgs),
     /// Sharpen after social re-encode
     Sharpen(SharpenArgs),
     /// Darken the corners (Reels vignette)
@@ -815,7 +819,7 @@ pub struct TitleArgs {
     /// Text color as RRGGBB hex (default ffffff)
     #[arg(long)]
     pub color: Option<String>,
-    /// center (default) or top
+    /// center (default), top, or bottom
     #[arg(long, default_value = "center")]
     pub position: String,
 }
@@ -1007,6 +1011,29 @@ pub struct SheetArgs {
     /// Tile width px (height follows aspect, forced even)
     #[arg(long, default_value_t = 320)]
     pub tile: u32,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct VdenoiseArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Denoise strength 0.5..=30 (default 4; heavier is slower and softer)
+    #[arg(long, default_value_t = 4.0)]
+    pub strength: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct CropArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Explicit box x:y:w:h (overrides --aspect)
+    #[arg(long)]
+    pub region: Option<String>,
+    /// Reframe to aspect W:H, centered (e.g. 1:1, 9:16)
+    #[arg(long)]
+    pub aspect: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

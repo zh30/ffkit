@@ -140,7 +140,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |
 | `cover` | 导出 9:16 封面图（1080×1920） |
 | `fade` | 画面和声音淡入淡出（`--in` / `--out`） |
-| `title` | 片头/hook 大字（`--text`，不依赖 libass） |
+| `title` | 片头/hook 大字（`--text`，不依赖 libass；`--position top|center|bottom` 选位置） |
 | `loop` | 把成片重复 N 遍（Shorts 循环加长） |
 | `stabilize` | 手持防抖（deshake） |
 | `reverse` | 倒放画面和声音 |
@@ -151,6 +151,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `bw` | 黑白 |
 | `volume` | 音量 ±dB（平台响度请用 `loudnorm`） |
 | `blur` | 高斯模糊（`--sigma`） |
+| `vdenoise` | 视频降噪（暗光噪点）：`--strength` 0.5–30（nlmeans，长片较慢） |
+| `crop` | 裁剪 `--region x:y:w:h` 区域，或 `--aspect W:H` 居中重构画面（1:1、9:16） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `pipeline` | 按 JSON 方案顺序执行多步（`$src` / `$in` / `expect`） |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |
