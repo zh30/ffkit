@@ -4,6 +4,14 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.33.0] — 2026-09-22
+
+- `ffkit boomerang`: forward + reversed replay loop
+- `ffkit chapter`: embed `--at T|TITLE` markers via ffmetadata + `-c copy` (lossless)
+- `zoom --at S [--dur D]`: punch-zoom only inside a window
+- `key --despill`: `despill=type=green` cleanup pass on keyed edges
+
+
 ## [0.32.0] — 2026-09-22
 
 - `ffkit freeze`: mid-clip hold (`--at T --dur D`) or outro hold (`--end D`) via `tpad` clone; the held window's audio is silence

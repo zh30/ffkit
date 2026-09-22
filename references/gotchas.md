@@ -89,6 +89,10 @@ Source path as `-o` is always refused. An existing output is refused unless `--o
 
 `speed --factor F --at S --dur D` is a speed ramp: same 3-segment concat, middle `setpts=(PTS-STARTPTS)/F` + `atempo`. `censor --region x:y:w:h` mosaics with 16px `pixelize` cells (or `--mode blur` → `gblur sigma=30`).
 
+## boomerang / chapter / key --despill
+
+`boomerang` is fwd + `reverse` concat — duration doubles, ends where it starts. `chapter --at T|TITLE` writes an `ffmetadata` file and remuxes with `-map_chapters 1 -c copy` (lossless); the first mark snaps to t=0 if it lands late, titles with `=`/`\n` are sanitized. `key --despill` appends `despill=type=green` after `colorkey` for green fringe. `zoom --at/--dur` is the same 3-segment concat skeleton as `speed --at`: pixels only change inside the window.
+
 ## volume --at/--dur
 
 `volume --db -60 --at 12.5 --dur 1.5` mutes just that window (`volume=…:enable='between(t,a,b)'`) — the bleep/mute-a-swear ask. `--at` alone runs to the end; `--dur` without `--at` is refused.

@@ -114,11 +114,13 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐、`--size` 画布） |
 | `speed` | 变速（`--factor 2` 加速一倍，口播保持音调） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
-| `key` | 绿幕合成：`--color` 抠掉后叠到 `--bg` 图片/视频上（`--similarity`、`--blend`） |
+| `key` | 绿幕合成：`--color` 抠掉后叠到 `--bg` 图片/视频上（`--similarity`、`--blend`、`--despill` 去边缘绿色） |
 | `grid` | N 路素材拼 `--layout CxR` 宫格（`--size 1920x1080`）；都有音轨时混音输出 |
 | `progress` | 随时长填充的进度条（`--color`、`--height`、`--edge top`） |
 | `freeze` | `--at T --dur D` 定格某一拍，或 `--end D` 尾帧定格（结尾停留） |
 | `censor` | 马赛克/高斯模糊打码区域 `--region x:y:w:h`（`--mode pixel|blur`） |
+| `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法） |
+| `chapter` | 写入 `--at T|TITLE` 章节标记（`-c copy` 无损元数据） |
 | `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐、`--mix` 保留原音轨 |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |

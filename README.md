@@ -114,11 +114,13 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `slideshow` | Still images → video montage (`--per`, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed, `--size` canvas) |
 | `speed` | `--factor 2` is 2×; talking-head keeps pitch |
 | `music` | Bed under speech with ducking (`--track`) |
-| `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`) |
+| `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`) |
 | `grid` | N inputs into a `--layout CxR` tile wall (`--size 1920x1080`); audios mix when all inputs have one |
 | `progress` | Progress bar filling across the duration (`--color`, `--height`, `--edge top`) |
 | `freeze` | Hold the frame at `--at T` for `--dur D` (mid-clip), or clone the last frame with `--end D` (outro) |
 | `censor` | Mosaic/blur a face/logo region `--region x:y:w:h` (`--mode pixel|blur`) |
+| `boomerang` | Forward + reversed replay (one loop, social trick) |
+| `chapter` | Embed `--at T|TITLE` chapter markers (lossless `-c copy` metadata pass) |
 | `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |

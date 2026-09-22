@@ -2992,3 +2992,191 @@ fn speed_at_ramps_only_the_window() {
         "1s with a 0.2s window at 2x = 0.9s, got {d}; {v}"
     );
 }
+
+#[test]
+fn boomerang_doubles_and_last_frame_matches_first() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "boomerang",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["extra"]["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 2.0).abs() < 0.3, "1s fwd + 1s rev = ~2s, got {d}; {v}");
+    let px = |n: u32| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&out)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n})"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let a = px(0);
+    let b = px(59); // last frame of 60 == reverse's last frame == source frame 0
+    assert!(!a.is_empty() && !b.is_empty());
+    let diff: u64 = a
+        .iter()
+        .zip(b.iter())
+        .map(|(x, y)| x.abs_diff(*y) as u64)
+        .sum();
+    assert!(
+        diff < a.len() as u64,
+        "boomerang ends where it starts (diff {diff} on {})",
+        a.len()
+    );
+}
+
+#[test]
+fn chapter_embeds_named_marks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("ch.mp4");
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0|Intro",
+        "--at",
+        "0.5|Middle",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args(["-v", "error", "-show_chapters", "-of", "csv"])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    assert!(s.contains("Intro") && s.contains("Middle"), "chapters: {s}");
+    // bad entry refused
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+        "--at",
+        "no title separator",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn zoom_at_punches_only_the_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("z.mp4");
+    let v = run_json(&[
+        "zoom",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--factor",
+        "1.5",
+        "--at",
+        "0.4",
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"]
+        .as_f64()
+        .unwrap_or_else(|| v["extra"]["probe"]["duration"].as_f64().unwrap_or(0.0));
+    assert!(
+        (d - 1.0).abs() < 0.15,
+        "windowed zoom keeps duration, got {d}; {v}"
+    );
+    // frame inside the window differs from source; frame outside matches
+    let px = |f: &Path, n: u32| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n}),crop=64:64:128:88"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let inside_src = px(&src, 15); // ~0.5s inside window
+    let inside_out = px(&out, 15);
+    let diff: u64 = inside_src
+        .iter()
+        .zip(inside_out.iter())
+        .map(|(x, y)| x.abs_diff(*y) as u64)
+        .sum();
+    assert!(diff > 500, "zoomed center must differ inside window; {v}");
+}
+
+#[test]
+fn key_despill_keeps_composite_working() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let bg = dir.path().join("bg.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0x0000ff:size=640x480",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&bg)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("k.mp4");
+    let v = run_json(&[
+        "key",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--bg",
+        bg.to_str().unwrap(),
+        "--color",
+        "0xff7f00",
+        "--despill",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

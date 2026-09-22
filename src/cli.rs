@@ -111,6 +111,10 @@ pub enum Cmd {
     Freeze(FreezeArgs),
     /// Mosaic/blur a region (face, logo, license plate)
     Censor(CensorArgs),
+    /// Forward + reversed replay loop
+    Boomerang(BoomerangArgs),
+    /// Embed chapter markers (lossless metadata pass)
+    Chapter(ChapterArgs),
     /// Still images (+ optional music bed) into a video
     Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
@@ -536,6 +540,9 @@ pub struct KeyArgs {
     /// Edge blend 0..1
     #[arg(long, default_value_t = 0.05)]
     pub blend: f64,
+    /// Remove color spill ringing on the keyed edges
+    #[arg(long)]
+    pub despill: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
@@ -710,6 +717,12 @@ pub struct ZoomArgs {
     /// 1.25 = 25% punch-in on the center
     #[arg(long, default_value_t = 1.25)]
     pub factor: f64,
+    /// Punch only inside this window (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -776,6 +789,23 @@ pub enum BarEdge {
     #[default]
     Bottom,
     Top,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct BoomerangArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ChapterArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
+    #[arg(long = "at", required = true)]
+    pub at: Vec<String>,
 }
 
 #[derive(clap::Args, Debug)]

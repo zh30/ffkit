@@ -44,8 +44,13 @@ pub fn run(args: KeyArgs, g: &Globals) -> Result<Contract, Error> {
     argv.extend(["-i"]);
     argv.push(&args.bg);
 
+    let despill = if args.despill {
+        ",despill=type=green"
+    } else {
+        ""
+    };
     let fc = format!(
-        "[0:v]fps={fps:.3},format=yuv420p,colorkey={color}:{:.3}:{:.3}[keyed];\
+        "[0:v]fps={fps:.3},format=yuv420p,colorkey={color}:{:.3}:{:.3}{despill}[keyed];\
          [1:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps={fps:.3},format=yuv420p[bg];\
          [bg][keyed]overlay=0:0:shortest=1[vout]",
         args.similarity, args.blend

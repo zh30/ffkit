@@ -1,9 +1,11 @@
 pub mod audiogram;
 pub mod blur;
+pub mod boomerang;
 pub mod broll;
 pub mod bw;
 pub mod caption;
 pub mod censor;
+pub mod chapter;
 pub mod compress;
 pub mod concat;
 pub mod cover;
