@@ -7567,3 +7567,115 @@ fn overlay_opacity_blends_image() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn split_silence_cuts_at_gap_midpoints() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // tone - silence - tone so silencedetect finds one gap near 1.0s
+    let aud = dir.path().join("gap.wav");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y"])
+        .args(["-f", "lavfi", "-i", "sine=frequency=440:duration=1"])
+        .args(["-f", "lavfi", "-t", "0.6", "-i", "anullsrc=r=44100:cl=mono"])
+        .args(["-f", "lavfi", "-i", "sine=frequency=440:duration=1"])
+        .args([
+            "-filter_complex",
+            "[0][1][2]concat=n=3:v=0:a=1[a]",
+            "-map",
+            "[a]",
+            "-t",
+            "2.6",
+        ])
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let tmpl = dir.path().join("part_%02d.wav");
+    let v = run_json(&[
+        "split",
+        aud.to_str().unwrap(),
+        "-o",
+        tmpl.to_str().unwrap(),
+        "--silence=-30",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(dir.path().join("part_00.wav").exists());
+    assert!(dir.path().join("part_01.wav").exists());
+}
+
+#[test]
+fn music_fade_does_not_break_bed() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let bed = dir.path().join("bed.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=220:duration=2")
+        .arg(&bed)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("mus.mp4");
+    let v = run_json(&[
+        "music",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--track",
+        bed.to_str().unwrap(),
+        "--fade",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn eq_preset_fills_zero_bands() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let aud = dir.path().join("a.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=3000:duration=0.4")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("eq.wav");
+    let v = run_json(&[
+        "eq",
+        aud.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "podcast",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

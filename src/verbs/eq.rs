@@ -10,24 +10,44 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_audio {
         return Err(Error::input("eq needs an audio stream"));
     }
+    // --preset fills whichever bands were left at 0.
+    let (mut bass, mut presence, mut treble) = (args.bass, args.presence, args.treble);
+    if let Some(preset) = args.preset {
+        use crate::cli::EqPreset::*;
+        let (b, p, tr) = match preset {
+            Voice => (2.0, 3.0, 0.0),
+            Podcast => (-1.0, 4.0, 1.0),
+            Bright => (0.0, 2.0, 5.0),
+            Bass => (8.0, 0.0, 0.0),
+        };
+        if bass == 0.0 {
+            bass = b;
+        }
+        if presence == 0.0 {
+            presence = p;
+        }
+        if treble == 0.0 {
+            treble = tr;
+        }
+    }
     for (name, v) in [
-        ("--bass", args.bass),
-        ("--treble", args.treble),
-        ("--presence", args.presence),
+        ("--bass", bass),
+        ("--treble", treble),
+        ("--presence", presence),
     ] {
         if !(-20.0..=20.0).contains(&v) {
             return Err(Error::input(format!("{name} must be -20..=20 dB")));
         }
     }
     let mut chain: Vec<String> = Vec::new();
-    if args.bass != 0.0 {
-        chain.push(format!("bass=g={}", args.bass));
+    if bass != 0.0 {
+        chain.push(format!("bass=g={}", bass));
     }
-    if args.presence != 0.0 {
-        chain.push(format!("equalizer=f=3000:t=q:w=1:g={}", args.presence));
+    if presence != 0.0 {
+        chain.push(format!("equalizer=f=3000:t=q:w=1:g={}", presence));
     }
-    if args.treble != 0.0 {
-        chain.push(format!("treble=g={}", args.treble));
+    if treble != 0.0 {
+        chain.push(format!("treble=g={}", treble));
     }
     if chain.is_empty() {
         return Err(Error::input("eq needs at least one nonzero band"));

@@ -129,7 +129,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `pitch` | `--semitones N` 升降调（时长不变） |
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
 | `channel` | 声道手术：`--mode dualmono|mono|swap` |
-| `eq` | 音频均衡：`--bass`/`--treble`/`--presence` dB |
+| `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB |
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet` |
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip` |
 | `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h`；`--at`/`--dur` 只处理窗口 |

@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.62.0
+version: 0.63.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -96,6 +96,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | burned subs, your style | `subs` (`--size`/`--color`/`--top`) |
 | audiogram in brand colors | `audiogram` (`--bg` backdrop) |
 | subtle watermark | `overlay` (`--opacity` on `--image`) |
+| split a podcast on pauses | `split` (`--silence=-35` — cuts at gap midpoints) |
+| music bed that eases in/out | `music` (`--fade` on the bed) |
+| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass`) |
 | reframe / crop out an edge | `crop` (`--region x:y:w:h` or `--aspect 1:1`/`9:16` centered) |
 | motion / loop | `speed`, `reverse`, `loop`, `stabilize`, `fade` |
 | picture | `grade` (+ `--lut` .cube), `bw`, `vignette`, `sharpen`, `blur` |

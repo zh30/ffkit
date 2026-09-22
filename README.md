@@ -129,7 +129,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `pitch` | `--semitones N` voice/music shift, duration preserved |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap` |
-| `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence` dB |
+| `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip` |
 | `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window |

@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.63.0] - 2026-09-22
+
+- `split --silence dB` — cuts at silence midpoints (`silencedetect` → `-f segment`; podcast → episode segments).
+- `music --fade N` — `afade` in/out on the bed (`-stream_loop` is pinned to the talk's length for the fade-out point).
+- `eq --preset voice|podcast|bright|bass` — one-shot curves; each band still overridable (preset only fills bands left at 0).
+
 ## [0.62.0] - 2026-09-22
 
 - `subs --burn` style overrides: `--size` (FontSize), `--color` (RRGGBB → ASS `&H00BBGGRR`), `--top` (Alignment 8 vs 2).

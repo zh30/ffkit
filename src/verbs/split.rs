@@ -62,6 +62,28 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
     };
 
     let mut cuts: Vec<f64> = Vec::new();
+    if let Some(thr) = args.silence {
+        if every.is_some() || !args.at.is_empty() || args.scenes.is_some() {
+            return Err(Error::input(
+                "split --silence stands alone (no --every/--at/--scenes/--size/--parts)",
+            ));
+        }
+        if !(-80.0..=-5.0).contains(&thr) {
+            return Err(Error::input("--silence threshold must be -80..-5 dB"));
+        }
+        if !probe.has_audio {
+            return Err(Error::input("split --silence needs an audio stream"));
+        }
+        let silences = crate::silence::detect(&args.input, thr, 0.4, g.timeout, true)?;
+        for (a, b) in silences {
+            let mid = (a + b) / 2.0;
+            if (0.05..probe.duration - 0.05).contains(&mid) {
+                cuts.push(mid);
+            }
+        }
+        cuts.sort_by(|a, b| a.total_cmp(b));
+        cuts.dedup();
+    }
     match (every, args.at.is_empty(), args.scenes) {
         (Some(e), true, None) => {
             if !(0.5..=3600.0).contains(&e) {
@@ -97,9 +119,11 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("split takes --every or --at, not both"));
         }
         (None, true, None) => {
-            return Err(Error::input(
-                "split needs --every S, --at t1,t2,... or --scenes T",
-            ));
+            if args.silence.is_none() {
+                return Err(Error::input(
+                    "split needs --every S, --at t1,t2,..., --scenes T or --silence dB",
+                ));
+            }
         }
         (Some(_), _, Some(_)) => {
             return Err(Error::input("split takes --every or --scenes, not both"));

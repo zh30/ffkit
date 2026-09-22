@@ -310,6 +310,9 @@ pub struct SplitArgs {
     /// Split into N equal-length parts
     #[arg(long)]
     pub parts: Option<u32>,
+    /// Cut at silence midpoints under this dB threshold (e.g. --silence=-35)
+    #[arg(long, allow_hyphen_values = true)]
+    pub silence: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -346,6 +349,18 @@ pub enum FitMode {
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum EqPreset {
+    /// gentle low end + presence for talking-head speech
+    Voice,
+    /// rolled lows + strong 3 kHz presence for spoken-word podcasts
+    Podcast,
+    /// treble-forward sparkle
+    Bright,
+    /// bass-heavy boost
+    Bass,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 pub enum FlipMode {
     H,
     V,
@@ -731,6 +746,9 @@ pub struct MusicArgs {
     /// Duck the bed when speech is present
     #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     pub duck: bool,
+    /// Fade the music bed in/out over N seconds (0 = cut)
+    #[arg(long, default_value_t = 0.0)]
+    pub fade: f64,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1116,6 +1134,9 @@ pub struct EqArgs {
     /// Presence shelf at 3 kHz dB (voice clarity)
     #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
     pub presence: f64,
+    /// One-shot curve: voice|podcast|bright|bass (flags still apply on top)
+    #[arg(long, value_enum)]
+    pub preset: Option<EqPreset>,
 }
 
 #[derive(clap::Args, Debug)]

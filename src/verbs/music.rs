@@ -21,19 +21,29 @@ pub fn run(args: MusicArgs, g: &Globals) -> Result<Contract, Error> {
     // sidechaincompress only accepts packed dbl. Pin *immediately* before it:
     // `volume` after aformat would convert away from dbl, and Ubuntu/apt ffmpeg
     // will not insert the converter (Homebrew 9 does).
+    // --fade: afade in/out on the bed itself (fade-out end = the talk's length).
+    let fade = if args.fade > 0.0 {
+        let f = args.fade.min(talk.duration / 2.0).max(0.05);
+        format!(
+            ",afade=t=in:st=0:d={f:.3},afade=t=out:st={:.3}:d={f:.3}",
+            talk.duration - f
+        )
+    } else {
+        String::new()
+    };
     const AF: &str = "aformat=sample_fmts=dbl:sample_rates=48000:channel_layouts=stereo";
     let fc = if talk.has_audio && args.duck {
         format!(
-            "[1:a]volume={gain}[bgraw];[0:a]asplit=2[voice][scraw];[bgraw]{AF}[bg];[scraw]{AF}[sc];[bg][sc]sidechaincompress=threshold=0.05:ratio=6:attack=20:release=250[dk];[voice][dk]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]",
+            "[1:a]volume={gain}{fade}[bgraw];[0:a]asplit=2[voice][scraw];[bgraw]{AF}[bg];[scraw]{AF}[sc];[bg][sc]sidechaincompress=threshold=0.05:ratio=6:attack=20:release=250[dk];[voice][dk]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]",
             gain = args.gain
         )
     } else if talk.has_audio {
         format!(
-            "[1:a]volume={gain}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]",
+            "[1:a]volume={gain}{fade}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]",
             gain = args.gain
         )
     } else {
-        format!("[1:a]volume={}[aout]", args.gain)
+        format!("[1:a]volume={}{fade}[aout]", args.gain)
     };
     argv.extend(["-filter_complex", &fc, "-map", "[aout]", "-c:a", "aac"]);
     if talk.has_video {
