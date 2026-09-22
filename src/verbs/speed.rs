@@ -35,7 +35,7 @@ pub fn run(args: SpeedArgs, g: &Globals) -> Result<Contract, Error> {
         let vf = if args.interp {
             // Upsample fps by blend-interpolating so the stretch stays smooth:
             // src_fps/factor real frames per source second, then re-time.
-            let out_fps = (probe.fps.unwrap_or(30.0) / factor).min(120.0).max(1.0);
+            let out_fps = (probe.fps.unwrap_or(30.0) / factor).clamp(1.0, 120.0);
             format!("minterpolate=fps={out_fps:.3}:mi_mode=blend,setpts=PTS/{factor}")
         } else {
             format!("setpts=PTS/{factor}")
