@@ -115,6 +115,8 @@ pub enum Cmd {
     Boomerang(BoomerangArgs),
     /// Audio FX rack: tremolo/vibrato/flanger/phaser/chorus
     Fx(FxArgs),
+    /// Auto-align a second recording to a reference by audio (multi-cam)
+    Align(AlignArgs),
     /// Embed chapter markers (lossless metadata pass)
     Chapter(ChapterArgs),
     /// Detect and remove black bars (cropdetect scan + crop)
@@ -185,6 +187,8 @@ pub enum Cmd {
     Qa(QaArgs),
     Conform(ConformArgs),
     Sync(SyncArgs),
+    /// Rolling end credits (text scrolls bottom to top)
+    Scroll(ScrollArgs),
     Art(ArtArgs),
     /// Even out voice dynamic range (compressor)
     Leveler(LevelerArgs),
@@ -1635,6 +1639,9 @@ pub struct CountdownArgs {
     /// Beep 880Hz for 120ms at the start of each count
     #[arg(long)]
     pub beep: bool,
+    /// Label shown above the digits for the whole count ("STARTING SOON")
+    #[arg(long)]
+    pub text: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1777,6 +1784,46 @@ pub struct SyncArgs {
     /// Shift audio by ms: + delays audio, - pulls it earlier
     #[arg(long, allow_hyphen_values = true)]
     pub ms: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct AlignArgs {
+    /// Reference file — the one everything syncs TO (camera master)
+    pub reference: PathBuf,
+    /// File to align (external recorder take, second camera)
+    pub target: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Max shift to search, seconds either way (default 10)
+    #[arg(long, default_value_t = 10.0)]
+    pub max_lag: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ScrollArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Credit lines (newlines allowed); or use --file
+    #[arg(long, required_unless_present = "file")]
+    pub text: Option<String>,
+    /// Text file holding the credit lines
+    #[arg(long)]
+    pub file: Option<PathBuf>,
+    /// Roll starts at this time (default 0)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Roll duration in seconds (default: to the end of the video)
+    #[arg(long)]
+    pub dur: Option<f64>,
+    /// Text size multiplier (default 1 — smaller than title numerals)
+    #[arg(long, default_value_t = 1.0)]
+    pub size: f64,
+    /// Text color (hex or a color name)
+    #[arg(long)]
+    pub color: Option<String>,
+    #[arg(long)]
+    pub font: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

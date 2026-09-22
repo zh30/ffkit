@@ -55,6 +55,16 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
 
+    // Optional label shown above the digits across the whole count window.
+    let mut label_png = None;
+    if let Some(label) = &args.text {
+        let img = crate::raster::render_title_styled(label, &font_bytes, vw, fg, 1.0)?;
+        let png = tmp.path().join("label.png");
+        img.save(&png)
+            .map_err(|e| Error::output(format!("write countdown label png: {e}")))?;
+        label_png = Some(png);
+    }
+
     let mut segs = Vec::new();
     let mut prev = "[0:v]".to_string();
     for (i, text) in runs.iter().enumerate() {
@@ -73,6 +83,17 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
         ));
         prev = format!("[{label}]");
     }
+    if let Some(png) = &label_png {
+        argv.push("-i");
+        argv.push(png);
+        let end = at + args.from as f64 * args.each;
+        let lab_i = runs.len() + 1;
+        let next = "l0".to_string();
+        segs.push(format!(
+            "{prev}[{lab_i}:v]overlay=(W-w)/2:(H*0.30):enable='between(t,{at:.3},{end:.3})'[{next}]"
+        ));
+        prev = format!("[{next}]");
+    }
     let mut fc = segs.join(";");
     if args.beep {
         let win = runs.len() as f64 * args.each;
@@ -87,7 +108,7 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
                 dd = at + win
             ),
         ]);
-        let beep_idx = runs.len() + 1;
+        let beep_idx = runs.len() + 1 + label_png.is_some() as usize;
         if probe.has_audio {
             fc.push_str(&format!(
                 ";[0:a][{beep_idx}:a]amix=inputs=2:duration=first[aout]"

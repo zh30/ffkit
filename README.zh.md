@@ -171,7 +171,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `crossfade` | 两段音频淡接，`--dur` 秒重叠（`acrossfade`） |
 | `strip` | 去掉全部元数据/章节（发片前隐私清理），无损 `-c copy` |
 | `frames` | 每 `--every`、`--at` 秒抽一帧 → `stem_001.png…`（`--width` 缩放） |
-| `countdown` | 片头 3-2-1(-GO) 倒数遮罩（`--from`、`--each`、`--go`、`--at`）（`--beep` 滴答声） |
+| `countdown` | 片头 3-2-1(-GO) 倒数遮罩（`--from`、`--each`、`--go`、`--at`、`--beep` 滴答、`--text` 标签） |
 | `invert` | 全帧或定时反色（`--at`、`--dur`） |
 | `mix` | 两段音频等权叠加（`--vol-a`/`--vol-b` 线性电平，`--longest` 按长者收尾，`--at/--dur` 副轨只在窗口内混入） ，`--loop` 短副轨循环 |
 | `mute` | 去掉音轨（其余流直接封装，不重编码） ，`--at/--dur` 局部静音 |
@@ -180,6 +180,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM，`--metric`） |
 | `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf` |
 | `sync` | 修复音画同步（`--ms ±N` 垫音/裁音头） |
+| `align` | 音频互相关自动对齐第二路录音（多机位/外接录音笔，`--max-lag`） |
+| `scroll` | 片尾滚动字幕（`--text`/`--file`、`--at`、`--dur`、`--size`、`--color`、`--font`） |
 | `art` | 内嵌封面图（`--image`）→ mp3/m4a/mp4/mkv |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `pipeline` | 按 JSON 方案顺序执行多步（`$src` / `$in` / `expect`） |

@@ -10725,3 +10725,130 @@ fn chapter_import_reads_marks_file() {
     assert_eq!(v["status"], "ok", "{v}");
     assert_eq!(v["extra"]["chapters"].as_array().unwrap().len(), 2);
 }
+
+fn delayed_fixture(dir: &Path, ms: u32) -> PathBuf {
+    let src = fixture(dir);
+    let out = dir.join(format!("d{ms}.mp4"));
+    let status = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&src)
+        .args([
+            "-af",
+            &format!("adelay={ms}|{ms}"),
+            "-c:v",
+            "copy",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&out)
+        .status()
+        .expect("ffmpeg delay");
+    assert!(status.success());
+    out
+}
+
+#[test]
+fn align_detects_and_shifts_offset() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let refm = fixture(dir.path());
+    let tgt = delayed_fixture(dir.path(), 300);
+    let out = dir.path().join("a.mp4");
+    let v = run_json(&[
+        "align",
+        refm.to_str().unwrap(),
+        tgt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let off = v["extra"]["offset_ms"].as_f64().unwrap();
+    assert!(
+        (off - 300.0).abs() < 120.0,
+        "expected ~300ms offset, got {off}"
+    );
+}
+
+#[test]
+fn scroll_rolls_credits() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let bg = dir.path().join("bg.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        bg.to_str().unwrap(),
+        "--dur",
+        "1",
+        "--size",
+        "320x240",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let credits = dir.path().join("credits.txt");
+    std::fs::write(&credits, "Director\nBest Boy\n").unwrap();
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "scroll",
+        bg.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--file",
+        credits.to_str().unwrap(),
+        "--dur",
+        "1",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = dir.path().join("f.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let (w, h) = img.dimensions();
+    let mut bright = 0usize;
+    for y in (0..h).step_by(4) {
+        for x in (0..w).step_by(4) {
+            let p = img.get_pixel(x, y);
+            if p[0] > 200 && p[1] > 200 && p[2] > 200 {
+                bright += 1;
+            }
+        }
+    }
+    assert!(bright > 20, "mid-roll frame should show credit text");
+}
+
+#[test]
+fn countdown_text_labels_the_count() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "countdown",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--from",
+        "2",
+        "--each",
+        "0.3",
+        "--text",
+        "SOON",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

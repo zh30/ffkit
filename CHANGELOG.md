@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.100.0] - 2026-09-23
+
+### Added
+- `align` — auto-sync a second recording to a reference via audio cross-correlation (pure-Rust radix-2 FFT over 16 kHz PCM, ±`--max-lag` window, reports `offset_ms`); shifts the target's audio onto the reference timeline.
+- `scroll` — rolling end credits: text/file renders once and rises bottom→top across `--dur` (`--at`, `--size`, `--color`, `--font`).
+- `countdown --text` — static label above the digits for the whole count window.
+
+
+## [0.100.0] — 2026-09-22
+
+
 ## [0.98.0] - 2026-09-23
 
 ### Added

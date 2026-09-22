@@ -232,6 +232,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 73)
+
+- `align` — auto multi-cam/recorder sync by audio cross-correlation; reports `offset_ms`.
+- `scroll` — rolling end credits (text/file → bottom→top roll over `--dur`).
+- `countdown --text` — static label during the count ("STARTING SOON").
+
 ## Shipped this run (round 72)
 
 - `conform --crf` — x264 quality knob (0–51, default 18) for delivery exports.

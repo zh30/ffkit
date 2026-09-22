@@ -171,7 +171,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
 | `frames` | Still dump every `--every`, `--at` seconds → `stem_001.png…` (`--width`) |
-| `countdown` | 3-2-1(-GO) intro overlay (`--from`, `--each`, `--go`, `--at`) (`--beep` tick tones) |
+| `countdown` | 3-2-1(-GO) intro overlay (`--from`, `--each`, `--go`, `--at`, `--beep` ticks, `--text` label) |
 | `invert` | Full-frame or windowed color inversion (`--at`, `--dur`) |
 | `mix` | Sum two audio sources (`--vol-a`/`--vol-b` linear, `--longest`, `--at/--dur` fades B in/out of a window) , `--loop` repeat short B |
 | `mute` | Drop the audio track, stream-copy the rest , `--at/--dur` silences only that window |
@@ -180,6 +180,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
 | `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf` |
 | `sync` | Shift audio ±ms to fix A/V sync (`--ms`) |
+| `align` | Auto-sync a second recording to a reference by audio cross-correlation — multi-cam/external recorder (`--max-lag`) |
+| `scroll` | Rolling end credits: text rolls bottom→top (`--text`/`--file`, `--at`, `--dur`, `--size`, `--color`, `--font`) |
 | `art` | Attach a cover image (`--image`) → mp3/m4a/mp4/mkv |
 | `batch` | One verb on every media file in a directory |
 | `pipeline` | Run a JSON scheme in order (`$src` / `$in` / `expect`) |

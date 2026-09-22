@@ -1,3 +1,4 @@
+pub mod align;
 pub mod art;
 pub mod audiogram;
 pub mod autocrop;
@@ -56,6 +57,7 @@ pub mod reverb;
 pub mod reverse;
 pub mod rotate;
 pub mod rough;
+pub mod scroll;
 pub mod sharpen;
 pub mod sheet;
 pub mod silence;
