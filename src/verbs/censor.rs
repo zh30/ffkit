@@ -36,8 +36,13 @@ pub fn run(args: CensorArgs, g: &Globals) -> Result<Contract, Error> {
         )));
     }
 
+    // pixelize is ffmpeg 5+; downscale/upscale-nearest mosaics everywhere.
     let effect = match args.mode {
-        CensorMode::Pixel => "pixelize=w=16:h=16:m=avg".to_string(),
+        CensorMode::Pixel => format!(
+            "scale=w={bw}:h={bh}:flags=neighbor,scale={w}:{h}:flags=neighbor",
+            bw = (w / 16).max(2),
+            bh = (h / 16).max(2),
+        ),
         CensorMode::Blur => "gblur=sigma=30".to_string(),
     };
     let fc = format!(
