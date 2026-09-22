@@ -172,6 +172,8 @@ pub enum Cmd {
     Crossfade(CrossfadeArgs),
     Strip(StripArgs),
     Frames(FramesArgs),
+    Invert(InvertArgs),
+    Countdown(CountdownArgs),
     /// Even out voice dynamic range (compressor)
     Leveler(LevelerArgs),
     /// Noise gate — silence below a threshold
@@ -286,6 +288,9 @@ pub struct SplitArgs {
     /// Auto-detect scene cuts at this threshold (0.1–0.9; 0.3 typical)
     #[arg(long)]
     pub scenes: Option<f64>,
+    /// Aim each part under this size (e.g. 9MB for Discord) — computes --every
+    #[arg(long)]
+    pub size: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1164,6 +1169,40 @@ pub struct FramesArgs {
     /// Optional width to scale stills to
     #[arg(long)]
     pub width: Option<u32>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct InvertArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct CountdownArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Count down from N (default 3: 3-2-1)
+    #[arg(long, default_value_t = 3)]
+    pub from: u32,
+    /// Seconds each number stays (default 1)
+    #[arg(long, default_value_t = 1.0)]
+    pub each: f64,
+    /// Optional text shown after the count (e.g. "GO!")
+    #[arg(long)]
+    pub go: Option<String>,
+    /// Start the countdown at this time (default 0)
+    #[arg(long)]
+    pub at: Option<f64>,
+    #[arg(long)]
+    pub font: Option<String>,
+    /// Text size multiplier (default 3 — big center numerals)
+    #[arg(long, default_value_t = 3.0)]
+    pub size: f64,
+    /// Text color as RRGGBB hex (default ffffff)
+    #[arg(long)]
+    pub color: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

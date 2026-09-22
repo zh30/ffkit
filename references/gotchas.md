@@ -177,3 +177,8 @@ Any `-af` chain that changes duration (`atempo`, `atrim` crops) leaves `-c:v cop
 ## colorbalance midtones on old ffmpeg
 
 `colorbalance` midtone options are `rm`/`gm`/`bm` on ffmpeg ≤5 — the `ms` alias only exists on newer builds (verified crash "Option 'ms' not found" on 4.4). Use `bm`/`rm`/`gm` for midtone shifts.
+## `Path::parent()` returns `Some("")` for bare filenames
+`-o part.mp4` (no directory) gives `.parent() == Some("")` — `read_dir("")` is
+ENOENT. `split`/`frames`/`countdown` part-globs now `.filter(|p| !p.is_empty())`
+before the `.unwrap_or(".")` fallback, else every bare-stem output failed after
+the parts were already written.

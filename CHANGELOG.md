@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.52.0] - 2026-09-22
+
+- `split --size 9MB` — aim chunks at a byte cap (Discord/WhatsApp uploads) by deriving the even grid from input size; also fixes bare-stem outputs (`-o part.mp4`) failing in `split` and `frames` with a bogus ENOENT after the parts were already written.
+- `countdown` — 3-2-1(-GO!) intro overlay (`--from`, `--each`, `--at`, `--go`, styled via `--size`/`--color`/`--font`); rendered by the title rasterizer so no drawtext fontfile wrangling.
+- `invert` — negative colors via `negate` (clone-VFX base, flash frames).
+
 ## [0.51.0] — 2026-09-22
 
 - `ffkit crossfade`: `acrossfade` blend of two audio files (`--second`, `--dur`)

@@ -112,7 +112,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 
 | `audiogram` | 播客音频 → 9:16 波形视频（`--image` 封面，`--mode`/`--color` 波形样式） |
 
-| `split` | 切成分段（`--every 30` 等长，或 `--at 30,90` 章节点）→ `stem_00..` |
+| `split` | 切成分段（`--every` 等长、`--at` 章节点、`--scenes` 镜头、`--size 9MB` 按大小）→ `stem_00..` |
 | `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐、`--size` 画布） |
 | `speed` | 变速（`--factor 2` 加速一倍，口播保持音调） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
@@ -168,6 +168,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `crossfade` | 两段音频淡接，`--dur` 秒重叠（`acrossfade`） |
 | `strip` | 去掉全部元数据/章节（发片前隐私清理），无损 `-c copy` |
 | `frames` | 每 `--every` 秒抽一帧 → `stem_001.png…`（`--width` 缩放） |
+| `countdown` | 片头 3-2-1(-GO) 倒数遮罩（`--from`、`--each`、`--go`、`--at`） |
+| `invert` | 反色（`negate`） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `pipeline` | 按 JSON 方案顺序执行多步（`$src` / `$in` / `expect`） |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |

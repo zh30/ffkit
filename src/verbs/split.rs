@@ -23,8 +23,33 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
 
     // Boundaries in source seconds: regular grid from --every, or explicit
     // chapter points from --at.
+    // --size turns a byte target into an even --every grid: parts ≈ target.
+    let every = match &args.size {
+        Some(s) => {
+            let target = crate::verbs::compress::parse_size(s)? as f64;
+            let total = probe.size_bytes.unwrap_or(0) as f64;
+            if total <= 0.0 {
+                return Err(Error::input("unknown input size — use --every"));
+            }
+            // Cap parts so each stays ≥0.5s (segment min), else the target
+            // is simply unreachable at this duration.
+            let n = ((total / target).ceil() as usize)
+                .min((probe.duration / 0.5).floor().max(1.0) as usize);
+            if n < 2 {
+                return Err(Error::input("already under --size — no split needed"));
+            }
+            if args.every.is_some() || !args.at.is_empty() || args.scenes.is_some() {
+                return Err(Error::input(
+                    "split --size stands alone (no --every/--at/--scenes)",
+                ));
+            }
+            Some(probe.duration / n as f64)
+        }
+        None => args.every,
+    };
+
     let mut cuts: Vec<f64> = Vec::new();
-    match (args.every, args.at.is_empty(), args.scenes) {
+    match (every, args.at.is_empty(), args.scenes) {
         (Some(e), true, None) => {
             if !(0.5..=3600.0).contains(&e) {
                 return Err(Error::input("--every must be 0.5..=3600 seconds"));
@@ -160,7 +185,10 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
 
 // List files matching the template's printf pattern: "<pre><digits><post>".
 fn collect_parts(template: &Path) -> Result<Vec<PathBuf>, Error> {
-    let dir = template.parent().unwrap_or_else(|| Path::new("."));
+    let dir = template
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
     let name = template
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())

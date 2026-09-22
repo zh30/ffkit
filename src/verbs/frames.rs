@@ -59,7 +59,10 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
         return Ok(Contract::failed("frames", &e).with_commands(commands));
     }
 
-    let dir = template.parent().unwrap_or_else(|| Path::new("."));
+    let dir = template
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
     let name = template
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())

@@ -6190,3 +6190,113 @@ fn frames_dumps_stills_on_a_grid() {
         "stem_%03d.png naming; {v}"
     );
 }
+
+#[test]
+fn invert_flips_channels() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("n.mp4");
+    let v = run_json(&["invert", src.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = |f: &Path, name: &str| -> (f64, f64, f64) {
+        let png = dir.path().join(name);
+        let ok = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+            .arg(f)
+            .args(["-frames:v", "1"])
+            .arg(&png)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok, "frame extract");
+        mean_rgb(&png)
+    };
+    let (sr, sg, sb) = frame(&src, "s.png");
+    let (r, g, b) = frame(&out, "o.png");
+    for (a, b2) in [(r, sr), (g, sg), (b, sb)] {
+        assert!(
+            (a - (255.0 - b2)).abs() < 25.0,
+            "inverted: {b2} -> {a} (want ~{})",
+            255.0 - b2
+        );
+    }
+}
+
+#[test]
+fn split_size_aims_parts_at_target() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // A 1 s testsrc clip lands ~15–50 KB; 8 KB forces ≥2 parts.
+    let out = dir.path().join("part.mp4");
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "8KB",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let count = v["extra"]["count"].as_u64().unwrap_or(0);
+    assert!(count >= 2, "--size should force multiple parts; {v}");
+    assert!(dir.path().join("part_00.mp4").exists(), "stem_%02d naming");
+}
+
+#[test]
+fn countdown_shows_digits_then_clears() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "countdown",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--from",
+        "2",
+        "--each",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // Center-crop diff vs the source at n=3 (inside count) vs n=28 (after it).
+    let diff = |n: u32| -> u64 {
+        let px = |f: &Path| -> Vec<u8> {
+            Command::new("ffmpeg")
+                .args(["-i"])
+                .arg(f)
+                .args([
+                    "-vf",
+                    &format!("select=eq(n\\,{n}),crop=120:80:100:80"),
+                    "-frames:v",
+                    "1",
+                    "-f",
+                    "rawvideo",
+                    "-pix_fmt",
+                    "gray",
+                    "-",
+                ])
+                .output()
+                .unwrap()
+                .stdout
+        };
+        px(&src)
+            .iter()
+            .zip(px(&out).iter())
+            .map(|(a, b)| a.abs_diff(*b) as u64)
+            .sum()
+    };
+    let (early, late) = (diff(3), diff(28));
+    assert!(
+        early > 50000 && early > late * 4,
+        "digit burns early then clears: {early} vs {late}; {v}"
+    );
+}

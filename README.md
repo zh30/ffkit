@@ -112,7 +112,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 
 | `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`, `--mode`/`--color`) |
 
-| `split` | `--every` regular parts, `--at` explicit, `--scenes` shot-detection | Chop into parts (`--every 30` even chunks, or `--at 30,90` chapter points) → `stem_00..` |
+| `split` | `--every` regular parts, `--at` explicit, `--scenes` shot-detection, `--size` target-MB chunks | Chop into parts (`--every 30` even chunks, or `--at 30,90` chapter points) → `stem_00..` |
 | `slideshow` | Still images → video montage (`--per`, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed, `--size` canvas) |
 | `speed` | `--factor 2` is 2×; talking-head keeps pitch |
 | `music` | Bed under speech with ducking (`--track`) |
@@ -168,6 +168,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
 | `frames` | Still dump every `--every` seconds → `stem_001.png…` (`--width`) |
+| `countdown` | 3-2-1(-GO) intro overlay (`--from`, `--each`, `--go`, `--at`) |
+| `invert` | Negative colors (`negate`) |
 | `batch` | One verb on every media file in a directory |
 | `pipeline` | Run a JSON scheme in order (`$src` / `$in` / `expect`) |
 | `graph` | JSON filter graph, see [`references/graph.md`](references/graph.md) |
