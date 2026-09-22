@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.68.0] - 2026-09-22
+
+- `vignette --at/--dur` — windowed vignette (`enable='between(...)'` on the angle filter).
+- `grade --at/--dur` — windowed grade: `:enable='...'` appended to every filter in the chain (eq/curves/hue/lut3d/colortemperature/colorbalance/noise all accept timeline on ffmpeg 4.4+).
+- `broll --audio` — mixes the insert's audio (`atrim`+`adelay`+`amix`) into its window so b-roll sound is heard; requires a video insert with an audio stream.
+
 ## [0.67.0] - 2026-09-22
 
 - `bw --at/--dur` — windowed desaturation (`hue=s=0:enable='between(...)'`).

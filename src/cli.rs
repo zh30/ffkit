@@ -443,6 +443,9 @@ pub struct BrollArgs {
     /// Fade the cutaway in/out over N seconds (0 = hard cut)
     #[arg(long, default_value_t = 0.0)]
     pub fade: f64,
+    /// Also mix in the insert's audio during its window (b-roll sound)
+    #[arg(long)]
+    pub audio: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1059,6 +1062,12 @@ pub struct GradeArgs {
     /// Rotate the hue by N degrees (-180..180): white-balance rescue or color FX
     #[arg(long, default_value_t = 0.0, allow_hyphen_values = true)]
     pub hue: f64,
+    /// Grade only from this time (h:mm:ss or seconds) — dream sequences, flashbacks
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1629,6 +1638,12 @@ pub struct VignetteArgs {
     /// vignette angle in radians (smaller = stronger; default PI/4)
     #[arg(long, default_value_t = 0.785)]
     pub angle: f64,
+    /// Vignette only from this time (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

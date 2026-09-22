@@ -61,6 +61,23 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
     if args.grain > 0.0 {
         vf.push_str(&format!(",noise=alls={}:allf=t+u", args.grain.min(30.0)));
     }
+    if let Some(s) = &args.at {
+        let at = crate::time::parse_time(s)?;
+        if !(0.0..probe.duration).contains(&at) {
+            return Err(Error::input("--at is outside the input"));
+        }
+        let win = match args.dur {
+            Some(d) => format!("between(t,{at:.3},{:.3})", at + d),
+            None => format!("gte(t,{at:.3})"),
+        };
+        vf = vf
+            .split(',')
+            .map(|seg| format!("{seg}:enable='{win}'"))
+            .collect::<Vec<_>>()
+            .join(",");
+    } else if args.dur.is_some() {
+        return Err(Error::input("--dur needs --at"));
+    }
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
