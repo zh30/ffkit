@@ -166,15 +166,13 @@ fn transition_chain(
         argv.push(p);
     }
 
-    let mut fc = String::new();
+    let mut seg = Vec::new();
     for i in 0..n {
-        fc.push_str(&format!(
-            "[{i}:v]scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={fps:.3},format=yuv420p[v{i}];"
+        seg.push(format!(
+            "[{i}:v]scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={fps:.3},format=yuv420p[v{i}]"
         ));
         if all_audio {
-            fc.push_str(&format!(
-                "[{i}:a]aresample=48000,aformat=channel_layouts=stereo[a{i}];"
-            ));
+            seg.push(format!("[{i}:a]aresample=48000,aformat=channel_layouts=stereo[a{i}]"));
         }
     }
     let mut prev_v = "v0".to_string();
@@ -188,8 +186,8 @@ fn transition_chain(
             format!("x{i}")
         };
         let offset = cum + probes[i - 1].duration - i as f64 * fade;
-        fc.push_str(&format!(
-            "[{prev_v}][v{i}]xfade=transition={name}:duration={fade:.3}:offset={offset:.3}[{out_v}];"
+        seg.push(format!(
+            "[{prev_v}][v{i}]xfade=transition={name}:duration={fade:.3}:offset={offset:.3}[{out_v}]"
         ));
         prev_v = out_v;
         if all_audio {
@@ -198,11 +196,12 @@ fn transition_chain(
             } else {
                 format!("af{i}")
             };
-            fc.push_str(&format!("[{prev_a}][a{i}]acrossfade=d={fade:.3}[{out_a}];"));
+            seg.push(format!("[{prev_a}][a{i}]acrossfade=d={fade:.3}[{out_a}]"));
             prev_a = out_a;
         }
         cum += probes[i - 1].duration;
     }
+    let fc = seg.join(";");
 
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if all_audio {
