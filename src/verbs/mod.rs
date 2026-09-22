@@ -1,3 +1,4 @@
+pub mod art;
 pub mod audiogram;
 pub mod autocrop;
 pub mod bleep;
@@ -64,6 +65,7 @@ pub mod split;
 pub mod stabilize;
 pub mod strip;
 pub mod subs;
+pub mod sync;
 pub mod tempo;
 pub mod timer;
 pub mod title;

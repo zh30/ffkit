@@ -152,7 +152,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `volume` | Gain ±dB (platform loudness is `loudnorm`) |
 | `blur` | Gaussian blur (`--sigma`) |
 | `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30 (nlmeans; slow on long clips) |
-| `crop` | Crop a `--region x:y:w:h` box, or `--aspect W:H` center-reframe (1:1, 9:16) |
+| `crop` | Crop `--region x:y:w:h`, or `--aspect` reframe with `--anchor center|top|bottom|left|right` |
 | `waveform` | Audio waveform → PNG (`--size`, `--color`) for podcast art/thumbnails |
 | `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup |
 | `dehum` | Notch mains hum `--mains 50|60` + `--harmonics` (Q=12 `equalizer` chain) |
@@ -176,6 +176,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `hls` | Package to `index.m3u8` + `seg_*.ts` (`--seg` seconds) |
 | `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
 | `conform` | Normalize mixed footage for concat (`--size`, `--fps`, `--lufs`) |
+| `sync` | Shift audio ±ms to fix A/V sync (`--ms`) |
+| `art` | Attach a cover image (`--image`) → mp3/m4a/mp4/mkv |
 | `batch` | One verb on every media file in a directory |
 | `pipeline` | Run a JSON scheme in order (`$src` / `$in` / `expect`) |
 | `graph` | JSON filter graph, see [`references/graph.md`](references/graph.md) |

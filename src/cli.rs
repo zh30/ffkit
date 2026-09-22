@@ -180,6 +180,8 @@ pub enum Cmd {
     Hls(HlsArgs),
     Qa(QaArgs),
     Conform(ConformArgs),
+    Sync(SyncArgs),
+    Art(ArtArgs),
     /// Even out voice dynamic range (compressor)
     Leveler(LevelerArgs),
     /// Noise gate — silence below a threshold
@@ -1321,6 +1323,27 @@ pub struct ConformArgs {
 }
 
 #[derive(clap::Args, Debug)]
+pub struct SyncArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Shift audio by ms: + delays audio, - pulls it earlier
+    #[arg(long, allow_hyphen_values = true)]
+    pub ms: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ArtArgs {
+    /// Audio/video file to attach the cover to
+    pub input: PathBuf,
+    /// Cover image (jpg/png)
+    #[arg(long)]
+    pub image: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+}
+
+#[derive(clap::Args, Debug)]
 pub struct SilenceArgs {
     pub input: PathBuf,
     #[arg(short, long)]
@@ -1436,9 +1459,12 @@ pub struct CropArgs {
     /// Explicit box x:y:w:h (overrides --aspect)
     #[arg(long)]
     pub region: Option<String>,
-    /// Reframe to aspect W:H, centered (e.g. 1:1, 9:16)
+    /// Reframe to aspect W:H (e.g. 1:1, 9:16)
     #[arg(long)]
     pub aspect: Option<String>,
+    /// --aspect anchor: center|top|bottom|left|right (keep faces in 9:16)
+    #[arg(long, default_value = "center")]
+    pub anchor: String,
 }
 
 #[derive(clap::Args, Debug)]

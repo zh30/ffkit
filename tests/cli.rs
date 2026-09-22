@@ -6711,3 +6711,202 @@ fn overlay_mode_screen_brightens() {
         "screen blend should lift the frame ({s} -> {o})"
     );
 }
+
+#[test]
+fn sync_shifts_audio_late_and_early() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let late = dir.path().join("late.mp4");
+    let v = run_json(&[
+        "sync",
+        src.to_str().unwrap(),
+        "-o",
+        late.to_str().unwrap(),
+        "--ms",
+        "300",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 1.3).abs() < 0.15, "+300ms pad extends container: {d}");
+    // Audio is silent for the first ~0.3s of the padded output.
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&late)
+        .args([
+            "-ss",
+            "0",
+            "-t",
+            "0.2",
+            "-af",
+            "volumedetect",
+            "-vn",
+            "-f",
+            "null",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stderr);
+    let mean = s
+        .lines()
+        .find_map(|l| {
+            l.split("mean_volume:")
+                .nth(1)?
+                .split_whitespace()
+                .next()?
+                .parse::<f64>()
+                .ok()
+        })
+        .unwrap_or(0.0);
+    assert!(
+        mean < -60.0 || mean == -91.0 || mean.abs() < 1e-9 || mean < -55.0,
+        "delay pad should be near-silent: {mean}"
+    );
+
+    let early = dir.path().join("early.mp4");
+    let v2 = run_json(&[
+        "sync",
+        src.to_str().unwrap(),
+        "-o",
+        early.to_str().unwrap(),
+        "--ms",
+        "-300",
+    ]);
+    assert_eq!(v2["status"], "ok", "{v2}");
+    let d2 = v2["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(d2 <= 1.05, "trim path doesn't grow duration: {d2}");
+}
+
+#[test]
+fn crop_anchor_top_keeps_top_third() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // Top-red / bottom-blue fixture.
+    let src = dir.path().join("tb.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=red:s=320x480:d=0.4:rate=30,drawbox=x=0:y=240:w=320:h=240:c=blue:t=fill")
+        .args(["-pix_fmt", "yuv420p", "-c:v", "libx264"])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("sq.mp4");
+    let v = run_json(&[
+        "crop",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--aspect",
+        "1:1",
+        "--anchor",
+        "top",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let png = dir.path().join("f.png");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&out)
+        .args(["-frames:v", "1"])
+        .arg(&png)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let (r, _g, b) = mean_rgb(&png);
+    assert!(
+        r > b + 30.0,
+        "top-anchored 1:1 keeps the red top (r={r} b={b})"
+    );
+}
+
+#[test]
+fn art_attaches_cover_stream() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let aud = dir.path().join("a.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=440:duration=0.5")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let img = dir.path().join("c.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=red:s=300x300")
+        .args(["-frames:v", "1"])
+        .arg(&img)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("o.mp3");
+    let v = run_json(&[
+        "art",
+        aud.to_str().unwrap(),
+        "--image",
+        img.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // Two streams in the mp3: audio + mjpeg cover.
+    let o = Command::new("ffprobe")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-show_streams",
+            "-of",
+            "json",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let j: Value = serde_json::from_slice(&o.stdout).unwrap();
+    let kinds: Vec<&str> = j["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|s| s["codec_type"].as_str())
+        .collect();
+    assert!(
+        kinds.contains(&"audio") && kinds.contains(&"video"),
+        "{kinds:?}"
+    );
+}

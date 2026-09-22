@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.56.0] - 2026-09-22
+
+- `sync` — fix constant A/V offset: `--ms +N` pads the audio start (`adelay`), `--ms -N` trims it (`atrim`); video stream-copied.
+- `crop --anchor` — `--aspect` reframes at `center|top|bottom|left|right` instead of always centering (keep faces in 9:16 crops of landscape masters).
+- `art` — attach a cover image (`--image`): `mjpeg` art stream + `id3v2`/attached_pic for mp3/m4a/mp4/mov/mkv; refuses containers that can't hold art.
+
 ## [0.55.0] - 2026-09-22
 
 - `qa` — measure encode quality loss: `psnr`/`ssim` via `scale2ref` + metric filter, parsed into `extra` (psnr dB, ssim 0..1).

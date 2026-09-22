@@ -70,7 +70,19 @@ pub fn run(args: CropArgs, g: &Globals) -> Result<Contract, Error> {
             (iw, (iw as f64 / ar).round() as u32)
         };
         let (w, h) = (w & !1, h & !1); // even dims for yuv420p
-        (w, h, (iw - w) / 2, (ih - h) / 2)
+        let (x, y) = match args.anchor.as_str() {
+            "center" => ((iw - w) / 2, (ih - h) / 2),
+            "top" => ((iw - w) / 2, 0),
+            "bottom" => ((iw - w) / 2, ih - h),
+            "left" => (0, (ih - h) / 2),
+            "right" => (iw - w, (ih - h) / 2),
+            other => {
+                return Err(Error::input(format!(
+                    "unknown --anchor {other}; use center|top|bottom|left|right"
+                )))
+            }
+        };
+        (w, h, x, y)
     } else {
         return Err(Error::input("crop needs --region x:y:w:h or --aspect W:H"));
     };
