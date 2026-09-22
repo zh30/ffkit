@@ -117,7 +117,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `speed` | `--factor 2` is 2×; talking-head keeps pitch |
 | `music` | Bed under speech with ducking (`--track`) |
 | `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`) |
-| `grid` | N-input mosaic; `--audio N` keeps one input's track | N inputs into a `--layout CxR` tile wall (`--size 1920x1080`); audios mix when all inputs have one |
+| `grid` | N-input mosaic; `--audio N` keeps one input's track | N inputs into a `--layout CxR` tile wall (`--size 1920x1080`); audios mix when all inputs have one (`--labels` tile labels) |
 | `progress` | Bottom/top progress bar, whole clip or a window (`--color`, `--height`, `--edge`, `--at`, `--dur`) |
 | `freeze` | Hold the frame at `--at T` for `--dur D` (mid-clip), or clone the last frame with `--end D` (outro) |
 | `censor` | Mosaic/blur a face/logo region `--region x:y:w:h` (`--mode pixel|blur`; `--at`/`--dur` window) |
@@ -133,11 +133,11 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window) |
 | `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio (`--kind`, `--strength`, `--at`/`--dur`) |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip` |
-| `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window |
+| `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window (`--soft` removelogo) |
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
 | `subs` | Extract embedded subtitles (`--stream`), `--burn` hardsubs, `--shift ±N` retime an .srt (`--mux` soft subs, `--lang` tag) |
 | `thumb` | One-frame cover grab (`--at` / `--frame`, `--width`) → jpg/png/webp |
-| `solid` | Solid-color clip card (`--color`, `--size`, `--dur`; silent stereo optional) |
+| `solid` | Solid-color clip card (`--color`, `--size`, `--dur`; silent stereo optional) (`--gradient` animated) |
 | `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |

@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.77.0
+version: 0.78.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -140,6 +140,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | selectable soft subs in mp4 | `subs` (`--mux file.srt --lang spa`) |
 | stroked TikTok captions | `caption` (`--outline RRGGBB`) |
 | branded audiogram title font | `audiogram` (`--font`) |
+| name each tile in a grid | `grid` (`--labels "a,b"`) |
+| gentle logo cleanup | `delogo` (`--soft`) |
+| animated gradient card | `solid` (`--gradient ff0000:0000ff`) |
 | reframe / crop out an edge | `crop` (`--region x:y:w:h` or `--aspect 1:1`/`9:16` centered) |
 | motion / loop | `speed`, `reverse`, `loop`, `stabilize`, `fade` |
 | picture | `grade` (+ `--lut` .cube), `bw`, `vignette`, `sharpen`, `blur` |

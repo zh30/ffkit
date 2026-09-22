@@ -22,7 +22,31 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
             args.w, args.h, args.x, args.y, w, h
         )));
     }
-    let mut vf = format!("delogo=x={}:y={}:w={}:h={}", args.x, args.y, args.w, args.h);
+    // --soft: removelogo reads a PNG mask (white = remove) and interpolates
+    // edges instead of boxing — gentler on gradients/sky.
+    let mut mask_tmp = None;
+    let mut vf = if args.soft {
+        let (fw, fh) = (w as u32, h as u32);
+        let mut img = image::RgbaImage::from_pixel(fw, fh, image::Rgba([0, 0, 0, 255]));
+        for y in args.y..(args.y + args.h) {
+            for x in args.x..(args.x + args.w) {
+                img.put_pixel(x, y, image::Rgba([255, 255, 255, 255]));
+            }
+        }
+        let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
+        let mask = tmp.path().join("mask.png");
+        img.save(&mask)
+            .map_err(|e| Error::output(format!("write mask png: {e}")))?;
+        mask_tmp = Some(tmp);
+        let m = mask
+            .to_string_lossy()
+            .replace('\\', "\\\\")
+            .replace(':', "\\:")
+            .replace('\'', "\\'");
+        format!("removelogo=filename='{m}'")
+    } else {
+        format!("delogo=x={}:y={}:w={}:h={}", args.x, args.y, args.w, args.h)
+    };
     match (&args.at, args.dur) {
         (Some(at), dur) => {
             let start = crate::time::parse_time(at)?;
@@ -53,6 +77,7 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
 
     let c = engine::write_job("delogo", &[&args.input], &args.output, vec![argv], g)?;
+    drop(mask_tmp);
     let mut extra = json!({
         "box": {"x": args.x, "y": args.y, "w": args.w, "h": args.h},
     });

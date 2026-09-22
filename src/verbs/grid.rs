@@ -6,6 +6,10 @@ use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 use crate::spawn::Argv;
 
+fn fs_pad(th: u32) -> u32 {
+    (th / 12).max(4)
+}
+
 fn parse_wxh(s: &str, flag: &str) -> Result<(u32, u32), Error> {
     let (w, h) = s
         .split_once('x')
@@ -81,8 +85,61 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
             ));
         }
     }
+    let mut label_pngs: Vec<(u32, std::path::PathBuf, tempfile::TempDir)> = Vec::new();
+    if let Some(raw) = &args.labels {
+        let font_path = crate::font::resolve(None)?;
+        let font_bytes =
+            std::fs::read(&font_path).map_err(|e| Error::input(format!("read font: {e}")))?;
+        for (i, text) in raw.split(',').enumerate().take(n) {
+            let text = text.trim();
+            if text.is_empty() {
+                continue;
+            }
+            // label fills ~3/4 of a tile row
+            let img = crate::raster::render_caption_outlined(
+                text,
+                &font_bytes,
+                tw,
+                [255, 255, 255],
+                0.9,
+                ([0, 0, 0], 2),
+            )?;
+            let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
+            let png = tmp.path().join(format!("lbl{i}.png"));
+            img.save(&png)
+                .map_err(|e| Error::output(format!("write label png: {e}")))?;
+            label_pngs.push((i as u32, png, tmp));
+        }
+    }
     let ins: String = (0..n).map(|i| format!("[v{i}]")).collect();
-    seg.push(format!("{ins}xstack=inputs={n}:layout={layout_str}[vout]"));
+    let vfirst = if label_pngs.is_empty() {
+        "[vout]"
+    } else {
+        "[vg]"
+    };
+    seg.push(format!(
+        "{ins}xstack=inputs={n}:layout={layout_str}{vfirst}"
+    ));
+    if !label_pngs.is_empty() {
+        let mut cur = String::from("[vg]");
+        for (j, (idx, _, _)) in label_pngs.iter().enumerate() {
+            let col = *idx % cols;
+            let row = *idx / cols;
+            let next = if j + 1 == label_pngs.len() {
+                "[vout]".to_string()
+            } else {
+                format!("[vo{j}]")
+            };
+            let src = n + j;
+            seg.push(format!(
+                "{cur}[{src}:v]overlay={cx}+({tw}-w)/2:{ry}+{th}-h-{pad}:shortest=1{next}",
+                cx = col * tw,
+                ry = row * th,
+                pad = (fs_pad(th)),
+            ));
+            cur = next;
+        }
+    }
     if args.audio.is_none() && all_audio {
         let ains: String = (0..n).map(|i| format!("[a{i}]")).collect();
         seg.push(format!("{ains}amix=inputs={n}:normalize=0[aout]"));
@@ -93,6 +150,10 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
     for f in &args.inputs {
         argv.push("-i");
         argv.push(f);
+    }
+    for (_, png, _) in &label_pngs {
+        argv.extend(["-loop", "1", "-i"]);
+        argv.push(png);
     }
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if all_audio || args.audio.is_some() {
@@ -114,6 +175,7 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
     let refs: Vec<&std::path::Path> = args.inputs.iter().map(|p| p.as_path()).collect();
     let argvs: Vec<Argv> = vec![argv];
     let c = engine::write_job("grid", &refs, &args.output, argvs, g)?;
+    drop(label_pngs);
     let extra = json!({
         "inputs": n,
         "layout": args.layout,

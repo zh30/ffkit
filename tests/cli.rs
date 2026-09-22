@@ -8786,3 +8786,77 @@ fn audiogram_custom_font() {
     let v = run_json(&refs);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn solid_gradient_makes_gradient_clip() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("gr.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--gradient",
+        "ff0000:0000ff",
+        "--dur",
+        "1",
+        "--size",
+        "320x240",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["gradient"], "ff0000:0000ff");
+}
+
+#[test]
+fn delogo_soft_runs_removelogo() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("dl.mp4");
+    let v = run_json(&[
+        "delogo",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--x",
+        "10",
+        "--y",
+        "10",
+        "--w",
+        "60",
+        "--h",
+        "40",
+        "--soft",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn grid_labels_overlay_tiles() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    let b = dir.path().join("b.mp4");
+    std::fs::copy(&a, &b).unwrap();
+    let out = dir.path().join("g.mp4");
+    let v = run_json(&[
+        "grid",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--layout",
+        "2x1",
+        "--size",
+        "640x240",
+        "--labels",
+        "cam A,cam B",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

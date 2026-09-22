@@ -695,6 +695,9 @@ pub struct DelogoArgs {
     /// Window length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Feathered removal via removelogo mask instead of the hard delogo box
+    #[arg(long)]
+    pub soft: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1038,6 +1041,9 @@ pub struct SolidArgs {
     /// Also add a silent stereo track (default true for edit-friendly files)
     #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     pub audio: bool,
+    /// Animated gradient RRGGBB:RRGGBB instead of a flat color
+    #[arg(long)]
+    pub gradient: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1914,6 +1920,9 @@ pub struct GridArgs {
     /// Take audio from this input index instead of mixing all tracks
     #[arg(long)]
     pub audio: Option<usize>,
+    /// Per-tile labels (comma-separated, one per input)
+    #[arg(long)]
+    pub labels: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

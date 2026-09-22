@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.78.0] - 2026-09-22
+
+- `grid --labels "a,b,c"` — raster caption PNGs overlaid at the bottom of each tile (drawtext is absent on some ffmpeg builds, so labels share the raster pipeline).
+- `delogo --soft` — generates a PNG mask and uses `removelogo` interpolation instead of the hard delogo box.
+- `solid --gradient RRGGBB:RRGGBB` — animated gradient card via the `gradients` lavfi source.
+
 ## [0.77.0] - 2026-09-22
 
 - `subs --mux file.srt --lang spa` — muxes a subtitle file in as a selectable stream (mov_text in mp4, srt in mkv) with a language tag; videos stay stream-copied.
