@@ -88,7 +88,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
               [0:a]showwaves=s={ww}x{wh}:mode={mode}:rate=30:colors={}:draw=full[wv];\
               [wv]colorkey=0x000000:0.12:0.1[wvk];\
               [bg][wvk]overlay=(W-w)/2:(H-h)*{yf}:shortest=1{tail}",
-        args.color,
+        crate::color::lavfi(&args.color),
         ww = (w as f64 * 0.87).round() as u32 & !1,
         yf = yf,
         wh = ((h as f64) / 6.0).round().max(40.0) as u32 & !1,
@@ -118,7 +118,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         "frame": "1080x1920",
         "waveform": "showwaves",
         "mode": mode,
-        "color": args.color,
+        "color": crate::color::lavfi(&args.color),
     }));
     Ok(c)
 }

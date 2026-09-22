@@ -218,3 +218,7 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `gif --loop N` + `gif --bounce` loop controls
 - [ ] `freeze --reverse` (rewind-into-freeze)
 - [ ] `split --duration` clip-length cap for social exports
+- [ ] `transcode --copy` audio passthrough
+- [ ] `deinterlace --parity ttf|bff`
+- [ ] `freeze --ease` (ramp into freeze)
+- [ ] `extract --gif` palette tuning / `gif` verb

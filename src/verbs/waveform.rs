@@ -14,11 +14,7 @@ pub fn run(args: WaveformArgs, g: &Globals) -> Result<Contract, Error> {
 
     let raw = args.color.as_deref().unwrap_or("ffffff");
     // ffmpeg colour spec wants 0xRRGGBB; bare hex is ambiguous.
-    let color = if raw.len() == 6 && raw.chars().all(|c| c.is_ascii_hexdigit()) {
-        format!("0x{raw}")
-    } else {
-        raw.to_string()
-    };
+    let color = crate::color::lavfi(raw);
     let color = color.as_str();
     let sc = match &args.scale {
         Some(s) => {

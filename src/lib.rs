@@ -1,5 +1,6 @@
 pub mod batch;
 pub mod cli;
+pub mod color;
 pub mod contract;
 pub mod doctor;
 pub mod embed;

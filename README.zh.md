@@ -137,7 +137,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`）+ `--rotate`、`--clear` 显示旋转，无损拷贝 |
 | `subs` | 抽取内嵌字幕（`--stream`）、`--burn` 压制字幕、`--shift ±N` 整体平移 .srt（`--mux` 软字幕+`--lang`） |
 | `thumb` | 抓封面单帧（`--at`/`--frame`、`--width`）→ jpg/png/webp |
-| `solid` | 纯色视频卡（`--color`、`--size`、`--dur`，可选静音轨）（`--gradient` 渐变） |
+| `solid` | 纯色视频卡（`--color`、`--size`、`--dur`，可选静音轨）（`--gradient` 渐变） |（`--color`/`--gradient` 支持颜色名与十六进制） |
 | `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐、`--mix` 保留原音轨 |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（`--merge N` 合并间隔小于 N 秒的段；默认只编码要留下的段；`--copy` 无损但按关键帧） |
@@ -176,7 +176,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `mix` | 两段音频等权叠加（`--vol-a`/`--vol-b` 线性电平，`--longest` 按长者收尾） |
 | `mute` | 去掉音轨（其余流直接封装，不重编码） |
 | `timer` | 角落计时器烧录（`--position`、`--at`、`--dur`、`--format ms` 厘秒） |
-| `hls` | 打包成 `index.m3u8` + `seg_*.ts`（`--seg` 秒数） |
+| `hls` | HLS 网页播放封装（`--seg` 时长、`--single` 单文件、`--copy` 流直拷） |
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM，`--metric`） |
 | `conform` | 统一素材规格便于拼接（`--size`、`--fps`、`--lufs`） |
 | `sync` | 修复音画同步（`--ms ±N` 垫音/裁音头） |

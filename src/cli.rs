@@ -1534,6 +1534,12 @@ pub struct HlsArgs {
     /// Segment length in seconds (default 4)
     #[arg(long, default_value_t = 4.0)]
     pub seg: f64,
+    /// Single .ts + byte-range playlist — one file to upload instead of hundreds
+    #[arg(long)]
+    pub single: bool,
+    /// Stream-copy the essence (fast repack; needs h264/aac input)
+    #[arg(long)]
+    pub copy: bool,
 }
 
 #[derive(clap::Args, Debug)]

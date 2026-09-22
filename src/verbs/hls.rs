@@ -32,31 +32,47 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     };
     std::fs::create_dir_all(&dir)
         .map_err(|e| Error::output(format!("create {}: {e}", paths::display(&dir))))?;
-    let seg_tpl = dir.join("seg_%03d.ts");
+    let seg_tpl = if args.single {
+        dir.join("seg.ts")
+    } else {
+        dir.join("seg_%03d.ts")
+    };
 
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
-    if probe.has_video {
+    if args.copy {
         argv.extend([
-            "-vf".to_string(),
-            "scale=trunc(iw/2)*2:trunc(ih/2)*2".to_string(),
             "-c:v".to_string(),
-            "libx264".to_string(),
-            "-preset".to_string(),
-            "veryfast".to_string(),
-            "-crf".to_string(),
-            "20".to_string(),
-            "-pix_fmt".to_string(),
-            "yuv420p".to_string(),
+            "copy".to_string(),
+            "-bsf:v".to_string(),
+            "h264_mp4toannexb".to_string(),
         ]);
-    }
-    if probe.has_audio {
-        argv.extend([
-            "-c:a".to_string(),
-            "aac".to_string(),
-            "-b:a".to_string(),
-            "128k".to_string(),
-        ]);
+        if probe.has_audio {
+            argv.extend(["-c:a".to_string(), "copy".to_string()]);
+        }
+    } else {
+        if probe.has_video {
+            argv.extend([
+                "-vf".to_string(),
+                "scale=trunc(iw/2)*2:trunc(ih/2)*2".to_string(),
+                "-c:v".to_string(),
+                "libx264".to_string(),
+                "-preset".to_string(),
+                "veryfast".to_string(),
+                "-crf".to_string(),
+                "20".to_string(),
+                "-pix_fmt".to_string(),
+                "yuv420p".to_string(),
+            ]);
+        }
+        if probe.has_audio {
+            argv.extend([
+                "-c:a".to_string(),
+                "aac".to_string(),
+                "-b:a".to_string(),
+                "128k".to_string(),
+            ]);
+        }
     }
     argv.extend([
         "-f".to_string(),
@@ -68,6 +84,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "-hls_segment_filename".to_string(),
         seg_tpl.display().to_string(),
     ]);
+    if args.single {
+        argv.extend(["-hls_flags".to_string(), "single_file".to_string()]);
+    }
     argv.push(playlist.display().to_string());
 
     // Outputs are a dir of segments + a playlist — manual contract like split.
@@ -85,7 +104,8 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         .map(|rd| {
             rd.filter_map(|e| e.ok())
                 .filter(|e| {
-                    e.file_name().to_string_lossy().starts_with("seg_")
+                    let n = e.file_name().to_string_lossy().into_owned();
+                    (n.starts_with("seg_") || n == "seg.ts")
                         && e.path().extension().is_some_and(|x| x == "ts")
                 })
                 .count()

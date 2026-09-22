@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.80.0] — 2026-09-22
+
+### Added
+
+- Shared `src/color.rs`: every `--color`-family flag now accepts names (`red`, `black`, `gold`, …) as well as `#RGB`/hex — fixes the `0xred` mangling in `solid`/`fit`/gradient paths.
+- `hls --single` — byte-range single-`.ts` package (one file to upload).
+- `hls --copy` — stream-copy repack (instant when input is already h264/aac).
+
+
+## [Unreleased]
+
 ## [0.79.0] — 2026-09-22
 
 ### Added

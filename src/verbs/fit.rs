@@ -70,7 +70,7 @@ pub fn run(args: FitArgs, g: &Globals) -> Result<Contract, Error> {
         let scale_pad = match args.fit {
             FitMode::Pad => {
                 let pad_color = match &args.color {
-                    Some(c) => format!("0x{}", c.trim_start_matches("0x").trim_start_matches('#')),
+                    Some(c) => crate::color::lavfi(c),
                     None => "black".to_string(),
                 };
                 format!(

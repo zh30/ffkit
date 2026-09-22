@@ -7,17 +7,6 @@ use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
-fn parse_hex(c: &str) -> Result<[u8; 3], Error> {
-    let c = c.trim_start_matches('#');
-    if c.len() != 6 {
-        return Err(Error::input("--color must be RRGGBB hex"));
-    }
-    let b = |i: usize| -> Result<u8, Error> {
-        u8::from_str_radix(&c[i..i + 2], 16).map_err(|_| Error::input("--color must be RRGGBB hex"))
-    };
-    Ok([b(0)?, b(2)?, b(4)?])
-}
-
 pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     let text = args.text.trim();
     if text.is_empty() {
@@ -40,7 +29,7 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     let font_bytes = std::fs::read(&font_path)?;
     let vw = probe.width.unwrap_or(1280);
     let fg = match &args.color {
-        Some(c) => parse_hex(c)?,
+        Some(c) => crate::color::rgb(c)?,
         None => [255, 255, 255],
     };
     if !(0.25..=8.0).contains(&args.size) {
@@ -48,7 +37,7 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let img = match &args.outline {
         Some(c) => {
-            let oc = parse_hex(c)?;
+            let oc = crate::color::rgb(c)?;
             // stroke ~6% of glyph height so it scales with --size
             let ow = ((vw as f32 / 8.0 * args.size as f32) * 0.06)
                 .round()

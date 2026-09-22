@@ -26,22 +26,16 @@ pub fn run(args: SolidArgs, g: &Globals) -> Result<Contract, Error> {
                 .split_once(':')
                 .or_else(|| grad.split_once(','))
                 .ok_or_else(|| Error::input("--gradient must look like RRGGBB:RRGGBB"))?;
-            let c0 = c0.trim_start_matches("0x").trim_start_matches('#');
-            let c1 = c1.trim_start_matches("0x").trim_start_matches('#');
-            if c0.len() != 6 || c1.len() != 6 {
-                return Err(Error::input("--gradient must look like RRGGBB:RRGGBB"));
-            }
+            let c0 = crate::color::lavfi(c0);
+            let c1 = crate::color::lavfi(c1);
             format!(
-                "gradients=c0=0x{c0}:c1=0x{c1}:s={w}x{h}:d={}:speed=0.02:rate=30",
+                "gradients=c0={c0}:c1={c1}:s={w}x{h}:d={}:speed=0.02:rate=30",
                 fmt_time(args.dur)
             )
         }
         None => {
-            let color = args.color.trim_start_matches("0x").trim_start_matches('#');
-            format!(
-                "color=c=0x{color}:s={w}x{h}:d={}:rate=30",
-                fmt_time(args.dur)
-            )
+            let color = crate::color::lavfi(&args.color);
+            format!("color=c={color}:s={w}x{h}:d={}:rate=30", fmt_time(args.dur))
         }
     };
 

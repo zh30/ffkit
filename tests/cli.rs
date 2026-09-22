@@ -8988,3 +8988,118 @@ fn rough_merge_merges_close_keeps() {
     let n2 = v2["extra"]["keeps"].as_array().unwrap().len();
     assert!(n2 < n1, "merge should reduce keeps: {n2} !< {n1}");
 }
+
+#[test]
+fn solid_accepts_color_names() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let out = dir.join("s.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--color",
+        "red",
+        "--size",
+        "160x120",
+        "--dur",
+        "0.5",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let vg = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--gradient",
+        "red:blue",
+        "--size",
+        "160x120",
+        "--dur",
+        "0.5",
+        "--overwrite",
+    ]);
+    assert_eq!(vg["status"], "ok", "{vg}");
+}
+
+#[test]
+fn fit_accepts_color_names() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "fit",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--width",
+        "480",
+        "--height",
+        "360",
+        "--color",
+        "black",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn title_accepts_color_names() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "hi",
+        "--color",
+        "red",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn hls_single_and_copy() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("hls");
+    let v = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--single",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.join("seg.ts").is_file());
+    let out2 = dir.join("hls2");
+    let v2 = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        out2.to_str().unwrap(),
+        "--copy",
+        "--overwrite",
+    ]);
+    assert_eq!(v2["status"], "ok", "{v2}");
+}

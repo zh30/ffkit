@@ -176,7 +176,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `mix` | Sum two audio sources (`--vol-a`/`--vol-b` linear, `--longest`) |
 | `mute` | Drop the audio track, stream-copy the rest |
 | `timer` | Burn a running MM:SS(/H:) counter (`--position`, `--at`, `--dur`, `--format ms` adds centiseconds) |
-| `hls` | Package to `index.m3u8` + `seg_*.ts` (`--seg` seconds) |
+| `hls` | HTTP Live Streaming package (`--seg`, `--single` one-file, `--copy` stream-copy) |
 | `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
 | `conform` | Normalize mixed footage for concat (`--size`, `--fps`, `--lufs`) |
 | `sync` | Shift audio ±ms to fix A/V sync (`--ms`) |

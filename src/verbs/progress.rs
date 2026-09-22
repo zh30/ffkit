@@ -53,7 +53,7 @@ pub fn run(args: ProgressArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     let bar_src = format!(
         "color=c={c}:size={w}x{h}:d={d:.3}",
-        c = args.color,
+        c = crate::color::lavfi(&args.color),
         w = probe.width.unwrap_or(320),
         h = args.height,
         d = probe.duration,
