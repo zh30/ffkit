@@ -10067,3 +10067,75 @@ fn mix_loop_repeats_short_b() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn subs_rate_rescales_cues() {
+    let dir = tempfile::tempdir().unwrap();
+    let srt = dir.path().join("a.srt");
+    std::fs::write(&srt, "1\n00:00:01,000 --> 00:00:02,000\nhello\n").unwrap();
+    let out = dir.path().join("b.srt");
+    let v = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--rate",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.contains("00:00:00,500"), "{text}");
+    assert!(text.contains("00:00:01,000"), "{text}");
+}
+
+#[test]
+fn caption_fade_writes_soft_captions() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,050 --> 00:00:00,500\nfade me\n").unwrap();
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--fade",
+        "0.1",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn audiogram_subs_burns_cues() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("a.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,050 --> 00:00:00,400\nepisode title line\n",
+    )
+    .unwrap();
+    let out = dir.path().join("a.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--subs",
+        srt.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["sub_cues"], 1);
+}

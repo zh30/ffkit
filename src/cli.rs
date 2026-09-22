@@ -497,6 +497,9 @@ pub struct CaptionArgs {
     /// Karaoke-style word-by-word reveal inside each cue (burn only)
     #[arg(long)]
     pub karaoke: bool,
+    /// Fade each caption in/out over N seconds (0 = hard cut)
+    #[arg(long, default_value_t = 0.0)]
+    pub fade: f64,
     /// Filled card behind each caption: RRGGBB hex or color name
     #[arg(long)]
     pub box_color: Option<String>,
@@ -600,6 +603,9 @@ pub struct AudiogramArgs {
     /// Moving progress bar along the bottom edge
     #[arg(long)]
     pub progress: bool,
+    /// Burn this .srt's cues onto the audiogram (bottom strip)
+    #[arg(long)]
+    pub subs: Option<PathBuf>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -786,6 +792,9 @@ pub struct SubsArgs {
     /// Merge another .srt into the input .srt (dual-language; cues sorted by start)
     #[arg(long)]
     pub merge: Option<PathBuf>,
+    /// Rescale every cue time by this factor — 25→23.976 fps drift ≈ 0.959
+    #[arg(long)]
+    pub rate: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

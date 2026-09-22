@@ -82,6 +82,33 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push(&png);
         prog_tmp = Some(tmp);
     }
+    // --subs: burn .srt cues along the bottom strip (podcast-clip captions).
+    let mut sub_tmp = None;
+    let mut sub_cues: Vec<crate::srt::Cue> = Vec::new();
+    if let Some(srt_path) = &args.subs {
+        paths::ensure_input(srt_path)?;
+        let raw = std::fs::read_to_string(srt_path)
+            .map_err(|e| Error::input(format!("read subs: {e}")))?;
+        let cues = crate::srt::parse_srt(&raw)?;
+        if cues.len() > 60 {
+            return Err(Error::input("audiogram --subs supports at most 60 cues"));
+        }
+        let font_path = crate::font::resolve(args.font.as_deref().map(std::path::Path::new))?;
+        let font_bytes =
+            std::fs::read(&font_path).map_err(|e| Error::input(format!("read font: {e}")))?;
+        let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
+        for (i, cue) in cues.iter().enumerate() {
+            let img = crate::raster::render_caption(&cue.text, &font_bytes, w)?;
+            let png = tmp.path().join(format!("sub{i}.png"));
+            img.save(&png)
+                .map_err(|e| Error::output(format!("write sub png: {e}")))?;
+            argv.extend(["-loop", "1", "-i"]);
+            argv.push(&png);
+        }
+        sub_cues = cues;
+        sub_tmp = Some(tmp);
+    }
+    let first_sub = 2 + title_png.is_some() as usize + args.progress as usize;
     let prog_idx = if title_png.is_some() { 3 } else { 2 };
     // Chain: [bg][wvk]overlay→[mid] → optional title overlay → optional progress
     // bar. The first token in `tail` labels the waveform overlay's output.
@@ -100,6 +127,24 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
             probe.duration.max(0.01)
         )),
         (false, false) => tail.push_str("[vout]"),
+    }
+    if !sub_cues.is_empty() {
+        tail = tail.replace("[vout]", "[pre]");
+        let mut last = "pre".to_string();
+        for (i, cue) in sub_cues.iter().enumerate() {
+            let lab = if i + 1 == sub_cues.len() {
+                "vout".to_string()
+            } else {
+                format!("cap{i}")
+            };
+            tail.push_str(&format!(
+                ";[{last}][{}:v]overlay=x=(W-w)/2:y=H-h-trunc(H*0.10):enable='between(t,{:.3},{:.3})'[{lab}]",
+                first_sub + i,
+                cue.start,
+                cue.end
+            ));
+            last = lab;
+        }
     }
     let yf = match args.position.as_deref().unwrap_or("bottom") {
         "top" => "0.18",
@@ -141,13 +186,18 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(img) = &args.image {
         inputs.push(img);
     }
+    if let Some(s) = &args.subs {
+        inputs.push(s);
+    }
     let mut c = engine::write_job("audiogram", &inputs, &args.output, vec![argv], g)?;
     drop(prog_tmp);
+    drop(sub_tmp);
     c = c.with_extra(json!({
         "frame": "1080x1920",
         "waveform": "showwaves",
         "mode": mode,
         "color": crate::color::lavfi(&args.color),
+        "sub_cues": sub_cues.len(),
     }));
     Ok(c)
 }

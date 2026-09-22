@@ -159,12 +159,25 @@ fn burn_overlay(
         pngs.push(png);
     }
 
+    if args.fade < 0.0 {
+        return Err(Error::input("--fade must be >= 0"));
+    }
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    for png in &pngs {
+    for (i, (_, end, _)) in jobs.iter().enumerate() {
+        if args.fade > 0.0 {
+            argv.extend([
+                "-loop",
+                "1",
+                "-framerate",
+                "30",
+                "-t",
+                &crate::time::fmt_time(*end),
+            ]);
+        }
         argv.push("-i");
-        argv.push(png);
+        argv.push(&pngs[i]);
     }
 
     let y = overlay_y(args.safe, args.position);
@@ -177,10 +190,22 @@ fn burn_overlay(
         } else {
             format!("v{i}")
         };
-        fc.push_str(&format!(
-            "[{last}][{ov_idx}:v]overlay=x=(W-w)/2:y={y}:enable='between(t,{:.3},{:.3})'[{out_lab}]",
-            start, end
-        ));
+        if args.fade > 0.0 {
+            let f = args.fade.min((end - start) / 2.0).max(0.01);
+            fc.push_str(&format!(
+                "[{ov_idx}:v]format=rgba,fade=t=in:st={start:.3}:d={f:.3}:alpha=1,fade=t=out:st={st:.3}:d={f:.3}:alpha=1[cap{i}];",
+                st = end - f
+            ));
+            fc.push_str(&format!(
+                "[{last}][cap{i}]overlay=x=(W-w)/2:y={y}:enable='between(t,{:.3},{:.3})'[{out_lab}]",
+                start, end
+            ));
+        } else {
+            fc.push_str(&format!(
+                "[{last}][{ov_idx}:v]overlay=x=(W-w)/2:y={y}:enable='between(t,{:.3},{:.3})'[{out_lab}]",
+                start, end
+            ));
+        }
         if i + 1 != jobs.len() {
             fc.push(';');
         }

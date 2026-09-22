@@ -12,6 +12,9 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(other) = &args.merge {
         return merge(&args, other, g);
     }
+    if let Some(rate) = args.rate {
+        return rescale(&args, rate, g);
+    }
     let _probe = engine::probe_or_err(&args.input, g)?;
     if let Some(subs) = &args.burn {
         return burn(&args, subs, g);
@@ -220,6 +223,46 @@ fn shift(args: &SubsArgs, offset: f64, g: &Globals) -> Result<Contract, Error> {
     c.verified = Some(args.output.is_file());
     Ok(c.with_extra(json!({
         "shift": offset,
+        "cues": cues.len(),
+    })))
+}
+
+/// Rescale every cue timestamp by a factor — frame-rate drift fixes
+/// (25→23.976 ≈ 0.959, 23.976→25 ≈ 1.0427).
+fn rescale(args: &SubsArgs, factor: f64, g: &Globals) -> Result<Contract, Error> {
+    if !(0.5..=2.0).contains(&factor) {
+        return Err(Error::input("--rate must be 0.5..=2.0"));
+    }
+    if args
+        .input
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .as_deref()
+        != Some("srt")
+    {
+        return Err(Error::input("subs --rate takes an .srt file as input"));
+    }
+    let raw = std::fs::read_to_string(&args.input)
+        .map_err(|e| Error::input(format!("{}: {e}", args.input.display())))?;
+    let mut cues = crate::srt::parse_srt(&raw)?;
+    for c in cues.iter_mut() {
+        c.start *= factor;
+        c.end *= factor;
+    }
+    let out = crate::srt::to_srt(&cues);
+    if g.dry_run {
+        return Ok(Contract::dry_run(
+            "subs",
+            Some(crate::paths::display(&args.output)),
+            None,
+        ));
+    }
+    std::fs::write(&args.output, out).map_err(|e| Error::output(e.to_string()))?;
+    let mut c = Contract::ok("subs", Some(crate::paths::display(&args.output)), None);
+    c.verified = Some(args.output.is_file());
+    Ok(c.with_extra(json!({
+        "rate": factor,
         "cues": cues.len(),
     })))
 }

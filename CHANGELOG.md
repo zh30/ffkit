@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.92.0] — 2026-09-22
+
+### Added
+
+- `audiogram --subs` — burn an .srt's cues along the audiogram bottom strip (≤60 raster PNG overlays, same font pipeline as `--text`).
+- `caption --fade` — soft caption in/out: each PNG loops as a 30 fps input with alpha `fade` in/out inside its window.
+- `subs --rate` — rescale every cue timestamp by a factor (25↔23.976 fps drift, e.g. `--rate 0.959`).
+
+
 ## [0.91.0] — 2026-09-22
 
 ### Added
