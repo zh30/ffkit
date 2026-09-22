@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.70.0] - 2026-09-22
+
+- `zoom --out` — zoompan `z='max(factor-on*step,1.0)'`: starts at --factor, settles to 1x (reveal shot).
+- `title --shadow N` — raster: blurred darkened copy of the title card offset down-right under the card (soft drop shadow).
+- `extract --width` — `-vf scale=w:-2` on the still path (exact-width frames).
+
 ## [0.69.0] - 2026-09-22
 
 - `subs --burn --font NAME` — font family in the libass force_style (brand captions).

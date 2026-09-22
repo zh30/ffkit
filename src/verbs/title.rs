@@ -62,7 +62,19 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
                 (oc, ow),
             )?
         }
-        None => crate::raster::render_title_styled(text, &font_bytes, vw, fg, args.size as f32)?,
+        None => match args.shadow {
+            Some(b) => crate::raster::render_title_shadow(
+                text,
+                &font_bytes,
+                vw,
+                fg,
+                args.size as f32,
+                b.min(48),
+            )?,
+            None => {
+                crate::raster::render_title_styled(text, &font_bytes, vw, fg, args.size as f32)?
+            }
+        },
     };
     let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
     let png = tmp.path().join("title.png");

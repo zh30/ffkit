@@ -39,6 +39,35 @@ pub fn render_title_outlined(
     render_text_inner(text, font_bytes, video_w, 8.0, fg, size, Some(outline))
 }
 
+/// Title card with a soft drop shadow: renders the card twice, blurs a
+/// darkened copy, offsets it down-right, then lays the card on top.
+pub fn render_title_shadow(
+    text: &str,
+    font_bytes: &[u8],
+    video_w: u32,
+    fg: [u8; 3],
+    size: f32,
+    blur: u32,
+) -> Result<RgbaImage, Error> {
+    let card = render_text_inner(text, font_bytes, video_w, 8.0, fg, size, None)?;
+    let off = (blur.max(2) / 2).max(2);
+    let mut ghost = render_text_inner(text, font_bytes, video_w, 8.0, [12, 12, 16], size, None)?;
+    for px in ghost.pixels_mut() {
+        px.0[0] = 12;
+        px.0[1] = 12;
+        px.0[2] = 16;
+    }
+    let shadow = image::imageops::blur(&ghost, blur.max(1) as f32);
+    let mut canvas = RgbaImage::from_pixel(
+        card.width() + off * 2,
+        card.height() + off * 2,
+        Rgba([0, 0, 0, 0]),
+    );
+    image::imageops::overlay(&mut canvas, &shadow, off as i64, off as i64);
+    image::imageops::overlay(&mut canvas, &card, 0, 0);
+    Ok(canvas)
+}
+
 pub fn render_title(text: &str, font_bytes: &[u8], video_w: u32) -> Result<RgbaImage, Error> {
     render_text(text, font_bytes, video_w, 8.0, [255, 255, 255], 1.0)
 }

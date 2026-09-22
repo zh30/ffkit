@@ -374,6 +374,9 @@ pub struct ExtractArgs {
     /// Timestamp for a still frame
     #[arg(long)]
     pub at: Option<String>,
+    /// Scale the still to this width (height follows aspect)
+    #[arg(long)]
+    pub width: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -986,6 +989,9 @@ pub struct TitleArgs {
     /// Stroke color around the text (RRGGBB hex)
     #[arg(long)]
     pub outline: Option<String>,
+    /// Soft drop shadow under the title card (blur radius in px)
+    #[arg(long)]
+    pub shadow: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1101,6 +1107,9 @@ pub struct ZoomArgs {
     /// Animate the punch over the window (kenburns = smooth push)
     #[arg(long, value_enum)]
     pub motion: Option<SlideMotion>,
+    /// Zoom OUT instead of in: starts at --factor and settles to 1x (reveal shot)
+    #[arg(long)]
+    pub out: bool,
 }
 
 #[derive(clap::Args, Debug)]

@@ -22,6 +22,9 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
             }
             argv.push("-i");
             argv.push(&args.input);
+            if let Some(w) = args.width {
+                argv.extend(["-vf", &format!("scale={w}:-2")]);
+            }
             argv.extend(["-frames:v", "1", "-q:v", "2"]);
         }
         "wav" => {

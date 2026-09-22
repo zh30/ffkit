@@ -8145,3 +8145,67 @@ fn subs_burn_font_flag() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn zoom_out_reveals() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("zo.mp4");
+    let v = run_json(&[
+        "zoom",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--out",
+        "--factor",
+        "2",
+        "--at",
+        "0.2",
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn title_shadow_renders() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("sh.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "--text",
+        "SHADOW",
+        "-o",
+        out.to_str().unwrap(),
+        "--shadow",
+        "12",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn extract_width_scales_still() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("ex.png");
+    let v = run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--width",
+        "160",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

@@ -27,10 +27,17 @@ pub fn run(args: ZoomArgs, g: &Globals) -> Result<Contract, Error> {
         let fps = fps0;
         let frames = (dur_secs * fps).max(1.0);
         let step = (factor0 - 1.0) / frames;
-        format!(
-            "zoompan=z='min(pzoom+{step:.8},{f:.4})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={w}x{h},setsar=1",
-            f = factor0,
-        )
+        if args.out {
+            format!(
+                "zoompan=z='max({f:.4}-on*{step:.8},1.0)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={w}x{h},setsar=1",
+                f = factor0,
+            )
+        } else {
+            format!(
+                "zoompan=z='min(pzoom+{step:.8},{f:.4})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={w}x{h},setsar=1",
+                f = factor0,
+            )
+        }
     };
     if args.dur.is_some() && args.at.is_none() {
         return Err(Error::input("--dur needs --at"));
