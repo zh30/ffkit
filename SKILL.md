@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.92.0
+version: 0.93.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -37,7 +37,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | inspect | `doctor`, `probe`, `look` (`--tiles` / `--at`) |
 
 | trim / join | `cut`, `concat` (`--transition` any xfade, N clips), `split` (`--every` story chunks, `--at` chapter points), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps) |
-| frame / size | `fit` (`--fit pad` / `crop` / `blur`), `zoom` |
+| frame / size | `fit` (`--fit pad` / `crop` / `blur`), `zoom`, `--position` top/bottom/corners |
 
 | export | `deliver`, `transcode` (`--copy-audio`), `compress` (`--size 10MB` two-pass), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions |
 | captions / mute | `caption` (`--karaoke` word reveal, `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, or `--mode mux`), `--fade` |
@@ -69,7 +69,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | merge two audio sources at full level | `mix` `A B` (`--vol-a/--vol-b`, `--longest`, `--at/--dur`) |
 | captions on top instead of bottom | `caption --position top` |
 | lift/crush mid-tones | `grade --gamma` |
-| drop the audio track entirely | `mute` (stream-copy video, no re-encode) |
+| drop the audio track entirely | `mute` (stream-copy video, no re-encode), `--at/--dur` window |
 | elapsed-time corner counter | `timer` (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds), `--down` countdown |
 | web-embed HLS package | `hls` (`--seg` seconds, `--single` one-file, `--copy` repack) → dir/`index.m3u8` + `seg_*.ts` |
 | check encode quality loss | `qa` `ref.mp4 test.mp4` → psnr/ssim numbers |
@@ -131,7 +131,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | split on longer pauses | `split` (`--silence --min-silence`) |
 | wobble/sci-fi/echo/lofi/telephone voice | `fx` (`--kind` 8 effects) |
 | effect only in the drop | `fx` (`--at`/`--dur`) |
-| boomerang that loops 3x | `boomerang` (`--times`) |
+| boomerang that loops 3x | `boomerang` (`--times`), `--at/--dur` window |
 | H.265 for Apple / smaller archive | `transcode` (`--preset hevc`) |
 | gate tuned for speech vs studio | `gate` (`--preset voice|podcast|studio`) |
 | echo/reverb only on the hook | `reverb` (`--at`/`--dur`) |

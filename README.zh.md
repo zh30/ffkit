@@ -99,7 +99,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `look` | 联系表（`--tiles`）或指定时间点（`--at`，可重复） |
 | `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges`、`--drop` 才帧精确 |
 | `concat` | 拼接；`--transition` 在每条之间做 xfade 转场（视频 xfade + 音频 acrossfade，支持 N 条） |
-| `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 |
+| `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 ，`--position` 画面对齐黑边位置 |
 | `extract` | 抓静帧或 `--gif` 动图（`--bounce` 往返循环） | `--at`、`--dur`、`--width`、`--fps` |
 | `overlay` | logo/画中画；`--tile N` 全屏草稿水印 | logo、水印、画中画 | `--angle`
 | `broll` | 切入镜头（`--insert` 视频、`--still` 图片、`--motion kenburns` 推镜） | 切走 B-roll（`--insert --at --duration`）；口播声音和时长不变 ，`--audio` 听插播原声（`--volume` 音量） |
@@ -122,7 +122,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `freeze` | 定格画面（`--at`、`--dur`、`--end`、`--ease` 减速、`--reverse` 倒放） |
 | `censor` | 区域打码（`--mode`、`--strength` 强度、`--at`） |
 | `bleep` | 消音哔声：`--at`/`--dur` 选段，`--freq`/`--level` 调音 |
-| `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法）（`--times` 循环次数） |
+| `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法）（`--times` 循环次数） ，`--at/--dur` 局部往返 |
 | `chapter` | 章节标记（`--at TIME|TITLE`、`--auto` 按静音自动分段） |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`；`--buffer N` 向外扩 N 像素） |
 | `sheet` | 宫格预览图（`--cols`x`--rows`、`--time` 每格时间戳） |
@@ -174,7 +174,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `countdown` | 片头 3-2-1(-GO) 倒数遮罩（`--from`、`--each`、`--go`、`--at`）（`--beep` 滴答声） |
 | `invert` | 全帧或定时反色（`--at`、`--dur`） |
 | `mix` | 两段音频等权叠加（`--vol-a`/`--vol-b` 线性电平，`--longest` 按长者收尾，`--at/--dur` 副轨只在窗口内混入） ，`--loop` 短副轨循环 |
-| `mute` | 去掉音轨（其余流直接封装，不重编码） |
+| `mute` | 去掉音轨（其余流直接封装，不重编码） ，`--at/--dur` 局部静音 |
 | `timer` | 画面计时器（`--position`、`--format ms`、`--box-color` 底板） （`--format`、`--box-color`、`--down` 倒计时） |
 | `hls` | HLS 网页播放封装（`--seg` 时长、`--single` 单文件、`--copy` 流直拷） |
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM，`--metric`） |

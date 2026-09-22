@@ -10139,3 +10139,112 @@ fn audiogram_subs_burns_cues() {
     assert_eq!(v["status"], "ok", "{v}");
     assert_eq!(v["extra"]["sub_cues"], 1);
 }
+
+#[test]
+fn fit_position_anchors_picture_in_bars() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("sq.mp4");
+    let v = run_json(&[
+        "fit",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--aspect",
+        "1:1",
+        "--position",
+        "top",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+
+    let frame = dir.path().join("f.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let (w, h) = img.dimensions();
+    let top = img.get_pixel(w / 2, 2);
+    let bottom = img.get_pixel(w / 2, h.saturating_sub(3));
+    assert!(
+        top.0.iter().map(|&c| c as u32).sum::<u32>() > 60,
+        "picture should reach the top edge, got {top:?}"
+    );
+    assert!(
+        bottom.0.iter().map(|&c| c as u32).sum::<u32>() < 60,
+        "bottom bar should stay dark, got {bottom:?}"
+    );
+}
+
+#[test]
+fn mute_at_silences_window_only() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "mute",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--dur",
+        "0.2",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // the muted window should show up as a silence cut
+    let parts = dir.path().join("p_%d.mp4");
+    let sp = run_json(&[
+        "split",
+        out.to_str().unwrap(),
+        "-o",
+        parts.to_str().unwrap(),
+        "--silence",
+        "-45",
+        "--min-silence",
+        "0.15",
+        "--json",
+    ]);
+    assert_eq!(sp["status"], "ok", "{sp}");
+    assert_eq!(sp["extra"]["count"], 2, "{sp}");
+    let cut = sp["extra"]["cuts"][0].as_f64().unwrap();
+    assert!((cut - 0.3).abs() < 0.1, "cut at {cut}, want ~0.3");
+}
+
+#[test]
+fn boomerang_at_bounces_window_only() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "boomerang",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--dur",
+        "0.3",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    let want = 1.0 + 0.3;
+    assert!((d - want).abs() < 0.25, "expected ~{want}s, got {d}");
+}

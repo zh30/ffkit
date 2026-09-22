@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.93.0] — 2026-09-22
+
+### Added
+
+- `fit --position` — anchor the picture inside the padded frame: top/bottom/left/right/corners, works for `--fit pad` and `--fit blur` (e.g. a bottom bar reserved for captions).
+- `mute --at/--dur` — silence only inside a window (`volume=0` gate) instead of dropping the whole track; the rest of the audio and the video pass through copied.
+- `boomerang --at/--dur` — forward-backward bounce only the chosen window; head and tail play straight (`--times` still loops the window).
+
+
 ## [0.92.0] — 2026-09-22
 
 ### Added

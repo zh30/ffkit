@@ -337,6 +337,10 @@ pub struct FitArgs {
     /// Pad bar color (RRGGBB hex, default black)
     #[arg(long)]
     pub color: Option<String>,
+    /// Where the picture sits in the padded frame: center (default), top,
+    /// bottom, left, right, or a corner (top-left…bottom-right)
+    #[arg(long)]
+    pub position: Option<String>,
     #[arg(long)]
     pub rotate: Option<u32>,
     #[arg(long, value_enum)]
@@ -1662,6 +1666,13 @@ pub struct MuteArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
+    /// Silence only inside this window instead of dropping the whole track
+    /// (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2013,6 +2024,13 @@ pub struct BoomerangArgs {
     /// Repeat the forward-backward cycle N times total (default 1)
     #[arg(long, default_value_t = 1)]
     pub times: u32,
+    /// Boomerang only this window — the rest of the clip plays straight
+    /// (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

@@ -99,7 +99,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `look` | Contact sheet (`--tiles`) or timestamps (`--at`, repeatable) |
 | `cut` | Trim; lossless copy by default, `--accurate`, `--ranges`, `--drop` for frame-exact |
 | `concat` | Join; `--transition` crossfades between every clip (xfade + acrossfade, N inputs) |
-| `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop |
+| `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop , `--position` anchors the picture in the bars |
 | `extract` | Still frame or `--gif` clip (`--bounce` palindrome) | `--at`, `--dur`, `--width`, `--fps` |
 | `overlay` | Image/video overlay; position/scale/`--tile`, `--fade`, `--angle`, `--at`/`--dur`, `--mode`, `--opacity` blend composite | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture |
 | `broll` | Cutaway insert (`--insert` video, `--still` image, `--motion kenburns`) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay , `--audio` hear the insert (`--volume` its level) |
@@ -122,7 +122,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `freeze` | Hold a frame (`--at`, `--dur`, `--end`, `--ease`, `--reverse`) |
 | `censor` | Blur/mosaic a region (`--mode`, `--strength`, `--at`) |
 | `bleep` | Tone over a word/segment: `--at`/`--dur`, `--freq`, `--level` |
-| `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) |
+| `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) , `--at/--dur` bounces just that window |
 | `chapter` | Chapter marks (`--at TIME|TITLE`, `--auto` after silences) |
 | `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`; `--buffer N` keeps N px edge context) |
 | `sheet` | Contact sheet grid (`--cols`x`--rows`, `--time` stamps) |
@@ -174,7 +174,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `countdown` | 3-2-1(-GO) intro overlay (`--from`, `--each`, `--go`, `--at`) (`--beep` tick tones) |
 | `invert` | Full-frame or windowed color inversion (`--at`, `--dur`) |
 | `mix` | Sum two audio sources (`--vol-a`/`--vol-b` linear, `--longest`, `--at/--dur` fades B in/out of a window) , `--loop` repeat short B |
-| `mute` | Drop the audio track, stream-copy the rest |
+| `mute` | Drop the audio track, stream-copy the rest , `--at/--dur` silences only that window |
 | `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown) |
 | `hls` | HTTP Live Streaming package (`--seg`, `--single` one-file, `--copy` stream-copy) |
 | `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
