@@ -71,6 +71,8 @@ pub enum Cmd {
     Cut(CutArgs),
     /// Concatenate clips
     Concat(ConcatArgs),
+    /// Split into fixed-length parts
+    Split(SplitArgs),
     /// Scale, crop, pad, rotate to a frame
     Fit(FitArgs),
     /// Extract audio, a frame, or subtitles
@@ -199,11 +201,22 @@ pub struct ConcatArgs {
     pub inputs: Vec<PathBuf>,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Crossfade between two clips (2 inputs only)
-    #[arg(long)]
-    pub transition: Option<String>,
+    /// xfade between clips: fade | wipe* | slide* | dissolve | radial | circleopen
+    #[arg(long, value_enum)]
+    pub transition: Option<XfadeTransition>,
+    /// Transition duration in seconds
     #[arg(long, default_value_t = 0.5)]
     pub duration: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SplitArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Max seconds per part (story/WhatsApp chunks)
+    #[arg(long)]
+    pub every: f64,
 }
 
 #[derive(clap::Args, Debug)]
@@ -476,8 +489,8 @@ pub struct SlideshowArgs {
     #[arg(long)]
     pub audio: Option<PathBuf>,
     /// Transition between stills (needs --fade > 0)
-    #[arg(long, value_enum, default_value_t = SlideTransition::Fade)]
-    pub transition: SlideTransition,
+    #[arg(long, value_enum, default_value_t = XfadeTransition::Fade)]
+    pub transition: XfadeTransition,
     /// Per-still motion (kenburns = slow push-in / pull-out via zoompan)
     #[arg(long, value_enum, default_value_t = SlideMotion::None)]
     pub motion: SlideMotion,
@@ -487,7 +500,7 @@ pub struct SlideshowArgs {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
-pub enum SlideTransition {
+pub enum XfadeTransition {
     Fade,
     Wipeleft,
     Wiperight,
@@ -508,7 +521,7 @@ pub enum SlideMotion {
     Kenburns,
 }
 
-impl SlideTransition {
+impl XfadeTransition {
     pub fn xfade_name(self) -> &'static str {
         match self {
             Self::Fade => "fade",

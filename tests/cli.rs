@@ -2389,3 +2389,136 @@ fn slideshow_kenburns_and_wipe_transition() {
     );
     assert_eq!(v["probe"]["width"], 640, "{v}");
 }
+
+#[test]
+fn concat_transition_chains_three_clips() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mut clips = vec![];
+    for (i, c) in ["red", "green", "blue"].iter().enumerate() {
+        let p = dir.path().join(format!("c{i}.mp4"));
+        let status = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("testsrc=duration=2:size=320x240:rate=30"),
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("sine=frequency={}:duration=2", 300 + i * 200),
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                "-shortest",
+            ])
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        clips.push(p);
+    }
+    let out = dir.path().join("cat.mp4");
+    let v = run_json(&[
+        "concat",
+        clips[0].to_str().unwrap(),
+        clips[1].to_str().unwrap(),
+        clips[2].to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--transition",
+        "wipeleft",
+        "--duration",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["transition"], "wipeleft", "{v}");
+    assert_eq!(v["extra"]["clips"], 3, "{v}");
+    // 3*2 - 2*0.3 = 5.4
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 5.4).abs() < 0.5, "concat chain ≈5.4s, got {d}; {v}");
+    assert_eq!(v["probe"]["has_audio"], true, "{v}");
+}
+
+#[test]
+fn concat_transition_refuses_clip_shorter_than_fade() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    let b = fixture(dir.path());
+    let v = run_json(&[
+        "concat",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+        "--transition",
+        "fade",
+        "--duration",
+        "2",
+    ]);
+    // fixture is 1s; a 2s transition can't fit.
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn split_cuts_equal_parts() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("long.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=5:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=5",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("part.mp4").to_str().unwrap(),
+        "--every",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let parts = v["extra"]["parts"].as_array().unwrap();
+    assert_eq!(parts.len(), 3, "5s / every 2 -> 3 parts; {v}");
+    let d0 = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d0 - 2.0).abs() < 0.3, "first part ≈2s, got {d0}; {v}");
+    for p in parts {
+        assert!(std::path::Path::new(p.as_str().unwrap()).exists(), "{v}");
+    }
+}

@@ -98,7 +98,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `probe` | Duration, size, codecs, channels |
 | `look` | Contact sheet (`--tiles`) or timestamps (`--at`, repeatable) |
 | `cut` | Trim; lossless copy by default, `--accurate` for frame-exact |
-| `concat` | Join; two clips with `--transition fade` is a crossfade |
+| `concat` | Join; `--transition` crossfades between every clip (xfade + acrossfade, N inputs) |
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop |
 | `extract` | Audio, a frame, or subtitles from the output extension |
 | `overlay` | Logo, watermark, picture-in-picture |
@@ -110,6 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 | `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`) |
+| `split` | Chop into fixed-length parts (`--every 30` → `stem_00..` via forced keyframes + segment muxer) |
 | `slideshow` | Still images → video montage (`--per`, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed, `--size` canvas) |
 | `speed` | `--factor 2` is 2×; talking-head keeps pitch |
 | `music` | Bed under speech with ducking (`--track`) |

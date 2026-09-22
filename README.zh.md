@@ -98,7 +98,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `probe` | 时长、分辨率、编码、声道 |
 | `look` | 联系表（`--tiles`）或指定时间点（`--at`，可重复） |
 | `cut` | 剪切；默认无损 copy，`--accurate` 才帧精确 |
-| `concat` | 拼接；两条且 `--transition fade` 为交叉淡化 |
+| `concat` | 拼接；`--transition` 在每条之间做 xfade 转场（视频 xfade + 音频 acrossfade，支持 N 条） |
 | `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 |
 | `extract` | 按输出扩展名抽音频、帧、字幕 |
 | `overlay` | logo、水印、画中画 |
@@ -110,6 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | 两遍编码压到 `--size 10MB`（Discord、WhatsApp 16MB、邮箱约 25MB） |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 | `audiogram` | 播客音频 → 9:16 波形视频（封面图用 `--image`） |
+| `split` | 切成定长分段（`--every 30` → `stem_00..`，强制关键帧 + segment muxer 精确切点） |
 | `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐、`--size` 画布） |
 | `speed` | 变速（`--factor 2` 加速一倍，口播保持音调） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |

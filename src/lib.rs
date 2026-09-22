@@ -38,6 +38,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Look(args) => look::run(args, &g),
         Cmd::Cut(args) => verbs::cut::run(args, &g),
         Cmd::Concat(args) => verbs::concat::run(args, &g),
+        Cmd::Split(args) => verbs::split::run(args, &g),
         Cmd::Fit(args) => verbs::fit::run(args, &g),
         Cmd::Extract(args) => verbs::extract::run(args, &g),
         Cmd::Overlay(args) => verbs::overlay::run(args, &g),
