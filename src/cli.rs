@@ -103,6 +103,10 @@ pub enum Cmd {
     Replace(ReplaceArgs),
     /// Green-screen composite: foreground over a background image/video
     Key(KeyArgs),
+    /// Side-by-side / reaction grid over N inputs (xstack)
+    Grid(GridArgs),
+    /// Bottom/top progress bar filling over the duration
+    Progress(ProgressArgs),
     /// Still images (+ optional music bed) into a video
     Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
@@ -733,6 +737,48 @@ pub struct VolumeArgs {
     /// Gain in dB (negative = quieter)
     #[arg(long, allow_hyphen_values = true)]
     pub db: f64,
+    /// Apply the gain only from this time on (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Length of the gain window (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ProgressArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Bar color (ffmpeg name or 0xRRGGBB)
+    #[arg(long, default_value = "white")]
+    pub color: String,
+    /// Bar thickness in pixels
+    #[arg(long, default_value_t = 8)]
+    pub height: u32,
+    /// Which edge the bar rides on
+    #[arg(long, value_enum, default_value_t = BarEdge::Bottom)]
+    pub edge: BarEdge,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug, Default, PartialEq)]
+pub enum BarEdge {
+    #[default]
+    Bottom,
+    Top,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct GridArgs {
+    pub inputs: Vec<PathBuf>,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Tile layout cols x rows
+    #[arg(long, default_value = "2x2")]
+    pub layout: String,
+    /// Canvas WxH
+    #[arg(long, default_value = "1920x1080")]
+    pub size: String,
 }
 
 #[derive(clap::Args, Debug)]

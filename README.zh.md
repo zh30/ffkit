@@ -115,6 +115,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `speed` | 变速（`--factor 2` 加速一倍，口播保持音调） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
 | `key` | 绿幕合成：`--color` 抠掉后叠到 `--bg` 图片/视频上（`--similarity`、`--blend`） |
+| `grid` | N 路素材拼 `--layout CxR` 宫格（`--size 1920x1080`）；都有音轨时混音输出 |
+| `progress` | 随时长填充的进度条（`--color`、`--height`、`--edge top`） |
 | `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐、`--mix` 保留原音轨 |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |

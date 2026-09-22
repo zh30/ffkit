@@ -2673,3 +2673,175 @@ fn split_at_chapter_points() {
     ]);
     assert_eq!(v["status"], "failed", "{v}");
 }
+
+#[test]
+fn volume_at_mutes_only_the_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("v.mp4");
+    // Crush the second half.
+    let v = run_json(&[
+        "volume",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--db",
+        "-24",
+        "--at",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let mean_at = |ss: &str, dur: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-ss", ss, "-t", dur, "-i"])
+            .arg(&out)
+            .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stderr);
+        s.lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(0.0)
+    };
+    let first = mean_at("0", "0.5");
+    let last = mean_at("0.55", "0.4");
+    assert!(
+        last < first - 10.0,
+        "windowed gain should hit only the tail ({first} -> {last}); {v}"
+    );
+    // --dur without --at is refused.
+    let v = run_json(&[
+        "volume",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("w.mp4").to_str().unwrap(),
+        "--db",
+        "-6",
+        "--dur",
+        "1",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn progress_bar_fills_over_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("p.mp4");
+    let v = run_json(&[
+        "progress",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let bar = |n: u32| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&out)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n}),crop=320:4:0:236"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+        o.stdout
+            .chunks(3)
+            .filter(|c| c.len() == 3 && c.iter().all(|b| *b > 200))
+            .count() as f64
+            / 320.0
+            / 4.0
+    };
+    let early = bar(3);
+    let late = bar(28);
+    assert!(early < 0.5, "bar barely filled at 0.1s ({early}); {v}");
+    assert!(late > 0.8, "bar nearly full at 0.95s ({late}); {v}");
+}
+
+#[test]
+fn grid_stacks_four_tiles() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let mut inputs = Vec::new();
+    for (i, c) in ["red", "green", "blue", "yellow"].iter().enumerate() {
+        let f = dir.path().join(format!("g{i}.mp4"));
+        let status = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color=c={c}:duration=1:size=320x240:rate=30"),
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=1",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                "-shortest",
+            ])
+            .arg(&f)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        inputs.push(f);
+    }
+    let out = dir.path().join("grid.mp4");
+    let v = run_json(&[
+        "grid",
+        inputs[0].to_str().unwrap(),
+        inputs[1].to_str().unwrap(),
+        inputs[2].to_str().unwrap(),
+        inputs[3].to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "640x480",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"].as_u64().unwrap(), 640);
+    assert_eq!(v["probe"]["height"].as_u64().unwrap(), 480);
+    // 3 inputs into a 2x2 is fine; 5 is refused.
+    let v = run_json(&[
+        "grid",
+        inputs[0].to_str().unwrap(),
+        inputs[1].to_str().unwrap(),
+        inputs[2].to_str().unwrap(),
+        inputs[3].to_str().unwrap(),
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("too.mp4").to_str().unwrap(),
+        "--size",
+        "640x480",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}

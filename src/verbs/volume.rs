@@ -13,15 +13,36 @@ pub fn run(args: VolumeArgs, g: &Globals) -> Result<Contract, Error> {
     if args.db == 0.0 {
         return Err(Error::input("--db 0 is a no-op; use a non-zero gain"));
     }
+    if args.dur.is_some_and(|d| d <= 0.0) {
+        return Err(Error::input("--dur must be positive"));
+    }
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_audio {
         return Err(Error::input("volume: input has no audio stream"));
     }
 
+    let af = match (&args.at, args.dur) {
+        (Some(at), dur) => {
+            let start = crate::time::parse_time(at)?;
+            if !(0.0..probe.duration).contains(&start) {
+                return Err(Error::input("--at is outside the input"));
+            }
+            let end = dur.map(|d| start + d);
+            match end {
+                Some(e) if e < probe.duration => {
+                    format!("volume={}dB:enable='between(t,{start:.3},{e:.3})'", args.db)
+                }
+                _ => format!("volume={}dB:enable='gte(t,{start:.3})'", args.db),
+            }
+        }
+        (None, Some(_)) => return Err(Error::input("--dur needs --at")),
+        (None, None) => format!("volume={}dB", args.db),
+    };
+
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    argv.extend(["-af", &format!("volume={}dB", args.db), "-c:a", "aac"]);
+    argv.extend(["-af", &af, "-c:a", "aac"]);
     if probe.has_video {
         argv.extend(["-c:v", "copy"]);
     }
@@ -29,6 +50,12 @@ pub fn run(args: VolumeArgs, g: &Globals) -> Result<Contract, Error> {
 
     let c = engine::write_job("volume", &[&args.input], &args.output, vec![argv], g)?;
     let mut extra = json!({ "db": args.db });
+    if let Some(at) = &args.at {
+        extra["at"] = json!(at);
+        if let Some(d) = args.dur {
+            extra["dur"] = json!(d);
+        }
+    }
     if matches!(c.status, Status::Ok) {
         if let Ok(m) = mean_volume(&args.output, g.timeout) {
             extra["mean_volume"] = json!(m);
