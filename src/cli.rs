@@ -125,6 +125,8 @@ pub enum Cmd {
     Cutsil(CutsilArgs),
     /// Channel surgery: dual-mono, mono fold-down, L/R swap
     Channel(ChannelArgs),
+    /// Audio EQ: bass/treble/presence shelves
+    Eq(EqArgs),
     /// Still images (+ optional music bed) into a video
     Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
@@ -337,6 +339,9 @@ pub struct BrollArgs {
     pub duration: f64,
     #[arg(long, value_enum, default_value_t = FitMode::Crop)]
     pub fit: FitMode,
+    /// Treat --insert as a still image (looped over the cutaway window)
+    #[arg(long)]
+    pub still: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -763,6 +768,9 @@ pub struct ZoomArgs {
     /// Window length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Animate the punch over the window (kenburns = smooth push)
+    #[arg(long, value_enum)]
+    pub motion: Option<SlideMotion>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -773,6 +781,22 @@ pub struct PitchArgs {
     /// Semitones: +4 chipmunk-ish, -3 deeper (duration preserved)
     #[arg(long, allow_hyphen_values = true)]
     pub semitones: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct EqArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Bass gain dB (-20..20; 4-8 warms a voice)
+    #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
+    pub bass: f64,
+    /// Treble gain dB (-20..20)
+    #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
+    pub treble: f64,
+    /// Presence shelf at 3 kHz dB (voice clarity)
+    #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
+    pub presence: f64,
 }
 
 #[derive(clap::Args, Debug)]

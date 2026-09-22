@@ -47,8 +47,16 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
     // Shift B so its first frame lands at --at on A's timeline. Without this,
     // a short insert (e.g. 0.5s B at --at 1) has already EOF'd and overlay
     // freezes the last frame for the whole window.
+    let still_pre = if args.still {
+        format!(
+            "loop=loop=-1:size=1,fps={:.3},",
+            a.fps.unwrap_or(30.0).max(1.0)
+        )
+    } else {
+        String::new()
+    };
     let fc = format!(
-        "[1:v]{prep},setsar=1,format=yuv420p,setpts=PTS-STARTPTS+{at:.3}/TB[br];[0:v][br]overlay=0:0:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
+        "[1:v]{still_pre}{prep},setsar=1,format=yuv420p,setpts=PTS-STARTPTS+{at:.3}/TB[br];[0:v][br]overlay=0:0:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
     );
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if a.has_audio {
@@ -65,6 +73,7 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
         "at": at,
         "end": end,
         "insert": paths::display(&args.insert),
+        "still": args.still,
         "fit": match args.fit {
             FitMode::Crop => "crop",
             FitMode::Pad => "pad",

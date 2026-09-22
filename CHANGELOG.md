@@ -4,6 +4,13 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.39.0] — 2026-09-22
+
+- `ffkit eq`: `--bass`/`--treble`/`--presence` dB shelving on audio
+- `zoom --motion kenburns`: animated zoompan push to `--factor`, whole clip or inside `--at/--dur`
+- `broll --still`: cut away to a still image (looped over the window)
+
+
 ## [0.38.0] — 2026-09-22
 
 - `ffkit channel`: `--mode dualmono` (one-ear fix), `mono` (fold-down), `swap` (L/R flip)

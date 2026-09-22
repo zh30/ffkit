@@ -102,7 +102,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop |
 | `extract` | Audio, a frame, or subtitles from the output extension |
 | `overlay` | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture |
-| `broll` | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay |
+| `broll` | Cutaway insert (`--insert` video, or `--still` image) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay |
 | `caption` | Burn/mux `.srt`; `--chunk` word groups, `--shift` timing nudge | `--mode mux` soft subs; `burn` overlay raster (no libass); `--safe social` clears the bottom 20%; `--chunk N` splits cues into ≤N-word groups |
 | `loudnorm` | EBU R128 two-pass (`-I -14` social, `-I -16` podcast) |
 | `denoise` | Voice cleanup (fan / rumble / hiss); `--video` also degrains the picture |
@@ -126,6 +126,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `pitch` | `--semitones N` voice/music shift, duration preserved |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap` |
+| `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence` dB |
 | `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |

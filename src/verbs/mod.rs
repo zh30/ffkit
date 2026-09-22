@@ -15,6 +15,7 @@ pub mod cut;
 pub mod cutsil;
 pub mod deliver;
 pub mod denoise;
+pub mod eq;
 pub mod extract;
 pub mod fade;
 pub mod fit;

@@ -20,11 +20,43 @@ pub fn run(args: ZoomArgs, g: &Globals) -> Result<Contract, Error> {
     let sh = paths::even(((h as f64) * args.factor).round() as u32).max(h + 2);
     let vf = format!("scale={sw}:{sh},crop={w}:{h},setsar=1");
 
+    let factor0 = args.factor;
+    let fps0 = probe.fps.unwrap_or(30.0).max(1.0);
+    let zoompan_for = move |dur_secs: f64| -> String {
+        // Push 1.0 -> factor over dur_secs; pzoom accumulates per frame.
+        let fps = fps0;
+        let frames = (dur_secs * fps).max(1.0);
+        let step = (factor0 - 1.0) / frames;
+        format!(
+            "zoompan=z='min(pzoom+{step:.8},{f:.4})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={w}x{h},setsar=1",
+            f = factor0,
+        )
+    };
     if args.dur.is_some() && args.at.is_none() {
         return Err(Error::input("--dur needs --at"));
     }
     if args.at.is_some() {
-        return windowed(args, &vf, &probe, g);
+        return windowed(args, &vf, &zoompan_for, &probe, g);
+    }
+    if args.motion.is_some() {
+        let vf = zoompan_for(probe.duration);
+        let fc = format!("[0:v]{vf}[vout]");
+        let mut argv = ffmpeg_base(g.progress);
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
+        if probe.has_audio {
+            argv.extend(["-map", "0:a?", "-c:a", "copy"]);
+        }
+        argv.extend([
+            "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+        ]);
+        argv.push(&args.output);
+        let c = engine::write_job("zoom", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(json!({
+            "factor": factor0,
+            "motion": "kenburns",
+        })));
     }
 
     let mut argv = ffmpeg_base(g.progress);
@@ -50,6 +82,7 @@ pub fn run(args: ZoomArgs, g: &Globals) -> Result<Contract, Error> {
 fn windowed(
     args: ZoomArgs,
     vf: &str,
+    zoompan_for: &dyn Fn(f64) -> String,
     probe: &crate::probe::Probe,
     g: &Globals,
 ) -> Result<Contract, Error> {
@@ -62,9 +95,14 @@ fn windowed(
         Some(d) => (at + d).min(probe.duration),
         None => probe.duration,
     };
+    let mid_vf = if args.motion.is_some() {
+        zoompan_for(end - at)
+    } else {
+        vf.to_string()
+    };
     let mut seg: Vec<String> = vec![
         format!("[0:v]trim=0:{at:.3},setpts=PTS-STARTPTS[v0]"),
-        format!("[0:v]trim={at:.3}:{end:.3},setpts=PTS-STARTPTS,{vf}[v1]"),
+        format!("[0:v]trim={at:.3}:{end:.3},setpts=PTS-STARTPTS,{mid_vf}[v1]"),
         format!("[0:v]trim=start={end:.3},setpts=PTS-STARTPTS[v2]"),
         "[v0][v1][v2]concat=n=3:v=1:a=0[vout]".to_string(),
     ];
@@ -100,6 +138,7 @@ fn windowed(
         "factor": args.factor,
         "at": at,
         "dur": end - at,
+        "motion": args.motion.map(|_| "kenburns"),
     }));
     Ok(c)
 }

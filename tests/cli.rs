@@ -3995,3 +3995,180 @@ fn title_tile_stamps_multiple_copies() {
         "{v}"
     );
 }
+
+#[test]
+fn eq_bass_raises_low_energy() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("sine.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=110:duration=1",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("bass.m4a");
+    let v = run_json(&[
+        "eq",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--bass",
+        "8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let mean = |f: &Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args(["-af", "volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stderr);
+        s.split("mean_volume:")
+            .nth(1)
+            .and_then(|r| r.split_whitespace().next())
+            .and_then(|r| r.trim_end_matches("dB").parse().ok())
+            .unwrap_or(-99.0)
+    };
+    let (a, b) = (mean(&src), mean(&out));
+    assert!(
+        b > a + 3.0,
+        "+8dB bass on 110Hz should raise level: {a} -> {b}; {v}"
+    );
+}
+
+#[test]
+fn zoom_motion_kenburns_pushes_over_time() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("z.mp4");
+    let v = run_json(&[
+        "zoom",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--factor",
+        "1.4",
+        "--motion",
+        "kenburns",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // early frame ≈ unzoomed, late frame zoomed: diff vs source grows
+    let px = |f: &Path, n: u32| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n}),crop=64:64:128:88"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let d = |n: u32| -> u64 {
+        let a = px(&src, n);
+        let b = px(&out, n);
+        a.iter()
+            .zip(b.iter())
+            .map(|(x, y)| x.abs_diff(*y) as u64)
+            .sum()
+    };
+    let (e, l) = (d(3), d(27));
+    assert!(
+        l > e + 300,
+        "kenburns diff grows over clip: {e} -> {l}; {v}"
+    );
+}
+
+#[test]
+fn broll_still_inserts_image() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let still = dir.path().join("s.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0xff0000:size=320x240",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&still)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "broll",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--insert",
+        still.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "--duration",
+        "0.4",
+        "--still",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // inside the window the frame is red
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args([
+            "-vf",
+            "select=eq(n\\,18),signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-",
+            "-frames:v",
+            "1",
+            "-f",
+            "null",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    let y: f64 = s
+        .split("YAVG=")
+        .nth(1)
+        .and_then(|r| r.trim().parse().ok())
+        .unwrap_or(0.0);
+    // red (0xff0000) in bt601 Y ≈ 76; testsrc center isn't uniformly red
+    assert!(
+        (60.0..95.0).contains(&y),
+        "red still fills the window, YAVG {y}; {v}"
+    );
+}
