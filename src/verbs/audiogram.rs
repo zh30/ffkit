@@ -73,13 +73,24 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         "[vout]"
     };
+    let yf = match args.position.as_deref().unwrap_or("bottom") {
+        "top" => "0.18",
+        "center" | "middle" => "0.50",
+        "bottom" => "0.62",
+        other => {
+            return Err(Error::input(format!(
+                "--position must be top/center/bottom (got {other})"
+            )))
+        }
+    };
     let fc = format!(
         "[1:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1[bg];\
               [0:a]showwaves=s={ww}x{wh}:mode={mode}:rate=30:colors={}:draw=full[wv];\
               [wv]colorkey=0x000000:0.12:0.1[wvk];\
-              [bg][wvk]overlay=(W-w)/2:(H-h)*0.62:shortest=1{tail}",
+              [bg][wvk]overlay=(W-w)/2:(H-h)*{yf}:shortest=1{tail}",
         args.color,
         ww = (w as f64 * 0.87).round() as u32 & !1,
+        yf = yf,
         wh = ((h as f64) / 6.0).round().max(40.0) as u32 & !1,
     );
     argv.extend(["-filter_complex", &fc, "-map", "[vout]", "-map", "0:a"]);

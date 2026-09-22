@@ -8067,3 +8067,81 @@ fn broll_audio_mixes_insert_sound() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn progress_at_windows_bar() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("pr.mp4");
+    let v = run_json(&[
+        "progress",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn audiogram_position_top() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--position",
+        "top",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn subs_burn_font_flag() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("s.srt");
+    std::fs::write(&srt, "1\n00:00:00,0 --> 00:00:00,8\nHola\n").unwrap();
+    let out = dir.path().join("sub.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--font",
+        "Helvetica",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

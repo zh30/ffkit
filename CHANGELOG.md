@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.69.0] - 2026-09-22
+
+- `subs --burn --font NAME` — font family in the libass force_style (brand captions).
+- `progress --at/--dur` — windowed progress bar via overlay `enable=`.
+- `audiogram --position top|center|bottom` — wave band y factor (0.18/0.50/0.62 of frame height).
+
 ## [0.68.0] - 2026-09-22
 
 - `vignette --at/--dur` — windowed vignette (`enable='between(...)'` on the angle filter).

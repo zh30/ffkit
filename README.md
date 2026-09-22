@@ -110,7 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 
-| `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`, `--mode`/`--color`, `--bg`, `--size`, `--text`) |
+| `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`, `--mode`/`--color`, `--bg`, `--size`, `--text`, `--position`) |
 
 | `split` | `--every` regular parts, `--at` explicit, `--scenes` shot-detection, `--size` target-MB, `--parts N` equal | Chop into parts (`--every 30` even chunks, or `--at 30,90` chapter points) → `stem_00..` |
 | `slideshow` | Still images → video montage (`--per`, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed, `--size` canvas) |
@@ -118,7 +118,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `music` | Bed under speech with ducking (`--track`) |
 | `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`) |
 | `grid` | N-input mosaic; `--audio N` keeps one input's track | N inputs into a `--layout CxR` tile wall (`--size 1920x1080`); audios mix when all inputs have one |
-| `progress` | Progress bar filling across the duration (`--color`, `--height`, `--edge top`) |
+| `progress` | Bottom/top progress bar, whole clip or a window (`--color`, `--height`, `--edge`, `--at`, `--dur`) |
 | `freeze` | Hold the frame at `--at T` for `--dur D` (mid-clip), or clone the last frame with `--end D` (outro) |
 | `censor` | Mosaic/blur a face/logo region `--region x:y:w:h` (`--mode pixel|blur`; `--at`/`--dur` window) |
 | `bleep` | Tone over a word/segment: `--at`/`--dur`, `--freq`, `--level` |

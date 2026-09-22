@@ -550,6 +550,9 @@ pub struct AudiogramArgs {
     /// Show this text near the top (podcast name / episode title)
     #[arg(long)]
     pub text: Option<String>,
+    /// Wave band vertical placement: top / center / bottom (default bottom)
+    #[arg(long)]
+    pub position: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -698,6 +701,9 @@ pub struct SubsArgs {
     /// Burned subtitles on top instead of bottom
     #[arg(long)]
     pub top: bool,
+    /// Burned subtitle font family name (default Sans)
+    #[arg(long)]
+    pub font: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1692,6 +1698,12 @@ pub struct ProgressArgs {
     /// Which edge the bar rides on
     #[arg(long, value_enum, default_value_t = BarEdge::Bottom)]
     pub edge: BarEdge,
+    /// Show the bar only from this time on (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug, Default, PartialEq)]

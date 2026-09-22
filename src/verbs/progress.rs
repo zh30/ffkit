@@ -5,6 +5,7 @@ use crate::contract::{Contract, Status};
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 use crate::spawn::Argv;
+use crate::time;
 
 pub fn run(args: ProgressArgs, g: &Globals) -> Result<Contract, Error> {
     if args.height == 0 || args.height > 200 {
@@ -19,8 +20,28 @@ pub fn run(args: ProgressArgs, g: &Globals) -> Result<Contract, Error> {
         BarEdge::Bottom => "main_h-overlay_h".to_string(),
         BarEdge::Top => "0".to_string(),
     };
+    let enable = match &args.at {
+        Some(s) => {
+            let at = time::parse_time(s)?;
+            if !(0.0..probe.duration).contains(&at) {
+                return Err(Error::input("--at is outside the input"));
+            }
+            match args.dur {
+                Some(d) if at + d < probe.duration => {
+                    format!(":enable='between(t,{at:.3},{:.3})'", at + d)
+                }
+                _ => format!(":enable='gte(t,{at:.3})'"),
+            }
+        }
+        None => {
+            if args.dur.is_some() {
+                return Err(Error::input("--dur needs --at"));
+            }
+            String::new()
+        }
+    };
     let fc = format!(
-        "[0:v][1:v]overlay=x='-main_w+main_w*t/{dur:.3}':y='{y}':shortest=1[vout]",
+        "[0:v][1:v]overlay=x='-main_w+main_w*t/{dur:.3}':y='{y}':shortest=1{enable}[vout]",
         dur = probe.duration,
     );
 

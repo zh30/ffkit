@@ -74,8 +74,9 @@ fn burn(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract
         None => "&H00FFFFFF".to_string(),
     };
     let align = if args.top { 8 } else { 2 };
+    let font = args.font.as_deref().unwrap_or("Sans").replace(',', " ");
     let style = format!(
-        "FontName=Sans,FontSize={size},PrimaryColour={color},\
+        "FontName={font},FontSize={size},PrimaryColour={color},\
 OutlineColour=&H80000000,BorderStyle=1,Outline=1,Shadow=0,\
 MarginV=36,Alignment={align}"
     );
