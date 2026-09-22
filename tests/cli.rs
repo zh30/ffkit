@@ -10539,3 +10539,102 @@ fn subs_burn_safe_lifts_captions_out_of_bottom() {
         "safe zone should lift text out of the bottom: above {above} vs bottom {bottom}"
     );
 }
+
+#[test]
+fn eq_band_parametric_and_validation() {
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("tone.m4a");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.5",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    if !has_ffmpeg() || !ok {
+        return;
+    }
+    let out = dir.path().join("e.m4a");
+    let v = run_json(&[
+        "eq",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--band",
+        "800:-3",
+        "--band",
+        "5200:2:0.7",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let bad = run_json(&[
+        "eq",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("b.m4a").to_str().unwrap(),
+        "--band",
+        "50000:2",
+        "--json",
+    ]);
+    assert_eq!(bad["status"], "failed", "{bad}");
+}
+
+#[test]
+fn transcode_prores_writes_mov() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mov");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "prores",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["vcodec"], "prores");
+    assert_eq!(v["probe"]["acodec"], "pcm_s16le");
+}
+
+#[test]
+fn chapter_export_writes_ffmetadata() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("marks.txt");
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "--at",
+        "0|Intro",
+        "--at",
+        "0.4|End",
+        "-o",
+        out.to_str().unwrap(),
+        "--export",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.contains(";FFMETADATA1"), "{text}");
+    assert!(text.contains("title=Intro"), "{text}");
+    assert!(text.contains("title=End"), "{text}");
+    assert!(!out.with_extension("mp4").exists());
+}

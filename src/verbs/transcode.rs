@@ -20,6 +20,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::H264 => h264(&args, g),
         TranscodePreset::Hevc => hevc(&args, g),
         TranscodePreset::Webm => webm(&args, g),
+        TranscodePreset::Prores => prores(&args, g),
     }
 }
 
@@ -168,4 +169,44 @@ fn gif(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     );
     drop(palette);
     result
+}
+
+fn prores(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let probe = engine::probe_or_err(&args.input, g)?;
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != "mov" {
+        return Err(Error::input(
+            "prores preset wants a .mov output (ProRes + PCM in MOV)",
+        ));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    if probe.has_video {
+        argv.extend([
+            "-c:v",
+            "prores_ks",
+            "-profile:v",
+            "3",
+            "-pix_fmt",
+            "yuv422p10le",
+        ]);
+        if let Some(fps) = args.fps {
+            argv.extend(["-vf", &format!("fps={fps}")]);
+        }
+    }
+    if probe.has_audio {
+        if args.copy_audio {
+            argv.extend(["-c:a", "copy"]);
+        } else {
+            argv.extend(["-c:a", "pcm_s16le"]);
+        }
+    }
+    argv.push(&args.output);
+    engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }

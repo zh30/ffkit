@@ -691,6 +691,8 @@ pub enum TranscodePreset {
     Hevc,
     Webm,
     Gif,
+    /// ProRes 422 HQ in .mov — the FCP/Premiere edit delivery format
+    Prores,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1350,6 +1352,10 @@ pub struct EqArgs {
     /// One-shot curve: voice|podcast|bright|bass (flags still apply on top)
     #[arg(long, value_enum)]
     pub preset: Option<EqPreset>,
+    /// Parametric band FREQ:GAIN[:WIDTH_OCT], repeatable
+    /// (e.g. --band 800:-3 --band 5200:2:0.7)
+    #[arg(long)]
+    pub band: Vec<String>,
     /// Apply the EQ only from here (bass boost on the drop)
     #[arg(long)]
     pub at: Option<String>,
@@ -2116,6 +2122,10 @@ pub struct ChapterArgs {
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
     pub auto: Option<f64>,
+    /// Write the chapter marks as an ffmetadata text file at -o instead of
+    /// embedding them (hand the marks to an editor/DAW)
+    #[arg(long)]
+    pub export: bool,
 }
 
 #[derive(clap::Args, Debug)]

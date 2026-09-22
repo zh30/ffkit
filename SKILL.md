@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.95.0
+version: 0.96.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -39,7 +39,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | trim / join | `cut`, `concat` (`--transition` any xfade, N clips), `split` (`--every` story chunks, `--at` chapter points), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur`), `zoom`, `--position` top/bottom/corners |
 
-| export | `deliver`, `transcode` (`--copy-audio`), `compress` (`--size 10MB` two-pass), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions |
+| export | `deliver`, `transcode` (`--copy-audio`), `compress` (`--size 10MB` two-pass), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores` |
 | captions / mute | `caption` (`--karaoke` word reveal, `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, or `--mode mux`), `--fade` |
 | hook text | `title` |
 | cover still | `cover` |
@@ -98,7 +98,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | subtle watermark | `overlay` (`--opacity` on `--image`) |
 | split a podcast on pauses | `split` (`--silence=-35` — cuts at gap midpoints) |
 | music bed that eases in/out | `music` (`--fade` on the bed) |
-| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass`) |
+| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass`), `--band` parametric |
 | soft b-roll cutaway edges | `broll` (`--fade`), `--position` pip |
 | stills at exact moments | `frames` (`--at 12,45,90`) |
 | audiogram on any canvas | `audiogram` (`--size` — 1080x1920, 1920x1080, 1080x1080) |

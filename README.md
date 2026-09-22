@@ -106,7 +106,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `caption` | Burn subtitles (`--srt`, `--chunk`, `--karaoke`, `--box-color` card) , `--fade` soft in/out |
 | `loudnorm` | EBU R128 two-pass — `--i`/`--tp`/`--lra` or a `--target` preset (spotify|youtube|podcast|broadcast) |
 | `denoise` | Audio cleanup (`--strength`, `--highpass`, `--at/--dur` window) |
-| `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`) | Presets `h264` / `webm` / `gif` / `hevc`; `--fps` retimes video too |
+| `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`) | Presets `h264` / `webm` / `gif` / `hevc`; `--fps` retimes video too , `--preset prores` FCP delivery |
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 
@@ -123,13 +123,13 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `censor` | Blur/mosaic a region (`--mode`, `--strength`, `--at`) |
 | `bleep` | Tone over a word/segment: `--at`/`--dur`, `--freq`, `--level` |
 | `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) , `--at/--dur` bounces just that window |
-| `chapter` | Chapter marks (`--at TIME|TITLE`, `--auto` after silences) |
+| `chapter` | Chapter marks (`--at TIME|TITLE`, `--auto` after silences) , `--export` write ffmetadata file |
 | `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`; `--buffer N` keeps N px edge context) |
 | `sheet` | Contact sheet grid (`--cols`x`--rows`, `--time` stamps) |
 | `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window) |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap` |
-| `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) |
+| `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W] |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window) |
 | `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio (`--kind`, `--strength`, `--at`/`--dur`) |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip` |

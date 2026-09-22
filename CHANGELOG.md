@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.96.0] — 2026-09-22
+
+### Added
+
+- `eq --band FREQ:GAIN[:WIDTH_OCT]` — repeatable parametric bands on top of the shelf/curve (e.g. `--band 800:-3 --band 5200:2:0.7`); validation rejects out-of-range freq/gain/width.
+- `transcode --preset prores` — ProRes 422 HQ (`prores_ks -profile:v 3`, `yuv422p10le`) + `pcm_s16le` in `.mov`, the FCP/Premiere edit-delivery format.
+- `chapter --export` — write the resolved marks as an `.ffmetadata` text file at `-o` instead of embedding (hand chapters to an editor or DAW).
+
+
 ## [0.95.0] — 2026-09-22
 
 ### Added

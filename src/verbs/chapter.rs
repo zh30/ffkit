@@ -65,6 +65,23 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             title.replace('=', ";").replace('\n', " "),
         ));
     }
+    if args.export {
+        std::fs::write(&args.output, &meta).map_err(|e| {
+            Error::output(format!(
+                "writing chapter metadata {}: {e}",
+                args.output.display()
+            ))
+        })?;
+        let mut c = Contract::ok("chapter", Some(args.output.display().to_string()), None);
+        c = c.with_extra(json!({
+            "exported": "ffmetadata",
+            "chapters": marks
+                .iter()
+                .map(|(t, ti)| json!({"time": t, "title": ti}))
+                .collect::<Vec<_>>(),
+        }));
+        return Ok(c);
+    }
     let meta_path = args.output.with_extension("ffmeta.txt");
     std::fs::write(&meta_path, &meta).map_err(|e| {
         Error::output(format!(

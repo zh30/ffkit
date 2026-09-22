@@ -106,7 +106,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `caption` | 烧录字幕（`--srt`、`--chunk`、`--karaoke`、`--box-color` 底板） ，`--fade` 淡入淡出 |
 | `loudnorm` | EBU R128 两遍——`--i`/`--tp`/`--lra` 或 `--target` 平台预设 spotify|youtube|podcast|broadcast |
 | `denoise` | 音频降噪（`--strength`、`--highpass`、`--at/--dur` 窗口） |
-| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`） | 预设 `h264`/`webm`/`gif`/`hevc`；`--fps` 也可给视频变速帧率 |
+| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`） | 预设 `h264`/`webm`/`gif`/`hevc`；`--fps` 也可给视频变速帧率 ，`--preset prores` 剪辑交付 |
 | `compress` | 两遍编码压到 `--size 10MB`（Discord、WhatsApp 16MB、邮箱约 25MB） |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 
@@ -123,13 +123,13 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `censor` | 区域打码（`--mode`、`--strength` 强度、`--at`） |
 | `bleep` | 消音哔声：`--at`/`--dur` 选段，`--freq`/`--level` 调音 |
 | `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法）（`--times` 循环次数） ，`--at/--dur` 局部往返 |
-| `chapter` | 章节标记（`--at TIME|TITLE`、`--auto` 按静音自动分段） |
+| `chapter` | 章节标记（`--at TIME|TITLE`、`--auto` 按静音自动分段） ，`--export` 导出章节标记 |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`；`--buffer N` 向外扩 N 像素） |
 | `sheet` | 宫格预览图（`--cols`x`--rows`、`--time` 每格时间戳） |
 | `pitch` | ±12 半音变调不变速（`--at/--dur` 窗口） |
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
 | `channel` | 声道手术：`--mode dualmono|mono|swap` |
-| `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡） |
+| `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡） ，`--band` 参量频段 |
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet`（`--at`/`--dur` 局部回声） |
 | `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio（`--kind`、`--strength`、`--at`/`--dur`） |
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip` |

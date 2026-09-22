@@ -40,6 +40,33 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     let mut chain: Vec<String> = Vec::new();
+    for band in &args.band {
+        let mut parts = band.split(':');
+        let f: f64 = parts
+            .next()
+            .and_then(|s| s.trim().parse().ok())
+            .ok_or_else(|| Error::input(format!("--band wants FREQ:GAIN[:WIDTH], got '{band}'")))?;
+        let g_gain: f64 = parts
+            .next()
+            .and_then(|s| s.trim().parse().ok())
+            .ok_or_else(|| Error::input(format!("--band wants FREQ:GAIN[:WIDTH], got '{band}'")))?;
+        let w_oct: f64 = match parts.next() {
+            Some(s) => s.trim().parse().map_err(|_| {
+                Error::input(format!("--band width must be a number, got '{band}'"))
+            })?,
+            None => 1.0,
+        };
+        if !(20.0..=20000.0).contains(&f) {
+            return Err(Error::input("--band frequency must be 20..20000 Hz"));
+        }
+        if !(-20.0..=20.0).contains(&g_gain) {
+            return Err(Error::input("--band gain must be -20..=20 dB"));
+        }
+        if !(0.1..=4.0).contains(&w_oct) {
+            return Err(Error::input("--band width must be 0.1..=4 octaves"));
+        }
+        chain.push(format!("equalizer=f={f:.0}:t=q:w={w_oct:.2}:g={g_gain:.1}"));
+    }
     if bass != 0.0 {
         chain.push(format!("bass=g={}", bass));
     }
