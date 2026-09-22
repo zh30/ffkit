@@ -100,7 +100,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cut` | Trim; lossless copy by default, `--accurate`, `--ranges`, `--drop` for frame-exact |
 | `concat` | Join; `--transition` crossfades between every clip (xfade + acrossfade, N inputs) |
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop |
-| `extract` | Audio, a frame, or subtitles from the output extension | `--width`
+| `extract` | Still frame or `--gif` clip | `--at`, `--dur`, `--width`, `--fps` |
 | `overlay` | Image/video overlay; position/scale/`--tile`, `--fade`, `--angle`, `--at`/`--dur`, `--mode`, `--opacity` blend composite | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture |
 | `broll` | Cutaway insert (`--insert` video, `--still` image, `--motion kenburns`) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay |
 | `caption` | SRT burn (`--mode`, `--safe`, `--chunk`, `--shift`, `--color`, `--size`, `--position`) | Burn/mux `.srt`; `--chunk` word groups, `--shift` timing nudge | `--mode mux` soft subs; `burn` overlay raster (no libass); `--safe social` clears the bottom 20%; `--chunk N` splits cues into ≤N-word groups (`--outline` glyph stroke) |
@@ -110,7 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 
-| `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`, `--mode`/`--color`, `--bg`, `--size`, `--text`, `--position`) (`--font` for `--text`) |
+| `audiogram` | Waveform video | `--mode`, `--text`, `--bg`, `--progress` bar |
 
 | `split` | `--every` regular parts, `--at` explicit, `--scenes` shot-detection, `--size` target-MB, `--parts N` equal | Chop into parts (`--every 30` even chunks, or `--at 30,90` chapter points) → `stem_00..` |
 | `slideshow` | Still images → video montage (`--per`, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed, `--size` canvas) |
@@ -141,7 +141,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (`--merge N` merges keeps closer than N s) (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
-| `cover` | 9:16 cover still (1080×1920) |
+| `cover` | 9:16 cover still (`--at`, `--blur` ambient pad) |
 | `fade` | Video and audio fade (`--in` / `--out`, `--color` e.g. white) |
 | `title` | Hook/title card (`--at`, `--fade`, `--outline`, `--box` backplate) |
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section) |

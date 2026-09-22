@@ -382,6 +382,15 @@ pub struct ExtractArgs {
     /// Scale the still to this width (height follows aspect)
     #[arg(long)]
     pub width: Option<u32>,
+    /// Animated GIF clip instead of a still (2-pass palette)
+    #[arg(long)]
+    pub gif: bool,
+    /// GIF clip length in seconds (needs --gif)
+    #[arg(long)]
+    pub dur: Option<f64>,
+    /// GIF frames per second (default 10)
+    #[arg(long)]
+    pub fps: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -570,6 +579,9 @@ pub struct AudiogramArgs {
     /// Font file for --text (ttf/otf)
     #[arg(long)]
     pub font: Option<String>,
+    /// Moving progress bar along the bottom edge
+    #[arg(long)]
+    pub progress: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -974,6 +986,9 @@ pub struct CoverArgs {
     /// Timestamp to grab; default 0
     #[arg(long)]
     pub at: Option<String>,
+    /// Ambient: fill the pad with a blurred copy of the frame instead of black
+    #[arg(long)]
+    pub blur: bool,
 }
 
 #[derive(clap::Args, Debug)]

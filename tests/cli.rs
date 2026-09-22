@@ -9251,3 +9251,96 @@ fn chapter_auto_from_silence() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn extract_gif_clip() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.gif");
+    let v = run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--gif",
+        "--at",
+        "0.1",
+        "--dur",
+        "0.8",
+        "--fps",
+        "12",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.is_file());
+}
+
+#[test]
+fn cover_blur_ambient() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.png");
+    let v = run_json(&[
+        "cover",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--blur",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn audiogram_progress_bar() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = dir.join("a.m4a");
+    Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--progress",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let v2 = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--progress",
+        "--text",
+        "EP1",
+        "--overwrite",
+    ]);
+    assert_eq!(v2["status"], "ok", "{v2}");
+}

@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.82.0
+version: 0.83.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -39,7 +39,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | trim / join | `cut`, `concat` (`--transition` any xfade, N clips), `split` (`--every` story chunks, `--at` chapter points), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur`), `zoom` |
 
-| export | `deliver`, `transcode` (`--copy-audio`), `compress` (`--size 10MB` two-pass), `audiogram` (`--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split` |
+| export | `deliver`, `transcode` (`--copy-audio`), `compress` (`--size 10MB` two-pass), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split` |
 | captions / mute | `caption` (`--mode burn` social safe-zone, `--chunk N` word groups, or `--mode mux`) |
 | hook text | `title` |
 | cover still | `cover` |
@@ -119,7 +119,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | waveform band at the top | `audiogram` (`--position`) |
 | pull OUT of a shot (reveal) | `zoom` (`--out`) |
 | title with a soft shadow | `title` (`--shadow`) |
-| still at an exact width | `extract` (`--width`) |
+| still at an exact width | `extract` (`--gif` clip, `--width`) |
 | countdown with tick beeps | `countdown` (`--beep`) |
 | one-word compressor curve | `leveler` (`--preset`) |
 | spectrogram in brand colors | `spectrogram` (`--color`) |

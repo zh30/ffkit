@@ -100,7 +100,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges`、`--drop` 才帧精确 |
 | `concat` | 拼接；`--transition` 在每条之间做 xfade 转场（视频 xfade + 音频 acrossfade，支持 N 条） |
 | `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 |
-| `extract` | 按输出扩展名抽音频、帧、字幕 | `--width`
+| `extract` | 抓静帧或 `--gif` 动图 | `--at`、`--dur`、`--width`、`--fps` |
 | `overlay` | logo/画中画；`--tile N` 全屏草稿水印 | logo、水印、画中画 | `--angle`
 | `broll` | 切入镜头（`--insert` 视频、`--still` 图片、`--motion kenburns` 推镜） | 切走 B-roll（`--insert --at --duration`）；口播声音和时长不变 |
 | `caption` | 烧录/封装 `.srt`；`--chunk` 分词、`--shift` 整体平移、`--position top` 置顶 | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass）；`--safe social` 避开底部 20%；`--chunk N` 按 ≤N 词切分字幕（`--outline` 描边） |
@@ -110,7 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | 两遍编码压到 `--size 10MB`（Discord、WhatsApp 16MB、邮箱约 25MB） |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 
-| `audiogram` | 播客音频 → 9:16 波形视频（`--image` 封面，`--mode`/`--color`、`--bg`、`--size`、`--text`, `--position` 波形样式）（`--font` 标题字体） |
+| `audiogram` | 波形视频 | `--mode`、`--text`、`--bg`、`--progress` 进度条 |
 
 | `split` | 切成分段（`--every` 等长、`--at` 章节点、`--scenes` 镜头、`--size` 大小、`--parts N` 等分）→ `stem_00..` |
 | `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐、`--size` 画布） |
@@ -141,7 +141,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐、`--mix` 保留原音轨 |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（`--merge N` 合并间隔小于 N 秒的段；默认只编码要留下的段；`--copy` 无损但按关键帧） |
-| `cover` | 导出 9:16 封面图（1080×1920） |
+| `cover` | 9:16 封面静帧（`--at`、`--blur` 模糊底填充） |
 | `fade` | 画面和声音淡入淡出（`--in` / `--out`，`--color` 淡出到白等） |
 | `title` | 标题卡烧录（`--at`、`--fade`、`--outline`、`--box` 底板） |
 | `loop` | 把成片重复 N 遍（Shorts 循环加长）（`--from`/`--to` 只循环片段） |

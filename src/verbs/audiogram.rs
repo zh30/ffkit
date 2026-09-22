@@ -67,12 +67,40 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push(&png);
         title_png = Some(tmp);
     }
-    let tail = if title_png.is_some() {
-        // text sits near the top, above the waveform band
-        "[mid];[mid][2:v]overlay=(W-w)/2:(H-h)*0.16:shortest=1[vout]"
-    } else {
-        "[vout]"
-    };
+    // --progress: thin bar sweeping the bottom edge over the clip duration.
+    let mut prog_tmp = None;
+    if args.progress {
+        let mut bar = image::RgbaImage::new(6, 24);
+        for px in bar.pixels_mut() {
+            *px = image::Rgba([255, 255, 255, 235]);
+        }
+        let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
+        let png = tmp.path().join("prog.png");
+        bar.save(&png)
+            .map_err(|e| Error::output(format!("write progress png: {e}")))?;
+        argv.extend(["-loop", "1", "-i"]);
+        argv.push(&png);
+        prog_tmp = Some(tmp);
+    }
+    let prog_idx = if title_png.is_some() { 3 } else { 2 };
+    // Chain: [bg][wvk]overlay→[mid] → optional title overlay → optional progress
+    // bar. The first token in `tail` labels the waveform overlay's output.
+    let mut tail = String::new();
+    match (title_png.is_some(), args.progress) {
+        (true, true) => tail.push_str(&format!(
+            "[mid];[mid][2:v]overlay=(W-w)/2:(H-h)*0.16:shortest=1[mid2];\
+             [mid2][{prog_idx}:v]overlay='(W-w)*t/{:.3}':H-h-6:shortest=1[vout]",
+            probe.duration.max(0.01)
+        )),
+        (true, false) => {
+            tail.push_str("[mid];[mid][2:v]overlay=(W-w)/2:(H-h)*0.16:shortest=1[vout]")
+        }
+        (false, true) => tail.push_str(&format!(
+            "[mid];[mid][{prog_idx}:v]overlay='(W-w)*t/{:.3}':H-h-6:shortest=1[vout]",
+            probe.duration.max(0.01)
+        )),
+        (false, false) => tail.push_str("[vout]"),
+    }
     let yf = match args.position.as_deref().unwrap_or("bottom") {
         "top" => "0.18",
         "center" | "middle" => "0.50",
@@ -114,6 +142,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         inputs.push(img);
     }
     let mut c = engine::write_job("audiogram", &inputs, &args.output, vec![argv], g)?;
+    drop(prog_tmp);
     c = c.with_extra(json!({
         "frame": "1080x1920",
         "waveform": "showwaves",

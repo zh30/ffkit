@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.83.0] — 2026-09-22
+
+### Added
+
+- `extract --gif --at --dur --fps` — 2-pass palette GIF clip straight out of a video.
+- `cover --blur` — ambient blurred pad behind the 9:16 cover still.
+- `audiogram --progress` — moving progress bar along the bottom edge.
+
+
+## [Unreleased]
+
 ## [0.82.0] — 2026-09-22
 
 ### Added

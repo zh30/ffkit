@@ -228,3 +228,6 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `caption --chunk` word-timing presets (tiktok style)
 - [ ] `freeze --ease` (ramp into hold)
 - [ ] `cover --blur` (ambient card)
+- [ ] `freeze --ease` ramp into hold
+- [ ] `meme --position` (arbitrary text spots)
+- [ ] `grid --audio` polish
