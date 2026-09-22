@@ -101,7 +101,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `concat` | Join; `--transition` crossfades between every clip (xfade + acrossfade, N inputs) |
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop |
 | `extract` | Audio, a frame, or subtitles from the output extension |
-| `overlay` | Image/video overlay; position/scale/`--tile`, `--at`/`--dur` window | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture |
+| `overlay` | Image/video overlay; position/scale/`--tile`, `--at`/`--dur`, `--mode` blend composite | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture |
 | `broll` | Cutaway insert (`--insert` video, `--still` image, `--motion kenburns`) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay |
 | `caption` | SRT burn (`--mode`, `--safe`, `--chunk`, `--shift`, `--color`, `--size`, `--position`) | Burn/mux `.srt`; `--chunk` word groups, `--shift` timing nudge | `--mode mux` soft subs; `burn` overlay raster (no libass); `--safe social` clears the bottom 20%; `--chunk N` splits cues into ≤N-word groups |
 | `loudnorm` | EBU R128 two-pass (`-I -14` social, `-I -16` podcast) |
@@ -174,6 +174,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `mute` | Drop the audio track, stream-copy the rest |
 | `timer` | Burn a running MM:SS(/H:) counter (`--position`, `--at`, `--dur`) |
 | `hls` | Package to `index.m3u8` + `seg_*.ts` (`--seg` seconds) |
+| `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
+| `conform` | Normalize mixed footage for concat (`--size`, `--fps`, `--lufs`) |
 | `batch` | One verb on every media file in a directory |
 | `pipeline` | Run a JSON scheme in order (`$src` / `$in` / `expect`) |
 | `graph` | JSON filter graph, see [`references/graph.md`](references/graph.md) |

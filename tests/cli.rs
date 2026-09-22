@@ -6591,3 +6591,123 @@ fn timer_burns_counter_in_corner() {
     assert!(corner > 20000, "timer digits burn in the corner: {corner}");
     assert_eq!(center, 0, "frame center untouched: {center}");
 }
+
+#[test]
+fn qa_reports_psnr_and_ssim() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let b = dir.path().join("b.mp4");
+    let g = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        b.to_str().unwrap(),
+        "--gamma",
+        "2.2",
+    ]);
+    assert_eq!(g["status"], "ok", "{g}");
+    let v = run_json(&["qa", src.to_str().unwrap(), b.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let psnr = v["extra"]["psnr"].as_f64().unwrap_or(0.0);
+    let ssim = v["extra"]["ssim"].as_f64().unwrap_or(0.0);
+    assert!(
+        psnr > 5.0 && psnr.is_finite(),
+        "gamma-graded vs src: {psnr}"
+    );
+    assert!(ssim > 0.3 && ssim < 1.0, "ssim band: {ssim}");
+}
+
+#[test]
+fn conform_normalizes_spec() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "conform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--fps",
+        "15",
+        "--size",
+        "160x160",
+        "--lufs",
+        "-14",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["fps"].as_f64().unwrap_or(0.0), 15.0, "{v}");
+    let w = v["probe"]["width"].as_u64().unwrap_or(0);
+    assert!(w <= 160 && w % 2 == 0, "fit inside 160x160: {w}");
+    assert_eq!(
+        v["probe"]["sample_rate"].as_u64().unwrap_or(0),
+        48000,
+        "loudnorm tail must be resampled back: {v}"
+    );
+}
+
+#[test]
+fn overlay_mode_screen_brightens() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let leak = dir.path().join("leak.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=0x662200:s=320x240:d=1:rate=30")
+        .args(["-pix_fmt", "yuv420p", "-c:v", "libx264"])
+        .arg(&leak)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("o.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "--video",
+        leak.to_str().unwrap(),
+        "--mode",
+        "screen",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // screen blend of an orange wash warms/brightens the frame.
+    let mean = |f: &Path| -> f64 {
+        let png = dir
+            .path()
+            .join(format!("m{}.png", f.file_stem().unwrap().to_string_lossy()));
+        let ok = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+            .arg(f)
+            .args(["-frames:v", "1"])
+            .arg(&png)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok);
+        let (r, g, b) = mean_rgb(&png);
+        (r + g + b) / 3.0
+    };
+    let (s, o) = (mean(&src), mean(&out));
+    assert!(
+        o > s + 3.0,
+        "screen blend should lift the frame ({s} -> {o})"
+    );
+}

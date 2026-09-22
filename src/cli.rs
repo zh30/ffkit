@@ -178,6 +178,8 @@ pub enum Cmd {
     Timer(TimerArgs),
     Mute(MuteArgs),
     Hls(HlsArgs),
+    Qa(QaArgs),
+    Conform(ConformArgs),
     /// Even out voice dynamic range (compressor)
     Leveler(LevelerArgs),
     /// Noise gate — silence below a threshold
@@ -366,6 +368,13 @@ pub struct OverlayArgs {
     /// Tile the overlay N times across the frame (draft watermark); 0 = off
     #[arg(long, default_value_t = 0)]
     pub tile: u32,
+    /// Blend the overlay as a full-frame composite: screen|addition|multiply|
+    /// lighten|darken|overlay|difference (light leaks, particles, LUTs-textures)
+    #[arg(long)]
+    pub mode: Option<String>,
+    /// Blend strength 0..=1 for --mode (default 1.0)
+    #[arg(long, default_value_t = 1.0)]
+    pub opacity: f64,
     /// Show the overlay only from this time (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,
@@ -1282,6 +1291,33 @@ pub struct HlsArgs {
     /// Segment length in seconds (default 4)
     #[arg(long, default_value_t = 4.0)]
     pub seg: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct QaArgs {
+    /// Reference (original) clip
+    pub a: PathBuf,
+    /// Processed clip to measure against A (auto-rescaled to match)
+    pub b: PathBuf,
+    /// psnr, ssim, or both (default both)
+    #[arg(long, default_value = "both")]
+    pub metric: String,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ConformArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Fit inside WxH (even dims, no crop)
+    #[arg(long)]
+    pub size: Option<String>,
+    /// Constant frame rate
+    #[arg(long)]
+    pub fps: Option<f64>,
+    /// One-pass loudnorm to this I target (e.g. -14)
+    #[arg(long, allow_hyphen_values = true)]
+    pub lufs: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

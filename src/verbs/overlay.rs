@@ -54,7 +54,34 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(overlay);
 
-    let fc = if let Some(scale) = args.scale {
+    let fc = if let Some(mode) = &args.mode {
+        const MODES: &[&str] = &[
+            "screen",
+            "addition",
+            "multiply",
+            "lighten",
+            "darken",
+            "overlay",
+            "difference",
+        ];
+        if !MODES.contains(&mode.as_str()) {
+            return Err(Error::input(format!(
+                "unknown --mode {mode}; use {MODES:?}"
+            )));
+        }
+        if args.scale.is_some() {
+            return Err(Error::input("--mode covers the whole frame; drop --scale"));
+        }
+        if args.x.is_some() || args.y.is_some() {
+            return Err(Error::input("--mode covers the whole frame; drop --x/--y"));
+        }
+        let (w, h) = (probe.width.unwrap_or(1280), probe.height.unwrap_or(720));
+        format!(
+            "[1:v]scale={w}:{h},format=yuv420p[b];             [0:v][b]blend=all_mode={mode}:all_opacity={op}{en}:shortest=1[vout]",
+            op = args.opacity.clamp(0.0, 1.0),
+            en = enable,
+        )
+    } else if let Some(scale) = args.scale {
         format!("[1:v]scale={scale}:-1[ov];[0:v][ov]overlay=x={x}:y={y}{enable}[vout]")
     } else {
         format!("[0:v][1:v]overlay=x={x}:y={y}{enable}[vout]")

@@ -65,6 +65,8 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Timer(args) => verbs::timer::run(args, &g),
         Cmd::Mute(args) => verbs::mute::run(args, &g),
         Cmd::Hls(args) => verbs::hls::run(args, &g),
+        Cmd::Qa(args) => verbs::qa::run(args, &g),
+        Cmd::Conform(args) => verbs::conform::run(args, &g),
         Cmd::Leveler(args) => verbs::leveler::run(args, &g),
         Cmd::Gate(args) => verbs::gate::run(args, &g),
         Cmd::Boomerang(args) => verbs::boomerang::run(args, &g),

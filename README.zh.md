@@ -174,6 +174,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `mute` | 去掉音轨（其余流直接封装，不重编码） |
 | `timer` | 角落计时器烧录（`--position`、`--at`、`--dur`） |
 | `hls` | 打包成 `index.m3u8` + `seg_*.ts`（`--seg` 秒数） |
+| `qa` | 对比参考视频测画质损失（PSNR + SSIM，`--metric`） |
+| `conform` | 统一素材规格便于拼接（`--size`、`--fps`、`--lufs`） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `pipeline` | 按 JSON 方案顺序执行多步（`$src` / `$in` / `expect`） |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |

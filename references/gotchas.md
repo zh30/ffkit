@@ -190,3 +190,7 @@ INPUT level (`-loop 1 -framerate N -i`). The `loop` video filter repeats stored
 frames at their ORIGINAL pts — `fps` after it cannot invent timestamps, so the
 branch stalls at ~1 frame and `shortest=1` then ends the whole output.
 `timer` uses this to drive `crop x='mod(floor(t),60)*cell'` digit sprites.
+## `loudnorm` upsamples internally
+One-pass `loudnorm` outputs at its internal rate (seen: 96 kHz output from 48 kHz
+input). Any conform/normalize chain must put `aresample` AFTER loudnorm, not
+before. `conform` does `loudnorm=…,aresample=48000,aformat=…` in that order.

@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.55.0] - 2026-09-22
+
+- `qa` — measure encode quality loss: `psnr`/`ssim` via `scale2ref` + metric filter, parsed into `extra` (psnr dB, ssim 0..1).
+- `conform` — normalize a clip to a shared spec for concat/assembly: `--size WxH` (even-dim fit), `--fps`, `--lufs` one-pass loudnorm (resampled back to 48k after — loudnorm upsamples internally).
+- `overlay --mode` — full-frame blend composite (`screen`/`addition`/`multiply`/`lighten`/`darken`/`overlay`/`difference`) with `--opacity` — light leaks, particles, film textures; refuses `--x/--y/--scale` since blending is full-frame.
+
 ## [0.54.0] - 2026-09-22
 
 - `timer` — running MM:SS (H:MM:SS past the hour) counter burned into a corner, no drawtext needed: a 60-cell digit sprite + `crop x='mod(floor(t),60)*cell'` driven by `-loop 1` inputs; `--position`, `--at`, `--dur`, `--size`, `--color`, `--font`.
