@@ -16,6 +16,18 @@ pub fn render_caption_styled(
     render_text(text, font_bytes, video_w, 14.0, fg, size)
 }
 
+/// Caption text with per-line alignment (left/right speaker lines, lyrics).
+pub fn render_caption_aligned(
+    text: &str,
+    font_bytes: &[u8],
+    video_w: u32,
+    fg: [u8; 3],
+    size: f32,
+    align: TextAlign,
+) -> Result<RgbaImage, Error> {
+    render_text_inner(text, font_bytes, video_w, 14.0, fg, size, None, align)
+}
+
 /// Caption text stroked for readability on busy frames.
 pub fn render_caption_outlined(
     text: &str,

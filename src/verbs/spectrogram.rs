@@ -61,12 +61,21 @@ pub fn run(args: SpectrogramArgs, g: &Globals) -> Result<Contract, Error> {
             String::new()
         }
     };
+    let sc = match &args.scale {
+        Some(s) => {
+            if !["lin", "sqrt", "cbrt", "log", "4thrt", "5thrt"].contains(&s.as_str()) {
+                return Err(Error::input("--scale: lin|sqrt|cbrt|log|4thrt|5thrt"));
+            }
+            format!(":scale={s}")
+        }
+        None => String::new(),
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
     argv.extend([
         "-filter_complex",
-        &format!("[0:a]{slice}showspectrumpic=s={w}x{h}:legend=1{color}[v]"),
+        &format!("[0:a]{slice}showspectrumpic=s={w}x{h}:legend=1{color}{sc}[v]"),
         "-map",
         "[v]",
         "-frames:v",

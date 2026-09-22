@@ -125,22 +125,32 @@ fn burn_overlay(
         None => None,
     };
     for (i, (_, _, text)) in jobs.iter().enumerate() {
-        let img = match outline {
-            Some(oc) => crate::raster::render_caption_outlined(
+        let img = match (outline, args.align) {
+            (None, Some(al)) => crate::raster::render_caption_aligned(
                 text,
                 &font_bytes,
                 vw,
                 cap_fg,
                 args.size as f32,
-                oc,
+                al,
             )?,
-            None => crate::raster::render_caption_styled(
-                text,
-                &font_bytes,
-                vw,
-                cap_fg,
-                args.size as f32,
-            )?,
+            _ => match outline {
+                Some(oc) => crate::raster::render_caption_outlined(
+                    text,
+                    &font_bytes,
+                    vw,
+                    cap_fg,
+                    args.size as f32,
+                    oc,
+                )?,
+                None => crate::raster::render_caption_styled(
+                    text,
+                    &font_bytes,
+                    vw,
+                    cap_fg,
+                    args.size as f32,
+                )?,
+            },
         };
         let mut img = img;
         if let Some(bc) = &args.box_color {

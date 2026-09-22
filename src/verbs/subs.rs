@@ -308,6 +308,7 @@ fn burn(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract
     };
     let font = args.font.as_deref().unwrap_or("Sans").replace(',', " ");
     let outline = args.outline.unwrap_or(1.0).clamp(0.0, 8.0);
+    let shadow = args.shadow.unwrap_or(0.0).clamp(0.0, 8.0);
     let (bs, back) = if args.burn_box {
         (3, ",BackColour=&H80000000".to_string())
     } else {
@@ -315,7 +316,7 @@ fn burn(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract
     };
     let style = format!(
         "FontName={font},FontSize={size},PrimaryColour={color},\
-OutlineColour=&H80000000,BorderStyle={bs}{back},Outline={outline},Shadow=0,\
+OutlineColour=&H80000000,BorderStyle={bs}{back},Outline={outline},Shadow={shadow},\
 MarginV={margin_v},Alignment={align}"
     );
     let vf = format!("subtitles=filename='{path}':force_style='{style}'");

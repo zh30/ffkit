@@ -234,6 +234,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 92)
+
+- `caption --align left|center|right` — per-line caption card alignment via shared raster `TextAlign` (burn path).
+- `spectrogram --scale lin|sqrt|cbrt|log|4thrt|5thrt` — `showspectrumpic` display scale.
+- `audiogram --scale lin|log|sqrt|cbrt` — wave amplitude scale on showwaves modes (spectrum excluded).
+- `subs --burn --shadow N` — libass `Shadow=N` (0–8) on burned captions.
+
 ## Shipped this run (round 91)
 
 - `title --align left|center|right` — per-line alignment inside the card; lower-thirds convention (conflicts `--outline`/`--shadow`).

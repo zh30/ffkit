@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.119.0] — 2026-09-22
+
+### Added
+
+- `caption --align left|center|right` — per-line alignment in burned caption cards
+- `spectrogram --scale lin|sqrt|cbrt|log|4thrt|5thrt` — display scale knob
+- `audiogram --scale lin|log|sqrt|cbrt` — wave amplitude scale (waveform modes)
+- `subs --burn --shadow N` — libass drop-shadow depth on burned subs
+
 ## [0.118.0] — 2026-09-22
 
 ### Added

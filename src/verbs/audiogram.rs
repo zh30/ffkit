@@ -46,6 +46,11 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     // shows through. overlay shortest=1 ends [vout] with the waveform: -shortest
     // alone overshoots because the encoder queue keeps the infinite cover
     // going past audio EOF.
+    if args.scale.is_some() && matches!(args.mode, WaveMode::Spectrum) {
+        return Err(Error::input(
+            "--scale applies to waveform modes (not spectrum)",
+        ));
+    }
     // Spectrum renders frequency bars via showfreqs; the rest use showwaves.
     let (wave_src, mode) = match args.mode {
         WaveMode::Spectrum => (
@@ -64,10 +69,13 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
                 WaveMode::Spectrum => unreachable!(),
             };
             (
-                format!(
-                    "[0:a]showwaves=s={{ww}}x{{wh}}:mode={name}:rate=30:colors={}:draw=full[wv];",
-                    crate::color::lavfi(&args.color)
-                ),
+                {
+                    let sc = wave_scale(&args)?;
+                    format!(
+                        "[0:a]showwaves=s={{ww}}x{{wh}}:mode={name}:rate=30:colors={}:draw=full{sc}[wv];",
+                        crate::color::lavfi(&args.color)
+                    )
+                },
                 name,
             )
         }
@@ -223,4 +231,16 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         "sub_cues": sub_cues.len(),
     }));
     Ok(c)
+}
+
+fn wave_scale(args: &crate::cli::AudiogramArgs) -> Result<String, Error> {
+    match &args.scale {
+        Some(s) => {
+            if !["lin", "log", "sqrt", "cbrt"].contains(&s.as_str()) {
+                return Err(Error::input("--scale: lin|log|sqrt|cbrt"));
+            }
+            Ok(format!(":scale={s}"))
+        }
+        None => Ok(String::new()),
+    }
 }

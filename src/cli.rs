@@ -569,6 +569,9 @@ pub struct CaptionArgs {
     /// Stroke color around each glyph as RRGGBB (burn only)
     #[arg(long)]
     pub outline: Option<String>,
+    /// Per-line alignment inside each caption card (burn only)
+    #[arg(long, value_enum)]
+    pub align: Option<crate::raster::TextAlign>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -648,6 +651,9 @@ pub struct AudiogramArgs {
     /// Waveform colour (ffmpeg name or 0xRRGGBB)
     #[arg(long, default_value = "white")]
     pub color: String,
+    /// Wave amplitude scale: lin (default)|log|sqrt|cbrt — log shows quiet detail
+    #[arg(long)]
+    pub scale: Option<String>,
     /// Background colour when no --image (name or 0xRRGGBB, default 101418)
     #[arg(long)]
     pub bg: Option<String>,
@@ -902,6 +908,9 @@ pub struct SubsArgs {
     /// Burned subtitle outline width in px (default 1)
     #[arg(long)]
     pub outline: Option<f64>,
+    /// Burned subtitle drop-shadow depth 0-8 px (default 0)
+    #[arg(long)]
+    pub shadow: Option<f64>,
     /// Merge another .srt into the input .srt (dual-language; cues sorted by start)
     #[arg(long)]
     pub merge: Option<PathBuf>,
@@ -2230,6 +2239,9 @@ pub struct SpectrogramArgs {
     /// Color scheme: magma|viridis|fire|rainbow|green|terrain (ffmpeg names)
     #[arg(long)]
     pub color: Option<String>,
+    /// Display scale: lin|sqrt|cbrt|log|4thrt|5thrt (default log)
+    #[arg(long)]
+    pub scale: Option<String>,
     /// Render only this slice (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,
