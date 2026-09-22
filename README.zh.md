@@ -101,12 +101,12 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `concat` | 拼接；`--transition` 在每条之间做 xfade 转场（视频 xfade + 音频 acrossfade，支持 N 条） |
 | `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 |
 | `extract` | 按输出扩展名抽音频、帧、字幕 |
-| `overlay` | logo、水印、画中画 |
+| `overlay` | logo/画中画；`--tile N` 全屏草稿水印 | logo、水印、画中画 |
 | `broll` | 切走 B-roll（`--insert --at --duration`）；口播声音和时长不变 |
-| `caption` | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass）；`--safe social` 避开底部 20%；`--chunk N` 按 ≤N 词切分字幕 |
+| `caption` | 烧录/封装 `.srt`；`--chunk` 分词、`--shift` 整体平移 | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass）；`--safe social` 避开底部 20%；`--chunk N` 按 ≤N 词切分字幕 |
 | `loudnorm` | EBU R128 两遍（`-I -14` 社交，`-I -16` 播客） |
 | `denoise` | 人声降噪（风扇/轰隆/嘶嘶声）；`--video` 顺带画面去噪点 |
-| `transcode` | 预设 `h264` / `webm` / `gif` |
+| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`） | 预设 `h264` / `webm` / `gif` |
 | `compress` | 两遍编码压到 `--size 10MB`（Discord、WhatsApp 16MB、邮箱约 25MB） |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 | `audiogram` | 播客音频 → 9:16 波形视频（封面图用 `--image`） |

@@ -3667,3 +3667,175 @@ fn cutsil_strips_head_and_tail_silence() {
         "padded 2s -> ~1s after both-end strip, got {d}; {v}"
     );
 }
+
+#[test]
+fn overlay_tile_repeats_watermark() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let logo = dir.path().join("logo.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=white:size=40x40",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&logo)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--image",
+        logo.to_str().unwrap(),
+        "--scale",
+        "40",
+        "--tile",
+        "4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["tile"].as_u64(), Some(4), "{v}");
+    // four white copies on a testsrc frame: two opposite corners differ from source
+    let px = |f: &Path| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                "select=eq(n\\,15)",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let a = px(&src);
+    let b = px(&out);
+    let diff: u64 = a
+        .iter()
+        .zip(b.iter())
+        .map(|(x, y)| x.abs_diff(*y) as u64)
+        .sum();
+    assert!(diff > 5000, "4 white tiles must change pixels; {v}");
+}
+
+#[test]
+fn caption_shift_moves_cue_timing() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,100 --> 00:00:00,400\nHI\n").unwrap();
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--mode",
+        "burn",
+        "--safe",
+        "off",
+        "--shift",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // cue now lives at 0.5-0.8s: frame 5 (0.17s) == source; frame 18 (0.6s) differs
+    let px = |f: &Path, n: u32| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n})"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let d = |n: u32| -> u64 {
+        let a = px(&src, n);
+        let b = px(&out, n);
+        a.iter()
+            .zip(b.iter())
+            .map(|(x, y)| x.abs_diff(*y) as u64)
+            .sum()
+    };
+    let pre = d(5);
+    let inside = d(18);
+    assert!(
+        inside > pre + 2000,
+        "caption must appear after shift: pre {pre} vs inside {inside}; {v}"
+    );
+}
+
+#[test]
+fn transcode_gif_honors_fps_and_width() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("g.gif");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "gif",
+        "--fps",
+        "5",
+        "--width",
+        "160",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,avg_frame_rate",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    assert!(s.contains("160"), "gif width 160, got {s}");
+    assert!(s.contains("5/1"), "gif fps 5, got {s}");
+}

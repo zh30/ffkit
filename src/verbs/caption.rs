@@ -52,6 +52,12 @@ fn burn_overlay(
 ) -> Result<Contract, Error> {
     let raw = std::fs::read_to_string(&args.srt)?;
     let mut cues = srt::parse_srt(&raw)?;
+    if args.shift != 0.0 {
+        for c in cues.iter_mut() {
+            c.start = (c.start + args.shift).max(0.0);
+            c.end = (c.end + args.shift).max(c.start + 0.05);
+        }
+    }
     if let Some(n) = args.chunk {
         if !(1..=10).contains(&n) {
             return Err(Error::input("--chunk must be 1..=10 words"));

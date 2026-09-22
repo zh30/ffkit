@@ -313,6 +313,9 @@ pub struct OverlayArgs {
     pub x: Option<String>,
     #[arg(long)]
     pub y: Option<String>,
+    /// Tile the overlay N times across the frame (draft watermark); 0 = off
+    #[arg(long, default_value_t = 0)]
+    pub tile: u32,
 }
 
 #[derive(clap::Args, Debug)]
@@ -351,6 +354,9 @@ pub struct CaptionArgs {
     pub chunk: Option<u32>,
     #[arg(long)]
     pub font: Option<String>,
+    /// Shift every cue by SEC (negative pulls captions earlier)
+    #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
+    pub shift: f64,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -429,6 +435,12 @@ pub struct TranscodeArgs {
     pub preset: Option<TranscodePreset>,
     #[arg(long)]
     pub crf: Option<u8>,
+    /// GIF-only: frames per second (default 10)
+    #[arg(long)]
+    pub fps: Option<u32>,
+    /// GIF-only: output width (default 480)
+    #[arg(long)]
+    pub width: Option<u32>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]

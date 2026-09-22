@@ -4,6 +4,13 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.37.0] — 2026-09-22
+
+- `overlay --tile N`: tiled semi-transparent watermark pass (draft protection)
+- `caption --shift SEC`: nudge every cue (negative pulls earlier)
+- `transcode --preset gif --fps/--width`: gif tuning flags
+
+
 ## [0.36.0] — 2026-09-22
 
 - `split --scenes T`: auto-detect shot changes and cut there (select scene score + segment muxer)

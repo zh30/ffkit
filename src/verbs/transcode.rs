@@ -85,7 +85,9 @@ fn gif(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         .map_err(|e| Error::output(e.to_string()))?;
     let palette_path = palette.path().to_path_buf();
 
-    let scale = "fps=10,scale=480:-2:flags=lanczos";
+    let fps = args.fps.unwrap_or(10).clamp(1, 30);
+    let width = args.width.unwrap_or(480).clamp(16, 1920);
+    let scale = format!("fps={fps},scale={width}:-2:flags=lanczos");
     let mut gen = ffmpeg_base(g.progress);
     gen.push("-i");
     gen.push(&args.input);

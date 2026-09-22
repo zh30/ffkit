@@ -101,12 +101,12 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `concat` | Join; `--transition` crossfades between every clip (xfade + acrossfade, N inputs) |
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop |
 | `extract` | Audio, a frame, or subtitles from the output extension |
-| `overlay` | Logo, watermark, picture-in-picture |
+| `overlay` | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture |
 | `broll` | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay |
-| `caption` | `--mode mux` soft subs; `burn` overlay raster (no libass); `--safe social` clears the bottom 20%; `--chunk N` splits cues into ≤N-word groups |
+| `caption` | Burn/mux `.srt`; `--chunk` word groups, `--shift` timing nudge | `--mode mux` soft subs; `burn` overlay raster (no libass); `--safe social` clears the bottom 20%; `--chunk N` splits cues into ≤N-word groups |
 | `loudnorm` | EBU R128 two-pass (`-I -14` social, `-I -16` podcast) |
 | `denoise` | Voice cleanup (fan / rumble / hiss); `--video` also degrains the picture |
-| `transcode` | Presets `h264` / `webm` / `gif` |
+| `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`) | Presets `h264` / `webm` / `gif` |
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 | `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`) |

@@ -26,6 +26,10 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         overlay_xy(&args.position, args.margin)?
     };
+    if args.tile > 0 {
+        let overlay_path = overlay.to_path_buf();
+        return tiled(args, overlay_path, &probe, g);
+    }
 
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
@@ -38,6 +42,8 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         format!("[0:v][1:v]overlay=x={x}:y={y}[vout]")
     };
+    let _ = x;
+    let _ = y;
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if probe.has_audio {
         argv.extend(["-map", "0:a?", "-c:a", "copy"]);
@@ -45,7 +51,7 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     argv.extend(["-c:v", "libx264", "-preset", "fast", "-crf", "18"]);
     argv.push(&args.output);
 
-    let inputs: Vec<&Path> = vec![&args.input, overlay];
+    let inputs: Vec<&Path> = vec![&args.input, &overlay];
     engine::write_job("overlay", &inputs, &args.output, vec![argv], g)
 }
 
@@ -68,4 +74,55 @@ fn overlay_xy(pos: &str, margin: i32) -> Result<(String, String), Error> {
         }
     };
     Ok((x, y))
+}
+
+/// Tiled draft watermark: N scaled copies chained as overlay passes in a
+/// diagonal/stepped pattern — one logo per pass (cheap up to ~6).
+fn tiled(
+    args: OverlayArgs,
+    overlay: std::path::PathBuf,
+    probe: &crate::probe::Probe,
+    g: &Globals,
+) -> Result<Contract, Error> {
+    let n = args.tile.clamp(2, 6);
+    let w = probe.width.unwrap_or(1280) as i64;
+    let h = probe.height.unwrap_or(720) as i64;
+    let scale = args.scale.unwrap_or(320);
+    let mut seg: Vec<String> = vec![format!(
+        "[1:v]scale={scale}:-1,format=rgba,colorchannelmixer=aa=0.5[ov]"
+    )];
+    let mut prev = "[0:v]".to_string();
+    for i in 0..n {
+        // Diagonal cascade: each copy offset by its index
+        let fx = i as f64 / n as f64;
+        let fy = (i as f64 + 0.5) / n as f64;
+        let x = format!("{}-overlay_w/2", (fx * w as f64) as i64);
+        let y = format!("{}-overlay_h/2", (fy * h as f64) as i64);
+        let lab = if i + 1 == n {
+            "vout".to_string()
+        } else {
+            format!("t{i}")
+        };
+        seg.push(format!("{prev}[ov]overlay=x={x}:y={y}[{lab}]"));
+        prev = format!("[{lab}]");
+    }
+    let fc = seg.join(";");
+
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.push("-i");
+    argv.push(&overlay);
+    argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?", "-c:a", "copy"]);
+    }
+    argv.extend([
+        "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+    ]);
+    argv.push(&args.output);
+
+    let inputs: Vec<&Path> = vec![&args.input, &overlay];
+    let c = engine::write_job("overlay", &inputs, &args.output, vec![argv], g)?;
+    Ok(c.with_extra(serde_json::json!({ "tile": n })))
 }

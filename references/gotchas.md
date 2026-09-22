@@ -97,6 +97,10 @@ Source path as `-o` is always refused. An existing output is refused unless `--o
 
 `autocrop` runs `cropdetect` on up to the first 60 s and takes the **last** `crop=` line (it refines the box as it scans); refuses when detection equals the frame or is degenerate. Its probe pass must run at `-loglevel info` — the shared `ffmpeg_base` pins `error`, which silences cropdetect. `sheet` = `fps=N/dur,scale,tile=COLSxROWS` single PNG. `title --at` shifts the overlay's `enable='between(t,…)'` window — lower-thirds at any offset.
 
+## overlay --tile / caption --shift / gif flags
+
+`overlay --tile N` chains N `overlay` passes on a diagonal cascade at 50% alpha — draft watermark without a font. `caption --shift` adds SEC to every cue's start/end after `srt::parse_srt` (clamped ≥0, min 50ms). `transcode --preset gif` takes `--fps` (1–30) and `--width` (16–1920).
+
 ## split --scenes / cutsil / grid --audio
 
 `split --scenes T` = probe pass `select='gt(scene,T)',showinfo` (info level, like autocrop) → pts_time list → same segment-muxer recipe. `cutsil` = `silenceremove=start_periods=1:stop_periods=-1` strips dead air at both ends — AUDIO ONLY, on video it desyncs (use `jumpcut`). `grid --audio N` maps `[N:a]` instead of amix.
