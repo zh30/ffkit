@@ -32,7 +32,18 @@ pub fn run(args: RoughArgs, g: &Globals) -> Result<Contract, Error> {
         g.timeout,
         true,
     )?;
-    let keeps = crate::silence::keep_ranges(probe.duration, &silences, args.pad);
+    let mut keeps = crate::silence::keep_ranges(probe.duration, &silences, args.pad);
+    if args.merge > 0.0 {
+        let mut merged: Vec<(f64, f64)> = Vec::with_capacity(keeps.len());
+        for &(s, e) in &keeps {
+            match merged.last_mut() {
+                Some(last) if s - last.1 < args.merge => last.1 = e,
+                _ => merged.push((s, e)),
+            }
+        }
+        keeps = merged;
+    }
+    let keeps = keeps;
     if keeps.is_empty() {
         return Err(Error::input("rough: clip is all silence at this threshold"));
     }

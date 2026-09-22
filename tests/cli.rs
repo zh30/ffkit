@@ -8860,3 +8860,131 @@ fn grid_labels_overlay_tiles() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn autocrop_buffer_expands_box() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = dir.join("box.mp4");
+    let src2 = dir.join("box2.mp4");
+    let o0 = dir.join("o0.mp4");
+    let o8 = dir.join("o8.mp4");
+    run_json(&[
+        "solid",
+        "-o",
+        src.to_str().unwrap(),
+        "--color",
+        "FF0000",
+        "--size",
+        "320x180",
+        "--dur",
+        "1",
+        "--overwrite",
+    ]);
+    // letterbox the red 320x240 card into 320x300 (30px black bars top+bottom)
+    run_json(&[
+        "fit",
+        src.to_str().unwrap(),
+        "-o",
+        src2.to_str().unwrap(),
+        "--width",
+        "320",
+        "--height",
+        "300",
+        "--color",
+        "000000",
+        "--overwrite",
+    ]);
+    let v0 = run_json(&[
+        "autocrop",
+        src2.to_str().unwrap(),
+        "-o",
+        o0.to_str().unwrap(),
+        "--overwrite",
+    ]);
+    let h0 = v0["extra"]["detected"]["h"].as_i64().unwrap();
+    let v8 = run_json(&[
+        "autocrop",
+        src2.to_str().unwrap(),
+        "-o",
+        o8.to_str().unwrap(),
+        "--buffer",
+        "8",
+        "--overwrite",
+    ]);
+    assert_eq!(v8["status"], "ok");
+    let d8 = &v8["extra"]["detected"];
+    assert_eq!(d8["h"].as_i64().unwrap(), h0 + 16);
+    assert_eq!(v8["extra"]["buffer"].as_i64().unwrap(), 8);
+}
+
+#[test]
+fn timer_ms_format_renders() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "timer",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--format",
+        "ms",
+        "--dur",
+        "0.5",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok");
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 0.7);
+}
+
+#[test]
+fn rough_merge_merges_close_keeps() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = dir.join("sp.m4a");
+    // tone with gaps at ~0.5-0.8 and ~1.2-1.8 (i.e. speech 0-0.5, 0.8-1.2, 1.8-3)
+    Command::new("ffmpeg")
+        .args([
+            "-v", "error", "-y", "-f", "lavfi", "-i",
+            "sine=frequency=440:duration=3,volume='lt(t,0.5)+between(t,0.8,1.2)+gte(t,1.8)':eval=frame",
+            "-c:a", "aac",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    let v1 = run_json(&[
+        "rough",
+        src.to_str().unwrap(),
+        "--threshold",
+        "-40",
+        "--min-duration",
+        "0.2",
+        "--overwrite",
+    ]);
+    let n1 = v1["extra"]["keeps"].as_array().unwrap().len();
+    assert!(n1 >= 2, "expected multiple keeps, got {n1}");
+    let v2 = run_json(&[
+        "rough",
+        src.to_str().unwrap(),
+        "--threshold",
+        "-40",
+        "--min-duration",
+        "0.2",
+        "--merge",
+        "0.5",
+        "--overwrite",
+    ]);
+    let n2 = v2["extra"]["keeps"].as_array().unwrap().len();
+    assert!(n2 < n1, "merge should reduce keeps: {n2} !< {n1}");
+}

@@ -124,7 +124,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `bleep` | Tone over a word/segment: `--at`/`--dur`, `--freq`, `--level` |
 | `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) |
 | `chapter` | Embed `--at T|TITLE` chapter markers (lossless `-c copy` metadata pass) |
-| `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`) |
+| `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`; `--buffer N` keeps N px edge context) |
 | `sheet` | Contact sheet: `--cols`/`--rows` thumbnails → one PNG | `--pad`/`--margin`
 | `pitch` | `--semitones N` voice/music shift, duration preserved |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
@@ -140,7 +140,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `solid` | Solid-color clip card (`--color`, `--size`, `--dur`; silent stereo optional) (`--gradient` animated) |
 | `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
 | `jumpcut` | Cut silence inside a talking-head take |
-| `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
+| `rough` | Map speech islands in a long take (`--json`); `-o` assembles (`--merge N` merges keeps closer than N s) (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
 | `cover` | 9:16 cover still (1080×1920) |
 | `fade` | Video and audio fade (`--in` / `--out`, `--color` e.g. white) |
 | `title` | On-screen hook/caption PNG (`--at`, `--position` incl. corners, `--fade`, `--outline`, `--shadow`) |
@@ -175,7 +175,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `invert` | Full-frame or windowed color inversion (`--at`, `--dur`) |
 | `mix` | Sum two audio sources (`--vol-a`/`--vol-b` linear, `--longest`) |
 | `mute` | Drop the audio track, stream-copy the rest |
-| `timer` | Burn a running MM:SS(/H:) counter (`--position`, `--at`, `--dur`) |
+| `timer` | Burn a running MM:SS(/H:) counter (`--position`, `--at`, `--dur`, `--format ms` adds centiseconds) |
 | `hls` | Package to `index.m3u8` + `seg_*.ts` (`--seg` seconds) |
 | `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
 | `conform` | Normalize mixed footage for concat (`--size`, `--fps`, `--lufs`) |

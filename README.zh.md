@@ -124,7 +124,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `bleep` | 消音哔声：`--at`/`--dur` 选段，`--freq`/`--level` 调音 |
 | `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法）（`--times` 循环次数） |
 | `chapter` | 写入 `--at T|TITLE` 章节标记（`-c copy` 无损元数据） |
-| `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`） |
+| `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`；`--buffer N` 向外扩 N 像素） |
 | `sheet` | 缩略图墙/预览拼图：`--cols`/`--rows` → 一张 PNG | `--pad`/`--margin`
 | `pitch` | `--semitones N` 升降调（时长不变） |
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
@@ -140,7 +140,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `solid` | 纯色视频卡（`--color`、`--size`、`--dur`，可选静音轨）（`--gradient` 渐变） |
 | `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐、`--mix` 保留原音轨 |
 | `jumpcut` | 剪掉口播里的静音停顿 |
-| `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |
+| `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（`--merge N` 合并间隔小于 N 秒的段；默认只编码要留下的段；`--copy` 无损但按关键帧） |
 | `cover` | 导出 9:16 封面图（1080×1920） |
 | `fade` | 画面和声音淡入淡出（`--in` / `--out`，`--color` 淡出到白等） |
 | `title` | 屏幕标题 PNG（`--at`、`--position` 含四角、`--fade`、`--outline`, `--shadow`） |
@@ -175,7 +175,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `invert` | 全帧或定时反色（`--at`、`--dur`） |
 | `mix` | 两段音频等权叠加（`--vol-a`/`--vol-b` 线性电平，`--longest` 按长者收尾） |
 | `mute` | 去掉音轨（其余流直接封装，不重编码） |
-| `timer` | 角落计时器烧录（`--position`、`--at`、`--dur`） |
+| `timer` | 角落计时器烧录（`--position`、`--at`、`--dur`、`--format ms` 厘秒） |
 | `hls` | 打包成 `index.m3u8` + `seg_*.ts`（`--seg` 秒数） |
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM，`--metric`） |
 | `conform` | 统一素材规格便于拼接（`--size`、`--fps`、`--lufs`） |

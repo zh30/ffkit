@@ -60,6 +60,17 @@ pub fn run(args: AutocropArgs, g: &Globals) -> Result<Contract, Error> {
             "autocrop: detected crop {cw}x{ch} is degenerate"
         )));
     }
+    // --buffer: grow the box back out, clamped to the frame
+    let (cw, ch, cx, cy) = {
+        let b = args.buffer.max(0);
+        let (x, y) = ((cx as i64 - b).max(0), (cy as i64 - b).max(0));
+        (
+            (cw as i64 + 2 * b).min(iw as i64 - x) as u32,
+            (ch as i64 + 2 * b).min(ih as i64 - y) as u32,
+            x as u32,
+            y as u32,
+        )
+    };
     let vf = format!("crop={cw}:{ch}:{cx}:{cy},setsar=1");
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
@@ -76,6 +87,7 @@ pub fn run(args: AutocropArgs, g: &Globals) -> Result<Contract, Error> {
     let c = engine::write_job("autocrop", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({
         "detected": { "w": cw, "h": ch, "x": cx, "y": cy },
+        "buffer": args.buffer,
         "source": { "w": iw, "h": ih },
     })))
 }

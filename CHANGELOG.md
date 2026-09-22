@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+## [0.79.0] — 2026-09-22
+
+### Added
+
+- `timer --format ms` — mm:ss.cc centisecond timer field for sports/review overlays.
+- `autocrop --buffer N` — expand the detected crop box by N px per side, clamped to frame.
+- `rough --merge N` — merge keep ranges separated by less than N seconds.
+
+
 Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）。格式遵循 [Keep a Changelog](https://keepachangelog.com/)。
 
 ## [Unreleased]

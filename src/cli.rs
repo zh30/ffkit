@@ -958,6 +958,9 @@ pub struct RoughArgs {
     /// Stream-copy keeps (fast, keyframe-sloppy). Default encodes only the keep windows.
     #[arg(long)]
     pub copy: bool,
+    /// Merge keeps whose gap is smaller than N seconds (less jarring jump cuts)
+    #[arg(long, default_value_t = 0.0)]
+    pub merge: f64,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1270,6 +1273,9 @@ pub struct AutocropArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
+    /// Expand the detected crop box by N px on every side
+    #[arg(long, default_value_t = 0)]
+    pub buffer: i64,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1499,6 +1505,17 @@ pub struct TimerArgs {
     pub color: Option<String>,
     #[arg(long)]
     pub font: Option<String>,
+    /// Display format: hms (auto) or ms (mm:ss.cc centiseconds)
+    #[arg(long, value_enum, default_value_t = TimerFormat::Hms)]
+    pub format: TimerFormat,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum TimerFormat {
+    #[default]
+    Hms,
+    /// mm:ss.cc
+    Ms,
 }
 
 #[derive(clap::Args, Debug)]

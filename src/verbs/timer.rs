@@ -2,7 +2,7 @@ use std::path::Path;
 
 use serde_json::json;
 
-use crate::cli::{Globals, TimerArgs};
+use crate::cli::{Globals, TimerArgs, TimerFormat};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -40,7 +40,9 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
     let mut cells: Vec<image::RgbaImage> = Vec::new();
     let (mut cw, mut ch) = (0u32, 0u32);
-    for i in 0..60 {
+    let ms = matches!(args.format, TimerFormat::Ms);
+    let ncells: u32 = if ms { 100 } else { 60 };
+    for i in 0..ncells {
         let img = crate::raster::render_title_styled(
             &format!("{i:02}"),
             &font_bytes,
@@ -52,7 +54,7 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
         ch = ch.max(img.height());
         cells.push(img);
     }
-    let mut sprite = image::RgbaImage::new(cw * 60, ch);
+    let mut sprite = image::RgbaImage::new(cw * ncells, ch);
     for (i, cell) in cells.iter().enumerate() {
         image::imageops::overlay(
             &mut sprite,
@@ -71,6 +73,11 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     colon
         .save(&colon_path)
         .map_err(|e| Error::output(format!("write colon: {e}")))?;
+    let dot = crate::raster::render_title_styled(".", &font_bytes, vw, fg, args.size as f32)?;
+    let dotw = dot.width();
+    let dot_path = tmp.path().join("dot.png");
+    dot.save(&dot_path)
+        .map_err(|e| Error::output(format!("write dot: {e}")))?;
 
     let hours = probe.duration > 3600.0 || at > 3600.0;
     // Layout: [hh:]mm:ss — each digit field is one sprite cell wide.
@@ -100,6 +107,9 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     }
     xparts.push(("mm".into(), cw));
     xparts.push(("ss".into(), cw));
+    if ms {
+        xparts.push(("cs".into(), cw));
+    }
 
     let fps = probe.fps.unwrap_or(30.0).max(1.0);
     let enable = format!("enable='between(t,{at:.3},{until:.3})'");
@@ -114,6 +124,7 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
         let expr = match kind.as_str() {
             "hh" => format!("min(99,floor((t-{at:.3})/3600))"),
             "mm" => format!("mod(floor((t-{at:.3})/60),60)"),
+            "cs" => format!("mod(floor((t-{at:.3})*100),100)"),
             _ => format!("mod(floor(t-{at:.3}),60)"),
         };
         fc.push_str(&format!(
@@ -126,13 +137,14 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     let mut pass = 0usize;
     for (i, (kind, w)) in xparts.iter().enumerate() {
         if i > 0 {
-            // colon between fields
+            // ":" between fields, "." before centiseconds
+            let (sep, sepw) = if kind == "cs" { (3, dotw) } else { (2, colw) };
             let out = format!("v{pass}");
             fc.push_str(&format!(
-                ";[{cur}][2:v]overlay=x={x0}+{xoff}:y={y}:shortest=1:{enable}[{out}]"
+                ";[{cur}][{sep}:v]overlay=x={x0}+{xoff}:y={y}:shortest=1:{enable}[{out}]"
             ));
             cur = out;
-            xoff += colw;
+            xoff += sepw;
             pass += 1;
         }
         let _ = kind;
@@ -162,6 +174,14 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
         format!("{fps:.3}"),
         "-i".to_string(),
         colon_path.display().to_string(),
+    ]);
+    argv.extend([
+        "-loop".to_string(),
+        "1".to_string(),
+        "-framerate".to_string(),
+        format!("{fps:.3}"),
+        "-i".to_string(),
+        dot_path.display().to_string(),
     ]);
     argv.extend(["-filter_complex".to_string(), fc]);
     argv.extend(["-map".to_string(), format!("[{cur}]")]);
