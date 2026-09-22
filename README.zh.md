@@ -123,6 +123,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `chapter` | 写入 `--at T|TITLE` 章节标记（`-c copy` 无损元数据） |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`） |
 | `sheet` | 缩略图墙/预览拼图：`--cols`/`--rows` → 一张 PNG |
+| `pitch` | `--semitones N` 升降调（时长不变） |
 | `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐、`--mix` 保留原音轨 |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |

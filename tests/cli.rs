@@ -3304,3 +3304,189 @@ fn title_at_shows_mid_clip() {
         "{v}"
     );
 }
+
+#[test]
+fn replace_duck_dips_original_under_voice() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // video with a loud bed; replacement = quiet tone
+    let src = dir.path().join("bed.mp4");
+    let voice = dir.path().join("voice.wav");
+    for (args, path) in [
+        (
+            vec![
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=duration=2:size=160x120:rate=15",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=220:duration=2",
+            ],
+            &src,
+        ),
+        (
+            vec!["-f", "lavfi", "-i", "sine=frequency=880:duration=2"],
+            &voice,
+        ),
+    ] {
+        let mut a = vec!["-hide_banner", "-loglevel", "error", "-y"];
+        a.extend(args.iter().copied());
+        a.extend([
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ]);
+        if path == &voice {
+            a = vec!["-hide_banner", "-loglevel", "error", "-y"];
+            a.extend(args.iter().copied());
+        }
+        let st = Command::new("ffmpeg").args(&a).arg(path).status().unwrap();
+        assert!(st.success());
+    }
+    let out = dir.path().join("ducked.mp4");
+    let v = run_json(&[
+        "replace",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        voice.to_str().unwrap(),
+        "--mix",
+        "1.0",
+        "--duck",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // both streams mixed: second has the 880Hz voice AND (compressed) 220Hz bed
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args(["-af", "volumedetect", "-f", "null", "-"])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stderr);
+    let mean: f64 = s
+        .split("mean_volume:")
+        .nth(1)
+        .and_then(|r| r.split_whitespace().next())
+        .and_then(|r| r.trim_end_matches("dB").parse().ok())
+        .unwrap_or(-99.0);
+    assert!(
+        mean > -60.0,
+        "mixed output should carry audio, mean {mean}dB; {v}"
+    );
+}
+
+#[test]
+fn pitch_semitones_shift_keeps_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("p.m4a");
+    let v = run_json(&[
+        "pitch",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--semitones",
+        "7",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        (d - 1.0).abs() < 0.2,
+        "pitch keeps duration ~1s, got {d}; {v}"
+    );
+    // 440Hz -> ~659Hz at +7st: zero-crossing count should rise ~1.5x
+    let zc = |f: &Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args(["-af", "astats", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stderr);
+        s.lines()
+            .filter(|l| l.contains("Zero crossings:"))
+            .filter_map(|l| l.rsplit(':').next())
+            .filter_map(|v| v.trim().parse::<f64>().ok())
+            .fold(0.0, f64::max)
+    };
+    let (a, b) = (zc(&src), zc(&out));
+    assert!(b > a * 1.3, "zero crossings should rise: {a} -> {b}");
+}
+
+#[test]
+fn grade_grain_adds_noise() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let flat = dir.path().join("flat.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0x808080:size=160x120:rate=15:duration=1",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-crf",
+            "23",
+        ])
+        .arg(&flat)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("g.mp4");
+    let v = run_json(&[
+        "grade",
+        flat.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--grain",
+        "12",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let variance = |f: &Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                "crop=80:60:40:30,signalstats,metadata=print:key=lavfi.signalstats.YMIN:file=-",
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stdout);
+        s.lines()
+            .filter_map(|l| l.split("YMIN=").nth(1))
+            .filter_map(|v| v.trim().parse::<f64>().ok())
+            .fold(f64::NEG_INFINITY, f64::max)
+    };
+    // flat gray: YMIN stays ~128 without grain, dips with it
+    let (a, b) = (variance(&flat), variance(&out));
+    assert!(
+        b < a - 4.0,
+        "grain should push dark pixels in flat area: {a} -> {b}"
+    );
+}

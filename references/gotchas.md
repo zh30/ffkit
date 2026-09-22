@@ -97,6 +97,10 @@ Source path as `-o` is always refused. An existing output is refused unless `--o
 
 `autocrop` runs `cropdetect` on up to the first 60 s and takes the **last** `crop=` line (it refines the box as it scans); refuses when detection equals the frame or is degenerate. Its probe pass must run at `-loglevel info` — the shared `ffmpeg_base` pins `error`, which silences cropdetect. `sheet` = `fps=N/dur,scale,tile=COLSxROWS` single PNG. `title --at` shifts the overlay's `enable='between(t,…)'` window — lower-thirds at any offset.
 
+## replace --duck / pitch / grade --grain
+
+`replace --mix G --duck` duckes the ORIGINAL track under the new audio: `[old][new_sc]sidechaincompress` — pin `aformat=sample_fmts=dbl` on both pads (same requirement as `music`, gotcha above). `pitch --semitones N` = `asetrate=sr*2^(N/12),aresample,atempo=2^(-N/12)` — pitch up/down while duration holds. `grade --grain` appends `noise=alls=N:allf=t+u` after eq/lut.
+
 ## volume --at/--dur
 
 `volume --db -60 --at 12.5 --dur 1.5` mutes just that window (`volume=…:enable='between(t,a,b)'`) — the bleep/mute-a-swear ask. `--at` alone runs to the end; `--dur` without `--at` is refused.

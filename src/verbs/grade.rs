@@ -21,6 +21,9 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(lut) = &args.lut {
         paths::ensure_input(lut)?;
     }
+    if args.grain < 0.0 {
+        return Err(Error::input("--grain must be >= 0"));
+    }
 
     let mut vf = format!(
         "eq=contrast={}:brightness={}:saturation={}",
@@ -30,6 +33,9 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         // Single quotes group literal path text; escape internal quotes.
         let esc = lut.display().to_string().replace('\'', "\\'");
         vf.push_str(&format!(",lut3d=file='{esc}'"));
+    }
+    if args.grain > 0.0 {
+        vf.push_str(&format!(",noise=alls={}:allf=t+u", args.grain.min(30.0)));
     }
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");

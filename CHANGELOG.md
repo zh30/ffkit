@@ -4,6 +4,13 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.35.0] — 2026-09-22
+
+- `replace --duck`: sidechain-duck the original track under the replacement audio
+- `ffkit pitch`: `--semitones` shift with preserved duration (asetrate+atempo)
+- `grade --grain`: film-grain `noise=alls:allf=t+u` pass
+
+
 ## [0.34.0] — 2026-09-22
 
 - `ffkit autocrop`: cropdetect scan → crop out letterbox/pillarbox (refuses when nothing detected)

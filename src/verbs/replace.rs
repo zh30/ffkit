@@ -47,7 +47,14 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
         chain = format!("adelay={:.0}:all=1,", args.audio_offset * 1000.0);
     }
     // apad then atrim: short beds get silence to the credits, long beds are cut.
-    let fc = if args.mix > 0.0 {
+    const AF: &str = "aformat=sample_fmts=dbl:sample_rates=48000:channel_layouts=stereo";
+    let fc = if args.mix > 0.0 && args.duck {
+        // sidechaincompress needs packed dbl on both pads (same pinning as music.rs)
+        format!(
+            "[1:a]{chain}apad,atrim=duration={:.3},{AF}[new];[new]asplit=2[n1][n2];             [0:a]aresample=48000,aformat=channel_layouts=stereo,volume={:.3},atrim=duration={:.3},{AF}[old];             [old][n1]sidechaincompress=threshold=0.05:ratio=6:attack=20:release=250[dk];             [dk][n2]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]",
+            probe.duration, args.mix, probe.duration
+        )
+    } else if args.mix > 0.0 {
         format!(
             "[1:a]{chain}apad,atrim=duration={:.3},aresample=48000,aformat=channel_layouts=stereo[new];[0:a]aresample=48000,aformat=channel_layouts=stereo,volume={:.3},atrim=duration={:.3}[old];[old][new]amix=inputs=2:normalize=0[aout]",
             probe.duration, args.mix, probe.duration
@@ -78,6 +85,7 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
         "audio": args.audio,
         "audio_offset": args.audio_offset,
         "mix": args.mix,
+        "duck": args.duck,
         "video_copy": true,
     }));
     Ok(c)

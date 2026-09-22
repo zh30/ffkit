@@ -119,6 +119,8 @@ pub enum Cmd {
     Autocrop(AutocropArgs),
     /// Contact sheet: cols×rows thumbnails from the whole clip
     Sheet(SheetArgs),
+    /// Pitch-shift audio by semitones (voice effects, music retune)
+    Pitch(PitchArgs),
     /// Still images (+ optional music bed) into a video
     Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
@@ -495,6 +497,9 @@ pub struct ReplaceArgs {
     /// Keep the original track under the new one at this linear gain (0–1)
     #[arg(long, default_value_t = 0.0)]
     pub mix: f64,
+    /// With --mix: sidechain-duck the original under the new audio (voice-over)
+    #[arg(long)]
+    pub duck: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -714,6 +719,9 @@ pub struct GradeArgs {
     /// Apply a 3D LUT file (.cube etc) after the slider correction
     #[arg(long)]
     pub lut: Option<PathBuf>,
+    /// Film-grain amount in luma units (0 = off; 4–10 reads as film)
+    #[arg(long, default_value_t = 0.0)]
+    pub grain: f64,
 }
 
 #[derive(clap::Args, Debug)]
@@ -730,6 +738,16 @@ pub struct ZoomArgs {
     /// Window length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct PitchArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Semitones: +4 chipmunk-ish, -3 deeper (duration preserved)
+    #[arg(long, allow_hyphen_values = true)]
+    pub semitones: f64,
 }
 
 #[derive(clap::Args, Debug)]

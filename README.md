@@ -123,6 +123,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `chapter` | Embed `--at T|TITLE` chapter markers (lossless `-c copy` metadata pass) |
 | `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`) |
 | `sheet` | Contact sheet: `--cols`/`--rows` thumbnails → one PNG |
+| `pitch` | `--semitones N` voice/music shift, duration preserved |
 | `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
@@ -132,7 +133,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | Repeat the clip N times (Shorts replay length) |
 | `stabilize` | Handheld deshake |
 | `reverse` | Play picture and sound backwards |
-| `grade` | Contrast / saturation / brightness (mild Reels pop); `--lut look.cube` applies a 3D LUT |
+| `grade` | `--contrast/--saturation/--brightness/--lut/--grain` | Contrast / saturation / brightness (mild Reels pop); `--lut look.cube` applies a 3D LUT |
 | `zoom` | Center punch-in (`--factor 1.25`) |
 | `sharpen` | Unsharp |
 | `vignette` | Darken corners |

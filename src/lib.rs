@@ -48,6 +48,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Chapter(args) => verbs::chapter::run(args, &g),
         Cmd::Autocrop(args) => verbs::autocrop::run(args, &g),
         Cmd::Sheet(args) => verbs::sheet::run(args, &g),
+        Cmd::Pitch(args) => verbs::pitch::run(args, &g),
         Cmd::Fit(args) => verbs::fit::run(args, &g),
         Cmd::Extract(args) => verbs::extract::run(args, &g),
         Cmd::Overlay(args) => verbs::overlay::run(args, &g),

@@ -1,6 +1,6 @@
 # Creator multimedia needs → remaining ffkit gaps
 
-Researched 2026-09-22 against **ffkit 0.33.0** (`main` + round-8 branch). Same-day research base as the 0.26.0/0.27.0 rounds below — refreshed priorities only, no new sources needed. This note is not a restatement of landed work — the tail lists what not to redo.
+Researched 2026-09-22 against **ffkit 0.34.0** (`main` + round-9 branch). Same-day research base as the 0.26.0/0.27.0 rounds below — refreshed priorities only, no new sources needed. This note is not a restatement of landed work — the tail lists what not to redo.
 
 ## What 2026 creators still trip on
 
@@ -21,7 +21,7 @@ Researched 2026-09-22 against **ffkit 0.33.0** (`main` + round-8 branch). Same-d
 
 **HDR iPhone footage washed out in SDR feeds** needs `zscale`+`tonemap`; Homebrew ffmpeg here has `tonemap` but **no `zscale`** (needs `--with-libzimg`). Gate behind `doctor` before promising it.
 
-## Gaps vs ffkit 0.33.0
+## Gaps vs ffkit 0.34.0
 
 || Creator request | Today | Gap |
 ||-----------------|-------|-----|
@@ -43,7 +43,7 @@ Researched 2026-09-22 against **ffkit 0.33.0** (`main` + round-8 branch). Same-d
 2. **`sheet`** — contact-sheet thumbnails for preview/selection (`fps=N/dur,tile`).
 3. **`title --at`** — lower-thirds mid-clip, one flag on an existing verb.
 
-*(round 8: `boomerang`, `chapter`, `zoom --at/--dur`, `key --despill`)*
+*(round 9: `autocrop`, `sheet`, `title --at`. round 8: `boomerang`, `chapter`, `zoom --at/--dur`, `key --despill`)*
 
 1. **`boomerang`** — social fwd+rev replay (`split`+`reverse`/`areverse`+`concat`).
 2. **`chapter`** — named marks for players/YouTube via `ffmetadata` `-c copy` (lossless).
@@ -72,4 +72,4 @@ Next (not this run): true word-highlight karaoke (needs a word-timed source — 
 
 ## Already landed (do not redo)
 
-Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bottom-20%; broll cutaway keeps A-roll audio/duration and plays B from its first frame; rough-cut speech islands (list, then encode only keeps); music duck (aformat dbl pin for sidechaincompress on apt ffmpeg); speed; jumpcut; cover; fade; title; loop; stabilize; reverse; grade/zoom/sharpen/vignette/bw/volume/blur; pipeline `$src`/`$in`/`expect`; GitHub Release zips; English + Chinese README; **0.26.0**: `denoise` (afwtdn/afftdn fallback), `compress --size` two-pass budget, `fit`/`broll --fit blur`, `audiogram`. **0.27.0**: `replace`, `slideshow`, `grade --lut`. **0.28.0**: `caption --chunk`, `slideshow --transition`/`--motion kenburns`, `replace --mix`. **0.29.0**: `split --every`, N-clip `concat --transition` chains. **0.30.0**: `key`, `split --at`. **0.31.0**: `grid`, `progress`, `volume --at/--dur`. **0.32.0**: `freeze`, `censor`, `speed --at/--dur`. **0.33.0**: `boomerang`, `chapter`, `zoom --at/--dur`, `key --despill`. **0.34.0**: `autocrop`, `sheet`, `title --at`.
+Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bottom-20%; broll cutaway keeps A-roll audio/duration and plays B from its first frame; rough-cut speech islands (list, then encode only keeps); music duck (aformat dbl pin for sidechaincompress on apt ffmpeg); speed; jumpcut; cover; fade; title; loop; stabilize; reverse; grade/zoom/sharpen/vignette/bw/volume/blur; pipeline `$src`/`$in`/`expect`; GitHub Release zips; English + Chinese README; **0.26.0**: `denoise` (afwtdn/afftdn fallback), `compress --size` two-pass budget, `fit`/`broll --fit blur`, `audiogram`. **0.27.0**: `replace`, `slideshow`, `grade --lut`. **0.28.0**: `caption --chunk`, `slideshow --transition`/`--motion kenburns`, `replace --mix`. **0.29.0**: `split --every`, N-clip `concat --transition` chains. **0.30.0**: `key`, `split --at`. **0.31.0**: `grid`, `progress`, `volume --at/--dur`. **0.32.0**: `freeze`, `censor`, `speed --at/--dur`. **0.33.0**: `boomerang`, `chapter`, `zoom --at/--dur`, `key --despill`. **0.34.0**: `autocrop`, `sheet`, `title --at`. **0.35.0**: `replace --duck`, `pitch`, `grade --grain`.

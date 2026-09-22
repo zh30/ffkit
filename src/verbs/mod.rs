@@ -25,6 +25,7 @@ pub mod r#loop;
 pub mod loudnorm;
 pub mod music;
 pub mod overlay;
+pub mod pitch;
 pub mod progress;
 pub mod replace;
 pub mod reverse;
