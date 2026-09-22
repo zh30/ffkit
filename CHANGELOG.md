@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.90.0] — 2026-09-22
+
+### Added
+
+- `loudnorm --target` — platform loudness presets (spotify/youtube −14 LUFS, podcast −16, broadcast −23/LRA 7); explicit `--i`/`--tp`/`--lra` still win.
+- `stabilize --edge` — deshake edge fill (blank|original|clamped|mirror).
+- `extract --gif --bounce` — palindrome GIF: forward frames + reversed (`split→reverse→concat` before `paletteuse`).
+
+
 ## [0.89.0] — 2026-09-22
 
 ### Added

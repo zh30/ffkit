@@ -100,11 +100,11 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cut` | Trim; lossless copy by default, `--accurate`, `--ranges`, `--drop` for frame-exact |
 | `concat` | Join; `--transition` crossfades between every clip (xfade + acrossfade, N inputs) |
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop |
-| `extract` | Still frame or `--gif` clip | `--at`, `--dur`, `--width`, `--fps` |
+| `extract` | Still frame or `--gif` clip (`--bounce` palindrome) | `--at`, `--dur`, `--width`, `--fps` |
 | `overlay` | Image/video overlay; position/scale/`--tile`, `--fade`, `--angle`, `--at`/`--dur`, `--mode`, `--opacity` blend composite | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture |
 | `broll` | Cutaway insert (`--insert` video, `--still` image, `--motion kenburns`) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay |
 | `caption` | Burn subtitles (`--srt`, `--chunk`, `--karaoke`, `--box-color` card) |
-| `loudnorm` | EBU R128 two-pass (`-I -14` social, `-I -16` podcast) |
+| `loudnorm` | EBU R128 two-pass — `--i`/`--tp`/`--lra` or a `--target` preset (spotify|youtube|podcast|broadcast) |
 | `denoise` | Audio cleanup (`--strength`, `--highpass`, `--at/--dur` window) |
 | `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`) | Presets `h264` / `webm` / `gif` / `hevc`; `--fps` retimes video too |
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
@@ -145,7 +145,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `fade` | Video and audio fade (`--in` / `--out`, `--color` e.g. white) |
 | `title` | Hook/title card (`--at`, `--fade`, `--outline`, `--box` backplate) |
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section) |
-| `stabilize` | Handheld deshake |
+| `stabilize` | Handheld deshake — `--rx`/`--ry` radius, `--edge` fill (blank|original|clamped|mirror) |
 | `reverse` | Play picture and sound backwards |
 | `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm` | Presets `cinematic`/`vivid`/`vintage`/`soft` stack under the sliders; `--lut look.cube` applies a 3D LUT | `--at`/`--dur`
 | `zoom` | Center punch-in (`--factor 1.25`) | `--out`

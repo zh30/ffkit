@@ -5,6 +5,9 @@ use crate::error::Error;
 use crate::time::{fmt_time, parse_time};
 
 pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
+    if args.bounce && !args.gif {
+        return Err(Error::input("--bounce needs --gif"));
+    }
     let ext = args
         .output
         .extension()
@@ -16,6 +19,7 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
 
     match ext.as_str() {
         _ if args.gif => {
+            // --bounce handled below in the paletteuse pass
             // 2-pass palette GIF from the window, like transcode --preset gif
             let mut gen = ffmpeg_base(g.progress);
             if let Some(at) = &args.at {
@@ -48,9 +52,14 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
             use_p.push(&args.input);
             use_p.push("-i");
             use_p.push(&palette_path);
+            let seq = if args.bounce {
+                format!("{scale},split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1:a=0[x]")
+            } else {
+                format!("{scale}[x]")
+            };
             use_p.extend([
                 "-lavfi",
-                &format!("{scale}[x];[x][1:v]paletteuse=dither=bayer"),
+                &format!("{seq};[x][1:v]paletteuse=dither=bayer"),
                 "-an",
             ]);
             use_p.push(&args.output);

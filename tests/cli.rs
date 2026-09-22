@@ -9846,3 +9846,92 @@ fn spectrogram_window_trims_slice() {
     assert_eq!(v["status"], "ok", "{v}");
     assert!(out.is_file());
 }
+
+#[test]
+fn extract_gif_bounce_makes_palindrome() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("b.gif");
+    let v = run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--gif",
+        "--bounce",
+        "--dur",
+        "0.3",
+        "--fps",
+        "10",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.is_file());
+    // palindrome ≈ 2x the frames of a same-length non-bounce gif
+    let out2 = dir.path().join("f.gif");
+    run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        out2.to_str().unwrap(),
+        "--gif",
+        "--dur",
+        "0.3",
+        "--fps",
+        "10",
+        "--json",
+    ]);
+    let n = |p: &std::path::Path| {
+        let bytes = std::fs::read(p).unwrap();
+        bytes
+            .windows(3)
+            .filter(|w| w == &[0x21, 0xF9, 0x04])
+            .count()
+    };
+    let (nb, nf) = (n(&out), n(&out2));
+    assert!(nb >= nf * 2 - 1, "bounce {nb} vs flat {nf}");
+}
+
+#[test]
+fn loudnorm_target_preset_sets_i() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("l.mp4");
+    let v = run_json(&[
+        "loudnorm",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--target",
+        "broadcast",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["target_i"], -23.0);
+}
+
+#[test]
+fn stabilize_edge_fill() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "stabilize",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--edge",
+        "clamped",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

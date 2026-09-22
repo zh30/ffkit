@@ -385,6 +385,9 @@ pub struct ExtractArgs {
     /// Animated GIF clip instead of a still (2-pass palette)
     #[arg(long)]
     pub gif: bool,
+    /// Palindrome loop: forward + reversed (needs --gif)
+    #[arg(long)]
+    pub bounce: bool,
     /// GIF clip length in seconds (needs --gif)
     #[arg(long)]
     pub dur: Option<f64>,
@@ -610,14 +613,29 @@ pub struct LoudnormArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Integrated loudness target (LUFS)
-    #[arg(short = 'I', long, default_value_t = -14.0, allow_hyphen_values = true)]
-    pub i: f64,
-    /// True peak (dBTP)
-    #[arg(long, default_value_t = -1.5, allow_hyphen_values = true)]
-    pub tp: f64,
-    #[arg(long, default_value_t = 11.0, allow_hyphen_values = true)]
-    pub lra: f64,
+    /// Integrated loudness target (LUFS, default -14; --target sets platform values)
+    #[arg(short = 'I', long, allow_hyphen_values = true)]
+    pub i: Option<f64>,
+    /// True peak (dBTP, default -1.5)
+    #[arg(long, allow_hyphen_values = true)]
+    pub tp: Option<f64>,
+    #[arg(long, allow_hyphen_values = true)]
+    pub lra: Option<f64>,
+    /// Platform preset: spotify|youtube (-14 LUFS), podcast (-16), broadcast (-23)
+    #[arg(long, value_enum)]
+    pub target: Option<LoudnormTarget>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum LoudnormTarget {
+    /// -14 LUFS / -1.5 dBTP
+    Spotify,
+    /// -14 LUFS / -1.5 dBTP
+    Youtube,
+    /// -16 LUFS / -1.5 dBTP
+    Podcast,
+    /// -23 LUFS / -2.0 dBTP, LRA 7 (EBU R128)
+    Broadcast,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1121,6 +1139,21 @@ pub struct StabilizeArgs {
     /// Search radius on y (pixels)
     #[arg(long, default_value_t = 16)]
     pub ry: u32,
+    /// How to fill the frame edge exposed by stabilization
+    #[arg(long, value_enum)]
+    pub edge: Option<StabilizeEdge>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum StabilizeEdge {
+    /// Black border
+    Blank,
+    /// Keep original frame at the edge (less motion fill)
+    Original,
+    /// Clamp edge pixels
+    Clamped,
+    /// Mirror the edge (default)
+    Mirror,
 }
 
 #[derive(clap::Args, Debug)]

@@ -17,7 +17,17 @@ pub fn run(args: StabilizeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.input);
     argv.extend([
         "-vf",
-        &format!("deshake=rx={}:ry={}", args.rx, args.ry),
+        &format!(
+            "deshake=rx={}:ry={}:edge={}",
+            args.rx,
+            args.ry,
+            match args.edge {
+                None | Some(crate::cli::StabilizeEdge::Mirror) => 3,
+                Some(crate::cli::StabilizeEdge::Blank) => 0,
+                Some(crate::cli::StabilizeEdge::Original) => 1,
+                Some(crate::cli::StabilizeEdge::Clamped) => 2,
+            }
+        ),
         "-c:v",
         "libx264",
         "-preset",

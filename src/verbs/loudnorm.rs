@@ -12,7 +12,18 @@ pub fn run(args: LoudnormArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("loudnorm: input has no audio stream"));
     }
 
-    let filter = measure_filter(args.i, args.tp, args.lra);
+    let (i, tp, lra) = match args.target {
+        Some(crate::cli::LoudnormTarget::Spotify | crate::cli::LoudnormTarget::Youtube) => {
+            (-14.0, -1.5, 11.0)
+        }
+        Some(crate::cli::LoudnormTarget::Podcast) => (-16.0, -1.5, 11.0),
+        Some(crate::cli::LoudnormTarget::Broadcast) => (-23.0, -2.0, 7.0),
+        None => (-14.0, -1.5, 11.0),
+    };
+    let i = args.i.unwrap_or(i);
+    let tp = args.tp.unwrap_or(tp);
+    let lra = args.lra.unwrap_or(lra);
+    let filter = measure_filter(i, tp, lra);
 
     // Keep loglevel high enough for loudnorm's JSON on stderr.
     let mut measure = Argv::ffmpeg();
@@ -43,7 +54,7 @@ pub fn run(args: LoudnormArgs, g: &Globals) -> Result<Contract, Error> {
     let spawned = spawn::require_ok(&measure, spawned)?;
     let stderr = spawn::stderr_str(&spawned);
     let meas = parse_measured(&stderr)?;
-    let second = apply_filter(args.i, args.tp, args.lra, &meas);
+    let second = apply_filter(i, tp, lra, &meas);
 
     let mut apply = ffmpeg_base(g.progress);
     apply.push("-i");
@@ -59,8 +70,8 @@ pub fn run(args: LoudnormArgs, g: &Globals) -> Result<Contract, Error> {
     commands.extend(contract.commands.clone());
     contract.commands = commands;
     contract = contract.with_extra(json!({
-        "target_i": args.i,
-        "target_tp": args.tp,
+        "target_i": i,
+        "target_tp": tp,
         "measured": meas,
     }));
     Ok(contract)

@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.89.0
+version: 0.90.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -44,7 +44,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | hook text | `title` |
 | cover still | `cover` |
 
-| speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--mix` keep the original under it), `loudnorm`, `volume` |
+| speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--mix` keep the original under it), `loudnorm` (`--target` platform preset), `volume` |
 | grainy low-light footage | `vdenoise` (`--strength`, nlmeans — slow on long clips) |
 | waveform PNG of audio | `waveform` (`--size`, `--color`, `--scale`, `--at/--dur`) — podcast art, thumbnails |
 | audio spectrogram PNG | `spectrogram` (`--size`, `--color`, `--at/--dur`) — inspect hum/noise before cleanup |
@@ -144,7 +144,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | gentle logo cleanup | `delogo` (`--soft`) |
 | animated gradient card | `solid` (`--gradient ff0000:0000ff`) |
 | reframe / crop out an edge | `crop` (`--region x:y:w:h` or `--aspect 1:1`/`9:16` centered) |
-| motion / loop | `speed`, `reverse`, `loop`, `stabilize`, `fade` |
+| motion / loop | `speed`, `reverse`, `loop`, `stabilize` (`--edge` fill), `fade` |
 | picture | `grade` (+ `--lut` .cube), `bw`, `vignette`, `sharpen`, `blur` |
 | logo / PiP | `overlay` |
 | green screen | `key` (`--bg`, `--color`/`--similarity`/`--blend`, `--despill` for fringe) |
@@ -167,7 +167,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | grid with one input's audio | `grid --audio N` |
 | draft/tiled watermark | `overlay --tile N` (diagonal watermark pass) |
 | shift subtitle timing | `caption --shift SEC` |
-| gif tuning | `transcode --preset gif --fps --width` |
+| gif tuning | `transcode --preset gif --fps --width`, `extract --gif --bounce` (palindrome loop) |
 | one-ear voice fix | `channel` (`--mode dualmono`/`mono`/`swap`) |
 | loop to a length | `loop --until SEC` |
 | text draft watermark | `title --tile N` |
