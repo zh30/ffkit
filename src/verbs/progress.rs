@@ -71,7 +71,7 @@ pub fn run(args: ProgressArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push("-f");
         argv.push("lavfi");
         argv.push("-i");
-        argv.push(&bar_src.replacen(
+        argv.push(bar_src.replacen(
             &format!("color=c={}", crate::color::lavfi(&args.color)),
             &format!("color=c={}", crate::color::lavfi(bg)),
             1,
