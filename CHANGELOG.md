@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.49.0] — 2026-09-22
+
+- `ffkit vocal`: `--mode karaoke` removes center-panned vocals; `isolate` keeps only the center (stereo sources)
+- `ffkit remux`: container swap without re-encoding (`-c copy`, faststart on mp4/mov)
+- `ffkit meme`: `--top`/`--bottom` caption text burned onto video
+
 ## [0.48.0] — 2026-09-22
 
 - `ffkit silence`: insert `--dur` seconds of quiet at `--at` in audio files (video holds stay with `freeze`)

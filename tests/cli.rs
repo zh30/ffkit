@@ -5765,3 +5765,147 @@ fn grade_preset_vintage_shifts_warm() {
         r - b
     );
 }
+
+#[test]
+fn vocal_karaoke_removes_center() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("st.wav");
+    // Identical 440 Hz in both channels = maximally "centered" content.
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1,pan=stereo|c0=c0|c1=c0",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "stereo fixture");
+    let mean = |f: &Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(0.0)
+    };
+    let kara = dir.path().join("k.m4a");
+    let v = run_json(&[
+        "vocal",
+        wav.to_str().unwrap(),
+        "-o",
+        kara.to_str().unwrap(),
+        "--mode",
+        "karaoke",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        mean(&kara) < -60.0,
+        "karaoke cancels centered content (~silent); {v}"
+    );
+    let iso = dir.path().join("i.m4a");
+    let v = run_json(&[
+        "vocal",
+        wav.to_str().unwrap(),
+        "-o",
+        iso.to_str().unwrap(),
+        "--mode",
+        "isolate",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(mean(&iso) > -30.0, "isolate keeps the center loud; {v}");
+}
+
+#[test]
+fn remux_swaps_container_without_reencode() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("r.mkv");
+    let v = run_json(&["remux", src.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        v["probe"]["format"]
+            .as_str()
+            .unwrap_or("")
+            .contains("matroska"),
+        "mkv container; {v}"
+    );
+    assert_eq!(
+        v["probe"]["vcodec"].as_str().unwrap_or(""),
+        "h264",
+        "stream copy keeps h264; {v}"
+    );
+}
+
+#[test]
+fn meme_top_text_stays_in_band() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--top",
+        "TOP TEXT",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let band_diff = |y: u32| -> u64 {
+        let px = |f: &Path| -> Vec<u8> {
+            Command::new("ffmpeg")
+                .args(["-i"])
+                .arg(f)
+                .args([
+                    "-vf",
+                    &format!("select=eq(n\\,10),crop=320:60:0:{y}"),
+                    "-frames:v",
+                    "1",
+                    "-f",
+                    "rawvideo",
+                    "-pix_fmt",
+                    "gray",
+                    "-",
+                ])
+                .output()
+                .unwrap()
+                .stdout
+        };
+        px(&src)
+            .iter()
+            .zip(px(&out).iter())
+            .map(|(a, b)| a.abs_diff(*b) as u64)
+            .sum()
+    };
+    let (top_band, bot_band) = (band_diff(0), band_diff(180));
+    assert!(
+        top_band > bot_band * 4,
+        "meme edits the top band (top diff {top_band} vs bottom {bot_band}); {v}"
+    );
+}

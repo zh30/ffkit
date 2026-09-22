@@ -160,6 +160,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `leveler` | 人声动态压缩（忽大忽小）：`--threshold`/`--ratio`/`--makeup` |
 | `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`） |
 | `silence` | 在音频 `--at` 处插入 `--dur` 秒静音（视频定格用 `freeze`） |
+| `vocal` | `--mode karaoke` 消中置人声、`isolate` 只留中置（需立体声源） |
+| `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart） |
+| `meme` | 顶部/底部说明文字烧入（`--top`/`--bottom`，`--color`，`--size`） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `pipeline` | 按 JSON 方案顺序执行多步（`$src` / `$in` / `expect`） |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |

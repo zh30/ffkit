@@ -164,6 +164,9 @@ pub enum Cmd {
     /// Speed audio up/down without changing pitch
     Tempo(TempoArgs),
     Silence(SilenceArgs),
+    Vocal(VocalArgs),
+    Remux(RemuxArgs),
+    Meme(MemeArgs),
     /// Even out voice dynamic range (compressor)
     Leveler(LevelerArgs),
     /// Noise gate — silence below a threshold
@@ -1045,6 +1048,50 @@ pub struct TempoArgs {
     /// Speed factor 0.5..=8 (pitch preserved)
     #[arg(long, default_value_t = 1.5)]
     pub factor: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct VocalArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// karaoke = drop the center (vocals); isolate = keep only the center
+    #[arg(long, value_enum, default_value_t = VocalMode::Karaoke)]
+    pub mode: VocalMode,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum VocalMode {
+    Karaoke,
+    Isolate,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct RemuxArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct MemeArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Top caption text
+    #[arg(long)]
+    pub top: Option<String>,
+    /// Bottom caption text
+    #[arg(long)]
+    pub bottom: Option<String>,
+    #[arg(long)]
+    pub font: Option<String>,
+    /// Text size multiplier (default 1.0)
+    #[arg(long, default_value_t = 1.0)]
+    pub size: f64,
+    /// Text color as RRGGBB hex (default ffffff)
+    #[arg(long)]
+    pub color: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
