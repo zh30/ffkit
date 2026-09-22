@@ -117,7 +117,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `speed` | 变速（`--factor`、`--at/--dur` 窗口、`--ramp` FROM,TO 渐变） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
 | `key` | 绿幕合成：`--color` 抠掉后叠到 `--bg` 图片/视频上（`--similarity`、`--blend`、`--despill` 去边缘绿色） |
-| `grid` | Side-by-side collage 2x2, `NxM`; `--size`, `--audio`, `--labels`, `--gap` |
+| `grid` | 多画面宫格（`--layout`、`--audio` 选音轨、`--labels`、`--gap`、`--fill` 裁满代替黑边） |
 | `progress` | 底/顶部进度条，整段或定时窗口（`--color`、`--height`、`--edge`、`--at`、`--dur`） |
 | `freeze` | 定格画面（`--at`、`--dur`、`--end`、`--ease` 减速、`--reverse` 倒放） |
 | `censor` | 区域打码（`--mode`、`--strength` 强度、`--at`） |
@@ -176,13 +176,13 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `mix` | 两段音频等权叠加（`--vol-a`/`--vol-b` 线性电平，`--longest` 按长者收尾，`--at/--dur` 副轨只在窗口内混入） ，`--loop` 短副轨循环 |
 | `mute` | 去掉音轨（其余流直接封装，不重编码） ，`--at/--dur` 局部静音 |
 | `timer` | 画面计时器（`--position`、`--format ms`、`--box-color` 底板） （`--format`、`--box-color`、`--down` 倒计时） |
-| `hls` | 网页播放 HLS 封装（`--seg`、`--single`、`--copy`、`--ladder 1080,720,480` 多码率 + 主播放列表） |
+| `hls` | 网页 HLS 封装（`--seg`、`--single`、`--copy`、`--ladder` 多码率、`--audio-only` 纯音频） |
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM，`--metric`） |
 | `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf` |
 | `sync` | 修复音画同步（`--ms ±N` 垫音/裁音头） |
 | `align` | 音频互相关自动对齐第二路录音（多机位/外接录音笔，`--max-lag`） |
 | `scroll` | 片尾滚动字幕（`--text`/`--file`、`--at`、`--dur`、`--size`、`--color`、`--font`） |
-| `insert` | 在 `--at T` 把整段素材插进视频中间（自动匹配基准尺寸） |
+| `insert` | 在视频中段插入整段素材（`--at`；`--transition` 转场 + `--duration` 两端淡入淡出） |
 | `multicam` | 双机位对齐后角度切换：`--at t1,t2,...` 逐点换机位 |
 | `art` | 给音频嵌入封面图；`--extract` 反向导出封面 |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |

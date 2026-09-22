@@ -232,6 +232,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 77)
+
+- `insert --transition T --duration D` — xfade into and out of the spliced clip.
+- `hls --audio-only` — -vn audio-only HLS (podcast/voice streams).
+- `grid --fill` — crop tiles to fill the cell instead of letterboxing.
+
 ## Shipped this run (round 76)
 
 - `loudnorm --measure` — report-only loudness (I/TP/LRA in extras, no -o).

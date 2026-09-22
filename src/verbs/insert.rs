@@ -32,6 +32,10 @@ pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
     let bw = base.width.unwrap_or(1280);
     let bh = base.height.unwrap_or(720);
 
+    if let Some(tr) = &args.transition {
+        return run_xfade(&args, &base, &clip, at, bw, bh, tr, g);
+    }
+
     // Three segments: base head, the whole clip (scaled to base size),
     // base tail. Same trim/atrim→concat chain as the windowed verbs.
     let mut seg = vec![format!(
@@ -79,5 +83,58 @@ pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
     let inputs: Vec<&Path> = vec![&args.input, &args.clip];
     let mut c = engine::write_job("insert", &inputs, &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "at": at }));
+    Ok(c)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_xfade(
+    args: &InsertArgs,
+    base: &crate::probe::Probe,
+    clip: &crate::probe::Probe,
+    at: f64,
+    bw: u32,
+    bh: u32,
+    transition: &str,
+    g: &Globals,
+) -> Result<Contract, Error> {
+    let d = args.duration.unwrap_or(0.4);
+    if d <= 0.0 || d >= at || 2.0 * d > clip.duration {
+        return Err(Error::input(format!(
+            "--duration {d}s needs --at > {d} and a clip longer than {:.2}s",
+            2.0 * d
+        )));
+    }
+    // xfade offsets are in the FIRST input's timeline:
+    //   head(0..at) ⨯ clip at at-d → then ⨯ tail at at+clip.dur-2d
+    let off1 = at - d;
+    let off2 = at + clip.duration - 2.0 * d;
+    let mut segs = vec![format!(
+        "[0:v]trim=0:{at:.3},setpts=PTS-STARTPTS[v0];         [1:v]scale={bw}:{bh}:force_original_aspect_ratio=decrease,pad={bw}:{bh}:(ow-iw)/2:(oh-ih)/2,setsar=1[v1];         [0:v]trim={at:.3}:,setpts=PTS-STARTPTS[v2];         [v0][v1]xfade=transition={transition}:duration={d:.3}:offset={off1:.3}[x1];         [x1][v2]xfade=transition={transition}:duration={d:.3}:offset={off2:.3}[vout]"
+    )];
+    if base.has_audio {
+        segs.push(format!(
+            "[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[a0];             [1:a]atrim=0:,asetpts=PTS-STARTPTS[a1];             [0:a]atrim={at:.3}:,asetpts=PTS-STARTPTS[a2];             [a0][a1]acrossfade=d={d:.3}[x1a];             [x1a][a2]acrossfade=d={d:.3}[aout]"
+        ));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.extend(["-i".to_string(), args.input.display().to_string()]);
+    argv.extend(["-i".to_string(), args.clip.display().to_string()]);
+    argv.extend(["-filter_complex".to_string(), segs.join(";")]);
+    argv.extend(["-map".to_string(), "[vout]".to_string()]);
+    if base.has_audio {
+        argv.extend(["-map".to_string(), "[aout]".to_string()]);
+        argv.extend(["-c:a".to_string(), "aac".to_string()]);
+    }
+    argv.extend(["-c:v".to_string(), "libx264".to_string()]);
+    argv.extend(["-crf".to_string(), "18".to_string()]);
+    argv.extend(["-pix_fmt".to_string(), "yuv420p".to_string()]);
+    argv.push(args.output.display().to_string());
+    let inputs: Vec<&Path> = vec![&args.input, &args.clip];
+    let mut c = engine::write_job("insert", &inputs, &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({
+        "at": at,
+        "transition": transition,
+        "xfade_seconds": d,
+    }));
     Ok(c)
 }

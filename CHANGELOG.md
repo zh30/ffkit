@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.104.0] - 2026-09-23
+
+### Added
+- `insert --transition T --duration D` — the splice crossfades into and out of the clip (two xfade joints + acrossfade), instead of a hard cut.
+- `hls --audio-only` — `-vn` audio-only HLS packaging for podcasts and voice-over streams.
+- `grid --fill` — tiles scale up and crop to fill each cell instead of letterboxing.
+
+
+## [0.104.0] — 2026-09-22
+
 ## [0.103.0] - 2026-09-23
 
 ### Added

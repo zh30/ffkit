@@ -75,8 +75,14 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
     for i in 0..n {
         let col = i as u32 % cols;
         let row = i as u32 / cols;
+        let fit = if args.fill {
+            // crop-overflow fill: scale up until the cell is covered, then crop
+            format!("scale={itw}:{ith}:force_original_aspect_ratio=increase,crop={itw}:{ith}")
+        } else {
+            format!("scale={itw}:{ith}:force_original_aspect_ratio=decrease")
+        };
         seg.push(format!(
-            "[{i}:v]scale={itw}:{ith}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v{i}]"
+            "[{i}:v]{fit},pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v{i}]"
         ));
         if !layout_str.is_empty() {
             layout_str.push('|');

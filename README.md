@@ -117,7 +117,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `speed` | Change playback speed (`--factor`, `--at/--dur`, `--ramp` FROM,TO) |
 | `music` | Bed under speech with ducking (`--track`) |
 | `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`) |
-| `grid` | Side-by-side collage 2x2, `NxM`; `--size`, `--audio`, `--labels`, `--gap` |
+| `grid` | Multi-up collage (`--layout`, `--audio` pick, `--labels`, `--gap`, `--fill` crop instead of letterbox) |
 | `progress` | Bottom/top progress bar, whole clip or a window (`--color`, `--height`, `--edge`, `--at`, `--dur`) |
 | `freeze` | Hold a frame (`--at`, `--dur`, `--end`, `--ease`, `--reverse`) |
 | `censor` | Blur/mosaic a region (`--mode`, `--strength`, `--at`) |
@@ -176,13 +176,13 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `mix` | Sum two audio sources (`--vol-a`/`--vol-b` linear, `--longest`, `--at/--dur` fades B in/out of a window) , `--loop` repeat short B |
 | `mute` | Drop the audio track, stream-copy the rest , `--at/--dur` silences only that window |
 | `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown) |
-| `hls` | Web-ready HLS playlist + segments (`--seg`, `--single`, `--copy`, `--ladder 1080,720,480` ABR variants + master) |
+| `hls` | Web-ready HLS (`--seg`, `--single`, `--copy`, `--ladder` ABR, `--audio-only` podcast streams) |
 | `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
 | `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf` |
 | `sync` | Shift audio ±ms to fix A/V sync (`--ms`) |
 | `align` | Auto-sync a second recording to a reference by audio cross-correlation — multi-cam/external recorder (`--max-lag`) |
 | `scroll` | Rolling end credits: text rolls bottom→top (`--text`/`--file`, `--at`, `--dur`, `--size`, `--color`, `--font`) |
-| `insert` | Splice a whole clip mid-video at `--at T` (scaled to the base size) |
+| `insert` | Splice a clip mid-video (`--at`; `--transition` any xfade `--duration` S crossfades both joints) |
 | `multicam` | Two-camera angle switching across an aligned pair: `--at t1,t2,...` flips angle |
 | `art` | Attach embedded cover art to audio; `--extract` pulls it out to an image |
 | `batch` | One verb on every media file in a directory |

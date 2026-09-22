@@ -40,6 +40,16 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
+    if args.audio_only {
+        if args.copy || !args.ladder.is_empty() {
+            return Err(Error::input(
+                "--audio-only doesn't combine with --copy/--ladder",
+            ));
+        }
+        if !probe.has_audio {
+            return Err(Error::input("--audio-only needs an audio stream"));
+        }
+    }
     if !args.ladder.is_empty() {
         // ABR ladder: N variants at tiered bitrates, one audio, master.m3u8.
         if args.copy || args.single {
@@ -187,7 +197,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-c:a".to_string(), "copy".to_string()]);
         }
     } else {
-        if probe.has_video {
+        if probe.has_video && !args.audio_only {
             argv.extend([
                 "-vf".to_string(),
                 "scale=trunc(iw/2)*2:trunc(ih/2)*2".to_string(),
@@ -208,6 +218,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
                 "-b:a".to_string(),
                 "128k".to_string(),
             ]);
+        }
+        if args.audio_only {
+            argv.extend(["-vn".to_string()]);
         }
     }
     argv.extend([

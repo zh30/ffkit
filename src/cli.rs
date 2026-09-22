@@ -1768,6 +1768,9 @@ pub struct HlsArgs {
     /// playlists + master.m3u8 (requires a directory -o)
     #[arg(long, value_delimiter = ',')]
     pub ladder: Vec<u32>,
+    /// Audio-only stream package (-vn; podcasts, voice-over HLS)
+    #[arg(long)]
+    pub audio_only: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1860,6 +1863,12 @@ pub struct InsertArgs {
     /// Splice point in the base (h:mm:ss or seconds)
     #[arg(long)]
     pub at: String,
+    /// xfade into and out of the insert (any xfade name) instead of a hard cut
+    #[arg(long)]
+    pub transition: Option<String>,
+    /// Crossfade seconds at each splice joint (default 0.4)
+    #[arg(long)]
+    pub duration: Option<f64>,
     #[arg(short, long)]
     pub output: PathBuf,
 }
@@ -2307,6 +2316,9 @@ pub struct GridArgs {
     /// Pixel gap around each tile (default 0 = flush)
     #[arg(long)]
     pub gap: Option<u32>,
+    /// Crop tiles to fill the cell instead of letterboxing
+    #[arg(long)]
+    pub fill: bool,
 }
 
 #[derive(clap::Args, Debug)]

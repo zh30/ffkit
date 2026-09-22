@@ -11134,3 +11134,94 @@ fn countdown_position_moves_the_digits() {
     ]);
     assert_eq!(j["status"], "ok");
 }
+
+#[test]
+fn insert_transition_xfades_both_joints() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let clip = tmp.path().join("clip.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1.5:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1.5",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&clip)
+        .status()
+        .expect("ffmpeg");
+    assert!(st.success());
+    let out = tmp.path().join("ins.mp4");
+    let j = run_json(&[
+        "insert",
+        src.to_str().unwrap(),
+        "--clip",
+        clip.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "--transition",
+        "fade",
+        "--duration",
+        "0.3",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    // 1.0 + 1.5 - 2*0.3 overlap = ~1.9s
+    let p = run_json(&["probe", out.to_str().unwrap()]);
+    let d = p["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.9).abs() < 0.15, "duration {d}");
+}
+
+#[test]
+fn hls_audio_only_writes_no_video_playlist() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let dir = tmp.path().join("hls");
+    let j = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        dir.to_str().unwrap(),
+        "--audio-only",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let m3u8 = std::fs::read_to_string(dir.join("index.m3u8")).unwrap();
+    assert!(m3u8.contains("#EXTINF"));
+    assert!(dir.join("seg_000.ts").is_file());
+}
+
+#[test]
+fn grid_fill_crops_tiles_to_the_cell() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("g.mp4");
+    let j = run_json(&[
+        "grid",
+        src.to_str().unwrap(),
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--layout",
+        "2x1",
+        "--size",
+        "640x240",
+        "--fill",
+    ]);
+    assert_eq!(j["status"], "ok");
+}
