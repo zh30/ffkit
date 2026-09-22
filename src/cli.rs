@@ -767,6 +767,8 @@ pub enum TranscodePreset {
     Gif,
     /// ProRes 422 HQ in .mov — the FCP/Premiere edit delivery format
     Prores,
+    /// AV1 (svt-av1 on ffmpeg ≥7, libaom on 4.x) — smallest web delivery
+    Av1,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1514,6 +1516,8 @@ pub enum ChannelMode {
     Invert,
     /// 5.1 surround → stereo fold-down (dialogue keeps center gain)
     Mix51,
+    /// Stereo widen for flat camera audio (extrastereo)
+    Widen,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1649,6 +1653,9 @@ pub struct MemeArgs {
     /// bottom (paired captions low — out of the UI zone)
     #[arg(long, value_enum)]
     pub position: Option<MemePos>,
+    /// Word-wrap meme text at N columns (≥4)
+    #[arg(long)]
+    pub wrap: Option<u32>,
 }
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
 pub enum MemePos {
@@ -2007,6 +2014,17 @@ pub struct ScrollArgs {
     pub color: Option<String>,
     #[arg(long)]
     pub font: Option<String>,
+    /// Roll mode: up (end credits) | ticker (bottom news crawl)
+    #[arg(long, value_enum, default_value_t = ScrollMode::Up)]
+    pub mode: ScrollMode,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum ScrollMode {
+    #[default]
+    Up,
+    /// Bottom news ticker sliding left across the frame
+    Ticker,
 }
 
 #[derive(clap::Args, Debug)]

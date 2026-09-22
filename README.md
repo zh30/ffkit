@@ -106,7 +106,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `caption` | Burn subtitles (`--srt`, `--chunk`, `--karaoke`, `--box-color` card) , `--fade` soft in/out |
 | `loudnorm` | EBU R128 two-pass normalization (`--target spotify|podcast|broadcast`, `-I/--tp/--lra`); `--measure` reports loudness without writing; `--dynamic` per-frame gain |
 | `denoise` | Audio cleanup (`--strength`, `--highpass`, `--at/--dur` window) |
-| `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`/`--colors`) | Presets `h264` / `webm` / `gif` / `hevc`; `--fps` retimes video too , `--preset prores` FCP delivery |
+| `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`/`--colors`) | Presets `h264` / `webm` / `gif` / `hevc`; `--fps` retimes video too , `--preset prores` FCP delivery; `av1` preset |
 | `compress` | Fit a size budget (`--size 10MB` two-pass, `--target discord|whatsapp|gmail`); `--crf` quality one-pass, `--res` downscale to free bitrate |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 
@@ -128,7 +128,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sheet` | Contact sheet grid (`--cols`x`--rows`, `--time` stamps, `--from`/`--to` window) |
 | `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window) |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
-| `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51` |
+| `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51`; `widen` stereo |
 | `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--tilt` warm↔bright |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window) |
 | `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio (`--kind`, `--strength`, `--at`/`--dur`) |
@@ -165,7 +165,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `silence` | Insert `--dur` secs of silence at `--at` or `--end`; `--detect` reports silence ranges as JSON |
 | `vocal` | Remove/isolate center vocals (`--mode`, `--at/--dur` window, `--amount` strength) |
 | `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov); `--audio` rips the track only |
-| `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window) , `--position` text block top/center/bottom |
+| `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window) , `--position` text block top/center/bottom; `--wrap` folds long text |
 | `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`) |
 | `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order, `--engine` yadif/bwdif) |
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
@@ -181,7 +181,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill |
 | `sync` | Shift audio ±ms to fix A/V sync (`--ms`) |
 | `align` | Auto-sync a second recording to a reference by audio cross-correlation — multi-cam/external recorder (`--max-lag`) |
-| `scroll` | Rolling end credits: text rolls bottom→top (`--text`/`--file`, `--at`, `--dur`, `--size`, `--color`, `--font`) |
+| `scroll` | Rolling end credits: text rolls bottom→top (`--text`/`--file`, `--at`, `--dur`, `--size`, `--color`, `--font`); `--mode ticker` news crawl |
 | `insert` | Splice a clip mid-video (`--at`; `--dur` cap the insert; `--transition` any xfade `--duration` S crossfades both joints) |
 | `multicam` | Two-camera angle switching across an aligned pair: `--at t1,t2,...` flips angle; `--keep-audio` stays on cam A, `--transition` xfade switches |
 | `art` | Attach embedded cover art to audio; `--extract` pulls it out to an image |

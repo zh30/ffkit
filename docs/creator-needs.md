@@ -232,6 +232,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 90)
+
+- `meme --wrap N` — word-wraps long top/bottom text (shared `title::wrap` helper).
+- `channel --mode widen` — `extrastereo=m=2.5` stereo widening for flat camera audio.
+- `transcode --preset av1` — AV1 delivery: `libsvtav1` on ffmpeg ≥7, `libaom-av1 -cpu-used 4 -row-mt 1` on 4.x (version-gated via `ffmpeg_major`).
+- `scroll --mode ticker` — bottom news crawl (`x=W-(W+w)·t/dur`, `y=H-h-40`); canvas widened 6× so lines don't wrap mid-ticker.
+
 ## Shipped this run (round 89)
 
 - `thumb --scenes` — grabs a still at frame 0 + every scene change (`select=gt(scene,0.35)`), thumbnail-candidate mining for shorts/YouTube covers.

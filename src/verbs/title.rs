@@ -8,7 +8,7 @@ use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
 /// Greedy word-wrap: break lines at ~`n` chars on spaces.
-fn wrap(text: &str, n: usize) -> String {
+pub(crate) fn wrap(text: &str, n: usize) -> String {
     let mut lines: Vec<String> = Vec::new();
     for raw_line in text.lines() {
         let mut cur = String::new();

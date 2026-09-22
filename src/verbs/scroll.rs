@@ -64,18 +64,29 @@ pub fn run(args: ScrollArgs, g: &Globals) -> Result<Contract, Error> {
         Some(c) => parse_rgb(c)?,
         None => [255, 255, 255],
     };
-    let img = render_title_styled(&text, &font_bytes, vw, fg, args.size as f32)?;
+    use crate::cli::ScrollMode;
+    let ticker = matches!(args.mode, ScrollMode::Ticker);
+    // Ticker text must stay one long line — give the canvas 6× the frame.
+    let canvas_w = if ticker { vw * 6 } else { vw };
+    let img = render_title_styled(&text, &font_bytes, canvas_w, fg, args.size as f32)?;
     let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
     let png = tmp.path().join("credits.png");
     img.save(&png)
         .map_err(|e| Error::output(format!("write credits png: {e}")))?;
 
-    // Looped still so the overlay's t-driven y expression animates:
-    // y slides H → -h across [at, at+dur].
-    let fc = format!(
-        "[0:v][1:v]overlay=x=(W-w)/2:y=H-(H+h)*((t-{at:.3})/{dur:.3}):enable='between(t,{at:.3},{end:.3})'[vout]",
-        end = at + dur
-    );
+    // Looped still so the overlay's t-driven expression animates.
+    // Up: y slides H → -h. Ticker: x slides W → -w, pinned near the bottom.
+    let fc = if ticker {
+        format!(
+            "[0:v][1:v]overlay=x=W-(W+w)*((t-{at:.3})/{dur:.3}):y=H-h-40:enable='between(t,{at:.3},{end:.3})'[vout]",
+            end = at + dur
+        )
+    } else {
+        format!(
+            "[0:v][1:v]overlay=x=(W-w)/2:y=H-(H+h)*((t-{at:.3})/{dur:.3}):enable='between(t,{at:.3},{end:.3})'[vout]",
+            end = at + dur
+        )
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
     // -t bounds the otherwise-infinite looped PNG so the graph drains.

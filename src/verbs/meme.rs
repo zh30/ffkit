@@ -42,11 +42,21 @@ pub fn run(args: MemeArgs, g: &Globals) -> Result<Contract, Error> {
 
     // One PNG input per text run; overlaid top-center / bottom-center
     // (or stacked per --position).
+    if let Some(n) = args.wrap {
+        if n < 4 {
+            return Err(Error::input("--wrap must be ≥ 4 columns"));
+        }
+    }
+    let wrapped = |s: Option<&String>| -> Option<String> {
+        s.map(|t| match args.wrap {
+            Some(n) => crate::verbs::title::wrap(t, n as usize),
+            None => t.clone(),
+        })
+    };
+    let texts = [wrapped(args.top.as_ref()), wrapped(args.bottom.as_ref())];
     let mut renders: Vec<(u32, image::RgbaImage)> = Vec::new();
-    for text in [args.top.as_deref(), args.bottom.as_deref()]
-        .into_iter()
-        .flatten()
-    {
+    for text in texts.iter().flatten() {
+        let text = text.as_str();
         let img = if args.outline > 0 {
             crate::raster::render_title_outlined(
                 text,

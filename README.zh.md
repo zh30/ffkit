@@ -106,7 +106,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `caption` | 烧录字幕（`--srt`、`--chunk`、`--karaoke`、`--box-color` 底板） ，`--fade` 淡入淡出 |
 | `loudnorm` | EBU R128 两遍响度归一（`--target spotify|podcast|broadcast`）；`--measure` 只测不写；`--dynamic` 逐帧动态增益 |
 | `denoise` | 音频降噪（`--strength`、`--highpass`、`--at/--dur` 窗口） |
-| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`/`--colors`） | 预设 `h264`/`webm`/`gif`/`hevc`；`--fps` 也可给视频变速帧率 ，`--preset prores` 剪辑交付 |
+| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`/`--colors`） | 预设 `h264`/`webm`/`gif`/`hevc`；`--fps` 也可给视频变速帧率 ，`--preset prores` 剪辑交付；`av1` 预设 |
 | `compress` | 压到目标体积（`--size 10MB` 两遍、`--target discord|whatsapp|gmail` 平台预设）；`--crf` 画质单遍、`--res` 缩分辨率腾码率 |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 
@@ -128,7 +128,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sheet` | 宫格预览图（`--cols`x`--rows`、`--time` 每格时间戳、`--from`/`--to` 采样窗口） |
 | `pitch` | ±12 半音变调不变速（`--at/--dur` 窗口） |
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
-| `channel` | 声道手术：`--mode dualmono|mono|swap|invert|mix51` |
+| `channel` | 声道手术：`--mode dualmono|mono|swap|invert|mix51`；`widen` 立体声加宽 |
 | `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡） ，`--band` 参量频段，`--tilt` 暖↔亮 |
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet`（`--at`/`--dur` 局部回声） |
 | `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio（`--kind`、`--strength`、`--at`/`--dur`） |
@@ -165,7 +165,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `silence` | 在 `--at`/`--end` 插入 `--dur` 秒静音；`--detect` 以 JSON 报告静音区间 |
 | `vocal` | 消/留中置人声（`--mode`、`--amount` 强度、`--at/--dur` 窗口） |
 | `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart）；`--audio` 只提取音轨 |
-| `meme` | 上下说明文字梗图（`--outline`、`--at/--dur` 时间窗） ，`--position` 文字块上/中/下 |
+| `meme` | 上下说明文字梗图（`--outline`、`--at/--dur` 时间窗） ，`--position` 文字块上/中/下；`--wrap` 长文折行 |
 | `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`） |
 | `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序、`--engine` yadif/bwdif） |
 | `crossfade` | 两段音频淡接，`--dur` 秒重叠（`acrossfade`） |
@@ -181,7 +181,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `conform` | 一键统一规格（`--size WxH`、`--fps 30`、`--lufs -14`、`--crf`、`--pad` 黑边颜色 + `--anchor` 锚点、`--blur` 模糊填充） |
 | `sync` | 修复音画同步（`--ms ±N` 垫音/裁音头） |
 | `align` | 音频互相关自动对齐第二路录音（多机位/外接录音笔，`--max-lag`） |
-| `scroll` | 片尾滚动字幕（`--text`/`--file`、`--at`、`--dur`、`--size`、`--color`、`--font`） |
+| `scroll` | 片尾滚动字幕（`--text`/`--file`、`--at`、`--dur`、`--size`、`--color`、`--font`）；`--mode ticker` 底部新闻条 |
 | `insert` | 在视频中段插入整段素材（`--at`；`--dur` 只取前 N 秒；`--transition` 转场 + `--duration` 两端淡入淡出） |
 | `multicam` | 双机位对齐后角度切换：`--at t1,t2,...` 逐点换机位；`--keep-audio` 全程用 A 机位音轨、`--transition` 软切换 |
 | `art` | 给音频嵌入封面图；`--extract` 反向导出封面 |

@@ -12708,3 +12708,114 @@ fn subs_case_rewrites_cue_text() {
     let text = std::fs::read_to_string(&out).unwrap();
     assert!(text.contains("HELLO THERE"), "{text}");
 }
+
+#[test]
+fn meme_wrap_folds_long_captions() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--top",
+        "this caption is far too long for one line",
+        "--wrap",
+        "10",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["tool"], "meme");
+}
+
+#[test]
+fn channel_widen_fattens_the_stereo() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("w.mp4");
+    let v = run_json(&[
+        "channel",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "widen",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("extrastereo=m=2.5"), "{cmds}");
+}
+
+#[test]
+fn transcode_av1_picks_a_versioned_encoder() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.mp4");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "av1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("libsvtav1") || cmds.contains("libaom-av1"),
+        "{cmds}"
+    );
+}
+
+#[test]
+fn scroll_ticker_crawls_the_bottom() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "scroll",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "BREAKING",
+        "--mode",
+        "ticker",
+        "--dur",
+        "1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("x=W-(W+w)"), "{cmds}");
+    assert!(cmds.contains("y=H-h-40"), "{cmds}");
+}

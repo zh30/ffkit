@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.116.0
+version: 0.117.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -47,6 +47,8 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | chapters already in the file | `chapter` (`--list`) or `split` (`--chapters`) |
 | thumbnail candidates | `thumb` (`--scenes` grabs stills at every cut) |
 | spectrum-bar audiogram | `audiogram` (`--mode spectrum`) |
+| news-ticker crawl | `scroll` (`--mode ticker`) |
+| AV1 delivery | `transcode` (`--preset av1`) |
 | cover still | `cover` |
 
 | speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--at`/`--dur` windowed swap, `--mix` keep the original under it), `loudnorm` (`--target` platform preset), `volume` |

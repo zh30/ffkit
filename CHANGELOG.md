@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.117.0] — 2026-09-22
+
+### Added
+
+- `meme --wrap N` — word-wrap long meme captions
+- `channel --mode widen` — `extrastereo` stereo widening
+- `transcode --preset av1` — AV1 delivery (libsvtav1 ≥7 / libaom 4.x)
+- `scroll --mode ticker` — bottom news ticker crawl
+
 ## [0.116.0] — 2026-09-22
 
 ### Added

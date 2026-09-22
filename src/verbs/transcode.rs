@@ -21,6 +21,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Hevc => hevc(&args, g),
         TranscodePreset::Webm => webm(&args, g),
         TranscodePreset::Prores => prores(&args, g),
+        TranscodePreset::Av1 => av1(&args, g),
     }
 }
 
@@ -113,6 +114,38 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "-pix_fmt",
             "yuv420p",
         ]);
+        let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
+        if let Some(fps) = args.fps {
+            vf.push_str(&format!(",fps={fps}"));
+        }
+        argv.extend(["-vf", &vf]);
+    }
+    if probe.has_audio {
+        if args.copy_audio {
+            argv.extend(["-c:a", "copy"]);
+        } else {
+            argv.extend(["-c:a", "libopus", "-b:a", "128k"]);
+        }
+    }
+    argv.push(&args.output);
+    engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
+}
+
+/// AV1 delivery: libsvtav1 on ffmpeg ≥7 (fast), libaom on 4.x (row-mt +
+/// cpu-used for usable speed). YouTube/web prefers AV1 for small files.
+fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let probe = engine::probe_or_err(&args.input, g)?;
+    let crf = args.crf.unwrap_or(35).to_string();
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    if probe.has_video {
+        if crate::engine::ffmpeg_major().unwrap_or(7) >= 7 {
+            argv.extend(["-c:v", "libsvtav1", "-preset", "6"]);
+        } else {
+            argv.extend(["-c:v", "libaom-av1", "-cpu-used", "4", "-row-mt", "1"]);
+        }
+        argv.extend(["-crf", &crf, "-b:v", "0", "-pix_fmt", "yuv420p"]);
         let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
         if let Some(fps) = args.fps {
             vf.push_str(&format!(",fps={fps}"));
