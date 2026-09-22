@@ -23,6 +23,15 @@ pub fn run(args: LoudnormArgs, g: &Globals) -> Result<Contract, Error> {
     let i = args.i.unwrap_or(i);
     let tp = args.tp.unwrap_or(tp);
     let lra = args.lra.unwrap_or(lra);
+    let output = if args.measure {
+        None
+    } else {
+        Some(
+            args.output
+                .as_ref()
+                .ok_or_else(|| Error::input("loudnorm needs -o unless --measure"))?,
+        )
+    };
     let filter = measure_filter(i, tp, lra);
 
     // Keep loglevel high enough for loudnorm's JSON on stderr.
@@ -39,21 +48,28 @@ pub fn run(args: LoudnormArgs, g: &Globals) -> Result<Contract, Error> {
         if probe.has_video {
             apply.extend(["-c:v", "copy"]);
         }
-        apply.push(&args.output);
-        return engine::write_job(
-            "loudnorm",
-            &[&args.input],
-            &args.output,
-            vec![measure, apply],
-            g,
-        );
+        if let Some(out) = output {
+            apply.push(out);
+            return engine::write_job("loudnorm", &[&args.input], out, vec![measure, apply], g);
+        }
+        let mut c = Contract::dry_run("loudnorm", None, Some(probe));
+        c = c.with_commands(engine::commands_of(&[measure]));
+        return Ok(c);
     }
 
-    crate::paths::ensure_output_allowed(&args.output, &[&args.input], g.overwrite)?;
+    if let Some(out) = output {
+        crate::paths::ensure_output_allowed(out, &[&args.input], g.overwrite)?;
+    }
     let spawned = spawn::run(&measure, g.timeout, false)?;
     let spawned = spawn::require_ok(&measure, spawned)?;
     let stderr = spawn::stderr_str(&spawned);
     let meas = parse_measured(&stderr)?;
+    if args.measure {
+        let mut c = Contract::ok("loudnorm", None, Some(probe))
+            .with_commands(engine::commands_of(&[measure]));
+        c = c.with_extra(json!({ "measured": meas }));
+        return Ok(c);
+    }
     let second = apply_filter(i, tp, lra, &meas);
 
     let mut apply = ffmpeg_base(g.progress);
@@ -63,9 +79,10 @@ pub fn run(args: LoudnormArgs, g: &Globals) -> Result<Contract, Error> {
     if probe.has_video {
         apply.extend(["-c:v", "copy"]);
     }
-    apply.push(&args.output);
+    apply.push(output.unwrap());
 
-    let mut contract = engine::write_job("loudnorm", &[&args.input], &args.output, vec![apply], g)?;
+    let mut contract =
+        engine::write_job("loudnorm", &[&args.input], output.unwrap(), vec![apply], g)?;
     let mut commands = engine::commands_of(&[measure]);
     commands.extend(contract.commands.clone());
     contract.commands = commands;

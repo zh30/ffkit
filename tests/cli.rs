@@ -11030,3 +11030,107 @@ fn concat_level_loudnorms_each_input() {
     let d = v2["probe"]["duration"].as_f64().unwrap();
     assert!(d > 1.6, "two 1s clips joined ≈ 2s, got {d}");
 }
+
+#[test]
+fn loudnorm_measure_reports_without_output() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let m = run_json(&["loudnorm", src.to_str().unwrap(), "--measure"]);
+    assert_eq!(m["status"], "ok");
+    let meas = &m["extra"]["measured"];
+    assert!(meas["input_i"].as_str().unwrap().parse::<f64>().is_ok());
+    assert!(!m["commands"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn subs_convert_srt_vtt_roundtrip() {
+    let tmp = tempfile::tempdir().unwrap();
+    let srt = tmp.path().join("a.srt");
+    std::fs::write(&srt, "1\n00:00:00,050 --> 00:00:00,300\nhello\n").unwrap();
+    let vtt = tmp.path().join("a.vtt");
+    run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        vtt.to_str().unwrap(),
+        "--convert",
+    ]);
+    let body = std::fs::read_to_string(&vtt).unwrap();
+    assert!(body.starts_with("WEBVTT"));
+    assert!(body.contains("00:00:00.050 --> 00:00:00.300"));
+    let back = tmp.path().join("back.srt");
+    run_json(&[
+        "subs",
+        vtt.to_str().unwrap(),
+        "-o",
+        back.to_str().unwrap(),
+        "--convert",
+    ]);
+    assert!(std::fs::read_to_string(&back)
+        .unwrap()
+        .contains("00:00:00,050 --> 00:00:00,300"));
+}
+
+#[test]
+fn art_extract_pulls_embedded_cover() {
+    let tmp = tempfile::tempdir().unwrap();
+    let tagged = tmp.path().join("tagged.mp3");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=40x30:rate=1",
+            "-map",
+            "0:a",
+            "-map",
+            "1:v",
+            "-c:v",
+            "mjpeg",
+            "-disposition:v:0",
+            "attached_pic",
+            "-f",
+            "mp3",
+        ])
+        .arg(&tagged)
+        .status()
+        .expect("spawn ffmpeg");
+    assert!(status.success());
+    let out = tmp.path().join("cover.jpg");
+    let j = run_json(&[
+        "art",
+        tagged.to_str().unwrap(),
+        "--extract",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let head = std::fs::read(&out).unwrap();
+    assert_eq!(&head[..2], &[0xFF, 0xD8]);
+}
+
+#[test]
+fn countdown_position_moves_the_digits() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("cd.mp4");
+    let j = run_json(&[
+        "countdown",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--from",
+        "3",
+        "--position",
+        "bottom-right",
+    ]);
+    assert_eq!(j["status"], "ok");
+}

@@ -6,6 +6,9 @@ use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
 pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
+    if args.convert {
+        return convert(&args, g);
+    }
     if let Some(offset) = args.shift {
         return shift(&args, offset, g);
     }
@@ -273,4 +276,87 @@ fn rescale(args: &SubsArgs, factor: f64, g: &Globals) -> Result<Contract, Error>
         "rate": factor,
         "cues": cues.len(),
     })))
+}
+
+fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = |p: &std::path::Path| {
+        p.extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_ascii_lowercase())
+            .unwrap_or_default()
+    };
+    let (in_ext, out_ext) = (ext(&args.input), ext(&args.output));
+    for e in [&in_ext, &out_ext] {
+        if e != "srt" && e != "vtt" {
+            return Err(Error::input(
+                "subs --convert takes .srt/.vtt input and output",
+            ));
+        }
+    }
+    let raw = std::fs::read_to_string(&args.input)
+        .map_err(|e| Error::input(format!("{}: {e}", args.input.display())))?;
+    // vtt → srt-shaped blocks: drop WEBVTT/NOTE/STYLE blocks and cue settings.
+    let body = if in_ext == "vtt" {
+        raw.replace("\r\n", "\n")
+            .split("\n\n")
+            .filter(|b| {
+                let l = b.lines().next().unwrap_or("").trim();
+                !(l.starts_with("WEBVTT") || l.starts_with("NOTE") || l == "STYLE")
+            })
+            .map(|b| {
+                b.lines()
+                    .map(|l| {
+                        if l.contains("-->") {
+                            if let Some((a, rest)) = l.split_once("-->") {
+                                let e = rest.split_whitespace().next().unwrap_or("");
+                                return format!("{} --> {}", a.trim(), e);
+                            }
+                        }
+                        l.to_string()
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n")
+    } else {
+        raw
+    };
+    let cues = crate::srt::parse_srt(&body)?;
+    let out = if out_ext == "vtt" {
+        let mut s = String::from("WEBVTT\n\n");
+        for c in &cues {
+            s.push_str(&format!(
+                "{} --> {}\n{}\n\n",
+                vtt_ts(c.start),
+                vtt_ts(c.end),
+                c.text
+            ));
+        }
+        s
+    } else {
+        crate::srt::to_srt(&cues)
+    };
+    if g.dry_run {
+        return Ok(Contract::dry_run(
+            "subs",
+            Some(crate::paths::display(&args.output)),
+            None,
+        ));
+    }
+    std::fs::write(&args.output, out).map_err(|e| Error::output(e.to_string()))?;
+    let mut c = Contract::ok("subs", Some(crate::paths::display(&args.output)), None);
+    c.verified = Some(args.output.is_file());
+    Ok(c.with_extra(json!({ "cues": cues.len(), "format": out_ext })))
+}
+
+fn vtt_ts(secs: f64) -> String {
+    let ms = (secs.max(0.0) * 1000.0).round() as u64;
+    format!(
+        "{:02}:{:02}:{:02}.{:03}",
+        ms / 3_600_000,
+        (ms / 60_000) % 60,
+        (ms / 1000) % 60,
+        ms % 1000
+    )
 }

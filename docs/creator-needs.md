@@ -232,6 +232,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 76)
+
+- `loudnorm --measure` — report-only loudness (I/TP/LRA in extras, no -o).
+- `subs --convert` — .srt ↔ .vtt cue-file conversion.
+- `art --extract` — pull embedded cover out to an image.
+- `countdown --position` — digit placement (9-pos map).
+
 ## Shipped this run (round 75)
 
 - `hls --ladder 1080,720,480` — ABR variant playlists + `master.m3u8` (per-variant bitrate tiers + aac).

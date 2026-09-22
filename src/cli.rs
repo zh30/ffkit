@@ -653,7 +653,7 @@ pub enum WaveMode {
 pub struct LoudnormArgs {
     pub input: PathBuf,
     #[arg(short, long)]
-    pub output: PathBuf,
+    pub output: Option<PathBuf>,
     /// Integrated loudness target (LUFS, default -14; --target sets platform values)
     #[arg(short = 'I', long, allow_hyphen_values = true)]
     pub i: Option<f64>,
@@ -665,6 +665,9 @@ pub struct LoudnormArgs {
     /// Platform preset: spotify|youtube (-14 LUFS), podcast (-16), broadcast (-23)
     #[arg(long, value_enum)]
     pub target: Option<LoudnormTarget>,
+    /// Measure-only: report I/TP/LRA in extras without writing a file
+    #[arg(long)]
+    pub measure: bool,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -832,6 +835,9 @@ pub struct SubsArgs {
     /// Rescale every cue time by this factor — 25→23.976 fps drift ≈ 0.959
     #[arg(long)]
     pub rate: Option<f64>,
+    /// Convert between subtitle formats (.srt ↔ .vtt) — input is the cue file
+    #[arg(long)]
+    pub convert: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1653,6 +1659,9 @@ pub struct CountdownArgs {
     /// Label shown above the digits for the whole count ("STARTING SOON")
     #[arg(long)]
     pub text: Option<String>,
+    /// Digit placement (default center): top|bottom|corners|edges
+    #[arg(long)]
+    pub position: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1872,9 +1881,12 @@ pub struct MulticamArgs {
 pub struct ArtArgs {
     /// Audio/video file to attach the cover to
     pub input: PathBuf,
-    /// Cover image (jpg/png)
+    /// Cover image (jpg/png); omit with --extract
+    #[arg(long, required_unless_present = "extract")]
+    pub image: Option<PathBuf>,
+    /// Pull the embedded cover OUT to -o instead of attaching one
     #[arg(long)]
-    pub image: PathBuf,
+    pub extract: bool,
     #[arg(short, long)]
     pub output: PathBuf,
 }

@@ -65,6 +65,10 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
         label_png = Some(png);
     }
 
+    let (px, py) = match &args.position {
+        Some(p) => crate::verbs::overlay::overlay_xy(p, 24)?,
+        None => ("(W-w)/2".to_string(), "(H-h)/2".to_string()),
+    };
     let mut segs = Vec::new();
     let mut prev = "[0:v]".to_string();
     for (i, text) in runs.iter().enumerate() {
@@ -78,7 +82,7 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
         let b = a + args.each;
         let label = format!("c{i}");
         segs.push(format!(
-            "{prev}[{}:v]overlay=x=(W-w)/2:y=(H-h)/2:enable='between(t,{a:.3},{b:.3})'[{label}]",
+            "{prev}[{}:v]overlay=x={px}:y={py}:enable='between(t,{a:.3},{b:.3})'[{label}]",
             i + 1
         ));
         prev = format!("[{label}]");

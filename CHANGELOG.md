@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.103.0] - 2026-09-23
+
+### Added
+- `loudnorm --measure` — report-only loudness: measured I/TP/LRA in extras, no `-o` needed.
+- `subs --convert` — .srt ↔ .vtt conversion (parses vtt cue settings/WEBVTT blocks, emits clean files).
+- `art --extract` — pull the embedded cover stream out to an image (`--image` no longer required).
+- `countdown --position` — place the counting digits anywhere on the 9-position map.
+
+
+## [0.103.0] — 2026-09-22
+
 ## [0.102.0] - 2026-09-23
 
 ### Added
