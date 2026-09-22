@@ -34,7 +34,7 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     if args.dur.is_some() && args.at.is_none() {
         return Err(Error::input("--dur needs --at"));
     }
-    let enable = match &args.at {
+    let (at_secs, end_secs) = match &args.at {
         Some(s) => {
             let at = crate::time::parse_time(s)?;
             if at < 0.0 || at >= probe.duration {
@@ -44,15 +44,45 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
                 Some(d) => (at + d).min(probe.duration),
                 None => probe.duration,
             };
-            format!(":enable='between(t,{at:.3},{end:.3})'")
+            (at, end)
         }
-        None => String::new(),
+        None => (0.0, probe.duration),
     };
+    let enable = if args.at.is_some() {
+        format!(":enable='between(t,{at_secs:.3},{end_secs:.3})'")
+    } else {
+        String::new()
+    };
+    let fade = args.fade.clamp(0.0, ((end_secs - at_secs) / 2.0).max(0.0));
+    if fade > 0.0 && args.tile > 0 {
+        return Err(Error::input("--fade is not supported with --tile"));
+    }
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
+    if fade > 0.0 && args.image.is_some() {
+        // Looping the still gives it advancing pts so alpha fades animate.
+        argv.extend(["-loop", "1", "-framerate", "30"]);
+    }
     argv.push("-i");
     argv.push(overlay);
+    let (pre, ovl) = if fade > 0.0 {
+        (
+            format!(
+                "[1:v]format=rgba,fade=t=in:st={at_secs:.3}:d={fade:.3}:alpha=1,fade=t=out:st={:.3}:d={fade:.3}:alpha=1[ovl];",
+                end_secs - fade
+            ),
+            "ovl",
+        )
+    } else {
+        (String::new(), "1:v")
+    };
+    // Infinite looped still secondary: end each composite on the main stream.
+    let shortest = if fade > 0.0 && args.image.is_some() {
+        ":shortest=1"
+    } else {
+        ""
+    };
 
     let fc = if let Some(mode) = &args.mode {
         const MODES: &[&str] = &[
@@ -77,15 +107,16 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
         }
         let (w, h) = (probe.width.unwrap_or(1280), probe.height.unwrap_or(720));
         format!(
-            "[1:v]scale={w}:{h},format=yuv420p[b];             [0:v][b]blend=all_mode={mode}:all_opacity={op}{en}:shortest=1[vout]",
+            "[{ovl}]scale={w}:{h},format=yuv420p[b];             [0:v][b]blend=all_mode={mode}:all_opacity={op}{en}:shortest=1[vout]",
             op = args.opacity.clamp(0.0, 1.0),
             en = enable,
         )
     } else if let Some(scale) = args.scale {
-        format!("[1:v]scale={scale}:-1[ov];[0:v][ov]overlay=x={x}:y={y}{enable}[vout]")
+        format!("[{ovl}]scale={scale}:-1[ov];[0:v][ov]overlay=x={x}:y={y}{enable}{shortest}[vout]")
     } else {
-        format!("[0:v][1:v]overlay=x={x}:y={y}{enable}[vout]")
+        format!("[0:v][{ovl}]overlay=x={x}:y={y}{enable}{shortest}[vout]")
     };
+    let fc = format!("{pre}{fc}");
     let _ = x;
     let _ = y;
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);

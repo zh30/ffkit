@@ -6,6 +6,9 @@ use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
 pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
+    if let Some(offset) = args.shift {
+        return shift(&args, offset, g);
+    }
     let _probe = engine::probe_or_err(&args.input, g)?;
     if let Some(subs) = &args.burn {
         return burn(&args, subs, g);
@@ -74,4 +77,39 @@ MarginV=36,Alignment=2";
 
     let c = engine::write_job("subs", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({ "burned": subs.to_string_lossy() })))
+}
+
+fn shift(args: &SubsArgs, offset: f64, g: &Globals) -> Result<Contract, Error> {
+    if args
+        .input
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .as_deref()
+        != Some("srt")
+    {
+        return Err(Error::input("subs --shift takes an .srt file as input"));
+    }
+    let raw = std::fs::read_to_string(&args.input)
+        .map_err(|e| Error::input(format!("{}: {e}", args.input.display())))?;
+    let mut cues = crate::srt::parse_srt(&raw)?;
+    for c in cues.iter_mut() {
+        c.start = (c.start + offset).max(0.0);
+        c.end = (c.end + offset).max(0.0);
+    }
+    let out = crate::srt::to_srt(&cues);
+    if g.dry_run {
+        return Ok(Contract::dry_run(
+            "subs",
+            Some(crate::paths::display(&args.output)),
+            None,
+        ));
+    }
+    std::fs::write(&args.output, out).map_err(|e| Error::output(e.to_string()))?;
+    let mut c = Contract::ok("subs", Some(crate::paths::display(&args.output)), None);
+    c.verified = Some(args.output.is_file());
+    Ok(c.with_extra(json!({
+        "shift": offset,
+        "cues": cues.len(),
+    })))
 }

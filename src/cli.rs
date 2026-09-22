@@ -384,6 +384,9 @@ pub struct OverlayArgs {
     /// Show the overlay only from this time (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,
+    /// Fade the overlay in/out over N seconds (0 = hard cut)
+    #[arg(long, default_value_t = 0.0)]
+    pub fade: f64,
     /// ..until this many seconds after --at (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
@@ -643,6 +646,9 @@ pub struct SubsArgs {
     /// Burn this subtitle file into the video instead of extracting (--file subs.srt)
     #[arg(long)]
     pub burn: Option<PathBuf>,
+    /// Shift every cue of an .srt by ±N seconds (input = .srt, output = .srt)
+    #[arg(long, allow_hyphen_values = true)]
+    pub shift: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -672,6 +678,18 @@ pub struct MetaArgs {
     /// Comment / description tag
     #[arg(long)]
     pub comment: Option<String>,
+    /// Album / collection tag
+    #[arg(long)]
+    pub album: Option<String>,
+    /// Genre tag
+    #[arg(long)]
+    pub genre: Option<String>,
+    /// Date / year tag
+    #[arg(long)]
+    pub date: Option<String>,
+    /// Track number tag
+    #[arg(long)]
+    pub track: Option<String>,
     /// Fix the display rotation flag (0/90/180/270) without re-encoding
     #[arg(long)]
     pub rotate: Option<u32>,

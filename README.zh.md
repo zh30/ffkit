@@ -133,8 +133,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet` |
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip` |
 | `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h`；`--at`/`--dur` 只处理窗口 |
-| `meta` | 写入容器标签（`--title`/`--artist`/`--comment`）+ `--rotate` 显示旋转标记，无损拷贝 |
-| `subs` | 导出内嵌字幕（`--stream N`），或 `--burn subs.srt` 把字幕压进画面 |
+| `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`）+ `--rotate` 显示旋转，无损拷贝 |
+| `subs` | 抽取内嵌字幕（`--stream`）、`--burn` 压制字幕、`--shift ±N` 整体平移 .srt |
 | `thumb` | 抓封面单帧（`--at`/`--frame`）→ jpg/png/webp |
 | `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐、`--mix` 保留原音轨 |
 | `jumpcut` | 剪掉口播里的静音停顿 |

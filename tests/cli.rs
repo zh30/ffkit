@@ -7144,3 +7144,117 @@ fn silence_end_appends_quiet_tail() {
         "--end appends 1s of silence to a 1s clip: {d}"
     );
 }
+
+#[test]
+fn overlay_fade_terminates_and_writes() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let img = dir.path().join("logo.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=white:s=80x80")
+        .args(["-frames:v", "1"])
+        .arg(&img)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("ov.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "--image",
+        img.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--fade",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(99.0);
+    assert!(d < 1.3, "looped still must not stretch output: {d}");
+}
+
+#[test]
+fn subs_shift_moves_all_cues() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let srt = dir.path().join("in.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:01,000 --> 00:00:02,000\nHELLO\n\n2\n00:00:05,000 --> 00:00:06,500\nWORLD\n",
+    )
+    .unwrap();
+    let out = dir.path().join("out.srt");
+    let v = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--shift",
+        "2.5",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let txt = std::fs::read_to_string(&out).unwrap();
+    assert!(
+        txt.contains("00:00:03,500 --> 00:00:04,500"),
+        "cue1 shifted +2.5: {txt}"
+    );
+    assert!(
+        txt.contains("00:00:07,500 --> 00:00:09,000"),
+        "cue2 shifted +2.5: {txt}"
+    );
+}
+
+#[test]
+fn meta_album_genre_track_tags() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("tagged.mp4");
+    let v = run_json(&[
+        "meta",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--album",
+        "My Album",
+        "--genre",
+        "Podcast",
+        "--track",
+        "3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-show_entries",
+            "format_tags",
+            "-of",
+            "default=noprint_wrappers=1",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let tags = String::from_utf8_lossy(&o.stdout);
+    assert!(tags.contains("album=My Album"), "{tags}");
+    assert!(tags.contains("genre=Podcast"), "{tags}");
+    assert!(tags.contains("track=3"), "{tags}");
+}

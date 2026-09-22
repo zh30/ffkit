@@ -10,6 +10,10 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
     let tags: Vec<(&str, &str)> = [
         ("title", args.title.as_deref()),
         ("artist", args.artist.as_deref()),
+        ("album", args.album.as_deref()),
+        ("genre", args.genre.as_deref()),
+        ("date", args.date.as_deref()),
+        ("track", args.track.as_deref()),
         ("comment", args.comment.as_deref()),
     ]
     .into_iter()
@@ -21,9 +25,7 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     if tags.is_empty() && args.rotate.is_none() {
-        return Err(Error::input(
-            "meta needs at least one of --title/--artist/--comment/--rotate",
-        ));
+        return Err(Error::input("meta needs at least one tag flag or --rotate"));
     }
     // ffmpeg >= 7 dropped the rotate metadata tag in favour of the
     // -display_rotation input option; older ffmpeg only knows the tag.

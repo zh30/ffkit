@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.59.0] - 2026-09-22
+
+- `overlay --fade` — alpha-fades any overlay (`--image` still or `--video`) in/out over its window; stills are `-loop 1` + `shortest=1` so the composite ends with the main stream.
+- `subs --shift ±N` — retimes every cue of an .srt (clamped at 0), e.g. "字幕慢了 2 秒" → `subs in.srt --shift 2 -o out.srt`.
+- `meta --album/--genre/--date/--track` — podcast & music library tags alongside title/artist/comment.
+
 ## [0.58.0] - 2026-09-22
 
 - `title --fade` — fades the title in/out over N s (looped still + `fade alpha=1`; clamps to half the window).
