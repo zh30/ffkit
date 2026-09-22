@@ -4565,22 +4565,6 @@ fn caption_color_burns_red() {
         "ff0000",
     ]);
     assert_eq!(v["status"], "ok", "{v}");
-    let o = Command::new("ffmpeg")
-        .args(["-i"])
-        .arg(&out)
-        .args([
-            "-vf",
-            "select=eq(n\\,5),crop=300:80:10:140",
-            "-frames:v",
-            "1",
-            "-f",
-            "rawvideo",
-            "-pix_fmt",
-            "rgb24",
-            "-",
-        ])
-        .output()
-        .unwrap();
     let white = dir.path().join("w.mp4");
     let v2 = run_json(&[
         "caption",
