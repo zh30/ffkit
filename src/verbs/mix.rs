@@ -31,7 +31,17 @@ pub fn run(args: MixArgs, g: &Globals) -> Result<Contract, Error> {
                 return Err(Error::input("--at is outside the A input"));
             }
             let end = args.dur.map(|d| at + d).unwrap_or(pa.duration);
-            format!(",volume='between(t,{at:.3},{end:.3})':eval=frame")
+            let fade = match args.fade {
+                Some(f) if f > 0.0 => {
+                    let f = f.min((end - at) / 2.0);
+                    format!(
+                        ",afade=t=in:st={at:.3}:d={f:.3},afade=t=out:st={:.3}:d={f:.3}",
+                        end - f
+                    )
+                }
+                _ => String::new(),
+            };
+            format!(",volume='between(t,{at:.3},{end:.3})':eval=frame{fade}")
         }
         None => {
             if args.dur.is_some() {

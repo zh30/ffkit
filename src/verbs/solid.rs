@@ -61,10 +61,23 @@ pub fn run(args: SolidArgs, g: &Globals) -> Result<Contract, Error> {
     if args.audio {
         argv.extend(["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]);
     }
+    let fade_chain = match args.fade {
+        Some(f) if f > 0.0 && f < args.dur / 2.0 => Some(format!(
+            ",fade=t=in:st=0:d={f:.3},fade=t=out:st={:.3}:d={f:.3}",
+            args.dur - f
+        )),
+        Some(_) => {
+            return Err(Error::input("--fade must be > 0 and shorter than --dur/2"));
+        }
+        None => None,
+    };
     match (args.text.is_some(), args.audio) {
         (true, true) => argv.extend([
             "-filter_complex",
-            "[0:v][1:v]overlay=(W-w)/2:(H-h)/2[v]",
+            &format!(
+                "[0:v][1:v]overlay=(W-w)/2:(H-h)/2{}[v]",
+                fade_chain.clone().unwrap_or_default()
+            ),
             "-map",
             "[v]",
             "-map",
@@ -73,12 +86,24 @@ pub fn run(args: SolidArgs, g: &Globals) -> Result<Contract, Error> {
         ]),
         (true, false) => argv.extend([
             "-filter_complex",
-            "[0:v][1:v]overlay=(W-w)/2:(H-h)/2[v]",
+            &format!(
+                "[0:v][1:v]overlay=(W-w)/2:(H-h)/2{}[v]",
+                fade_chain.clone().unwrap_or_default()
+            ),
             "-map",
             "[v]",
         ]),
-        (false, true) => argv.extend(["-map", "0:v", "-map", "1:a", "-shortest"]),
-        (false, false) => {}
+        (false, true) => {
+            argv.extend(["-map", "0:v", "-map", "1:a", "-shortest"]);
+            if let Some(fc) = &fade_chain {
+                argv.extend(["-vf", &fc[1..]]);
+            }
+        }
+        (false, false) => {
+            if let Some(fc) = &fade_chain {
+                argv.extend(["-vf", &fc[1..]]);
+            }
+        }
     }
     if args.audio {
         argv.extend(["-c:a", "aac"]);
@@ -95,5 +120,6 @@ pub fn run(args: SolidArgs, g: &Globals) -> Result<Contract, Error> {
         "size": format!("{w}x{h}"),
         "dur": args.dur,
         "audio": args.audio,
+        "fade": args.fade,
     })))
 }

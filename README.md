@@ -173,7 +173,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `frames` | Still dump every `--every`, `--at` seconds → `stem_001.png…` (`--width`) |
 | `countdown` | Overlay a counting leader (`--from`, `--beep`, `--text`, `--position`) |
 | `invert` | Full-frame or windowed color inversion (`--at`, `--dur`) |
-| `mix` | Blend two sources (`--vol-a/--vol-b`, `--at/--dur`, `--loop`, `--duck` sidechain bed under voice) , `--normalize` |
+| `mix` | Blend two sources (`--vol-a/--vol-b`, `--at/--dur`, `--loop`, `--duck` sidechain bed under voice) , `--normalize`, `--fade` bed edges |
 | `mute` | Drop the audio track, stream-copy the rest , `--at/--dur` silences only that window |
 | `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown) |
 | `hls` | Web-ready HLS (`--seg`, `--single`, `--copy`, `--ladder` ABR, `--audio-only` podcast streams, `--fmp4` CMAF) |

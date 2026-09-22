@@ -173,7 +173,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `frames` | 每 `--every`、`--at` 秒抽一帧 → `stem_001.png…`（`--width` 缩放） |
 | `countdown` | 画面倒数（`--from`、`--beep`、`--text`、`--position` 位置） |
 | `invert` | 全帧或定时反色（`--at`、`--dur`） |
-| `mix` | 双音轨叠加（`--vol-a/--vol-b`、`--at/--dur`、`--loop`、`--duck` 人声闪避音乐） ，`--normalize` 归一求和 |
+| `mix` | 双音轨叠加（`--vol-a/--vol-b`、`--at/--dur`、`--loop`、`--duck` 人声闪避音乐） ，`--normalize` 归一求和、`--fade` 淡入淡出 |
 | `mute` | 去掉音轨（其余流直接封装，不重编码） ，`--at/--dur` 局部静音 |
 | `timer` | 画面计时器（`--position`、`--format ms`、`--box-color` 底板） （`--format`、`--box-color`、`--down` 倒计时） |
 | `hls` | 网页 HLS 封装（`--seg`、`--single`、`--copy`、`--ladder` 多码率、`--audio-only` 纯音频、`--fmp4` CMAF） |

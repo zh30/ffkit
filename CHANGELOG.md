@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.112.0] — 2026-09-22
+
+### Added
+
+- `progress --bg COLOR` — static full-width track bar behind the sliding fill
+- `mix --fade N` — `afade` in/out on the B bed inside the `--at/--dur` window
+- `insert --volume N` — scale the spliced clip's audio 0–4 in both concat and `--transition` paths
+- `solid --fade N` — `fade` in/out on the generated card (works with `--text` and `--gradient`)
+
 ## [0.111.0] — 2026-09-22
 
 ### Added

@@ -232,6 +232,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 85)
+
+- `progress --bg COLOR` — a static full-width track bar behind the sliding fill (elapsed-vs-total readability on busy frames).
+- `mix --fade N` — `afade` in/out on the B bed inside the `--at/--dur` window (bed stops slamming in and out).
+- `insert --volume N` — `volume=` node on the spliced clip's `atrim` arm in both the concat and `--transition` paths (ad reads at half level or muted).
+- `solid --fade N` — `fade` in/out on the generated card (with or without `--text`/gradient) for softer intro/outro cards.
+
 ## Shipped this run (round 84)
 
 - `multicam --keep-audio` — video still flips angles at `--at` cuts but the audio map stays on camera A's track end-to-end (the interview standard; previously audio cut with the video).

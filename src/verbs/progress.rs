@@ -40,10 +40,18 @@ pub fn run(args: ProgressArgs, g: &Globals) -> Result<Contract, Error> {
             String::new()
         }
     };
-    let fc = format!(
-        "[0:v][1:v]overlay=x='-main_w+main_w*t/{dur:.3}':y='{y}':shortest=1{enable}[vout]",
-        dur = probe.duration,
-    );
+    let fc = if args.bg.is_some() {
+        // Static full-width track bar, then the fill bar sliding across it.
+        format!(
+            "[0:v][2:v]overlay=x=0:y='{y}':shortest=1[tb];[tb][1:v]overlay=x='-main_w+main_w*t/{dur:.3}':y='{y}':shortest=1{enable}[vout]",
+            dur = probe.duration,
+        )
+    } else {
+        format!(
+            "[0:v][1:v]overlay=x='-main_w+main_w*t/{dur:.3}':y='{y}':shortest=1{enable}[vout]",
+            dur = probe.duration,
+        )
+    };
 
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
@@ -59,6 +67,16 @@ pub fn run(args: ProgressArgs, g: &Globals) -> Result<Contract, Error> {
         d = probe.duration,
     );
     argv.push(&bar_src);
+    if let Some(bg) = &args.bg {
+        argv.push("-f");
+        argv.push("lavfi");
+        argv.push("-i");
+        argv.push(&bar_src.replacen(
+            &format!("color=c={}", crate::color::lavfi(&args.color)),
+            &format!("color=c={}", crate::color::lavfi(bg)),
+            1,
+        ));
+    }
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if probe.has_audio {
         argv.extend(["-map", "0:a", "-c:a", "aac"]);

@@ -36,8 +36,13 @@ pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
         Some(d) if d > 0.0 => d.min(clip.duration),
         _ => clip.duration,
     };
+    let vol = match args.volume {
+        Some(v) if (0.0..=4.0).contains(&v) => format!(",volume={v:.4}"),
+        Some(_) => return Err(Error::input("--volume must be 0..=4")),
+        None => String::new(),
+    };
     if let Some(tr) = &args.transition {
-        return run_xfade(&args, &base, &clip, at, clip_len, bw, bh, tr, g);
+        return run_xfade(&args, &base, &clip, at, clip_len, bw, bh, tr, &vol, g);
     }
 
     // Three segments: base head, the clip (scaled to base size, --dur capped),
@@ -51,7 +56,7 @@ pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
     if base.has_audio {
         seg.push(format!(
             "[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[a0];\
-             [1:a]atrim=0:{clip_len:.3},asetpts=PTS-STARTPTS[a1];\
+             [1:a]atrim=0:{clip_len:.3},asetpts=PTS-STARTPTS{vol}[a1];\
              [0:a]atrim={at:.3}:,asetpts=PTS-STARTPTS[a2]"
         ));
         // concat pads interleave per segment: v0,a0,v1,a1,v2,a2
@@ -100,6 +105,7 @@ fn run_xfade(
     bw: u32,
     bh: u32,
     transition: &str,
+    vol: &str,
     g: &Globals,
 ) -> Result<Contract, Error> {
     let d = args.duration.unwrap_or(0.4);
@@ -118,7 +124,7 @@ fn run_xfade(
     )];
     if base.has_audio {
         segs.push(format!(
-            "[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[a0];             [1:a]atrim=0:,asetpts=PTS-STARTPTS[a1];             [0:a]atrim={at:.3}:,asetpts=PTS-STARTPTS[a2];             [a0][a1]acrossfade=d={d:.3}[x1a];             [x1a][a2]acrossfade=d={d:.3}[aout]"
+            "[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[a0];             [1:a]atrim=0:,asetpts=PTS-STARTPTS{vol}[a1];             [0:a]atrim={at:.3}:,asetpts=PTS-STARTPTS[a2];             [a0][a1]acrossfade=d={d:.3}[x1a];             [x1a][a2]acrossfade=d={d:.3}[aout]"
         ));
     }
     let mut argv = ffmpeg_base(g.progress);

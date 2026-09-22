@@ -1218,6 +1218,9 @@ pub struct SolidArgs {
     /// Font .ttf for --text
     #[arg(long)]
     pub font: Option<String>,
+    /// Fade the card in from / out to black over N seconds each side
+    #[arg(long)]
+    pub fade: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1770,6 +1773,9 @@ pub struct MixArgs {
     /// Bring B in only from this time (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,
+    /// Fade B in/out over N seconds at the window edges (needs --at)
+    #[arg(long)]
+    pub fade: Option<f64>,
     /// ..for this many seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
@@ -1965,6 +1971,9 @@ pub struct InsertArgs {
     /// Splice only the first N seconds of the clip (default: whole clip)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Scale the insert clip's audio 0..=4 (default 1.0; 0 mutes it)
+    #[arg(long)]
+    pub volume: Option<f64>,
     #[arg(short, long)]
     pub output: PathBuf,
 }
@@ -2264,6 +2273,9 @@ pub struct ProgressArgs {
     /// Bar color (ffmpeg name or 0xRRGGBB)
     #[arg(long, default_value = "white")]
     pub color: String,
+    /// Track color behind the fill (default: no track)
+    #[arg(long)]
+    pub bg: Option<String>,
     /// Bar thickness in pixels
     #[arg(long, default_value_t = 8)]
     pub height: u32,

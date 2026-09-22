@@ -11966,3 +11966,130 @@ fn transcode_gif_colors_shrinks_the_palette() {
         .join(" ");
     assert!(cmd.contains("max_colors=8"), "{cmd}");
 }
+
+#[test]
+fn progress_bg_lays_a_track_bar() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("pg.mp4");
+    let j = run_json(&[
+        "progress",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--bg",
+        "red",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("color=c=red"), "{cmd}");
+    assert!(out.exists());
+}
+
+#[test]
+fn mix_fade_eases_the_bed_edges() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    let b = dir.path().join("b.mp4");
+    std::fs::copy(&a, &b).unwrap();
+    let out = dir.path().join("mx.m4a");
+    let j = run_json(&[
+        "mix",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--dur",
+        "0.6",
+        "--fade",
+        "0.2",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("afade=t=in:st=0.2"), "{cmd}");
+    assert!(cmd.contains("afade=t=out"), "{cmd}");
+}
+
+#[test]
+fn insert_volume_scales_the_clip_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("in.mp4");
+    let j = run_json(&[
+        "insert",
+        src.to_str().unwrap(),
+        "--clip",
+        src.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "--volume",
+        "0.3",
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("volume=0.3"), "{cmd}");
+}
+
+#[test]
+fn solid_fade_wraps_the_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("card.mp4");
+    let j = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--dur",
+        "1.0",
+        "--fade",
+        "0.3",
+        "--text",
+        "END",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("fade=t=in"), "{cmd}");
+}

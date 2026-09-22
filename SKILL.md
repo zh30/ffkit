@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.111.0
+version: 0.112.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -79,7 +79,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | fix audio/video sync drift | `sync` (`--ms ±N` — pad or trim audio start) |
 | sync a second take to the camera master | `align` (`ref target -o out` — auto-detects offset by audio cross-correlation; multi-cam, external recorder; `--window` bounds long takes) |
 | rolling end credits | `scroll` (`--text`/`--file`, `--at`, `--dur` — text rolls bottom→top) |
-| splice a clip into the middle | `insert` (`--clip x.mp4 --at T` — b-roll/ad read without manual split+concat; `--dur N` first N sec only), `--transition` xfade both joints |
+| splice a clip into the middle | `insert` (`--clip x.mp4 --at T` — b-roll/ad read without manual split+concat; `--dur N` first N sec only), `--transition` xfade both joints, `--volume` clip audio |
 | two-camera angle switching | `multicam` (`A B --at t1,t2,...` — run `align` first if the takes aren't synced; `--keep-audio` stays on cam A) |
 | reframe 9:16 keeping faces | `crop` (`--aspect 9:16 --anchor top` keeps the face) |
 | attach album cover art | `art` (`--image cover.png`) → mp3/m4a/mp4/mkv, `--extract` pull cover out |
@@ -93,7 +93,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | subtitle file is early/late | `subs` (`--shift ±N` — retimes every cue) |
 | full podcast/music tags | `meta` (`--album`/`--genre`/`--date`/`--track`) |
 | keep only the good parts | `cut` (`--ranges "10-20,40-50"` — joined) |
-| solid color card / backplate | `solid` (`--color`/`--size`/`--dur`, optional silent track), `--text` card text |
+| solid color card / backplate | `solid` (`--color`/`--size`/`--dur`, optional silent track), `--text` card text, `--fade` card fades |
 | boost without clipping | `volume` (`--limit` dBTP — brickwall after the gain) |
 | rip out a middle section | `cut` (`--drop "30-45"` — keeps the rest joined) |
 | text that survives busy frames | `title` (`--outline` — stroke around every glyph) |
@@ -154,7 +154,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | logo / PiP | `overlay` |
 | green screen | `key` (`--bg`, `--color`/`--similarity`/`--blend`, `--despill` for fringe) |
 | reaction / multi-cam grid | `grid` (`--layout 2x2`, `--size`) |
-| watch-time progress bar | `progress` (`--color`, `--height`, `--edge`) |
+| watch-time progress bar | `progress` (`--color`, `--height`, `--edge`, `--bg` track) |
 | freeze a beat / outro hold | `freeze` (`--ease`/`--reverse` swoop, `--at T --dur D`, or `--end D`) |
 | blur a face / logo | `censor` (`--strength`, `--region x:y:w:h`, `--mode pixel|blur`; `--at`/`--dur` limits the window) |
 | slow-mo punch-in | `speed` (`--factor`/`--ramp`, `--at`/`--dur` for just one window) |
