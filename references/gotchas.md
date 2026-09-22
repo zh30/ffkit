@@ -50,7 +50,7 @@ Source path as `-o` is always refused. An existing output is refused unless `--o
 
 ## Denoise
 
-`denoise` chains `highpass` (rumble) + `afwtdn` (hiss/fan). `--strength` 0–1 maps to wavelet `sigma` 0.02–0.08. Not `afftdn`: with ffmpeg ≥9 defaults (`nf=-50`) it measures ~0 dB of noise reduction; `anlmdn` segfaults in this build. `--video` adds `hqdn3d` degrain and re-encodes the picture (default keeps `-c:v copy`).
+`denoise` chains `highpass` (rumble) + a noise stage: `afwtdn` (wavelet, `sigma` 0.02–0.08 from `--strength`) when the ffmpeg build has it (ffmpeg ≥5.1), else `afftdn` with the floor raised (`nf=-20`). Never bare `afftdn` — its default `nf=-50` measures ~0 dB of actual noise reduction; `anlmdn` segfaults on ffmpeg 9.0.1 builds. `--video` adds `hqdn3d` degrain and re-encodes the picture (default keeps `-c:v copy`).
 
 ## fit --fit blur
 

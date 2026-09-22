@@ -2,6 +2,7 @@ use serde_json::json;
 
 use crate::cli::{DenoiseArgs, Globals};
 use crate::contract::Contract;
+use crate::doctor;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
@@ -21,9 +22,19 @@ pub fn run(args: DenoiseArgs, g: &Globals) -> Result<Contract, Error> {
     // 9.x afftdn with default nf=-50 extracts almost nothing (measured ~0 dB
     // hiss reduction); a small fixed wavelet sigma reliably takes ~16 dB off
     // broadband noise for <3 dB voice cost across input levels. anlmdn is
-    // stronger on paper but segfaults in this build.
-    let sigma = 0.02 + 0.06 * args.strength;
-    let mut af = format!("afwtdn=sigma={sigma:.3}");
+    // stronger on paper but segfaults in this build. afwtdn only exists in
+    // ffmpeg ≥5.1 — older builds fall back to afftdn with the noise floor
+    // raised (nf=-20, ~12 dB measured).
+    let mut af = if doctor::list_filters()
+        .map(|f| f.contains("afwtdn"))
+        .unwrap_or(false)
+    {
+        let sigma = 0.02 + 0.06 * args.strength;
+        format!("afwtdn=sigma={sigma:.3}")
+    } else {
+        let nr = 6.0 + 12.0 * args.strength;
+        format!("afftdn=nr={nr:.1}:nf=-20")
+    };
     if args.highpass > 0.0 {
         af = format!("highpass=f={:.0},{af}", args.highpass);
     }

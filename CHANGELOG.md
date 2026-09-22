@@ -6,7 +6,7 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [0.26.0] — 2026-09-22
 
-- `ffkit denoise`: `highpass` + `afwtdn` voice cleanup; `--video` adds `hqdn3d` degrain
+- `ffkit denoise`: `highpass` + voice denoise (`afwtdn` where ffmpeg ≥5.1 ships it, else `afftdn` with raised floor); `--video` adds `hqdn3d` degrain
 - `ffkit compress --size 10MB`: two-pass bitrate budget that lands under a platform cap (audio-only inputs single-pass `-b:a`)
 - `fit --fit blur`: blurred-pillarbox fill for repurpose; `broll --fit blur` gets the same mode
 - `ffkit audiogram`: podcast audio → 1080×1920 `showwaves` video over a cover still (`--image`) or flat colour
