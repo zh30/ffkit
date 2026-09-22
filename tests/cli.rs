@@ -3490,3 +3490,180 @@ fn grade_grain_adds_noise() {
         "grain should push dark pixels in flat area: {a} -> {b}"
     );
 }
+
+#[test]
+fn split_scenes_cuts_at_shot_change() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // red 0.5s -> blue 0.5s -> green 0.5s = 2 hard scene cuts
+    let src = dir.path().join("shots.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:size=160x120:rate=20:duration=0.5",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=blue:size=160x120:rate=20:duration=0.5",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=green:size=160x120:rate=20:duration=0.5",
+            "-filter_complex",
+            "[0:v][1:v][2:v]concat=n=3:v=1[v]",
+            "-map",
+            "[v]",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-g",
+            "20",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("shot_%02d.mp4").to_str().unwrap(),
+        "--scenes",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let count = v["extra"]["count"].as_u64().unwrap_or(0);
+    assert!(
+        count >= 2,
+        "two color cuts should split into >=2 parts, got {count}; {v}"
+    );
+}
+
+#[test]
+fn grid_audio_follows_one_input() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mk = |name: &str, color: &str, hz: u32| -> PathBuf {
+        let p = dir.path().join(name);
+        let st = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color=c={color}:size=160x120:rate=15:duration=1"),
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("sine=frequency={hz}:duration=1"),
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                "-shortest",
+            ])
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(st.success());
+        p
+    };
+    let a = mk("a.mp4", "red", 220);
+    let b = mk("b.mp4", "blue", 440);
+    let c = mk("c.mp4", "green", 660);
+    let d = mk("d.mp4", "yellow", 880);
+    let out = dir.path().join("g.mp4");
+    let v = run_json(&[
+        "grid",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        c.to_str().unwrap(),
+        d.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // output audio should be the 660Hz sine only — zero-crossings ~1320/s
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args(["-af", "astats", "-f", "null", "-"])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stderr);
+    let zc: f64 = s
+        .lines()
+        .filter(|l| l.contains("Zero crossings:"))
+        .filter_map(|l| l.rsplit(':').next())
+        .filter_map(|v| v.trim().parse::<f64>().ok())
+        .fold(0.0, f64::max);
+    assert!(
+        zc > 1000.0 && zc < 1600.0,
+        "audio from input 2 = 660Hz ~1320 zc, got {zc}; {v}"
+    );
+}
+
+#[test]
+fn cutsil_strips_head_and_tail_silence() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // 0.5s silence + 1s tone + 0.5s silence
+    let src = dir.path().join("pad.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=r=48000:cl=stereo:d=0.5",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=r=48000:cl=stereo:d=0.5",
+            "-filter_complex",
+            "[0:a][1:a][2:a]concat=n=3:v=0:a=1[a]",
+            "-map",
+            "[a]",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("cut.m4a");
+    let v = run_json(&["cutsil", src.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        d > 0.5 && d < 1.5,
+        "padded 2s -> ~1s after both-end strip, got {d}; {v}"
+    );
+}

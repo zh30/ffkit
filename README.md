@@ -110,12 +110,12 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 | `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`) |
-| `split` | Chop into parts (`--every 30` even chunks, or `--at 30,90` chapter points) → `stem_00..` |
+| `split` | `--every` regular parts, `--at` explicit, `--scenes` shot-detection | Chop into parts (`--every 30` even chunks, or `--at 30,90` chapter points) → `stem_00..` |
 | `slideshow` | Still images → video montage (`--per`, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed, `--size` canvas) |
 | `speed` | `--factor 2` is 2×; talking-head keeps pitch |
 | `music` | Bed under speech with ducking (`--track`) |
 | `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`) |
-| `grid` | N inputs into a `--layout CxR` tile wall (`--size 1920x1080`); audios mix when all inputs have one |
+| `grid` | N-input mosaic; `--audio N` keeps one input's track | N inputs into a `--layout CxR` tile wall (`--size 1920x1080`); audios mix when all inputs have one |
 | `progress` | Progress bar filling across the duration (`--color`, `--height`, `--edge top`) |
 | `freeze` | Hold the frame at `--at T` for `--dur D` (mid-clip), or clone the last frame with `--end D` (outro) |
 | `censor` | Mosaic/blur a face/logo region `--region x:y:w:h` (`--mode pixel|blur`) |
@@ -124,6 +124,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`) |
 | `sheet` | Contact sheet: `--cols`/`--rows` thumbnails → one PNG |
 | `pitch` | `--semitones N` voice/music shift, duration preserved |
+| `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |

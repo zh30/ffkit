@@ -4,6 +4,13 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.36.0] — 2026-09-22
+
+- `split --scenes T`: auto-detect shot changes and cut there (select scene score + segment muxer)
+- `ffkit cutsil`: `silenceremove` head+tail dead air (audio-only; video → jumpcut)
+- `grid --audio N`: keep one input's audio instead of the amix
+
+
 ## [0.35.0] — 2026-09-22
 
 - `replace --duck`: sidechain-duck the original track under the replacement audio

@@ -46,6 +46,18 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
         probes.push(p);
     }
     let all_audio = probes.iter().all(|p| p.has_audio);
+    if let Some(idx) = args.audio {
+        if idx >= n {
+            return Err(Error::input(format!(
+                "--audio {idx} out of range for {n} inputs"
+            )));
+        }
+        if !probes[idx].has_audio {
+            return Err(Error::input(format!(
+                "input {idx} has no audio for --audio"
+            )));
+        }
+    }
 
     let mut seg: Vec<String> = Vec::new();
     let mut layout_str = String::new();
@@ -59,7 +71,11 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
             layout_str.push('|');
         }
         layout_str.push_str(&format!("{}_{}", col * tw, row * th));
-        if all_audio {
+        if args.audio == Some(i) {
+            seg.push(format!(
+                "[{i}:a]aresample=48000,aformat=channel_layouts=stereo[aout]"
+            ));
+        } else if args.audio.is_none() && all_audio {
             seg.push(format!(
                 "[{i}:a]aresample=48000,aformat=channel_layouts=stereo[a{i}]"
             ));
@@ -67,7 +83,7 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let ins: String = (0..n).map(|i| format!("[v{i}]")).collect();
     seg.push(format!("{ins}xstack=inputs={n}:layout={layout_str}[vout]"));
-    if all_audio {
+    if args.audio.is_none() && all_audio {
         let ains: String = (0..n).map(|i| format!("[a{i}]")).collect();
         seg.push(format!("{ains}amix=inputs={n}:normalize=0[aout]"));
     }
@@ -79,7 +95,7 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push(f);
     }
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
-    if all_audio {
+    if all_audio || args.audio.is_some() {
         argv.extend(["-map", "[aout]", "-c:a", "aac"]);
     }
     argv.extend([
@@ -103,7 +119,8 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
         "layout": args.layout,
         "size": args.size,
         "tile": format!("{tw}x{th}"),
-        "mixed_audio": all_audio,
+        "mixed_audio": all_audio && args.audio.is_none(),
+        "audio_from": args.audio,
     });
     Ok(c.with_extra(extra))
 }

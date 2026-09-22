@@ -121,6 +121,8 @@ pub enum Cmd {
     Sheet(SheetArgs),
     /// Pitch-shift audio by semitones (voice effects, music retune)
     Pitch(PitchArgs),
+    /// Strip dead air at the head and tail (audio-only)
+    Cutsil(CutsilArgs),
     /// Still images (+ optional music bed) into a video
     Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
@@ -240,6 +242,9 @@ pub struct SplitArgs {
     /// Cut at these timestamps instead (comma list, e.g. --at 30,90,150)
     #[arg(long, value_delimiter = ',')]
     pub at: Vec<String>,
+    /// Auto-detect scene cuts at this threshold (0.1–0.9; 0.3 typical)
+    #[arg(long)]
+    pub scenes: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -751,6 +756,17 @@ pub struct PitchArgs {
 }
 
 #[derive(clap::Args, Debug)]
+pub struct CutsilArgs {
+    /// Audio file (or video with a single narration track)
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Silence threshold in dB (e.g. -45)
+    #[arg(long, allow_hyphen_values = true, default_value_t = -45.0)]
+    pub thresh: f64,
+}
+
+#[derive(clap::Args, Debug)]
 pub struct AutocropArgs {
     pub input: PathBuf,
     #[arg(short, long)]
@@ -901,6 +917,9 @@ pub struct GridArgs {
     /// Canvas WxH
     #[arg(long, default_value = "1920x1080")]
     pub size: String,
+    /// Take audio from this input index instead of mixing all tracks
+    #[arg(long)]
+    pub audio: Option<usize>,
 }
 
 #[derive(clap::Args, Debug)]

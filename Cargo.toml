@@ -1,6 +1,6 @@
 [package]
 name = "ffkit"
-version = "0.35.0"
+version = "0.36.0"
 edition = "2021"
 rust-version = "1.80"
 description = "FFmpeg hands for AI agents: probe, edit, verify"

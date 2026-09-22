@@ -8,6 +8,7 @@ use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 use crate::paths;
+use crate::spawn;
 
 /// Split a file into equal-length parts (WhatsApp Status 30s, Stories 60s).
 /// Re-encodes with forced keyframes at every boundary so the segment muxer
@@ -23,8 +24,8 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
     // Boundaries in source seconds: regular grid from --every, or explicit
     // chapter points from --at.
     let mut cuts: Vec<f64> = Vec::new();
-    match (args.every, args.at.is_empty()) {
-        (Some(e), true) => {
+    match (args.every, args.at.is_empty(), args.scenes) {
+        (Some(e), true, None) => {
             if !(0.5..=3600.0).contains(&e) {
                 return Err(Error::input("--every must be 0.5..=3600 seconds"));
             }
@@ -34,7 +35,7 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
                 k += 1;
             }
         }
-        (None, false) => {
+        (None, false, None) => {
             for s in &args.at {
                 let t = crate::time::parse_time(s)?;
                 if !(0.05..probe.duration - 0.05).contains(&t) {
@@ -48,11 +49,22 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             cuts.sort_by(|a, b| a.total_cmp(b));
             cuts.dedup();
         }
-        (Some(_), false) => {
+        (None, _, Some(thr)) => {
+            if !(0.05..=0.95).contains(&thr) {
+                return Err(Error::input("--scenes threshold must be 0.05..=0.95"));
+            }
+            cuts = scene_cuts(&args.input, thr, g)?;
+        }
+        (Some(_), false, None) => {
             return Err(Error::input("split takes --every or --at, not both"));
         }
-        (None, true) => {
-            return Err(Error::input("split needs --every S or --at t1,t2,..."));
+        (None, true, None) => {
+            return Err(Error::input(
+                "split needs --every S, --at t1,t2,... or --scenes T",
+            ));
+        }
+        (Some(_), _, Some(_)) => {
+            return Err(Error::input("split takes --every or --scenes, not both"));
         }
     }
     if cuts.is_empty() {
@@ -176,4 +188,39 @@ fn collect_parts(template: &Path) -> Result<Vec<PathBuf>, Error> {
     }
     parts.sort();
     Ok(parts)
+}
+
+/// Scene-change timestamps via `select=gt(scene,THR)` + showinfo, parsed
+/// from stderr at info level (ffmpeg_base pins `error`, so this argv is
+/// built by hand — same pattern as `autocrop`).
+fn scene_cuts(input: &Path, thr: f64, g: &Globals) -> Result<Vec<f64>, Error> {
+    let vf = format!("select='gt(scene,{thr:.2})',showinfo");
+    let mut argv = spawn::Argv::ffmpeg();
+    argv.extend(["-y", "-hide_banner", "-nostats", "-loglevel", "info", "-i"]);
+    argv.push(input);
+    argv.extend(["-vf", &vf, "-f", "null", "-"]);
+    let spawned = spawn::run(&argv, std::time::Duration::from_secs(600), g.progress)?;
+    let spawned = spawn::require_ok(&argv, spawned)?;
+    let log = spawn::stderr_str(&spawned);
+    let mut out = Vec::new();
+    for line in log.lines() {
+        if !line.contains("showinfo") {
+            continue;
+        }
+        for tok in line.split_whitespace() {
+            if let Some(rest) = tok.strip_prefix("pts_time:") {
+                if let Ok(v) = rest.parse::<f64>() {
+                    out.push(v);
+                }
+            }
+        }
+    }
+    out.sort_by(|a, b| a.total_cmp(b));
+    out.dedup();
+    if out.is_empty() {
+        return Err(Error::input(
+            "split --scenes found no cuts — try a lower threshold",
+        ));
+    }
+    Ok(out)
 }

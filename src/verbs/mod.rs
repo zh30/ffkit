@@ -11,6 +11,7 @@ pub mod compress;
 pub mod concat;
 pub mod cover;
 pub mod cut;
+pub mod cutsil;
 pub mod deliver;
 pub mod denoise;
 pub mod extract;
