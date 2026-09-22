@@ -132,10 +132,18 @@ struct ChaptersOut {
 #[derive(Deserialize)]
 struct ChapterTime {
     start_time: Option<String>,
+    #[serde(default)]
+    tags: std::collections::HashMap<String, String>,
 }
 
-/// Chapter boundaries (seconds) embedded in the container — lectures, courses.
-pub fn chapters(path: &Path, timeout: Duration) -> Result<Vec<f64>, Error> {
+/// One embedded chapter mark.
+pub struct ChapterMark {
+    pub start: f64,
+    pub title: Option<String>,
+}
+
+/// Chapter marks (time + title) embedded in the container — lectures, courses.
+pub fn chapter_marks(path: &Path, timeout: Duration) -> Result<Vec<ChapterMark>, Error> {
     let mut argv = Argv::ffprobe();
     argv.extend(["-print_format", "json", "-show_chapters", "-v", "error"]);
     argv.push(path);
@@ -146,7 +154,20 @@ pub fn chapters(path: &Path, timeout: Duration) -> Result<Vec<f64>, Error> {
     Ok(out
         .chapters
         .iter()
-        .filter_map(|c| c.start_time.as_deref()?.parse::<f64>().ok())
+        .filter_map(|c| {
+            Some(ChapterMark {
+                start: c.start_time.as_deref()?.parse::<f64>().ok()?,
+                title: c.tags.get("title").cloned(),
+            })
+        })
+        .collect())
+}
+
+/// Chapter boundaries (seconds) embedded in the container — lectures, courses.
+pub fn chapters(path: &Path, timeout: Duration) -> Result<Vec<f64>, Error> {
+    Ok(chapter_marks(path, timeout)?
+        .into_iter()
+        .map(|m| m.start)
         .collect())
 }
 

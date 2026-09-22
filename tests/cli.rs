@@ -12408,3 +12408,151 @@ fn conform_blur_fills_the_letterbox() {
     assert!(cmds.contains("gblur=sigma=40"), "{cmds}");
     assert!(cmds.contains("split"), "{cmds}");
 }
+
+#[test]
+fn rotate_angle_tilts_the_frame() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("tilt.mp4");
+    let v = run_json(&[
+        "rotate",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--angle",
+        "15",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("rotate=a="), "{cmds}");
+    assert_eq!(v["extra"]["angle"].as_f64().unwrap(), 15.0);
+}
+
+#[test]
+fn chapter_list_reads_embedded_marks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("ch.mp4");
+    let meta = dir.path().join("m.txt");
+    std::fs::write(
+        &meta,
+        ";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=500\ntitle=intro\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=500\nEND=1000\ntitle=outro\n",
+    )
+    .unwrap();
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-i",
+        ])
+        .arg(&meta)
+        .args([
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map_chapters",
+            "2",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let v = run_json(&["chapter", src.to_str().unwrap(), "-o", "ignored", "--list"]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let chs = v["extra"]["chapters"].as_array().unwrap();
+    assert_eq!(chs.len(), 2);
+    assert_eq!(chs[1]["title"].as_str().unwrap(), "outro");
+    assert!((chs[1]["start"].as_f64().unwrap() - 0.5).abs() < 0.01);
+}
+
+#[test]
+fn subs_burn_align_shifts_lines() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("t.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,900\nRIGHT\n").unwrap();
+    let out = dir.path().join("r.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--align",
+        "right",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("Alignment=3"), "{cmds}");
+}
+
+#[test]
+fn conform_anchor_places_the_picture() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.mp4");
+    let v = run_json(&[
+        "conform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "240x320",
+        "--pad",
+        "black",
+        "--anchor",
+        "top",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("pad=240:320:(ow-iw)/2:0:black"), "{cmds}");
+}

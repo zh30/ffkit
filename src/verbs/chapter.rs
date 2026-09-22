@@ -8,6 +8,18 @@ use crate::error::Error;
 pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
 
+    if args.list {
+        let embedded = crate::probe::chapter_marks(&args.input, g.timeout)?;
+        let mut c = Contract::ok("chapter", None, None);
+        c = c.with_extra(json!({
+            "chapters": embedded
+                .iter()
+                .map(|m| json!({"start": m.start, "title": m.title}))
+                .collect::<Vec<_>>(),
+        }));
+        return Ok(c);
+    }
+
     let mut marks: Vec<(f64, String)> = Vec::new();
     if let Some(min_gap) = args.auto {
         let silences = crate::silence::detect(&args.input, -35.0, min_gap, g.timeout, true)?;

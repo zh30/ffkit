@@ -805,6 +805,9 @@ pub struct RotateArgs {
     /// Mirror instead of rotating: h or v
     #[arg(long, value_enum)]
     pub flip: Option<FlipMode>,
+    /// Free rotation in degrees — dutch tilt (overrides --deg)
+    #[arg(long)]
+    pub angle: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -849,6 +852,9 @@ pub struct SubsArgs {
     /// With --burn: opaque plate behind each line (semi-black box style)
     #[arg(long = "box")]
     pub burn_box: bool,
+    /// With --burn: line alignment left|center|right (default center)
+    #[arg(long)]
+    pub align: Option<String>,
     /// Shift every cue of an .srt by ±N seconds (input = .srt, output = .srt)
     #[arg(long, allow_hyphen_values = true)]
     pub shift: Option<f64>,
@@ -1923,6 +1929,9 @@ pub struct ConformArgs {
     /// Fill the letterbox with a blurred copy of the video (needs --size)
     #[arg(long)]
     pub blur: bool,
+    /// Letterbox anchor: top|bottom|left|right (default centered; needs --pad)
+    #[arg(long)]
+    pub anchor: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2381,7 +2390,7 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export"])]
+    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "list"])]
     pub at: Vec<String>,
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
@@ -2394,6 +2403,9 @@ pub struct ChapterArgs {
     /// ('#' comments and blank lines skipped)
     #[arg(long)]
     pub import: Option<PathBuf>,
+    /// List the input's embedded chapter marks as JSON (no output written)
+    #[arg(long)]
+    pub list: bool,
 }
 
 #[derive(clap::Args, Debug)]

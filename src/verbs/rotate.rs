@@ -9,10 +9,17 @@ pub fn run(args: RotateArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "rotate")?;
 
-    let vf = match args.flip {
-        Some(FlipMode::H) => "hflip".to_string(),
-        Some(FlipMode::V) => "vflip".to_string(),
-        None => match args.deg % 360 {
+    let vf = match (args.flip, args.angle) {
+        (_, Some(a)) => {
+            if !(-360.0..=360.0).contains(&a) || a == 0.0 {
+                return Err(Error::input("--angle must be -360..=360 and nonzero"));
+            }
+            // rotate expands the canvas; crop back so the tilt fills the frame.
+            format!("rotate=a={:.6}:c=black:out_w=iw:out_h=ih", a.to_radians())
+        }
+        (Some(FlipMode::H), None) => "hflip".to_string(),
+        (Some(FlipMode::V), None) => "vflip".to_string(),
+        (None, None) => match args.deg % 360 {
             90 => "transpose=1".to_string(),
             180 => "transpose=1,transpose=1".to_string(),
             270 => "transpose=2".to_string(),
@@ -40,6 +47,7 @@ pub fn run(args: RotateArgs, g: &Globals) -> Result<Contract, Error> {
     let c = engine::write_job("rotate", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({
         "deg": args.deg,
+        "angle": args.angle,
         "flip": args.flip.map(|f| format!("{f:?}").to_lowercase()),
     })))
 }

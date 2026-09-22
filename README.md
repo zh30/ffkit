@@ -123,7 +123,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `censor` | Blur/mosaic a region (`--mode`, `--strength`, `--at`) |
 | `bleep` | Tone over a word/segment: `--at`/`--dur`, `--freq`, `--level` |
 | `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) , `--at/--dur` bounces just that window |
-| `chapter` | Embed chapter marks at `TIME|TITLE` or `--import` a marks file; `--auto` / `--export` |
+| `chapter` | Embed chapter marks at `TIME|TITLE` or `--import` a marks file; `--auto` / `--export`; `--list` dumps embedded marks |
 | `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`; `--buffer N` keeps N px edge context) |
 | `sheet` | Contact sheet grid (`--cols`x`--rows`, `--time` stamps, `--from`/`--to` window) |
 | `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window) |
@@ -132,10 +132,10 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--tilt` warm↔bright |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window) |
 | `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio (`--kind`, `--strength`, `--at`/`--dur`) |
-| `rotate` | 90/180/270 or mirror: `--deg`/`--flip` |
+| `rotate` | 90/180/270 or mirror: `--deg`/`--flip`, free `--angle` tilt |
 | `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window (`--soft` removelogo) |
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
-| `subs` | Extract (`--stream`, `--all`)/burn/mux subtitles (`--shift/--merge/--rate`, burn style + `--outline`/`--box` plate, `--safe`); `--convert` .srt↔.vtt |
+| `subs` | Extract (`--stream`, `--all`)/burn/mux subtitles (`--shift/--merge/--rate`, burn style + `--outline`/`--box` plate/`--align`, `--safe`); `--convert` .srt↔.vtt |
 | `thumb` | One-frame cover grab (`--at` / `--frame`, `--count` N stills, `--width`) → jpg/png/webp |
 | `solid` | Solid-color clip card (`--color`, `--size`, `--dur`; silent stereo optional) (`--gradient` animated) , `--text` end-card text |
 | `replace` | Swap the audio track (`--mix`, `--duck`, `--fade`, `--loop` short beds, `--at`/`--dur` window) |
@@ -178,7 +178,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown) |
 | `hls` | Web-ready HLS (`--seg`, `--single`, `--copy`, `--ladder` ABR, `--audio-only` podcast streams, `--fmp4` CMAF) |
 | `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
-| `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf`, `--pad` letterbox color, `--blur` blurred fill |
+| `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill |
 | `sync` | Shift audio ±ms to fix A/V sync (`--ms`) |
 | `align` | Auto-sync a second recording to a reference by audio cross-correlation — multi-cam/external recorder (`--max-lag`) |
 | `scroll` | Rolling end credits: text rolls bottom→top (`--text`/`--file`, `--at`, `--dur`, `--size`, `--color`, `--font`) |

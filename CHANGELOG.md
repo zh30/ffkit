@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.115.0] — 2026-09-22
+
+### Added
+
+- `rotate --angle N` — free-angle dutch tilt (`rotate=a=`, canvas preserved)
+- `subs --burn --align left|center|right` — ASS Alignment row for burned captions
+- `chapter --list` — dump embedded chapter marks (time + title) as JSON
+- `conform --anchor` — letterbox anchor on the `--pad` path
+
 ## [0.114.0] — 2026-09-22
 
 ### Added

@@ -123,7 +123,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `censor` | 区域打码（`--mode`、`--strength` 强度、`--at`） |
 | `bleep` | 消音哔声：`--at`/`--dur` 选段，`--freq`/`--level` 调音 |
 | `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法）（`--times` 循环次数） ，`--at/--dur` 局部往返 |
-| `chapter` | Embed chapter marks at `TIME|TITLE` or `--import` a marks file; `--auto` / `--export` |
+| `chapter` | 在 `TIME|TITLE` 写入章节或 `--import` 导入标记文件；`--auto` / `--export`；`--list` 列出内嵌章节 |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`；`--buffer N` 向外扩 N 像素） |
 | `sheet` | 宫格预览图（`--cols`x`--rows`、`--time` 每格时间戳、`--from`/`--to` 采样窗口） |
 | `pitch` | ±12 半音变调不变速（`--at/--dur` 窗口） |
@@ -132,10 +132,10 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡） ，`--band` 参量频段，`--tilt` 暖↔亮 |
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet`（`--at`/`--dur` 局部回声） |
 | `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio（`--kind`、`--strength`、`--at`/`--dur`） |
-| `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip` |
+| `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip`、`--angle` 任意角度倾斜 |
 | `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h`；`--at`/`--dur` 只处理窗口（`--soft` 柔化去除） |
 | `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`）+ `--rotate`、`--clear` 显示旋转，无损拷贝 |
-| `subs` | 提取（`--stream`、`--all` 全部）/烧录/封装字幕（`--shift/--merge/--rate`、烧录样式 + `--outline` 描边/`--box` 衬底、`--safe`）；`--convert` .srt↔.vtt 互转 |
+| `subs` | 提取（`--stream`、`--all` 全部）/烧录/封装字幕（`--shift/--merge/--rate`、烧录样式 + `--outline` 描边/`--box` 衬底、`--safe`）；`--convert` .srt↔.vtt 互转；烧录 `--align` 对齐 |
 | `thumb` | 抓封面帧（`--at`/`--frame`、`--count` 均布 N 张、`--width`）→ jpg/png/webp |
 | `solid` | 纯色视频卡（`--color`、`--size`、`--dur`，可选静音轨）（`--gradient` 渐变） |（`--color`/`--gradient` 支持颜色名与十六进制） ，`--text` 卡片文字 |
 | `replace` | 换音轨（`--mix`、`--duck`、`--fade`、`--loop` 短音源循环、`--at`/`--dur` 局部替换） |
@@ -178,7 +178,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `timer` | 画面计时器（`--position`、`--format ms`、`--box-color` 底板） （`--format`、`--box-color`、`--down` 倒计时） |
 | `hls` | 网页 HLS 封装（`--seg`、`--single`、`--copy`、`--ladder` 多码率、`--audio-only` 纯音频、`--fmp4` CMAF） |
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM，`--metric`） |
-| `conform` | 一键统一规格（`--size WxH`、`--fps 30`、`--lufs -14`、`--crf`、`--pad` 黑边颜色、`--blur` 模糊填充） |
+| `conform` | 一键统一规格（`--size WxH`、`--fps 30`、`--lufs -14`、`--crf`、`--pad` 黑边颜色 + `--anchor` 锚点、`--blur` 模糊填充） |
 | `sync` | 修复音画同步（`--ms ±N` 垫音/裁音头） |
 | `align` | 音频互相关自动对齐第二路录音（多机位/外接录音笔，`--max-lag`） |
 | `scroll` | 片尾滚动字幕（`--text`/`--file`、`--at`、`--dur`、`--size`、`--color`、`--font`） |

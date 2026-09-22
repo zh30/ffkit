@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.114.0
+version: 0.115.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -43,6 +43,8 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | export | `deliver`, `transcode` (`--copy-audio`), `compress` (`--size 10MB` two-pass, `--crf` quality one-pass, `--res` downscale), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores`, `--target` platform sizes |
 | captions / mute | `caption` (`--karaoke` word reveal, `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, or `--mode mux`), `--fade` |
 | hook text | `title` (`--wrap` auto line breaks, `--box`/`--outline`/`--shadow`) |
+| dutch-angle tilt | `rotate` (`--angle 15`) |
+| chapters already in the file | `chapter` (`--list`) or `split` (`--chapters`) |
 | cover still | `cover` |
 
 | speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--at`/`--dur` windowed swap, `--mix` keep the original under it), `loudnorm` (`--target` platform preset), `volume` |
@@ -74,7 +76,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | elapsed-time corner counter | `timer` (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds), `--down` countdown |
 | web-embed HLS package | `hls` (`--seg` seconds, `--single` one-file, `--copy` repack) → dir/`index.m3u8` + `seg_*.ts`; `--ladder 1080,720,480` → ABR variant playlists + `master.m3u8`; `--audio-only` podcast HLS; `--fmp4` CMAF `.m4s` segments |
 | check encode quality loss | `qa` `ref.mp4 test.mp4` → psnr/ssim numbers |
-| normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`, `--pad` letterbox color, `--blur` blurred fill) |
+| normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill) |
 | light-leak / screen-blend overlay | `overlay --video leak.mp4 --mode screen` |
 | fix audio/video sync drift | `sync` (`--ms ±N` — pad or trim audio start) |
 | sync a second take to the camera master | `align` (`ref target -o out` — auto-detects offset by audio cross-correlation; multi-cam, external recorder; `--window` bounds long takes) |

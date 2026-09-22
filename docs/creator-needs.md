@@ -232,6 +232,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 88)
+
+- `rotate --angle N` — free-angle dutch tilt (`rotate=a=`, canvas kept via `out_w=iw:out_h=ih`, black fill).
+- `subs --burn --align left|center|right` — ASS Alignment 1–3 (7–9 with `--top`) for lower-third / reaction-style captions.
+- `chapter --list` — dumps embedded marks (`ffprobe -show_chapters`, time + title) as JSON; pairs with `split --chapters`.
+- `conform --anchor top|bottom|left|right` — letterbox anchor on the `--pad` path (slide the picture to an edge for title room).
+
 ## Shipped this run (round 87)
 
 - `multicam --transition N` — `xfade`/`acrossfade` chains at every switch (offset `T_k - k·f`) instead of hard concat cuts; stays hard-cut at 0. `--keep-audio` still works.

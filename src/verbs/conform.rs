@@ -15,6 +15,9 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         ));
     }
 
+    if args.anchor.is_some() && args.pad.is_none() {
+        return Err(Error::input("--anchor needs --pad"));
+    }
     if args.blur && args.pad.is_some() {
         return Err(Error::input("--blur fills the letterbox — drop --pad"));
     }
@@ -36,7 +39,19 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         ));
         if let Some(raw) = &args.pad {
             let c = crate::color::lavfi(raw);
-            vf.push(format!("pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:{c}"));
+            let (px, py) = match args.anchor.as_deref() {
+                None => ("(ow-iw)/2", "(oh-ih)/2"),
+                Some("top") => ("(ow-iw)/2", "0"),
+                Some("bottom") => ("(ow-iw)/2", "oh-ih"),
+                Some("left") => ("0", "(oh-ih)/2"),
+                Some("right") => ("ow-iw", "(oh-ih)/2"),
+                Some(a) => {
+                    return Err(Error::input(format!(
+                        "--anchor must be top|bottom|left|right, got '{a}'"
+                    )))
+                }
+            };
+            vf.push(format!("pad={w}:{h}:{px}:{py}:{c}"));
         }
         if args.blur {
             let fps_tail = match args.fps {
@@ -105,6 +120,7 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
     c = c.with_extra(json!({
         "size": args.size,
         "blur": args.blur,
+        "anchor": args.anchor,
         "fps": args.fps,
         "lufs": args.lufs,
     }));

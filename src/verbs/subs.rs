@@ -28,6 +28,9 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.burn_box {
         return Err(Error::input("subs --box needs --burn"));
     }
+    if args.align.is_some() {
+        return Err(Error::input("subs --align needs --burn"));
+    }
     if let Some(subs) = &args.mux {
         return mux(&args, subs, g);
     }
@@ -235,7 +238,41 @@ fn burn(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract
         }
         None => "&H00FFFFFF".to_string(),
     };
-    let align = if args.top { 8 } else { 2 };
+    let align = match args.align.as_deref() {
+        None => {
+            if args.top {
+                8
+            } else {
+                2
+            }
+        }
+        Some("left") => {
+            if args.top {
+                7
+            } else {
+                1
+            }
+        }
+        Some("center") => {
+            if args.top {
+                8
+            } else {
+                2
+            }
+        }
+        Some("right") => {
+            if args.top {
+                9
+            } else {
+                3
+            }
+        }
+        Some(a) => {
+            return Err(Error::input(format!(
+                "subs --align must be left|center|right, got '{a}'"
+            )))
+        }
+    };
     let margin_v = if args.safe {
         // social-safe zone: keep burned text off the bottom 20% / top 15%
         let probe = engine::probe_or_err(&args.input, g)?;
