@@ -120,7 +120,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `grid` | N-input mosaic; `--audio N` keeps one input's track | N inputs into a `--layout CxR` tile wall (`--size 1920x1080`); audios mix when all inputs have one |
 | `progress` | Progress bar filling across the duration (`--color`, `--height`, `--edge top`) |
 | `freeze` | Hold the frame at `--at T` for `--dur D` (mid-clip), or clone the last frame with `--end D` (outro) |
-| `censor` | Mosaic/blur a face/logo region `--region x:y:w:h` (`--mode pixel|blur`) |
+| `censor` | Mosaic/blur a face/logo region `--region x:y:w:h` (`--mode pixel|blur`; `--at`/`--dur` window) |
+| `bleep` | Tone over a word/segment: `--at`/`--dur`, `--freq`, `--level` |
 | `boomerang` | Forward + reversed replay (one loop, social trick) |
 | `chapter` | Embed `--at T|TITLE` chapter markers (lossless `-c copy` metadata pass) |
 | `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`) |
@@ -143,7 +144,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) |
 | `stabilize` | Handheld deshake |
 | `reverse` | Play picture and sound backwards |
-| `grade` | `--contrast/--saturation/--brightness/--lut/--grain` | Contrast / saturation / brightness (mild Reels pop); `--lut look.cube` applies a 3D LUT |
+| `grade` | `--contrast/--saturation/--brightness/--lut/--grain/--warm` | Contrast / saturation / brightness (mild Reels pop); `--lut look.cube` applies a 3D LUT |
 | `zoom` | Center punch-in (`--factor 1.25`) |
 | `sharpen` | Unsharp |
 | `vignette` | Darken corners |

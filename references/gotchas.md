@@ -157,3 +157,7 @@ The first pass prints measured values on stderr. ffkit parses them for the secon
 ## RGB channel checks
 
 `signalstats` only reports YUV stats (YAVG, SATAVG…) — there is no RAVG/BAVG. For colour assertions (`audiogram --color`, title/caption colours) dump the crop as `-f rawvideo -pix_fmt rgb24` and average the bytes. `showwaves` also needs ~0.5s of stream before the strip has content — seek before frame-checking it.
+
+## Generated audio sources start at t=0
+
+`sine`/`anoisesrc` inside a `filter_complex` always produce from timestamp 0 — they ignore the `--at` moment of the effect. To land a generated tone on a window, `adelay=<ms>:all=1` it before the mix (`bleep`). The windowed `enable='between(t,a,b)'` on the SOURCE-side filter is still what silences/marks the window; the generator just needs to be slid there.

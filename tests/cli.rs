@@ -4917,3 +4917,174 @@ fn reverb_adds_tail_after_tone() {
         "reverb rings into the silent tail: dry {dry_tail} dB -> wet {wet_tail} dB; {v}"
     );
 }
+
+#[test]
+fn bleep_replaces_source_with_tone_in_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "bleep",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+        "--freq",
+        "1000",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let band = |f: &Path, win: &str, hz: u32| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-af",
+                &format!("atrim={win},bandpass=f={hz}:w=200,volumedetect"),
+                "-vn",
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(-99.0)
+    };
+    let beep = band(&out, "0.3:0.7", 1000);
+    let src_in = band(&out, "0.3:0.7", 440);
+    let src_out = band(&out, "0:0.2", 440);
+    assert!(beep > -50.0, "1kHz beep audible in window ({beep} dB); {v}");
+    assert!(
+        src_in < src_out - 20.0,
+        "440 silenced in window ({src_in} vs {src_out} outside); {v}"
+    );
+}
+
+#[test]
+fn censor_at_pixelizes_only_the_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--region",
+        "100:100:64:64",
+        "--at",
+        "0.5",
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let region = |f: &Path, n: u32| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n}),crop=64:64:100:100"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let diff_at = |n: u32| -> u64 {
+        region(&src, n)
+            .iter()
+            .zip(region(&out, n).iter())
+            .map(|(x, y)| x.abs_diff(*y) as u64)
+            .sum()
+    };
+    assert!(
+        diff_at(3) < 5000,
+        "region untouched before --at 0.5 (diff {})",
+        diff_at(3)
+    );
+    assert!(
+        diff_at(21) > 5000,
+        "mosaic applied inside window (diff {})",
+        diff_at(21)
+    );
+}
+
+#[test]
+fn grade_warm_shifts_red_up_and_blue_down() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let gray = dir.path().join("g.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=gray:duration=1:size=320x240:rate=30",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&gray)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "gray fixture");
+    let out = dir.path().join("w.mp4");
+    let v = run_json(&[
+        "grade",
+        gray.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--warm",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = |f: &Path| -> PathBuf {
+        let png = f.with_extension("frame.png");
+        Command::new("ffmpeg")
+            .args(["-y", "-i"])
+            .arg(f)
+            .args(["-frames:v", "1"])
+            .arg(&png)
+            .output()
+            .unwrap();
+        png
+    };
+    let (r0, _, b0) = mean_rgb(&frame(&gray));
+    let (r1, _, b1) = mean_rgb(&frame(&out));
+    // Warmth opens the red-blue spread (blue falls faster than red on gray).
+    assert!(
+        (r1 - b1) > (r0 - b0) + 30.0,
+        "warm grade opens R-B spread ({r0}-{b0} -> {r1}-{b1}); {v}"
+    );
+}

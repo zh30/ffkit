@@ -129,6 +129,8 @@ pub enum Cmd {
     Eq(EqArgs),
     /// Room ambience on a voice (reverb tail)
     Reverb(ReverbArgs),
+    /// Mute a moment under a 1 kHz beep (swear / spoiler censor)
+    Bleep(BleepArgs),
     /// Rotate a video 90/180/270 deg or mirror it
     Rotate(RotateArgs),
     /// Blur out a burned-in logo/watermark box
@@ -868,6 +870,9 @@ pub struct GradeArgs {
     /// Film-grain amount in luma units (0 = off; 4–10 reads as film)
     #[arg(long, default_value_t = 0.0)]
     pub grain: f64,
+    /// Warmth: positive warms (red cast), negative cools (blue), -1..1
+    #[arg(long, default_value_t = 0.0, allow_hyphen_values = true)]
+    pub warm: f64,
 }
 
 #[derive(clap::Args, Debug)]
@@ -897,6 +902,25 @@ pub struct PitchArgs {
     /// Semitones: +4 chipmunk-ish, -3 deeper (duration preserved)
     #[arg(long, allow_hyphen_values = true)]
     pub semitones: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct BleepArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Window start (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: String,
+    /// Window length in seconds
+    #[arg(long)]
+    pub dur: f64,
+    /// Beep frequency in Hz
+    #[arg(long, default_value_t = 1000.0)]
+    pub freq: f64,
+    /// Beep level vs original mix (0..1)
+    #[arg(long, default_value_t = 0.5)]
+    pub level: f64,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1095,6 +1119,12 @@ pub struct CensorArgs {
     /// Mosaic blocks or gaussian blur
     #[arg(long, value_enum, default_value_t = CensorMode::Pixel)]
     pub mode: CensorMode,
+    /// Censor only inside this window (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug, Default, PartialEq)]

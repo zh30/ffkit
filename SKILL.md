@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.43.0
+version: 0.44.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -52,7 +52,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | reaction / multi-cam grid | `grid` (`--layout 2x2`, `--size`) |
 | watch-time progress bar | `progress` (`--color`, `--height`, `--edge`) |
 | freeze a beat / outro hold | `freeze` (`--at T --dur D`, or `--end D`) |
-| blur a face / logo | `censor` (`--region x:y:w:h`, `--mode pixel|blur`) |
+| blur a face / logo | `censor` (`--region x:y:w:h`, `--mode pixel|blur`; `--at`/`--dur` limits the window) |
 | slow-mo punch-in | `speed` (`--factor`, `--at`/`--dur` for just one window) |
 | boomerang replay | `boomerang` (forward then reversed, one loop) |
 | YouTube/player chapters | `chapter` (`--at T|TITLE`, repeatable; lossless) |
@@ -86,6 +86,8 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | styled captions | `caption --color ff0000 --size 1.5` |
 | logo only for part of the clip | `overlay --at 2 --dur 5` |
 | rip embedded subtitles | `subs` (`--stream N`) |
+| bleep out a word | `bleep` (`--at`/`--dur`; `--freq`/`--level`) |
+| warm/cool white balance | `grade --warm -1..1` |
 | B-roll cutaway | `broll` (`--insert --at --duration`; A-roll audio stays) |
 | extract | `extract` |
 | many files | `batch` |

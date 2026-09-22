@@ -1,5 +1,6 @@
 pub mod audiogram;
 pub mod autocrop;
+pub mod bleep;
 pub mod blur;
 pub mod boomerang;
 pub mod broll;

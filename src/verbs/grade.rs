@@ -24,6 +24,9 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
     if args.grain < 0.0 {
         return Err(Error::input("--grain must be >= 0"));
     }
+    if !(-1.0..=1.0).contains(&args.warm) {
+        return Err(Error::input("--warm must be -1..=1"));
+    }
 
     let mut vf = format!(
         "eq=contrast={}:brightness={}:saturation={}",
@@ -33,6 +36,10 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         // Single quotes group literal path text; escape internal quotes.
         let esc = lut.display().to_string().replace('\'', "\\'");
         vf.push_str(&format!(",lut3d=file='{esc}'"));
+    }
+    if args.warm != 0.0 {
+        let k = 6500.0 - args.warm * 3500.0;
+        vf.push_str(&format!(",colortemperature=temperature={k:.0}"));
     }
     if args.grain > 0.0 {
         vf.push_str(&format!(",noise=alls={}:allf=t+u", args.grain.min(30.0)));
@@ -58,5 +65,7 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         "saturation": args.saturation,
         "brightness": args.brightness,
         "lut": args.lut,
+        "grain": args.grain,
+        "warm": args.warm,
     })))
 }

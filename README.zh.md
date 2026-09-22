@@ -120,7 +120,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `grid` | N 路素材拼 `--layout CxR` 宫格（`--size 1920x1080`）；都有音轨时混音输出 |
 | `progress` | 随时长填充的进度条（`--color`、`--height`、`--edge top`） |
 | `freeze` | `--at T --dur D` 定格某一拍，或 `--end D` 尾帧定格（结尾停留） |
-| `censor` | 马赛克/高斯模糊打码区域 `--region x:y:w:h`（`--mode pixel|blur`） |
+| `censor` | 马赛克/高斯模糊打码区域 `--region x:y:w:h`（`--mode pixel|blur`；`--at`/`--dur` 限定窗口） |
+| `bleep` | 消音哔声：`--at`/`--dur` 选段，`--freq`/`--level` 调音 |
 | `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法） |
 | `chapter` | 写入 `--at T|TITLE` 章节标记（`-c copy` 无损元数据） |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`） |
@@ -143,7 +144,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | 把成片重复 N 遍（Shorts 循环加长） |
 | `stabilize` | 手持防抖（deshake） |
 | `reverse` | 倒放画面和声音 |
-| `grade` | 调色（对比/饱和/亮度，Reels 默认微抬）；`--lut look.cube` 套 3D LUT |
+| `grade` | 调色（对比/饱和/亮度/`--warm` 冷暖，Reels 默认微抬）；`--lut look.cube` 套 3D LUT |
 | `zoom` | 中心推近（`--factor 1.25`） |
 | `sharpen` | 锐化（unsharp） |
 | `vignette` | 暗角 |

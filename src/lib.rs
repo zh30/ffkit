@@ -53,6 +53,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Channel(args) => verbs::channel::run(args, &g),
         Cmd::Eq(args) => verbs::eq::run(args, &g),
         Cmd::Reverb(args) => verbs::reverb::run(args, &g),
+        Cmd::Bleep(args) => verbs::bleep::run(args, &g),
         Cmd::Rotate(args) => verbs::rotate::run(args, &g),
         Cmd::Delogo(args) => verbs::delogo::run(args, &g),
         Cmd::Meta(args) => verbs::meta::run(args, &g),

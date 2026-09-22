@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.44.0] — 2026-09-22
+
+- `ffkit bleep`: censor-tone over a window (`--at`/`--dur`, `--freq`, `--level`) — silences the source and mixes a delayed `sine`
+- `censor --at`/`--dur`: mosaic/blur only inside a window
+- `grade --warm -1..1`: white-balance warmth via `colortemperature`
+
 ## [0.43.0] — 2026-09-22
 
 - `ffkit reverb`: room/hall/cave ambience on a voice (`--size`, `--wet`) via `aecho`

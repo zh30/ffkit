@@ -45,10 +45,26 @@ pub fn run(args: CensorArgs, g: &Globals) -> Result<Contract, Error> {
         ),
         CensorMode::Blur => "gblur=sigma=30".to_string(),
     };
+    let enable = match (&args.at, args.dur) {
+        (Some(at), dur) => {
+            let start = crate::time::parse_time(at)?;
+            if !(0.0..probe.duration).contains(&start) {
+                return Err(Error::input("--at is outside the input"));
+            }
+            match dur.map(|d| start + d) {
+                Some(e) if e < probe.duration => {
+                    format!(":enable='between(t,{start:.3},{e:.3})'")
+                }
+                _ => format!(":enable='gte(t,{start:.3})'"),
+            }
+        }
+        (None, Some(_)) => return Err(Error::input("--dur needs --at")),
+        (None, None) => String::new(),
+    };
     let fc = format!(
         "[0:v]split[base][top];\
          [top]crop={w}:{h}:{x}:{y},{effect}[cens];\
-         [base][cens]overlay={x}:{y}:shortest=1[vout]"
+         [base][cens]overlay={x}:{y}:shortest=1{enable}[vout]"
     );
 
     let mut argv = ffmpeg_base(g.progress);
@@ -68,6 +84,12 @@ pub fn run(args: CensorArgs, g: &Globals) -> Result<Contract, Error> {
         "region": args.region,
         "mode": format!("{:?}", args.mode).to_lowercase(),
     });
+    if let Some(at) = &args.at {
+        extra["at"] = json!(at);
+        if let Some(d) = args.dur {
+            extra["dur"] = json!(d);
+        }
+    }
     if matches!(c.status, Status::Ok) {
         if let Ok(p) = engine::probe_or_err(&args.output, g) {
             extra["probe"] = json!(p);
