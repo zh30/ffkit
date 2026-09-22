@@ -8299,3 +8299,99 @@ fn spectrogram_color_scheme() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn music_at_delays_bed() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("mu.mp4");
+    let v = run_json(&[
+        "music",
+        src.to_str().unwrap(),
+        "--track",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn channel_invert_flips_side() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("st.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1[a];[a]pan=stereo|c0=c0|c1=c0",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("ch.wav");
+    let v = run_json(&[
+        "channel",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "invert",
+        "--side",
+        "left",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn sheet_pad_margin() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("sh.png");
+    let v = run_json(&[
+        "sheet",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--pad",
+        "12",
+        "--margin",
+        "20",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

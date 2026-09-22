@@ -125,7 +125,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `boomerang` | Forward + reversed replay (one loop, social trick) |
 | `chapter` | Embed `--at T|TITLE` chapter markers (lossless `-c copy` metadata pass) |
 | `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`) |
-| `sheet` | Contact sheet: `--cols`/`--rows` thumbnails → one PNG |
+| `sheet` | Contact sheet: `--cols`/`--rows` thumbnails → one PNG | `--pad`/`--margin`
 | `pitch` | `--semitones N` voice/music shift, duration preserved |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap` |

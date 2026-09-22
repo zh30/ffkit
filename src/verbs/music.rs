@@ -22,28 +22,52 @@ pub fn run(args: MusicArgs, g: &Globals) -> Result<Contract, Error> {
     // `volume` after aformat would convert away from dbl, and Ubuntu/apt ffmpeg
     // will not insert the converter (Homebrew 9 does).
     // --fade: afade in/out on the bed itself (fade-out end = the talk's length).
+    let at = match &args.at {
+        Some(s) => crate::time::parse_time(s)?,
+        None => 0.0,
+    };
+    if at < 0.0 || at >= talk.duration {
+        return Err(Error::input("--at is outside the input"));
+    }
+    let win = match args.dur {
+        Some(d) if d > 0.0 => d.min(talk.duration - at),
+        _ => talk.duration - at,
+    };
+    let mut bed_pre = String::new();
+    if let Some(d) = args.dur {
+        bed_pre.push_str(&format!("atrim=duration={d:.3},asetpts=PTS-STARTPTS,"));
+    }
     let fade = if args.fade > 0.0 {
-        let f = args.fade.min(talk.duration / 2.0).max(0.05);
+        let f = args.fade.min(win / 2.0).max(0.05);
         format!(
             ",afade=t=in:st=0:d={f:.3},afade=t=out:st={:.3}:d={f:.3}",
-            talk.duration - f
+            win - f
         )
+    } else {
+        String::new()
+    };
+    let delay = if at > 0.0 {
+        format!(",adelay={:.0}:all=1", at * 1000.0)
     } else {
         String::new()
     };
     const AF: &str = "aformat=sample_fmts=dbl:sample_rates=48000:channel_layouts=stereo";
     let fc = if talk.has_audio && args.duck {
         format!(
-            "[1:a]volume={gain}{fade}[bgraw];[0:a]asplit=2[voice][scraw];[bgraw]{AF}[bg];[scraw]{AF}[sc];[bg][sc]sidechaincompress=threshold=0.05:ratio=6:attack=20:release=250[dk];[voice][dk]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]",
-            gain = args.gain
+            "[1:a]{bed_pre}volume={gain}{fade}{delay}[bgraw];[0:a]asplit=2[voice][scraw];[bgraw]{AF}[bg];[scraw]{AF}[sc];[bg][sc]sidechaincompress=threshold=0.05:ratio=6:attack=20:release=250[dk];[voice][dk]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]",
+            gain = args.gain,
+            bed_pre = bed_pre,
+            delay = delay,
         )
     } else if talk.has_audio {
         format!(
-            "[1:a]volume={gain}{fade}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]",
-            gain = args.gain
+            "[1:a]{bed_pre}volume={gain}{fade}{delay}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]",
+            gain = args.gain,
+            bed_pre = bed_pre,
+            delay = delay,
         )
     } else {
-        format!("[1:a]volume={}{fade}[aout]", args.gain)
+        format!("[1:a]{bed_pre}volume={}{fade}{delay}[aout]", args.gain)
     };
     argv.extend(["-filter_complex", &fc, "-map", "[aout]", "-c:a", "aac"]);
     if talk.has_video {

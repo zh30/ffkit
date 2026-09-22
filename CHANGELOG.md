@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.72.0] - 2026-09-22
+
+- `music --at/--dur` — delayed/trimmed bed window: `atrim` + `adelay=at*1000` before the ducking mix; fades stay relative to the bed.
+- `channel --mode invert --side left|right|both` — `aeval='-val(0)|val(1)':c=stereo` polarity flip (pan rejects `-c0`; aeval needs `aformat` to restore the layout for aac).
+- `sheet --pad/--margin` — tile spacing/outer margin in px.
+
 ## [0.71.0] - 2026-09-22
 
 - `countdown --beep` — one `aevalsrc` source: `sin(2*PI*880*t)*lt(mod(t-at,each),0.12)` gated tick tone, amix'd with input audio (commas must stay inside the quoted expr — aevalsrc splits channels on them).

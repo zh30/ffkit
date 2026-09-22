@@ -19,9 +19,11 @@ pub fn run(args: SheetArgs, g: &Globals) -> Result<Contract, Error> {
     let tw = args.tile.max(16);
     let th = ((tw * h / w) / 2) * 2;
     let vf = format!(
-        "fps={fps:.6},scale={tw}:{th},tile={cols}x{rows}:margin=6:padding=6:color=0x101010",
+        "fps={fps:.6},scale={tw}:{th},tile={cols}x{rows}:margin={margin}:padding={pad}:color=0x101010",
         cols = args.cols,
         rows = args.rows,
+        margin = args.margin.or(args.pad).unwrap_or(6),
+        pad = args.pad.unwrap_or(6),
     );
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");

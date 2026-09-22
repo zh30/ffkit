@@ -15,6 +15,16 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
         ChannelMode::Dualmono => "pan=stereo|FL<c0|FR<c0".to_string(),
         ChannelMode::Mono => "aformat=channel_layouts=mono".to_string(),
         ChannelMode::Swap => "channelmap=map=FR-FL|FL-FR:channel_layout=stereo".to_string(),
+        ChannelMode::Invert => match args.side.as_deref().unwrap_or("both") {
+            "left" => "aeval='-val(0)|val(1)':c=stereo,aformat=channel_layouts=stereo".to_string(),
+            "right" => "aeval='val(0)|-val(1)':c=stereo,aformat=channel_layouts=stereo".to_string(),
+            "both" => "aeval='-val(0)|-val(1)':c=stereo,aformat=channel_layouts=stereo".to_string(),
+            other => {
+                return Err(Error::input(format!(
+                    "--side must be left|right|both (got {other})"
+                )))
+            }
+        },
     };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");

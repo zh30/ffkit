@@ -125,7 +125,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法） |
 | `chapter` | 写入 `--at T|TITLE` 章节标记（`-c copy` 无损元数据） |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`） |
-| `sheet` | 缩略图墙/预览拼图：`--cols`/`--rows` → 一张 PNG |
+| `sheet` | 缩略图墙/预览拼图：`--cols`/`--rows` → 一张 PNG | `--pad`/`--margin`
 | `pitch` | `--semitones N` 升降调（时长不变） |
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
 | `channel` | 声道手术：`--mode dualmono|mono|swap` |

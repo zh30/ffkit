@@ -776,6 +776,12 @@ pub struct MusicArgs {
     /// Fade the music bed in/out over N seconds (0 = cut)
     #[arg(long, default_value_t = 0.0)]
     pub fade: f64,
+    /// Bed enters at this time — music kicks in after the intro (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Bed stops after this many seconds (default: plays to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1189,6 +1195,9 @@ pub struct ChannelArgs {
     /// dualmono: copy ch0 onto all channels | mono: fold to one | swap: L/R flip
     #[arg(long, value_enum, default_value_t = ChannelMode::Dualmono)]
     pub mode: ChannelMode,
+    /// With --mode invert: which side flips polarity: left|right|both (default both)
+    #[arg(long)]
+    pub side: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1196,6 +1205,7 @@ pub enum ChannelMode {
     Dualmono,
     Mono,
     Swap,
+    Invert,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1228,6 +1238,12 @@ pub struct SheetArgs {
     /// Tile width px (height follows aspect, forced even)
     #[arg(long, default_value_t = 320)]
     pub tile: u32,
+    /// Gap between tiles in px (default 6)
+    #[arg(long)]
+    pub pad: Option<u32>,
+    /// Outer margin in px (default = --pad)
+    #[arg(long)]
+    pub margin: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
