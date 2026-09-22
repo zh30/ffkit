@@ -15,15 +15,6 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     if args.duration <= 0.0 {
         return Err(Error::input("--duration must be > 0"));
     }
-    let (x, y) = match args.position.as_str() {
-        "center" => ("(W-w)/2", "(H-h)/2"),
-        "top" => ("(W-w)/2", "trunc(H*0.18)"),
-        other => {
-            return Err(Error::input(format!(
-                "--position {other}: use center or top"
-            )));
-        }
-    };
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "title")?;
     let at = match &args.at {
@@ -43,12 +34,46 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     img.save(&png)
         .map_err(|e| Error::output(format!("write title png: {e}")))?;
 
+    let (x, y) = if args.tile > 0 {
+        ("", "")
+    } else {
+        match args.position.as_str() {
+            "center" => ("(W-w)/2", "(H-h)/2"),
+            "top" => ("(W-w)/2", "trunc(H*0.18)"),
+            other => {
+                return Err(Error::input(format!(
+                    "--position {other}: use center or top"
+                )));
+            }
+        }
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
     argv.push("-i");
     argv.push(&png);
-    let fc = format!("[0:v][1:v]overlay=x={x}:y={y}:enable='between(t,{at:.3},{until:.3})'[vout]");
+    let fc = if args.tile > 0 {
+        // N copies on a diagonal cascade — text draft watermark
+        let n = args.tile.clamp(2, 6);
+        let mut seg: Vec<String> = Vec::new();
+        let mut prev = "[0:v]".to_string();
+        for i in 0..n {
+            let fx = i as f64 / n as f64;
+            let fy = (i as f64 + 0.5) / n as f64;
+            let lab = if i + 1 == n {
+                "vout".to_string()
+            } else {
+                format!("t{i}")
+            };
+            seg.push(format!(
+                "{prev}[1:v]overlay=x={fx:.3}*(W-w):y={fy:.3}*(H-h):enable='between(t,{at:.3},{until:.3})'[{lab}]"
+            ));
+            prev = format!("[{lab}]");
+        }
+        seg.join(";")
+    } else {
+        format!("[0:v][1:v]overlay=x={x}:y={y}:enable='between(t,{at:.3},{until:.3})'[vout]")
+    };
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if probe.has_audio {
         argv.extend(["-map", "0:a", "-c:a", "copy"]);
@@ -63,7 +88,7 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c.with_extra(json!({
         "text": text,
         "duration": until,
-        "position": args.position,
+        "position": if args.tile > 0 { format!("tile-{}", args.tile) } else { args.position },
         "at": at,
         "font": font_path.display().to_string(),
     })))

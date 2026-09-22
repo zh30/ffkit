@@ -123,6 +123,8 @@ pub enum Cmd {
     Pitch(PitchArgs),
     /// Strip dead air at the head and tail (audio-only)
     Cutsil(CutsilArgs),
+    /// Channel surgery: dual-mono, mono fold-down, L/R swap
+    Channel(ChannelArgs),
     /// Still images (+ optional music bed) into a video
     Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
@@ -687,6 +689,9 @@ pub struct TitleArgs {
     pub at: Option<String>,
     #[arg(long)]
     pub font: Option<String>,
+    /// Tile the text N times diagonally at 50% alpha (text draft watermark)
+    #[arg(long, default_value_t = 0)]
+    pub tile: u32,
     /// center (default) or top
     #[arg(long, default_value = "center")]
     pub position: String,
@@ -700,6 +705,9 @@ pub struct LoopArgs {
     /// Play this many times (2–12)
     #[arg(long, default_value_t = 2)]
     pub times: u32,
+    /// Repeat until the output is this long in seconds (overrides --times)
+    #[arg(long)]
+    pub until: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -765,6 +773,23 @@ pub struct PitchArgs {
     /// Semitones: +4 chipmunk-ish, -3 deeper (duration preserved)
     #[arg(long, allow_hyphen_values = true)]
     pub semitones: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ChannelArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// dualmono: copy ch0 onto all channels | mono: fold to one | swap: L/R flip
+    #[arg(long, value_enum, default_value_t = ChannelMode::Dualmono)]
+    pub mode: ChannelMode,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum ChannelMode {
+    Dualmono,
+    Mono,
+    Swap,
 }
 
 #[derive(clap::Args, Debug)]

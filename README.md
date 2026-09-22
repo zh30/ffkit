@@ -125,13 +125,14 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sheet` | Contact sheet: `--cols`/`--rows` thumbnails → one PNG |
 | `pitch` | `--semitones N` voice/music shift, duration preserved |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
+| `channel` | Channel surgery: `--mode dualmono|mono|swap` |
 | `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
 | `cover` | 9:16 cover still (1080×1920) |
 | `fade` | Video and audio fade (`--in` / `--out`) |
 | `title` | First-second hook card (`--text`, no libass) |
-| `loop` | Repeat the clip N times (Shorts replay length) |
+| `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) |
 | `stabilize` | Handheld deshake |
 | `reverse` | Play picture and sound backwards |
 | `grade` | `--contrast/--saturation/--brightness/--lut/--grain` | Contrast / saturation / brightness (mild Reels pop); `--lut look.cube` applies a 3D LUT |

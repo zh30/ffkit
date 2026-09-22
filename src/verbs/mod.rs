@@ -6,6 +6,7 @@ pub mod broll;
 pub mod bw;
 pub mod caption;
 pub mod censor;
+pub mod channel;
 pub mod chapter;
 pub mod compress;
 pub mod concat;

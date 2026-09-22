@@ -4,6 +4,14 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.38.0] — 2026-09-22
+
+- `ffkit channel`: `--mode dualmono` (one-ear fix), `mono` (fold-down), `swap` (L/R flip)
+- `loop --until SEC`: repeat+trim to a target length
+- `title --tile N`: text tiled diagonally as a draft watermark
+- fix: `overlay --tile` splits the overlay pad for ffmpeg ≤5 (labels consumed once)
+
+
 ## [0.37.0] — 2026-09-22
 
 - `overlay --tile N`: tiled semi-transparent watermark pass (draft protection)

@@ -3839,3 +3839,159 @@ fn transcode_gif_honors_fps_and_width() {
     assert!(s.contains("160"), "gif width 160, got {s}");
     assert!(s.contains("5/1"), "gif fps 5, got {s}");
 }
+
+#[test]
+fn channel_dualmono_fills_both_ears() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // mono voice file → dualmono → 2 channels
+    let src = dir.path().join("mono.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-ac",
+            "1",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("stereo.m4a");
+    let v = run_json(&[
+        "channel",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "dualmono",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let ch = v["probe"]["channels"].as_u64().unwrap_or(0);
+    assert_eq!(ch, 2, "dualmono → stereo, got {ch}; {v}");
+}
+
+#[test]
+fn channel_swap_flips_left_right() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // left-ear only sine: pan stereo c0→FL, silence FR
+    let src = dir.path().join("left.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-af",
+            "pan=stereo|c0=c0|c1=0*c0",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("swapped.m4a");
+    let v = run_json(&[
+        "channel",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "swap",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // measure per-channel RMS via pan extract of each ear
+    let rms = |f: &Path, sel: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-af",
+                &format!("pan=mono|c0={sel},volumedetect"),
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stderr);
+        s.split("mean_volume:")
+            .nth(1)
+            .and_then(|r| r.split_whitespace().next())
+            .and_then(|r| r.trim_end_matches("dB").parse().ok())
+            .unwrap_or(-99.0)
+    };
+    let (l0, r0) = (rms(&src, "c0"), rms(&src, "c1"));
+    let (l1, r1) = (rms(&out, "c0"), rms(&out, "c1"));
+    assert!(
+        r1 > r0 + 15.0 && l1 < l0 - 15.0,
+        "swap must move the ear: ({l0:.1},{r0:.1}) -> ({l1:.1},{r1:.1}); {v}"
+    );
+}
+
+#[test]
+fn loop_until_hits_target_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path()); // 1s
+    let out = dir.path().join("l.mp4");
+    let v = run_json(&[
+        "loop",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--until",
+        "2.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        (d - 2.5).abs() < 0.35,
+        "loop --until 2.5 → ~2.5s, got {d}; {v}"
+    );
+    assert!(v["extra"]["times"].as_u64().unwrap_or(0) >= 3, "{v}");
+}
+
+#[test]
+fn title_tile_stamps_multiple_copies() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("tw.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "DRAFT",
+        "--tile",
+        "4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(
+        v["extra"]["position"].as_str().unwrap_or(""),
+        "tile-4",
+        "{v}"
+    );
+}
