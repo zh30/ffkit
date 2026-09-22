@@ -10852,3 +10852,125 @@ fn countdown_text_labels_the_count() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+fn lavfi_fixture(dir: &Path, name: &str, color: &str, secs: f64) -> PathBuf {
+    let out = dir.join(name);
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            &format!("testsrc=duration={secs}:size=320x240:rate=30"),
+            "-f",
+            "lavfi",
+            "-i",
+            &format!("sine=frequency={color}:duration={secs}"),
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&out)
+        .status()
+        .expect("ffmpeg lavfi fixture");
+    assert!(status.success());
+    out
+}
+
+#[test]
+fn insert_splices_clip_mid_video() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let base = fixture(dir.path());
+    let clip = lavfi_fixture(dir.path(), "clip.mp4", "880", 0.5);
+    let out = dir.path().join("i.mp4");
+    let v = run_json(&[
+        "insert",
+        base.to_str().unwrap(),
+        "--clip",
+        clip.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let v2 = run_json(&["probe", out.to_str().unwrap()]);
+    let d = v2["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        (d - 1.5).abs() < 0.3,
+        "1s base + 0.5s insert ≈ 1.5s, got {d}"
+    );
+}
+
+#[test]
+fn multicam_switches_angles_at_cuts() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    let b = lavfi_fixture(dir.path(), "b.mp4", "880", 1.5);
+    let out = dir.path().join("mc.mp4");
+    let v = run_json(&[
+        "multicam",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["angles"], 2);
+}
+
+#[test]
+fn split_subs_writes_retimed_part_srts() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("cap.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,050 --> 00:00:00,300\nhello world\n\n2\n00:00:00,300 --> 00:00:00,550\nsecond caption line\n",
+    )
+    .unwrap();
+    let out = dir.path().join("sp.mp4");
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "--subs",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let parts = v["extra"]["parts"].as_array().unwrap();
+    let s0 = dir.path().join(
+        Path::new(parts[0].as_str().unwrap())
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .replace(".mp4", ".srt"),
+    );
+    let txt = std::fs::read_to_string(&s0).expect("part srt");
+    assert!(txt.contains("hello world"), "{txt}");
+    assert!(txt.contains("00,500"), "cue end clamped to part end: {txt}");
+}

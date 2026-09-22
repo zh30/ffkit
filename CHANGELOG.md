@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.101.0] - 2026-09-23
+
+### Added
+- `multicam` — two-camera angle switching across an aligned pair: `--at t1,t2,...` flips angle per cut (trim/atrim + concat chain; pair with `align` when takes aren't synced).
+- `insert` — splice a whole clip into the middle of a video at `--at T` (scaled/letterboxed to the base size).
+- `split --subs in.srt` — write a per-part `.srt` next to each split file with cues re-timed and clamped to the part window.
+
+
+## [0.101.0] — 2026-09-22
+
 ## [0.100.0] - 2026-09-23
 
 ### Added

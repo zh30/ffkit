@@ -112,7 +112,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 
 | `audiogram` | 波形视频 | `--mode`、`--text`、`--bg`、`--progress` 进度条 ，`--subs` 烧字幕 |
 
-| `split` | 切成分段（`--every` 等长、`--at` 章节点、`--scenes` 镜头、`--size` 大小、`--parts N` 等分）→ `stem_00..` |
+| `split` | 按 `--every`/`--at`/`--scenes`/`--size`/`--parts`/`--silence` 切分；`--subs` 输出重定时分段 .srt |
 | `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐、`--size` 画布） |
 | `speed` | 变速（`--factor`、`--at/--dur` 窗口、`--ramp` FROM,TO 渐变） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
@@ -182,6 +182,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sync` | 修复音画同步（`--ms ±N` 垫音/裁音头） |
 | `align` | 音频互相关自动对齐第二路录音（多机位/外接录音笔，`--max-lag`） |
 | `scroll` | 片尾滚动字幕（`--text`/`--file`、`--at`、`--dur`、`--size`、`--color`、`--font`） |
+| `insert` | 在 `--at T` 把整段素材插进视频中间（自动匹配基准尺寸） |
+| `multicam` | 双机位对齐后角度切换：`--at t1,t2,...` 逐点换机位 |
 | `art` | 内嵌封面图（`--image`）→ mp3/m4a/mp4/mkv |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `pipeline` | 按 JSON 方案顺序执行多步（`$src` / `$in` / `expect`） |

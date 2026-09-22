@@ -112,7 +112,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 
 | `audiogram` | Waveform video | `--mode`, `--text`, `--bg`, `--progress` bar , `--subs` burn an .srt on it |
 
-| `split` | `--every` regular parts, `--at` explicit, `--scenes` shot-detection, `--size` target-MB, `--parts N` equal | Chop into parts (`--every 30` even chunks, or `--at 30,90` chapter points) → `stem_00..` |
+| `split` | Split by `--every`/`--at`/`--scenes`/`--size`/`--parts`/`--silence`; `--subs` writes re-timed per-part .srt |
 | `slideshow` | Still images → video montage (`--per`, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed, `--size` canvas) |
 | `speed` | Change playback speed (`--factor`, `--at/--dur`, `--ramp` FROM,TO) |
 | `music` | Bed under speech with ducking (`--track`) |
@@ -182,6 +182,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sync` | Shift audio ±ms to fix A/V sync (`--ms`) |
 | `align` | Auto-sync a second recording to a reference by audio cross-correlation — multi-cam/external recorder (`--max-lag`) |
 | `scroll` | Rolling end credits: text rolls bottom→top (`--text`/`--file`, `--at`, `--dur`, `--size`, `--color`, `--font`) |
+| `insert` | Splice a whole clip mid-video at `--at T` (scaled to the base size) |
+| `multicam` | Two-camera angle switching across an aligned pair: `--at t1,t2,...` flips angle |
 | `art` | Attach a cover image (`--image`) → mp3/m4a/mp4/mkv |
 | `batch` | One verb on every media file in a directory |
 | `pipeline` | Run a JSON scheme in order (`$src` / `$in` / `expect`) |

@@ -1,0 +1,83 @@
+//! `insert` — splice a whole clip into the middle of a base video
+//! (b-roll beat, ad read, reaction cutaway) without a manual split+concat.
+
+use std::path::Path;
+
+use serde_json::json;
+
+use crate::cli::{Globals, InsertArgs};
+use crate::contract::Contract;
+use crate::engine::{self, ffmpeg_base};
+use crate::error::Error;
+use crate::time::parse_time;
+
+pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
+    let base = engine::probe_or_err(&args.input, g)?;
+    let clip = engine::probe_or_err(&args.clip, g)?;
+    if !base.has_video || !clip.has_video {
+        return Err(Error::input("insert: both inputs need a video stream"));
+    }
+    if base.has_audio != clip.has_audio {
+        return Err(Error::input(
+            "insert: clip must have an audio stream when the base does",
+        ));
+    }
+    let at = parse_time(&args.at)?;
+    if !(0.05..base.duration - 0.05).contains(&at) {
+        return Err(Error::input(format!(
+            "--at must sit inside the {:.2}s base",
+            base.duration
+        )));
+    }
+    let bw = base.width.unwrap_or(1280);
+    let bh = base.height.unwrap_or(720);
+
+    // Three segments: base head, the whole clip (scaled to base size),
+    // base tail. Same trim/atrim→concat chain as the windowed verbs.
+    let mut seg = vec![format!(
+        "[0:v]trim=0:{at:.3},setpts=PTS-STARTPTS[v0];\
+         [1:v]scale={bw}:{bh}:force_original_aspect_ratio=decrease,pad={bw}:{bh}:(ow-iw)/2:(oh-ih)/2,setsar=1[v1];\
+         [0:v]trim={at:.3}:,setpts=PTS-STARTPTS[v2]"
+    )];
+    let mut pins = String::from("[v0][v1][v2]");
+    if base.has_audio {
+        seg.push(format!(
+            "[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[a0];\
+             [1:a]atrim=0:,asetpts=PTS-STARTPTS[a1];\
+             [0:a]atrim={at:.3}:,asetpts=PTS-STARTPTS[a2]"
+        ));
+        // concat pads interleave per segment: v0,a0,v1,a1,v2,a2
+        pins = "[v0][a0][v1][a1][v2][a2]".to_string();
+        seg.push(format!("{pins}concat=n=3:v=1:a=1[vout][aout]"));
+    } else {
+        seg.push(format!("{pins}concat=n=3:v=1:a=0[vout]"));
+    }
+
+    let mut argv = ffmpeg_base(g.progress);
+    argv.extend(["-i".to_string(), args.input.display().to_string()]);
+    argv.extend(["-i".to_string(), args.clip.display().to_string()]);
+    argv.extend(["-filter_complex".to_string(), seg.join(";")]);
+    argv.extend(["-map".to_string(), "[vout]".to_string()]);
+    if base.has_audio {
+        argv.extend(["-map".to_string(), "[aout]".to_string()]);
+    }
+    argv.extend([
+        "-c:v".to_string(),
+        "libx264".to_string(),
+        "-preset".to_string(),
+        "fast".to_string(),
+        "-crf".to_string(),
+        "18".to_string(),
+        "-pix_fmt".to_string(),
+        "yuv420p".to_string(),
+    ]);
+    if base.has_audio {
+        argv.extend(["-c:a".to_string(), "aac".to_string()]);
+    }
+    argv.push(args.output.display().to_string());
+
+    let inputs: Vec<&Path> = vec![&args.input, &args.clip];
+    let mut c = engine::write_job("insert", &inputs, &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "at": at }));
+    Ok(c)
+}

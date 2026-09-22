@@ -189,6 +189,10 @@ pub enum Cmd {
     Sync(SyncArgs),
     /// Rolling end credits (text scrolls bottom to top)
     Scroll(ScrollArgs),
+    /// Splice a whole clip into the middle of a video
+    Insert(InsertArgs),
+    /// Two-camera angle switching across an aligned pair
+    Multicam(MulticamArgs),
     Art(ArtArgs),
     /// Even out voice dynamic range (compressor)
     Leveler(LevelerArgs),
@@ -322,6 +326,9 @@ pub struct SplitArgs {
     /// With --silence: minimum gap length in seconds (default 0.4)
     #[arg(long)]
     pub min_silence: Option<f64>,
+    /// Also write a per-part .srt next to each split file (cues re-timed)
+    #[arg(long)]
+    pub subs: Option<PathBuf>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1824,6 +1831,33 @@ pub struct ScrollArgs {
     pub color: Option<String>,
     #[arg(long)]
     pub font: Option<String>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct InsertArgs {
+    /// Base video that receives the insert
+    pub input: PathBuf,
+    /// Clip spliced in whole (scaled to the base size)
+    #[arg(long)]
+    pub clip: PathBuf,
+    /// Splice point in the base (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: String,
+    #[arg(short, long)]
+    pub output: PathBuf,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct MulticamArgs {
+    /// Camera A — the angle the edit starts on
+    pub cam_a: PathBuf,
+    /// Camera B
+    pub cam_b: PathBuf,
+    /// Switch to the other camera at each of these times (comma list)
+    #[arg(long, value_delimiter = ',')]
+    pub at: Vec<String>,
+    #[arg(short, long)]
+    pub output: PathBuf,
 }
 
 #[derive(clap::Args, Debug)]

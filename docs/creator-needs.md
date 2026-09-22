@@ -232,6 +232,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 74)
+
+- `multicam` — two-camera angle switching across an aligned pair (`--at` cuts flip the angle).
+- `insert` — splice a whole clip into the middle of a video at `--at` (scaled to base).
+- `split --subs` — write a re-timed per-part .srt next to each split file.
+
 ## Shipped this run (round 73)
 
 - `align` — auto multi-cam/recorder sync by audio cross-correlation; reports `offset_ms`.

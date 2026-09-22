@@ -144,6 +144,14 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("split is capped at 500 boundaries"));
     }
 
+    let part_cues: Option<Vec<crate::srt::Cue>> = match &args.subs {
+        Some(path) => {
+            let raw = std::fs::read_to_string(path)
+                .map_err(|e| Error::input(format!("--subs: {}: {e}", path.display())))?;
+            Some(crate::srt::parse_srt(&raw)?)
+        }
+        None => None,
+    };
     let out_s = args.output.to_string_lossy().into_owned();
     let template: PathBuf = if out_s.contains('%') {
         PathBuf::from(out_s)
@@ -214,6 +222,33 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             "split wrote no parts matching {}",
             template.display()
         )));
+    }
+    if let Some(cues) = &part_cues {
+        // Part k spans [cuts[k-1], cuts[k]); re-time overlapping cues.
+        let bounds: Vec<(f64, f64)> = std::iter::once(0.0)
+            .chain(cuts.iter().copied())
+            .zip(cuts.iter().copied().chain(std::iter::once(f64::INFINITY)))
+            .collect();
+        for (k, part) in parts.iter().enumerate() {
+            let Some(&(s, e)) = bounds.get(k) else {
+                break;
+            };
+            let shifted: Vec<crate::srt::Cue> = cues
+                .iter()
+                .filter(|c| c.end > s && c.start < e)
+                .map(|c| crate::srt::Cue {
+                    start: (c.start - s).max(0.0),
+                    end: (c.end - s).min(e - s),
+                    text: c.text.clone(),
+                })
+                .collect();
+            if shifted.is_empty() {
+                continue;
+            }
+            let srt_path = part.with_extension("srt");
+            std::fs::write(&srt_path, crate::srt::to_srt(&shifted))
+                .map_err(|e| Error::output(format!("write {}: {e}", srt_path.display())))?;
+        }
     }
     let first = crate::probe::probe(&parts[0], Duration::from_secs(60))?;
     let names: Vec<String> = parts.iter().map(|p| paths::display(p)).collect();
