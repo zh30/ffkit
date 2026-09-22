@@ -33,6 +33,7 @@ pub mod overlay;
 pub mod pitch;
 pub mod progress;
 pub mod replace;
+pub mod reverb;
 pub mod reverse;
 pub mod rotate;
 pub mod rough;

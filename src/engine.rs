@@ -73,6 +73,22 @@ pub fn ffmpeg_base(progress: bool) -> Argv {
     argv
 }
 
+/// Major version of the ffmpeg on PATH (from `ffmpeg -version`), if parseable.
+pub fn ffmpeg_major() -> Option<u32> {
+    let mut argv = Argv::ffmpeg();
+    argv.push("-version");
+    let spawned = spawn::run(&argv, Duration::from_secs(10), false).ok()?;
+    if !spawned.status_ok {
+        return None;
+    }
+    let line = String::from_utf8_lossy(&spawned.stdout);
+    let line = line.lines().next()?;
+    let ver = line.split_whitespace().nth(2)?;
+    ver.split(|c: char| !c.is_ascii_digit())
+        .next()
+        .and_then(|s| s.parse().ok())
+}
+
 pub fn need_video(probe: &Probe, tool: &str) -> Result<(), Error> {
     if probe.has_video {
         Ok(())

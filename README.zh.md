@@ -110,7 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | 两遍编码压到 `--size 10MB`（Discord、WhatsApp 16MB、邮箱约 25MB） |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 
-| `audiogram` | 播客音频 → 9:16 波形视频（封面图用 `--image`） |
+| `audiogram` | 播客音频 → 9:16 波形视频（`--image` 封面，`--mode`/`--color` 波形样式） |
 
 | `split` | 切成分段（`--every 30` 等长，或 `--at 30,90` 章节点）→ `stem_00..` |
 | `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐、`--size` 画布） |
@@ -129,9 +129,10 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
 | `channel` | 声道手术：`--mode dualmono|mono|swap` |
 | `eq` | 音频均衡：`--bass`/`--treble`/`--presence` dB |
+| `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet` |
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip` |
-| `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h` |
-| `meta` | 写入容器标签（`--title`/`--artist`/`--comment`），无损拷贝 |
+| `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h`；`--at`/`--dur` 只处理窗口 |
+| `meta` | 写入容器标签（`--title`/`--artist`/`--comment`）+ `--rotate` 显示旋转标记，无损拷贝 |
 | `subs` | 导出内嵌字幕为 `.srt`/`.vtt`（`--stream N`） |
 | `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐、`--mix` 保留原音轨 |
 | `jumpcut` | 剪掉口播里的静音停顿 |

@@ -110,7 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 
-| `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`) |
+| `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`, `--mode`/`--color`) |
 
 | `split` | `--every` regular parts, `--at` explicit, `--scenes` shot-detection | Chop into parts (`--every 30` even chunks, or `--at 30,90` chapter points) → `stem_00..` |
 | `slideshow` | Still images → video montage (`--per`, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed, `--size` canvas) |
@@ -129,9 +129,10 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap` |
 | `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence` dB |
+| `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip` |
-| `delogo` | Blend out a burned-in logo box: `--x --y --w --h` |
-| `meta` | Container tags (`--title`/`--artist`/`--comment`), stream-copy |
+| `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window |
+| `meta` | Container tags (`--title`/`--artist`/`--comment`) + `--rotate` display flag, stream-copy |
 | `subs` | Extract embedded subtitles to `.srt`/`.vtt` (`--stream N`) |
 | `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
 | `jumpcut` | Cut silence inside a talking-head take |

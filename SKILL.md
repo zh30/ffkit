@@ -2,9 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.42.0
-
-version: 0.41.0
+version: 0.43.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -41,7 +39,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | trim / join | `cut`, `concat` (`--transition` any xfade, N clips), `split` (`--every` story chunks, `--at` chapter points), `rough` (list speech islands, then `-o` to assemble) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur`), `zoom` |
 
-| export | `deliver`, `transcode`, `compress` (`--size 10MB` two-pass), `audiogram`, `slideshow` (`--motion kenburns`, `--transition`), `split` |
+| export | `deliver`, `transcode`, `compress` (`--size 10MB` two-pass), `audiogram` (`--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split` |
 | captions / mute | `caption` (`--mode burn` social safe-zone, `--chunk N` word groups, or `--mode mux`) |
 | hook text | `title` |
 | cover still | `cover` |
@@ -78,10 +76,12 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | animated push-in | `zoom --motion kenburns` |
 | still-image cutaway | `broll --insert img.png --still` |
 | wrong-orientation phone clip | `rotate` (`--deg`/`--flip`) |
-| burned-in logo/watermark | `delogo` (`--x --y --w --h`) |
+| burned-in logo/watermark | `delogo` (`--x --y --w --h`; `--at`/`--dur` only some of the time) |
 | smooth slow-mo | `speed --factor 0.5 --interp` |
 | styled title text | `title --size 2 --color ff0000` |
 | container metadata tags | `meta` (`--title`/`--artist`/`--comment`) |
+| fix display rotation flag | `meta --rotate 90` (lossless; clears with `--rotate 0`) |
+| room tone on a voice | `reverb` (`--size room|hall|cave`, `--wet 0..0.9`) |
 | Ken Burns on a photo cutaway | `broll --insert img.png --still --motion kenburns` |
 | styled captions | `caption --color ff0000 --size 1.5` |
 | logo only for part of the clip | `overlay --at 2 --dur 5` |

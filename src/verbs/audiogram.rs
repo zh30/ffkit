@@ -2,7 +2,7 @@ use std::path::Path;
 
 use serde_json::json;
 
-use crate::cli::{AudiogramArgs, Globals};
+use crate::cli::{AudiogramArgs, Globals, WaveMode};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -34,12 +34,20 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     // shows through. overlay shortest=1 ends [vout] with the waveform: -shortest
     // alone overshoots because the encoder queue keeps the infinite cover
     // going past audio EOF.
-    let fc =
+    let mode = match args.mode {
+        WaveMode::Point => "point",
+        WaveMode::Line => "line",
+        WaveMode::P2p => "p2p",
+        WaveMode::Cline => "cline",
+    };
+    let fc = format!(
         "[1:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg];\
-              [0:a]showwaves=s=940x320:mode=cline:rate=30:colors=white:draw=full[wv];\
+              [0:a]showwaves=s=940x320:mode={mode}:rate=30:colors={}:draw=full[wv];\
               [wv]colorkey=0x000000:0.12:0.1[wvk];\
-              [bg][wvk]overlay=(W-w)/2:(H-h)*0.62:shortest=1[vout]";
-    argv.extend(["-filter_complex", fc, "-map", "[vout]", "-map", "0:a"]);
+              [bg][wvk]overlay=(W-w)/2:(H-h)*0.62:shortest=1[vout]",
+        args.color
+    );
+    argv.extend(["-filter_complex", &fc, "-map", "[vout]", "-map", "0:a"]);
     argv.extend([
         "-c:v",
         "libx264",
@@ -63,6 +71,8 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     c = c.with_extra(json!({
         "frame": "1080x1920",
         "waveform": "showwaves",
+        "mode": mode,
+        "color": args.color,
     }));
     Ok(c)
 }

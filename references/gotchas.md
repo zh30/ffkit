@@ -149,3 +149,11 @@ Source path as `-o` is always refused. An existing output is refused unless `--o
 ## loudnorm JSON
 
 The first pass prints measured values on stderr. ffkit parses them for the second pass. Do not use `-loglevel quiet` on a hand-rolled loudnorm; you will lose the measurements.
+
+## display rotation vs ffmpeg version
+
+`-metadata:s:v rotate=N` writes the mp4 display matrix on ffmpeg ≤6 but is silently ignored on ≥7 — there `-display_rotation:v:0 -N` as an INPUT option (before `-i`) carries the same matrix through stream-copy. `meta --rotate` picks by `ffmpeg -version` major; `--rotate 0` clears. Sign is counter-clockwise in the matrix, so clockwise N maps to `-N`.
+
+## RGB channel checks
+
+`signalstats` only reports YUV stats (YAVG, SATAVG…) — there is no RAVG/BAVG. For colour assertions (`audiogram --color`, title/caption colours) dump the crop as `-f rawvideo -pix_fmt rgb24` and average the bytes. `showwaves` also needs ~0.5s of stream before the strip has content — seek before frame-checking it.

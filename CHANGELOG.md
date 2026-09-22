@@ -4,7 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.43.0] — 2026-09-22
 
+- `ffkit reverb`: room/hall/cave ambience on a voice (`--size`, `--wet`) via `aecho`
+- `audiogram --mode`/`--color`: waveform style (point/line/p2p/cline) and colour
+- `delogo --at`/`--dur`: blur the logo box only inside a window
+- `meta --rotate 0/90/180/270`: fix the display-rotation flag losslessly (uses `-display_rotation` on ffmpeg ≥7, `rotate` metadata below)
 
 ## [0.42.0] — 2026-09-22
 

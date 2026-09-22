@@ -4634,3 +4634,291 @@ fn subs_extracts_embedded() {
     let text = std::fs::read_to_string(&out).unwrap_or_default();
     assert!(text.contains("hello subs"), "extracted srt has cue: {text}");
 }
+
+#[test]
+fn meta_rotate_writes_display_matrix() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("rot.mp4");
+    let v = run_json(&[
+        "meta",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--rotate",
+        "90",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream_side_data",
+            "-of",
+            "json",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    assert!(
+        s.contains("\"rotation\": -90") || s.contains("\"rotation\": 90"),
+        "display matrix with 90deg rotation: {s}"
+    );
+    // lossless: duration unchanged
+    assert!(
+        (v["probe"]["duration"].as_f64().unwrap_or(0.0) - 1.0).abs() < 0.05,
+        "{v}"
+    );
+    // clear it back
+    let out2 = dir.path().join("rot0.mp4");
+    let v2 = run_json(&[
+        "meta",
+        out.to_str().unwrap(),
+        "-o",
+        out2.to_str().unwrap(),
+        "--rotate",
+        "0",
+    ]);
+    assert_eq!(v2["status"], "ok", "{v2}");
+    let o2 = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream_side_data",
+            "-of",
+            "json",
+        ])
+        .arg(&out2)
+        .output()
+        .unwrap();
+    let s2 = String::from_utf8_lossy(&o2.stdout);
+    assert!(
+        !s2.contains("-90") || s2.contains("\"rotation\": 0"),
+        "rotation cleared: {s2}"
+    );
+}
+
+#[test]
+fn audiogram_mode_and_color_recolor_wave() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("talk.wav");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    // red line-mode wave vs default white cline
+    let red = dir.path().join("red.mp4");
+    let vr = run_json(&[
+        "audiogram",
+        wav.to_str().unwrap(),
+        "-o",
+        red.to_str().unwrap(),
+        "--mode",
+        "line",
+        "--color",
+        "0xFF0000",
+    ]);
+    assert_eq!(vr["status"], "ok", "{vr}");
+    let white = dir.path().join("white.mp4");
+    let vw = run_json(&[
+        "audiogram",
+        wav.to_str().unwrap(),
+        "-o",
+        white.to_str().unwrap(),
+    ]);
+    assert_eq!(vw["status"], "ok", "{vw}");
+    // R-B mean inside the wave band (overlay sits ~(H-h)*0.62 down)
+    let rb = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-ss", "0.5", "-i"])
+            .arg(p)
+            .args([
+                "-vf",
+                "crop=600:200:240:1050",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let px = &o.stdout;
+        assert!(px.len() >= 600 * 200 * 3, "raw rgb24 frame");
+        let (mut rs, mut bs) = (0u64, 0u64);
+        for c in px.chunks_exact(3) {
+            rs += c[0] as u64;
+            bs += c[2] as u64;
+        }
+        (rs as f64 - bs as f64) / (px.len() / 3) as f64
+    };
+    let (red_rb, white_rb) = (rb(&red), rb(&white));
+    assert!(
+        red_rb > white_rb + 10.0,
+        "red wave is redder than white wave: red(R-B)={red_rb} white={white_rb}"
+    );
+}
+
+#[test]
+fn delogo_at_blurs_only_the_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let marked = dir.path().join("marked.mp4");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&src)
+        .args([
+            "-vf",
+            "drawbox=x=10:y=10:w=60:h=40:color=white:t=fill",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "18",
+            "-c:a",
+            "copy",
+        ])
+        .arg(&marked)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "marked fixture");
+    let out = dir.path().join("d.mp4");
+    let v = run_json(&[
+        "delogo",
+        marked.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--x",
+        "10",
+        "--y",
+        "10",
+        "--w",
+        "60",
+        "--h",
+        "40",
+        "--at",
+        "0.5",
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let luma = |n: u32| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&out)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n}),crop=40:20:20:20,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-"),
+                "-frames:v", "1", "-f", "null", "-",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stdout)
+            .split("YAVG=")
+            .nth(1)
+            .and_then(|r| r.lines().next())
+            .and_then(|r| r.trim().parse().ok())
+            .unwrap_or(-1.0)
+    };
+    let (before, inside) = (luma(3), luma(21));
+    assert!(
+        before > inside + 30.0,
+        "box intact before window ({before}) but blended inside ({inside}); {v}"
+    );
+}
+
+#[test]
+fn reverb_adds_tail_after_tone() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // 0.2s tone then silence — the tail window stays silent unless reverb rings
+    let wav = dir.path().join("pulse.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.2,apad=whole_dur=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "pulse fixture");
+    let tail = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-af", "atrim=0.5:1,volumedetect", "-vn", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(0.0)
+    };
+    let dry_tail = tail(&wav);
+    let out = dir.path().join("wet.wav");
+    let v = run_json(&[
+        "reverb",
+        wav.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "hall",
+        "--wet",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let wet_tail = tail(&out);
+    assert!(
+        wet_tail > dry_tail + 10.0,
+        "reverb rings into the silent tail: dry {dry_tail} dB -> wet {wet_tail} dB; {v}"
+    );
+}

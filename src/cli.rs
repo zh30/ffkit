@@ -127,6 +127,8 @@ pub enum Cmd {
     Channel(ChannelArgs),
     /// Audio EQ: bass/treble/presence shelves
     Eq(EqArgs),
+    /// Room ambience on a voice (reverb tail)
+    Reverb(ReverbArgs),
     /// Rotate a video 90/180/270 deg or mirror it
     Rotate(RotateArgs),
     /// Blur out a burned-in logo/watermark box
@@ -439,6 +441,21 @@ pub struct AudiogramArgs {
     /// Cover still behind the waveform; flat colour when omitted
     #[arg(long)]
     pub image: Option<PathBuf>,
+    /// Waveform drawing style
+    #[arg(long, value_enum, default_value_t = WaveMode::Cline)]
+    pub mode: WaveMode,
+    /// Waveform colour (ffmpeg name or 0xRRGGBB)
+    #[arg(long, default_value = "white")]
+    pub color: String,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum WaveMode {
+    Point,
+    Line,
+    P2p,
+    #[default]
+    Cline,
 }
 
 #[derive(clap::Args, Debug)]
@@ -547,6 +564,12 @@ pub struct DelogoArgs {
     /// Logo box height (px)
     #[arg(long)]
     pub h: u32,
+    /// Blur the box only inside this window (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -573,6 +596,9 @@ pub struct MetaArgs {
     /// Comment / description tag
     #[arg(long)]
     pub comment: Option<String>,
+    /// Fix the display rotation flag (0/90/180/270) without re-encoding
+    #[arg(long)]
+    pub rotate: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -871,6 +897,27 @@ pub struct PitchArgs {
     /// Semitones: +4 chipmunk-ish, -3 deeper (duration preserved)
     #[arg(long, allow_hyphen_values = true)]
     pub semitones: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ReverbArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Room size preset
+    #[arg(long, value_enum, default_value_t = ReverbSize::Room)]
+    pub size: ReverbSize,
+    /// Wet tail amount (0..0.9; 0.3 ≈ subtle room)
+    #[arg(long, default_value_t = 0.3)]
+    pub wet: f64,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum ReverbSize {
+    #[default]
+    Room,
+    Hall,
+    Cave,
 }
 
 #[derive(clap::Args, Debug)]

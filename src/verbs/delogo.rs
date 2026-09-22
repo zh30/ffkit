@@ -22,7 +22,23 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
             args.w, args.h, args.x, args.y, w, h
         )));
     }
-    let vf = format!("delogo=x={}:y={}:w={}:h={}", args.x, args.y, args.w, args.h);
+    let mut vf = format!("delogo=x={}:y={}:w={}:h={}", args.x, args.y, args.w, args.h);
+    match (&args.at, args.dur) {
+        (Some(at), dur) => {
+            let start = crate::time::parse_time(at)?;
+            if !(0.0..probe.duration).contains(&start) {
+                return Err(Error::input("--at is outside the input"));
+            }
+            match dur.map(|d| start + d) {
+                Some(e) if e < probe.duration => {
+                    vf.push_str(&format!(":enable='between(t,{start:.3},{e:.3})'"));
+                }
+                _ => vf.push_str(&format!(":enable='gte(t,{start:.3})'")),
+            }
+        }
+        (None, Some(_)) => return Err(Error::input("--dur needs --at")),
+        (None, None) => {}
+    }
     let fc = format!("[0:v]{vf}[vout]");
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
@@ -37,7 +53,14 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
 
     let c = engine::write_job("delogo", &[&args.input], &args.output, vec![argv], g)?;
-    Ok(c.with_extra(json!({
+    let mut extra = json!({
         "box": {"x": args.x, "y": args.y, "w": args.w, "h": args.h},
-    })))
+    });
+    if let Some(at) = &args.at {
+        extra["at"] = json!(at);
+        if let Some(d) = args.dur {
+            extra["dur"] = json!(d);
+        }
+    }
+    Ok(c.with_extra(extra))
 }
