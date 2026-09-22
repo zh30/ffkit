@@ -232,6 +232,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 89)
+
+- `thumb --scenes` — grabs a still at frame 0 + every scene change (`select=gt(scene,0.35)`), thumbnail-candidate mining for shorts/YouTube covers.
+- `overlay --border PX [--border-color]` — ring around the overlay picture (PiP readability), `pad=` pre-chain; conflicts `--tile`.
+- `audiogram --mode spectrum` — `showfreqs` frequency bars (the podcast spectrum look) alongside the showwaves modes.
+- `subs --case upper|lower|title` — rewrites cue text case; works on `--burn` (via a temp .srt) and `--convert`.
+
 ## Shipped this run (round 88)
 
 - `rotate --angle N` — free-angle dutch tilt (`rotate=a=`, canvas kept via `out_w=iw:out_h=ih`, black fill).

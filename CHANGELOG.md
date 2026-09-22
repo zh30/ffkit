@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.116.0] — 2026-09-22
+
+### Added
+
+- `thumb --scenes` — still at frame 0 + every scene change (thumbnail mining)
+- `overlay --border PX` / `--border-color` — ring around the overlay picture
+- `audiogram --mode spectrum` — `showfreqs` frequency bars
+- `subs --case upper|lower|title` — cue-text case rewrite (`--burn`/`--convert`)
+
 ## [0.115.0] — 2026-09-22
 
 ### Added

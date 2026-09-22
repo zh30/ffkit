@@ -21,6 +21,9 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(rate) = args.rate {
         return rescale(&args, rate, g);
     }
+    if args.case.is_some() && args.burn.is_none() {
+        return Err(Error::input("subs --case works with --burn or --convert"));
+    }
     let _probe = engine::probe_or_err(&args.input, g)?;
     if let Some(subs) = &args.burn {
         return burn(&args, subs, g);
@@ -214,6 +217,28 @@ fn burn(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract
             subs.display()
         )));
     }
+    // --case: rewrite the cue text into a temp .srt before burning.
+    let cased;
+    let subs = if let Some(case) = args.case.filter(|_| {
+        subs.extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.eq_ignore_ascii_case("srt"))
+            .unwrap_or(false)
+    }) {
+        let raw = std::fs::read_to_string(subs)
+            .map_err(|e| Error::input(format!("{}: {e}", subs.display())))?;
+        let mut cues = crate::srt::parse_srt(&raw)?;
+        apply_case(&mut cues, case);
+        cased = tempfile::Builder::new()
+            .suffix(".srt")
+            .tempfile()
+            .map_err(|e| Error::output(e.to_string()))?;
+        std::fs::write(cased.path(), crate::srt::to_srt(&cues))
+            .map_err(|e| Error::output(format!("write cased srt: {e}")))?;
+        cased.path().to_path_buf()
+    } else {
+        subs.to_path_buf()
+    };
     // The subtitles filter parses `:` `'` `,` etc. in filenames — escape them.
     let path = subs
         .canonicalize()
@@ -428,7 +453,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         raw
     };
-    let cues = crate::srt::parse_srt(&body)?;
+    let mut cues = crate::srt::parse_srt(&body)?;
+    if let Some(case) = args.case {
+        apply_case(&mut cues, case);
+    }
     let out = if out_ext == "vtt" {
         let mut s = String::from("WEBVTT\n\n");
         for c in &cues {
@@ -454,6 +482,28 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
     let mut c = Contract::ok("subs", Some(crate::paths::display(&args.output)), None);
     c.verified = Some(args.output.is_file());
     Ok(c.with_extra(json!({ "cues": cues.len(), "format": out_ext })))
+}
+
+fn apply_case(cues: &mut [crate::srt::Cue], case: crate::cli::TextCase) {
+    use crate::cli::TextCase;
+    for c in cues.iter_mut() {
+        c.text = match case {
+            TextCase::Upper => c.text.to_uppercase(),
+            TextCase::Lower => c.text.to_lowercase(),
+            TextCase::Title => c
+                .text
+                .split_whitespace()
+                .map(|w| {
+                    let mut ch = w.chars();
+                    match ch.next() {
+                        Some(f) => f.to_uppercase().collect::<String>() + ch.as_str(),
+                        None => String::new(),
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" "),
+        };
+    }
 }
 
 fn vtt_ts(secs: f64) -> String {

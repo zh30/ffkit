@@ -450,6 +450,12 @@ pub struct OverlayArgs {
     /// Tile the overlay N times across the frame (draft watermark); 0 = off
     #[arg(long, default_value_t = 0)]
     pub tile: u32,
+    /// Ring around the overlay picture in px (PiP readability)
+    #[arg(long)]
+    pub border: Option<u32>,
+    /// Border color for --border (default white)
+    #[arg(long)]
+    pub border_color: Option<String>,
     /// Blend the overlay as a full-frame composite: screen|addition|multiply|
     /// lighten|darken|overlay|difference (light leaks, particles, LUTs-textures)
     #[arg(long)]
@@ -672,6 +678,15 @@ pub enum WaveMode {
     P2p,
     #[default]
     Cline,
+    /// Frequency bars (showfreqs) — spectrum audiogram look
+    Spectrum,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum TextCase {
+    Upper,
+    Lower,
+    Title,
 }
 
 #[derive(clap::Args, Debug)]
@@ -855,6 +870,9 @@ pub struct SubsArgs {
     /// With --burn: line alignment left|center|right (default center)
     #[arg(long)]
     pub align: Option<String>,
+    /// Rewrite cue text case: upper|lower|title (with --burn/--convert)
+    #[arg(long, value_enum)]
+    pub case: Option<TextCase>,
     /// Shift every cue of an .srt by ±N seconds (input = .srt, output = .srt)
     #[arg(long, allow_hyphen_values = true)]
     pub shift: Option<f64>,
@@ -910,6 +928,9 @@ pub struct ThumbArgs {
     /// Grab N evenly-spaced stills instead of one (out_01.jpg … out_NN.jpg)
     #[arg(long)]
     pub count: Option<u32>,
+    /// Grab a still at every scene change (thumbnail candidates)
+    #[arg(long)]
+    pub scenes: bool,
     /// Scale the still to this width (height follows aspect)
     #[arg(long)]
     pub width: Option<u32>,

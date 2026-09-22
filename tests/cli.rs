@@ -12556,3 +12556,155 @@ fn conform_anchor_places_the_picture() {
         .join(" ");
     assert!(cmds.contains("pad=240:320:(ow-iw)/2:0:black"), "{cmds}");
 }
+
+#[test]
+fn thumb_scenes_grabs_stills_at_cuts() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("sc.mp4");
+    // three distinct color segments → two hard cuts
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=red:s=320x240:d=0.5:r=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=blue:s=320x240:d=0.5:r=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=green:s=320x240:d=0.5:r=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1.5",
+            "-filter_complex",
+            "[0][1][2]concat=n=3:v=1[v]",
+            "-map",
+            "[v]",
+            "-map",
+            "3:a",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("t.jpg");
+    let v = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--scenes",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // frame 0 + the two cuts
+    let stills: Vec<_> = std::fs::read_dir(dir.path())
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name().to_string_lossy().starts_with("t_"))
+        .collect();
+    assert_eq!(stills.len(), 3);
+}
+
+#[test]
+fn overlay_border_rings_the_picture() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let ov = lavfi_fixture(dir.path(), "ov.mp4", "880", 0.3);
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--video",
+        ov.to_str().unwrap(),
+        "--position",
+        "top-right",
+        "--scale",
+        "96",
+        "--border",
+        "4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("pad=iw+8:ih+8:4:4:white"), "{cmds}");
+}
+
+#[test]
+fn audiogram_spectrum_renders_frequency_bars() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "spectrum",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("showfreqs"), "{cmds}");
+    assert_eq!(v["extra"]["mode"].as_str().unwrap(), "spectrum");
+}
+
+#[test]
+fn subs_case_rewrites_cue_text() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let srt = dir.path().join("in.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,900\nhello there\n").unwrap();
+    let out = dir.path().join("up.srt");
+    let v = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--convert",
+        "--case",
+        "upper",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.contains("HELLO THERE"), "{text}");
+}

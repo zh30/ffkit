@@ -46,11 +46,31 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     // shows through. overlay shortest=1 ends [vout] with the waveform: -shortest
     // alone overshoots because the encoder queue keeps the infinite cover
     // going past audio EOF.
-    let mode = match args.mode {
-        WaveMode::Point => "point",
-        WaveMode::Line => "line",
-        WaveMode::P2p => "p2p",
-        WaveMode::Cline => "cline",
+    // Spectrum renders frequency bars via showfreqs; the rest use showwaves.
+    let (wave_src, mode) = match args.mode {
+        WaveMode::Spectrum => (
+            format!(
+                "[0:a]showfreqs=s={{ww}}x{{wh}}:mode=bar:colors={}[wv];",
+                crate::color::lavfi(&args.color)
+            ),
+            "spectrum",
+        ),
+        m => {
+            let name = match m {
+                WaveMode::Point => "point",
+                WaveMode::Line => "line",
+                WaveMode::P2p => "p2p",
+                WaveMode::Cline => "cline",
+                WaveMode::Spectrum => unreachable!(),
+            };
+            (
+                format!(
+                    "[0:a]showwaves=s={{ww}}x{{wh}}:mode={name}:rate=30:colors={}:draw=full[wv];",
+                    crate::color::lavfi(&args.color)
+                ),
+                name,
+            )
+        }
     };
     // --text: rasterize a small title into a PNG and overlay it near the top.
     let mut title_png = None;
@@ -158,13 +178,16 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     };
     let fc = format!(
         "[1:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1[bg];\
-              [0:a]showwaves=s={ww}x{wh}:mode={mode}:rate=30:colors={}:draw=full[wv];\
+              {wave}\
               [wv]colorkey=0x000000:0.12:0.1[wvk];\
               [bg][wvk]overlay=(W-w)/2:(H-h)*{yf}:shortest=1{tail}",
-        crate::color::lavfi(&args.color),
-        ww = (w as f64 * 0.87).round() as u32 & !1,
+        wave = wave_src
+            .replace("{ww}", &((w as f64 * 0.87).round() as u32 & !1).to_string())
+            .replace(
+                "{wh}",
+                &(((h as f64) / 6.0).round().max(40.0) as u32 & !1).to_string()
+            ),
         yf = yf,
-        wh = ((h as f64) / 6.0).round().max(40.0) as u32 & !1,
     );
     argv.extend(["-filter_complex", &fc, "-map", "[vout]", "-map", "0:a"]);
     argv.extend([

@@ -98,12 +98,40 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
         ),
         None => (String::new(), src0),
     };
+    let (border_pre, src2) = match args.border {
+        Some(b) if b > 0 => {
+            if args.tile > 0 {
+                return Err(Error::input(
+                    "overlay --border is not supported with --tile",
+                ));
+            }
+            if b > 200 {
+                return Err(Error::input("--border must be ≤ 200 px"));
+            }
+            let col = match args.border_color.as_deref() {
+                Some(c) => crate::color::lavfi(c),
+                None => "white".to_string(),
+            };
+            (
+                format!(
+                    "[{src}]pad=iw+{d}:ih+{d}:{b}:{b}:{col}[bov];",
+                    src = src,
+                    d = b * 2,
+                    b = b,
+                    col = col
+                ),
+                "bov",
+            )
+        }
+        Some(_) => return Err(Error::input("--border must be ≥ 1 px")),
+        None => (String::new(), src),
+    };
     let (pre, ovl) = if fade > 0.0 {
         (
             format!(
                 "[{src}]format=rgba,fade=t=in:st={at_secs:.3}:d={fade:.3}:alpha=1,fade=t=out:st={:.3}:d={fade:.3}:alpha=1[ovl];",
                 end_secs - fade,
-                src = src
+                src = src2
             ),
             "ovl",
         )
@@ -113,12 +141,12 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
         (
             format!(
                 "[{src}]format=rgba,colorchannelmixer=aa={op:.3}[ovl];",
-                src = src
+                src = src2
             ),
             "ovl",
         )
     } else {
-        (String::new(), src)
+        (String::new(), src2)
     };
     // Infinite looped still/--loop secondary: end each composite on the main stream.
     let shortest = if (fade > 0.0 && args.image.is_some()) || args.loop_track {
@@ -159,7 +187,7 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         format!("[0:v][{ovl}]overlay=x={x}:y={y}{enable}{shortest}[vout]")
     };
-    let fc = format!("{loop_pre}{rot_pre}{pre}{fc}");
+    let fc = format!("{loop_pre}{rot_pre}{border_pre}{pre}{fc}");
     let _ = x;
     let _ = y;
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
