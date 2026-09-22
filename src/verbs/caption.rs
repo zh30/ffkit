@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::cli::{CaptionArgs, CaptionMode, CaptionSafe, Globals};
+use crate::cli::{CaptionArgs, CaptionMode, CaptionPosition, CaptionSafe, Globals};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -115,7 +115,7 @@ fn burn_overlay(
         argv.push(png);
     }
 
-    let y = overlay_y(args.safe);
+    let y = overlay_y(args.safe, args.position);
     let mut fc = String::new();
     let mut last = "0:v".to_string();
     for (i, cue) in cues.iter().enumerate() {
@@ -157,6 +157,10 @@ fn burn_overlay(
             CaptionSafe::Social => "social",
             CaptionSafe::Off => "off",
         },
+        "position": match args.position {
+            CaptionPosition::Bottom => "bottom",
+            CaptionPosition::Top => "top",
+        },
         "bottom_frac": match args.safe {
             CaptionSafe::Social => 0.20,
             CaptionSafe::Off => 0.15,
@@ -188,10 +192,17 @@ fn chunk_cues(cues: Vec<srt::Cue>, n: usize) -> Vec<srt::Cue> {
     out
 }
 
-fn overlay_y(safe: CaptionSafe) -> &'static str {
-    match safe {
+fn overlay_y(safe: CaptionSafe, pos: CaptionPosition) -> &'static str {
+    match pos {
         // Cross-post 2026 chrome: bottom ~20% (TikTok 320–350px / Reels up to 450px on 1920).
-        CaptionSafe::Social => "H-h-trunc(H*0.20)",
-        CaptionSafe::Off => "H-h-trunc(H*0.15)",
+        CaptionPosition::Bottom => match safe {
+            CaptionSafe::Social => "H-h-trunc(H*0.20)",
+            CaptionSafe::Off => "H-h-trunc(H*0.15)",
+        },
+        // Top captions sit under ~15% chrome (platform titles/progress).
+        CaptionPosition::Top => match safe {
+            CaptionSafe::Social => "trunc(H*0.15)",
+            CaptionSafe::Off => "trunc(H*0.10)",
+        },
     }
 }

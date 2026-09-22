@@ -174,6 +174,7 @@ pub enum Cmd {
     Frames(FramesArgs),
     Invert(InvertArgs),
     Countdown(CountdownArgs),
+    Mix(MixArgs),
     /// Even out voice dynamic range (compressor)
     Leveler(LevelerArgs),
     /// Noise gate — silence below a threshold
@@ -415,6 +416,9 @@ pub struct CaptionArgs {
     /// Shift every cue by SEC (negative pulls captions earlier)
     #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
     pub shift: f64,
+    /// Burn-in placement: bottom (default) or top of frame
+    #[arg(long, value_enum, default_value_t = CaptionPosition::Bottom)]
+    pub position: CaptionPosition,
     /// Text color as RRGGBB hex (default ffffff)
     #[arg(long)]
     pub color: Option<String>,
@@ -433,6 +437,12 @@ pub enum CaptionMode {
 pub enum CaptionSafe {
     Social,
     Off,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum CaptionPosition {
+    Bottom,
+    Top,
 }
 
 #[derive(clap::Args, Debug)]
@@ -900,6 +910,9 @@ pub struct GradeArgs {
     /// Apply a 3D LUT file (.cube etc) after the slider correction
     #[arg(long)]
     pub lut: Option<PathBuf>,
+    /// Mid-tone gamma (default 1.0; >1 lifts mids like log-ish open-up)
+    #[arg(long, default_value_t = 1.0)]
+    pub gamma: f64,
     /// Film-grain amount in luma units (0 = off; 4–10 reads as film)
     #[arg(long, default_value_t = 0.0)]
     pub grain: f64,
@@ -1203,6 +1216,25 @@ pub struct CountdownArgs {
     /// Text color as RRGGBB hex (default ffffff)
     #[arg(long)]
     pub color: Option<String>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct MixArgs {
+    /// First source (video kept as-is if present)
+    pub a: PathBuf,
+    /// Second source (audio merged in)
+    pub b: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Linear level for input A (default 1.0)
+    #[arg(long, default_value_t = 1.0)]
+    pub vol_a: f64,
+    /// Linear level for input B (default 1.0)
+    #[arg(long, default_value_t = 1.0)]
+    pub vol_b: f64,
+    /// Output runs until the LONGER input ends (default: first input's length)
+    #[arg(long)]
+    pub longest: bool,
 }
 
 #[derive(clap::Args, Debug)]

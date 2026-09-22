@@ -39,6 +39,7 @@ pub mod r#loop;
 pub mod loudnorm;
 pub mod meme;
 pub mod meta;
+pub mod mix;
 pub mod music;
 pub mod overlay;
 pub mod pitch;

@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.53.0] - 2026-09-22
+
+- `mix` — sum two audio sources at full level (`amix normalize=0` + `aresample`), `--vol-a`/`--vol-b` linear trims, `--longest` to run to the longer input; keeps input A's video as-is.
+- `caption --position top` — burn captions in the upper safe zone (top ~15% social / 10% off).
+- `grade --gamma` — mid-tone `eq=gamma` slider (verified on ffmpeg 4.4).
+
 ## [0.52.0] - 2026-09-22
 
 - `split --size 9MB` — aim chunks at a byte cap (Discord/WhatsApp uploads) by deriving the even grid from input size; also fixes bare-stem outputs (`-o part.mp4`) failing in `split` and `frames` with a bogus ENOENT after the parts were already written.

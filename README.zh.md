@@ -103,7 +103,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `extract` | 按输出扩展名抽音频、帧、字幕 |
 | `overlay` | logo/画中画；`--tile N` 全屏草稿水印 | logo、水印、画中画 |
 | `broll` | 切入镜头（`--insert` 视频、`--still` 图片、`--motion kenburns` 推镜） | 切走 B-roll（`--insert --at --duration`）；口播声音和时长不变 |
-| `caption` | 烧录/封装 `.srt`；`--chunk` 分词、`--shift` 整体平移 | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass）；`--safe social` 避开底部 20%；`--chunk N` 按 ≤N 词切分字幕 |
+| `caption` | 烧录/封装 `.srt`；`--chunk` 分词、`--shift` 整体平移、`--position top` 置顶 | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass）；`--safe social` 避开底部 20%；`--chunk N` 按 ≤N 词切分字幕 |
 | `loudnorm` | EBU R128 两遍（`-I -14` 社交，`-I -16` 播客） |
 | `denoise` | 人声降噪（风扇/轰隆/嘶嘶声）；`--video` 顺带画面去噪点 |
 | `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`） | 预设 `h264` / `webm` / `gif`；`--fps` 也可给视频变速帧率 |
@@ -144,7 +144,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | 把成片重复 N 遍（Shorts 循环加长） |
 | `stabilize` | 手持防抖（deshake） |
 | `reverse` | 倒放画面和声音 |
-| `grade` | `--preset` 一键风格 + 对比/饱和/亮度/`--warm` 冷暖；`--lut look.cube` 套 3D LUT | 预设 `cinematic`/`vivid`/`vintage`/`soft` 叠在滑杆之下 |
+| `grade` | `--preset` 一键风格 + 对比/饱和/亮度/`--gamma`/`--warm`；`--lut look.cube` 套 3D LUT | 预设 `cinematic`/`vivid`/`vintage`/`soft` 叠在滑杆之下 |
 | `zoom` | 中心推近（`--factor 1.25`） |
 | `sharpen` | 锐化（unsharp） |
 | `vignette` | 暗角 |
@@ -170,6 +170,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `frames` | 每 `--every` 秒抽一帧 → `stem_001.png…`（`--width` 缩放） |
 | `countdown` | 片头 3-2-1(-GO) 倒数遮罩（`--from`、`--each`、`--go`、`--at`） |
 | `invert` | 反色（`negate`） |
+| `mix` | 两段音频等权叠加（`--vol-a`/`--vol-b` 线性电平，`--longest` 按长者收尾） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `pipeline` | 按 JSON 方案顺序执行多步（`$src` / `$in` / `expect`） |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |

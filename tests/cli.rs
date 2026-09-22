@@ -6300,3 +6300,206 @@ fn countdown_shows_digits_then_clears() {
         "digit burns early then clears: {early} vs {late}; {v}"
     );
 }
+
+#[test]
+fn mix_merges_two_sources() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mk = |name: &str, freq: u32, dur: f64| -> PathBuf {
+        let p = dir.path().join(name);
+        let ok = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+            ])
+            .arg(format!("sine=frequency={freq}:duration={dur}"))
+            .arg(&p)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok);
+        p
+    };
+    let a = mk("a.wav", 440, 1.0);
+    let b = mk("b.wav", 880, 0.5);
+    let out = dir.path().join("m.wav");
+    let v = run_json(&[
+        "mix",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["duration_mode"], "first");
+    let mean = |p: &Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .arg("-i")
+            .arg(p)
+            .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(0.0)
+    };
+    let (solo, merged) = (mean(&a).max(mean(&b)), mean(&out));
+    assert!(
+        merged > solo + 1.5,
+        "summed mix should run hotter than either source ({solo} -> {merged}); {v}"
+    );
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 1.0).abs() < 0.3, "duration=first ≈ A's 1s: {d}");
+}
+
+#[test]
+fn grade_gamma_lifts_mids() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("mid.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=0x777777:s=320x240:d=0.5:rate=30")
+        .args(["-pix_fmt", "yuv420p", "-c:v", "libx264"])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let grab = |name: &str, gamma: &str| -> f64 {
+        let o = dir.path().join(name);
+        let v = run_json(&[
+            "grade",
+            src.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--gamma",
+            gamma,
+        ]);
+        assert_eq!(v["status"], "ok", "{v}");
+        let png = dir.path().join(format!("{name}.png"));
+        let ok = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+            .arg(&o)
+            .args(["-frames:v", "1"])
+            .arg(&png)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok);
+        let (r, g, b) = mean_rgb(&png);
+        (r + g + b) / 3.0
+    };
+    let hi = grab("hi.mp4", "2.2");
+    let lo = grab("lo.mp4", "0.6");
+    assert!(
+        hi > lo + 10.0,
+        "gamma 2.2 should out-lift gamma 0.6 ({lo} -> {hi})"
+    );
+}
+
+#[test]
+fn caption_position_top_keeps_text_up() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = dir.path().join("blue.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0x0033aa:s=360x640:d=1:rate=30",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:v",
+            "libx264",
+        ])
+        .arg(&f)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:01,000\nHELLO\n").unwrap();
+    let out = dir.path().join("burn.mp4");
+    let mut args = vec![
+        "caption".to_string(),
+        f.to_string_lossy().into_owned(),
+        "--srt".into(),
+        srt.to_string_lossy().into_owned(),
+        "--mode".into(),
+        "burn".into(),
+        "--position".into(),
+        "top".into(),
+        "-o".into(),
+        out.to_string_lossy().into_owned(),
+    ];
+    let arial = "/System/Library/Fonts/Supplemental/Arial.ttf";
+    if std::path::Path::new(arial).is_file() {
+        args.push("--font".into());
+        args.push(arial.into());
+    }
+    let argv: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    let v = run_json(&argv);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["position"], "top", "{v}");
+    let png = dir.path().join("t.png");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&out)
+        .args(["-frames:v", "1"])
+        .arg(&png)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let img = image::open(&png).expect("frame").to_rgb8();
+    let (w, h) = img.dimensions();
+    let (mut top, mut bottom_half) = (0u32, 0u32);
+    for y in 0..h {
+        for x in 0..w {
+            let p = img.get_pixel(x, y);
+            if p[0] > 230 && p[1] > 230 && p[2] > 230 {
+                if y * 2 < h {
+                    top += 1;
+                } else {
+                    bottom_half += 1;
+                }
+            }
+        }
+    }
+    assert!(top > 20, "top caption glyphs visible: {top}");
+    assert_eq!(
+        bottom_half, 0,
+        "top captions keep the lower half clean: {bottom_half}"
+    );
+}

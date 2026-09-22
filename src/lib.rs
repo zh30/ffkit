@@ -61,6 +61,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Frames(args) => verbs::frames::run(args, &g),
         Cmd::Invert(args) => verbs::invert::run(args, &g),
         Cmd::Countdown(args) => verbs::countdown::run(args, &g),
+        Cmd::Mix(args) => verbs::mix::run(args, &g),
         Cmd::Leveler(args) => verbs::leveler::run(args, &g),
         Cmd::Gate(args) => verbs::gate::run(args, &g),
         Cmd::Boomerang(args) => verbs::boomerang::run(args, &g),

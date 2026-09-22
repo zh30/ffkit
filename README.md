@@ -103,7 +103,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `extract` | Audio, a frame, or subtitles from the output extension |
 | `overlay` | Image/video overlay; position/scale/`--tile`, `--at`/`--dur` window | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture |
 | `broll` | Cutaway insert (`--insert` video, `--still` image, `--motion kenburns`) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay |
-| `caption` | SRT burn (`--mode`, `--safe`, `--chunk`, `--shift`, `--color`, `--size`) | Burn/mux `.srt`; `--chunk` word groups, `--shift` timing nudge | `--mode mux` soft subs; `burn` overlay raster (no libass); `--safe social` clears the bottom 20%; `--chunk N` splits cues into ≤N-word groups |
+| `caption` | SRT burn (`--mode`, `--safe`, `--chunk`, `--shift`, `--color`, `--size`, `--position`) | Burn/mux `.srt`; `--chunk` word groups, `--shift` timing nudge | `--mode mux` soft subs; `burn` overlay raster (no libass); `--safe social` clears the bottom 20%; `--chunk N` splits cues into ≤N-word groups |
 | `loudnorm` | EBU R128 two-pass (`-I -14` social, `-I -16` podcast) |
 | `denoise` | Voice cleanup (fan / rumble / hiss); `--video` also degrains the picture |
 | `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`) | Presets `h264` / `webm` / `gif`; `--fps` retimes video too |
@@ -144,7 +144,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) |
 | `stabilize` | Handheld deshake |
 | `reverse` | Play picture and sound backwards |
-| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--lut/--grain/--warm` | Presets `cinematic`/`vivid`/`vintage`/`soft` stack under the sliders; `--lut look.cube` applies a 3D LUT |
+| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--lut/--grain/--warm` | Presets `cinematic`/`vivid`/`vintage`/`soft` stack under the sliders; `--lut look.cube` applies a 3D LUT |
 | `zoom` | Center punch-in (`--factor 1.25`) |
 | `sharpen` | Unsharp |
 | `vignette` | Darken corners |
@@ -170,6 +170,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `frames` | Still dump every `--every` seconds → `stem_001.png…` (`--width`) |
 | `countdown` | 3-2-1(-GO) intro overlay (`--from`, `--each`, `--go`, `--at`) |
 | `invert` | Negative colors (`negate`) |
+| `mix` | Sum two audio sources (`--vol-a`/`--vol-b` linear, `--longest`) |
 | `batch` | One verb on every media file in a directory |
 | `pipeline` | Run a JSON scheme in order (`$src` / `$in` / `expect`) |
 | `graph` | JSON filter graph, see [`references/graph.md`](references/graph.md) |

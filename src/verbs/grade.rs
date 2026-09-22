@@ -43,8 +43,8 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         vf.push(',');
     }
     vf.push_str(&format!(
-        "eq=contrast={}:brightness={}:saturation={}",
-        args.contrast, args.brightness, args.saturation
+        "eq=contrast={}:brightness={}:saturation={}:gamma={}",
+        args.contrast, args.brightness, args.saturation, args.gamma
     ));
     if let Some(lut) = &args.lut {
         // Single quotes group literal path text; escape internal quotes.
