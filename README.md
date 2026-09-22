@@ -171,6 +171,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `countdown` | 3-2-1(-GO) intro overlay (`--from`, `--each`, `--go`, `--at`) |
 | `invert` | Negative colors (`negate`) |
 | `mix` | Sum two audio sources (`--vol-a`/`--vol-b` linear, `--longest`) |
+| `mute` | Drop the audio track, stream-copy the rest |
+| `timer` | Burn a running MM:SS(/H:) counter (`--position`, `--at`, `--dur`) |
+| `hls` | Package to `index.m3u8` + `seg_*.ts` (`--seg` seconds) |
 | `batch` | One verb on every media file in a directory |
 | `pipeline` | Run a JSON scheme in order (`$src` / `$in` / `expect`) |
 | `graph` | JSON filter graph, see [`references/graph.md`](references/graph.md) |

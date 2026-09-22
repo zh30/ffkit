@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.54.0] - 2026-09-22
+
+- `timer` — running MM:SS (H:MM:SS past the hour) counter burned into a corner, no drawtext needed: a 60-cell digit sprite + `crop x='mod(floor(t),60)*cell'` driven by `-loop 1` inputs; `--position`, `--at`, `--dur`, `--size`, `--color`, `--font`.
+- `mute` — drop the audio stream, everything else stream-copied (`-map 0 -map -0:a -c copy`).
+- `hls` — package for web embeds: `dir/index.m3u8` + `seg_*.ts`, `--seg` segment seconds, h264+aac transcode for player compat.
+
 ## [0.53.0] - 2026-09-22
 
 - `mix` — sum two audio sources at full level (`amix normalize=0` + `aresample`), `--vol-a`/`--vol-b` linear trims, `--longest` to run to the longer input; keeps input A's video as-is.

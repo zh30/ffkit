@@ -182,3 +182,11 @@ Any `-af` chain that changes duration (`atempo`, `atrim` crops) leaves `-c:v cop
 ENOENT. `split`/`frames`/`countdown` part-globs now `.filter(|p| !p.is_empty())`
 before the `.unwrap_or(".")` fallback, else every bare-stem output failed after
 the parts were already written.
+## Infinite overlay inputs need `shortest=1` — and `-loop 1`, not `loop`
+Chaining `overlay` over a synthesized infinite stream (a `-loop 1 -i png` input or
+`loop=` filter): ffmpeg 4.4 does NOT end the graph on main-input EOF — every
+stage needs `overlay=…:shortest=1`, and every still secondary must be looped at
+INPUT level (`-loop 1 -framerate N -i`). The `loop` video filter repeats stored
+frames at their ORIGINAL pts — `fps` after it cannot invent timestamps, so the
+branch stalls at ~1 frame and `shortest=1` then ends the whole output.
+`timer` uses this to drive `crop x='mod(floor(t),60)*cell'` digit sprites.

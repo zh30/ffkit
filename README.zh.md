@@ -171,6 +171,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `countdown` | 片头 3-2-1(-GO) 倒数遮罩（`--from`、`--each`、`--go`、`--at`） |
 | `invert` | 反色（`negate`） |
 | `mix` | 两段音频等权叠加（`--vol-a`/`--vol-b` 线性电平，`--longest` 按长者收尾） |
+| `mute` | 去掉音轨（其余流直接封装，不重编码） |
+| `timer` | 角落计时器烧录（`--position`、`--at`、`--dur`） |
+| `hls` | 打包成 `index.m3u8` + `seg_*.ts`（`--seg` 秒数） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `pipeline` | 按 JSON 方案顺序执行多步（`$src` / `$in` / `expect`） |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |

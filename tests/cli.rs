@@ -6503,3 +6503,91 @@ fn caption_position_top_keeps_text_up() {
         "top captions keep the lower half clean: {bottom_half}"
     );
 }
+
+#[test]
+fn mute_drops_audio_keeps_video() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&["mute", src.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["has_video"], true);
+    assert_eq!(v["probe"]["has_audio"], false, "{v}");
+}
+
+#[test]
+fn hls_writes_playlist_and_segments() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("web");
+    let v = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--seg",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.join("index.m3u8").is_file(), "playlist written");
+    let segs = v["extra"]["segments"].as_u64().unwrap_or(0);
+    assert!(segs >= 1, "{v}");
+    assert!(out.join("seg_000.ts").is_file(), "seg_000.ts exists");
+}
+
+#[test]
+fn timer_burns_counter_in_corner() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "timer",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--position",
+        "bottom-right",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // Corner crop of source vs output differs; center is untouched.
+    let px = |f: &Path, crop: &str| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,15),{crop}"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let corner = px(&src, "crop=140:60:160:170")
+        .iter()
+        .zip(px(&out, "crop=140:60:160:170").iter())
+        .map(|(a, b)| a.abs_diff(*b) as u64)
+        .sum::<u64>();
+    let center = px(&src, "crop=140:60:90:90")
+        .iter()
+        .zip(px(&out, "crop=140:60:90:90").iter())
+        .map(|(a, b)| a.abs_diff(*b) as u64)
+        .sum::<u64>();
+    assert!(corner > 20000, "timer digits burn in the corner: {corner}");
+    assert_eq!(center, 0, "frame center untouched: {center}");
+}

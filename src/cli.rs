@@ -175,6 +175,9 @@ pub enum Cmd {
     Invert(InvertArgs),
     Countdown(CountdownArgs),
     Mix(MixArgs),
+    Timer(TimerArgs),
+    Mute(MuteArgs),
+    Hls(HlsArgs),
     /// Even out voice dynamic range (compressor)
     Leveler(LevelerArgs),
     /// Noise gate — silence below a threshold
@@ -1235,6 +1238,50 @@ pub struct MixArgs {
     /// Output runs until the LONGER input ends (default: first input's length)
     #[arg(long)]
     pub longest: bool,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct TimerArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Start the running timer at this time (default 0)
+    #[arg(long)]
+    pub at: Option<f64>,
+    /// Stop showing after this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+    /// bottom-right (default), top-right, top-left, bottom-left, top, bottom, center
+    #[arg(long, default_value = "bottom-right")]
+    pub position: String,
+    #[arg(long, default_value_t = 20)]
+    pub margin: i32,
+    /// Text size multiplier (default 0.6 — corner counter)
+    #[arg(long, default_value_t = 0.6)]
+    pub size: f64,
+    /// Text color as RRGGBB hex (default ffffff)
+    #[arg(long)]
+    pub color: Option<String>,
+    #[arg(long)]
+    pub font: Option<String>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct MuteArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct HlsArgs {
+    pub input: PathBuf,
+    /// Playlist path (out.m3u8) or a directory (→ dir/index.m3u8 + seg_*.ts)
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Segment length in seconds (default 4)
+    #[arg(long, default_value_t = 4.0)]
+    pub seg: f64,
 }
 
 #[derive(clap::Args, Debug)]
