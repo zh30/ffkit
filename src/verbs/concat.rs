@@ -172,7 +172,9 @@ fn transition_chain(
             "[{i}:v]scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={fps:.3},format=yuv420p[v{i}]"
         ));
         if all_audio {
-            seg.push(format!("[{i}:a]aresample=48000,aformat=channel_layouts=stereo[a{i}]"));
+            seg.push(format!(
+                "[{i}:a]aresample=48000,aformat=channel_layouts=stereo[a{i}]"
+            ));
         }
     }
     let mut prev_v = "v0".to_string();
