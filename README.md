@@ -156,10 +156,10 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30 (nlmeans; slow on long clips) |
 | `crop` | Crop `--region x:y:w:h`, or `--aspect` reframe with `--anchor center|top|bottom|left|right` |
 | `waveform` | Audio waveform → PNG (`--size`, `--color`) for podcast art/thumbnails |
-| `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup |
+| `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup (`--color` magma/viridis…) |
 | `dehum` | Notch mains hum `--mains 50|60` + `--harmonics` (Q=12 `equalizer` chain) |
 | `tempo` | Speed audio `--factor` 0.5–8, pitch held (`atempo` chain; use `speed` for video) |
-| `leveler` | Voice dynamic-range compressor (`--threshold`/`--ratio`/`--makeup`) |
+| `leveler` | Voice dynamic-range compressor (`--threshold`/`--ratio`/`--makeup`) (`--preset` voice/podcast/master) |
 | `gate` | Noise gate — silence below `--threshold` dB (`agate`) |
 | `silence` | Insert `--dur` secs of silence at `--at`, or append with `--end` |
 | `vocal` | `--mode karaoke` drops centered vocals; `isolate` keeps the center (stereo) |
@@ -170,7 +170,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
 | `frames` | Still dump every `--every`, `--at` seconds → `stem_001.png…` (`--width`) |
-| `countdown` | 3-2-1(-GO) intro overlay (`--from`, `--each`, `--go`, `--at`) |
+| `countdown` | 3-2-1(-GO) intro overlay (`--from`, `--each`, `--go`, `--at`) (`--beep` tick tones) |
 | `invert` | Full-frame or windowed color inversion (`--at`, `--dur`) |
 | `mix` | Sum two audio sources (`--vol-a`/`--vol-b` linear, `--longest`) |
 | `mute` | Drop the audio track, stream-copy the rest |

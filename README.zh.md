@@ -156,10 +156,10 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `vdenoise` | 视频降噪（暗光噪点）：`--strength` 0.5–30（nlmeans，长片较慢） |
 | `crop` | 裁剪 `--region` 区域，或 `--aspect` 重构（`--anchor center|top|bottom|left|right` 可选锚点） |
 | `waveform` | 音频波形 → PNG（`--size`、`--color`），播客封面/缩略图用 |
-| `spectrogram` | 音频频谱图 → PNG（`--size`），清理前先看嗡鸣/噪声 |
+| `spectrogram` | 音频频谱图 → PNG（`--size`），清理前先看嗡鸣/噪声（`--color` magma/viridis…） |
 | `dehum` | 消除市电嗡鸣 `--mains 50|60` + `--harmonics`（Q=12 `equalizer` 陷波链） |
 | `tempo` | 音频变速 `--factor` 0.5–8，不变调（`atempo` 链；视频请用 `speed`） |
-| `leveler` | 人声动态压缩（忽大忽小）：`--threshold`/`--ratio`/`--makeup` |
+| `leveler` | 人声动态压缩（忽大忽小）：`--threshold`/`--ratio`/`--makeup`（`--preset` voice/podcast/master） |
 | `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`） |
 | `silence` | 在 `--at` 处插入 `--dur` 秒静音，或 `--end` 追加片尾静音 |
 | `vocal` | `--mode karaoke` 消中置人声、`isolate` 只留中置（需立体声源） |
@@ -170,7 +170,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `crossfade` | 两段音频淡接，`--dur` 秒重叠（`acrossfade`） |
 | `strip` | 去掉全部元数据/章节（发片前隐私清理），无损 `-c copy` |
 | `frames` | 每 `--every`、`--at` 秒抽一帧 → `stem_001.png…`（`--width` 缩放） |
-| `countdown` | 片头 3-2-1(-GO) 倒数遮罩（`--from`、`--each`、`--go`、`--at`） |
+| `countdown` | 片头 3-2-1(-GO) 倒数遮罩（`--from`、`--each`、`--go`、`--at`）（`--beep` 滴答声） |
 | `invert` | 全帧或定时反色（`--at`、`--dur`） |
 | `mix` | 两段音频等权叠加（`--vol-a`/`--vol-b` 线性电平，`--longest` 按长者收尾） |
 | `mute` | 去掉音轨（其余流直接封装，不重编码） |

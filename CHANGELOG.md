@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.71.0] - 2026-09-22
+
+- `countdown --beep` — one `aevalsrc` source: `sin(2*PI*880*t)*lt(mod(t-at,each),0.12)` gated tick tone, amix'd with input audio (commas must stay inside the quoted expr — aevalsrc splits channels on them).
+- `leveler --preset voice|podcast|master` — one-click acompressor curves.
+- `spectrogram --color NAME` — showspectrumpic color scheme (validated against the ffmpeg list).
+
 ## [0.70.0] - 2026-09-22
 
 - `zoom --out` — zoompan `z='max(factor-on*step,1.0)'`: starts at --factor, settles to 1x (reveal shot).

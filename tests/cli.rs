@@ -8209,3 +8209,93 @@ fn extract_width_scales_still() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn countdown_beep_adds_tone() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("cd.mp4");
+    let v = run_json(&[
+        "countdown",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--beep",
+        "--from",
+        "2",
+        "--each",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn leveler_preset_voice() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("lv.m4a");
+    let v = run_json(&[
+        "leveler",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "voice",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn spectrogram_color_scheme() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("sp.png");
+    let v = run_json(&[
+        "spectrogram",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--color",
+        "magma",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

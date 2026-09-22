@@ -73,9 +73,33 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
         ));
         prev = format!("[{label}]");
     }
-    let fc = segs.join(";");
+    let mut fc = segs.join(";");
+    if args.beep {
+        let win = runs.len() as f64 * args.each;
+        // aevalsrc: 880Hz sine gated to the first 120ms of each tick window
+        argv.extend([
+            "-f",
+            "lavfi",
+            "-i",
+            &format!(
+                "aevalsrc='sin(2*PI*880*t)*lt(mod(t-{at:.3},{ea:.3}),0.12)':d={dd:.3}:s=44100",
+                ea = args.each,
+                dd = at + win
+            ),
+        ]);
+        let beep_idx = runs.len() + 1;
+        if probe.has_audio {
+            fc.push_str(&format!(
+                ";[0:a][{beep_idx}:a]amix=inputs=2:duration=first[aout]"
+            ));
+        } else {
+            fc.push_str(&format!(";[{beep_idx}:a]anull[aout]"));
+        }
+    }
     argv.extend(["-filter_complex", &fc, "-map", &prev]);
-    if probe.has_audio {
+    if args.beep {
+        argv.extend(["-map", "[aout]", "-c:a", "aac"]);
+    } else if probe.has_audio {
         argv.extend(["-map", "0:a?", "-c:a", "copy"]);
     }
     argv.extend([

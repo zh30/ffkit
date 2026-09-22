@@ -1389,6 +1389,9 @@ pub struct CountdownArgs {
     /// Text color as RRGGBB hex (default ffffff)
     #[arg(long)]
     pub color: Option<String>,
+    /// Beep 880Hz for 120ms at the start of each count
+    #[arg(long)]
+    pub beep: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1538,6 +1541,16 @@ pub struct LevelerArgs {
     /// Makeup gain dB (default 6)
     #[arg(long, default_value_t = 6.0)]
     pub makeup: f64,
+    /// One-click compression curve: voice|podcast|master — fills the knobs
+    #[arg(long, value_enum)]
+    pub preset: Option<LevelerPreset>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum LevelerPreset {
+    Voice,
+    Podcast,
+    Master,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1580,6 +1593,9 @@ pub struct SpectrogramArgs {
     /// PNG size WxH (default 1920x1080)
     #[arg(long, default_value = "1920x1080")]
     pub size: String,
+    /// Color scheme: magma|viridis|fire|rainbow|green|terrain (ffmpeg names)
+    #[arg(long)]
+    pub color: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]

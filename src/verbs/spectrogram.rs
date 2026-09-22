@@ -10,6 +10,35 @@ pub fn run(args: SpectrogramArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_audio {
         return Err(Error::input("spectrogram: input has no audio stream"));
     }
+    let color = match &args.color {
+        Some(c) => {
+            let ok = [
+                "channel",
+                "intensity",
+                "rainbow",
+                "moreland",
+                "nebulae",
+                "fire",
+                "fiery",
+                "fruit",
+                "cool",
+                "magma",
+                "green",
+                "viridis",
+                "plasma",
+                "cividis",
+                "terrain",
+            ];
+            if !ok.contains(&c.as_str()) {
+                return Err(Error::input(format!(
+                    "--color: use one of {}",
+                    ok.join("|")
+                )));
+            }
+            format!(":color={c}")
+        }
+        None => String::new(),
+    };
     let (w, h) = args
         .size
         .split_once('x')
@@ -22,7 +51,7 @@ pub fn run(args: SpectrogramArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.input);
     argv.extend([
         "-filter_complex",
-        &format!("[0:a]showspectrumpic=s={w}x{h}:legend=1[v]"),
+        &format!("[0:a]showspectrumpic=s={w}x{h}:legend=1{color}[v]"),
         "-map",
         "[v]",
         "-frames:v",
