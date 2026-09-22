@@ -7876,3 +7876,66 @@ fn thumb_width_scales_still() {
     assert_eq!(v["status"], "ok", "{v}");
     assert_eq!(v["probe"]["width"].as_u64(), Some(160));
 }
+
+#[test]
+fn invert_at_windows_the_negation() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("inv.mp4");
+    let v = run_json(&[
+        "invert",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn blur_at_windows_the_defocus() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("blr.mp4");
+    let v = run_json(&[
+        "blur",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn title_corner_position_places_text() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("tp.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "HI",
+        "--position",
+        "top-right",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

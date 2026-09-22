@@ -12,7 +12,27 @@ pub fn run(args: InvertArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    argv.extend(["-vf", "negate"]);
+    let vf = match &args.at {
+        Some(s) => {
+            let at = crate::time::parse_time(s)?;
+            if !(0.0..probe.duration).contains(&at) {
+                return Err(Error::input("--at is outside the input"));
+            }
+            match args.dur {
+                Some(d) if at + d < probe.duration => {
+                    format!("negate=enable='between(t,{at:.3},{:.3})'", at + d)
+                }
+                _ => format!("negate=enable='gte(t,{at:.3})'"),
+            }
+        }
+        None => {
+            if args.dur.is_some() {
+                return Err(Error::input("--dur needs --at"));
+            }
+            "negate".to_string()
+        }
+    };
+    argv.extend(["-vf", &vf]);
     if probe.has_audio {
         argv.extend(["-c:a", "copy"]);
     }

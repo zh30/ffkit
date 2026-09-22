@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.66.0] - 2026-09-22
+
+- `invert --at/--dur` — windowed negation via `negate=enable='between(...)'` (flashback accents).
+- `blur --at/--dur` — windowed `gblur` (same enable pattern; `--dur` alone refuses).
+- `title --position` gains corners: `top-left|top-right|bottom-left|bottom-right` (6% margins).
+
 ## [0.65.0] - 2026-09-22
 
 - `replace --fade N` — `afade` in/out on the swapped audio (fade-out pinned to the video's end; all three mix/duck/plain paths).

@@ -76,9 +76,13 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
             "center" => ("(W-w)/2", "(H-h)/2"),
             "top" => ("(W-w)/2", "trunc(H*0.18)"),
             "bottom" => ("(W-w)/2", "trunc(H*0.78)"),
+            "top-left" => ("trunc(W*0.06)", "trunc(H*0.10)"),
+            "top-right" => ("W-w-trunc(W*0.06)", "trunc(H*0.10)"),
+            "bottom-left" => ("trunc(W*0.06)", "H-h-trunc(H*0.10)"),
+            "bottom-right" => ("W-w-trunc(W*0.06)", "H-h-trunc(H*0.10)"),
             other => {
                 return Err(Error::input(format!(
-                    "--position {other}: use center, top or bottom"
+                    "--position {other}: use center, top, bottom or a corner"
                 )));
             }
         }

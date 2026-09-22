@@ -1329,6 +1329,12 @@ pub struct InvertArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
+    /// Invert only from this time (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1748,6 +1754,12 @@ pub struct BlurArgs {
     /// Gaussian sigma (0.5–20)
     #[arg(long, default_value_t = 2.0)]
     pub sigma: f64,
+    /// Blur only from this time (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

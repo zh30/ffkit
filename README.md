@@ -142,7 +142,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
 | `cover` | 9:16 cover still (1080×1920) |
 | `fade` | Video and audio fade (`--in` / `--out`, `--color` e.g. white) |
-| `title` | Centered hook text (`--duration`, `--at`, `--position`, `--fade`, `--outline` soft in/out) |
+| `title` | On-screen hook/caption PNG (`--at`, `--position` incl. corners, `--fade`, `--outline`) |
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) |
 | `stabilize` | Handheld deshake |
 | `reverse` | Play picture and sound backwards |
@@ -152,7 +152,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `vignette` | Darken corners |
 | `bw` | Black and white |
 | `volume` | Gain ±dB (platform loudness is `loudnorm`) |
-| `blur` | Gaussian blur (`--sigma`) |
+| `blur` | Full-frame or windowed gaussian blur (`--sigma`, `--at`, `--dur`) |
 | `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30 (nlmeans; slow on long clips) |
 | `crop` | Crop `--region x:y:w:h`, or `--aspect` reframe with `--anchor center|top|bottom|left|right` |
 | `waveform` | Audio waveform → PNG (`--size`, `--color`) for podcast art/thumbnails |
@@ -171,7 +171,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
 | `frames` | Still dump every `--every`, `--at` seconds → `stem_001.png…` (`--width`) |
 | `countdown` | 3-2-1(-GO) intro overlay (`--from`, `--each`, `--go`, `--at`) |
-| `invert` | Negative colors (`negate`) |
+| `invert` | Full-frame or windowed color inversion (`--at`, `--dur`) |
 | `mix` | Sum two audio sources (`--vol-a`/`--vol-b` linear, `--longest`) |
 | `mute` | Drop the audio track, stream-copy the rest |
 | `timer` | Burn a running MM:SS(/H:) counter (`--position`, `--at`, `--dur`) |

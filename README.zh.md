@@ -142,7 +142,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |
 | `cover` | 导出 9:16 封面图（1080×1920） |
 | `fade` | 画面和声音淡入淡出（`--in` / `--out`，`--color` 淡出到白等） |
-| `title` | 居中标题文字（`--duration`、`--at`、`--position`、`--fade`、`--outline` 淡入淡出） |
+| `title` | 屏幕标题 PNG（`--at`、`--position` 含四角、`--fade`、`--outline`） |
 | `loop` | 把成片重复 N 遍（Shorts 循环加长） |
 | `stabilize` | 手持防抖（deshake） |
 | `reverse` | 倒放画面和声音 |
@@ -152,7 +152,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `vignette` | 暗角 |
 | `bw` | 黑白 |
 | `volume` | 音量 ±dB（平台响度请用 `loudnorm`） |
-| `blur` | 高斯模糊（`--sigma`） |
+| `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`、`--dur`） |
 | `vdenoise` | 视频降噪（暗光噪点）：`--strength` 0.5–30（nlmeans，长片较慢） |
 | `crop` | 裁剪 `--region` 区域，或 `--aspect` 重构（`--anchor center|top|bottom|left|right` 可选锚点） |
 | `waveform` | 音频波形 → PNG（`--size`、`--color`），播客封面/缩略图用 |
@@ -171,7 +171,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `strip` | 去掉全部元数据/章节（发片前隐私清理），无损 `-c copy` |
 | `frames` | 每 `--every`、`--at` 秒抽一帧 → `stem_001.png…`（`--width` 缩放） |
 | `countdown` | 片头 3-2-1(-GO) 倒数遮罩（`--from`、`--each`、`--go`、`--at`） |
-| `invert` | 反色（`negate`） |
+| `invert` | 全帧或定时反色（`--at`、`--dur`） |
 | `mix` | 两段音频等权叠加（`--vol-a`/`--vol-b` 线性电平，`--longest` 按长者收尾） |
 | `mute` | 去掉音轨（其余流直接封装，不重编码） |
 | `timer` | 角落计时器烧录（`--position`、`--at`、`--dur`） |
