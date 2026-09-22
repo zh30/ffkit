@@ -107,6 +107,10 @@ pub enum Cmd {
     Grid(GridArgs),
     /// Bottom/top progress bar filling over the duration
     Progress(ProgressArgs),
+    /// Hold a frame mid-clip or freeze the last frame (outro)
+    Freeze(FreezeArgs),
+    /// Mosaic/blur a region (face, logo, license plate)
+    Censor(CensorArgs),
     /// Still images (+ optional music bed) into a video
     Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
@@ -445,6 +449,12 @@ pub struct SpeedArgs {
     /// Playback factor: 2 = twice as fast, 0.5 = slow-mo
     #[arg(long)]
     pub factor: f64,
+    /// Apply the factor only inside this window (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -766,6 +776,42 @@ pub enum BarEdge {
     #[default]
     Bottom,
     Top,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct FreezeArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Hold the frame at this time (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Hold length in seconds (default 1.0 with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+    /// Freeze the LAST frame for this many seconds (outro freeze)
+    #[arg(long)]
+    pub end: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct CensorArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Region to censor, x:y:w:h in pixels
+    #[arg(long)]
+    pub region: String,
+    /// Mosaic blocks or gaussian blur
+    #[arg(long, value_enum, default_value_t = CensorMode::Pixel)]
+    pub mode: CensorMode,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug, Default, PartialEq)]
+pub enum CensorMode {
+    #[default]
+    Pixel,
+    Blur,
 }
 
 #[derive(clap::Args, Debug)]

@@ -42,6 +42,8 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Key(args) => verbs::key::run(args, &g),
         Cmd::Grid(args) => verbs::grid::run(args, &g),
         Cmd::Progress(args) => verbs::progress::run(args, &g),
+        Cmd::Freeze(args) => verbs::freeze::run(args, &g),
+        Cmd::Censor(args) => verbs::censor::run(args, &g),
         Cmd::Fit(args) => verbs::fit::run(args, &g),
         Cmd::Extract(args) => verbs::extract::run(args, &g),
         Cmd::Overlay(args) => verbs::overlay::run(args, &g),

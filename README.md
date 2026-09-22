@@ -117,6 +117,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`) |
 | `grid` | N inputs into a `--layout CxR` tile wall (`--size 1920x1080`); audios mix when all inputs have one |
 | `progress` | Progress bar filling across the duration (`--color`, `--height`, `--edge top`) |
+| `freeze` | Hold the frame at `--at T` for `--dur D` (mid-clip), or clone the last frame with `--end D` (outro) |
+| `censor` | Mosaic/blur a face/logo region `--region x:y:w:h` (`--mode pixel|blur`) |
 | `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |

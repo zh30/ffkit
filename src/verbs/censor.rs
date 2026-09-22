@@ -1,0 +1,72 @@
+use serde_json::json;
+
+use crate::cli::{CensorArgs, CensorMode, Globals};
+use crate::contract::{Contract, Status};
+use crate::engine::{self, ffmpeg_base};
+use crate::error::Error;
+
+fn parse_region(s: &str) -> Result<(u32, u32, u32, u32), Error> {
+    let parts: Vec<&str> = s.split(':').collect();
+    if parts.len() != 4 {
+        return Err(Error::input(
+            "--region must look like x:y:w:h (e.g. 100:80:64:64)",
+        ));
+    }
+    let mut vals = [0u32; 4];
+    for (i, p) in parts.iter().enumerate() {
+        vals[i] = p
+            .trim()
+            .parse()
+            .map_err(|_| Error::input("--region takes integers: x:y:w:h"))?;
+    }
+    if vals[2] < 8 || vals[3] < 8 {
+        return Err(Error::input("--region w/h must be at least 8px"));
+    }
+    Ok((vals[0], vals[1], vals[2], vals[3]))
+}
+
+pub fn run(args: CensorArgs, g: &Globals) -> Result<Contract, Error> {
+    let (x, y, w, h) = parse_region(&args.region)?;
+    let probe = engine::probe_or_err(&args.input, g)?;
+    engine::need_video(&probe, "censor")?;
+    let (iw, ih) = (probe.width.unwrap_or(0), probe.height.unwrap_or(0));
+    if iw > 0 && (x + w > iw || y + h > ih) {
+        return Err(Error::input(format!(
+            "--region {x}:{y}:{w}:{h} falls outside the {iw}x{ih} frame"
+        )));
+    }
+
+    let effect = match args.mode {
+        CensorMode::Pixel => "pixelize=w=16:h=16:m=avg".to_string(),
+        CensorMode::Blur => "gblur=sigma=30".to_string(),
+    };
+    let fc = format!(
+        "[0:v]split[base][top];\
+         [top]crop={w}:{h}:{x}:{y},{effect}[cens];\
+         [base][cens]overlay={x}:{y}:shortest=1[vout]"
+    );
+
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a", "-c:a", "aac"]);
+    }
+    argv.extend([
+        "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+    ]);
+    argv.push(&args.output);
+
+    let c = engine::write_job("censor", &[&args.input], &args.output, vec![argv], g)?;
+    let mut extra = json!({
+        "region": args.region,
+        "mode": format!("{:?}", args.mode).to_lowercase(),
+    });
+    if matches!(c.status, Status::Ok) {
+        if let Ok(p) = engine::probe_or_err(&args.output, g) {
+            extra["probe"] = json!(p);
+        }
+    }
+    Ok(c.with_extra(extra))
+}

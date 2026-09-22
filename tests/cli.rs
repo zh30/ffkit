@@ -2845,3 +2845,150 @@ fn grid_stacks_four_tiles() {
     ]);
     assert_eq!(v["status"], "failed", "{v}");
 }
+
+#[test]
+fn freeze_end_pads_last_frame() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("fr.mp4");
+    let v = run_json(&[
+        "freeze",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--end",
+        "1.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["extra"]["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        (d - 2.5).abs() < 0.3,
+        "1s clip + 1.5s freeze = ~2.5s, got {d}"
+    );
+    // frozen tail: frame at t≈2.0 identical to last source frame
+    let px = |n: u32| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&out)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n})"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let a = px(29); // last source frame (~0.97s)
+    let b = px(59); // deep in the frozen tail (~1.97s)
+    assert!(!a.is_empty() && !b.is_empty());
+    let diff: u64 = a
+        .iter()
+        .zip(b.iter())
+        .map(|(x, y)| x.abs_diff(*y) as u64)
+        .sum();
+    assert!(
+        diff < a.len() as u64,
+        "frozen frames should be near-identical (diff {diff} on {} bytes)",
+        a.len()
+    );
+}
+
+#[test]
+fn censor_pixelizes_the_region() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--region",
+        "100:100:64:64",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // inside the box the mosaic changes pixels vs the source; outside stays.
+    let region = |f: &Path| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                "crop=64:64:100:100",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let src_px = region(&src);
+    let out_px = region(&out);
+    let diff: u64 = src_px
+        .iter()
+        .zip(out_px.iter())
+        .map(|(x, y)| x.abs_diff(*y) as u64)
+        .sum();
+    assert!(
+        diff > 5000,
+        "mosaic must alter the region (diff {diff}); {v}"
+    );
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+        "--region",
+        "500:500:64:64",
+    ]);
+    assert_eq!(v["status"], "failed", "out-of-frame region refused; {v}");
+}
+
+#[test]
+fn speed_at_ramps_only_the_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "speed",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--factor",
+        "2",
+        "--at",
+        "0.4",
+        "--dur",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let p = run_json(&["probe", out.to_str().unwrap()]);
+    let d = p["probe"]["duration"]
+        .as_f64()
+        .unwrap_or_else(|| p["extra"]["probe"]["duration"].as_f64().unwrap_or(0.0));
+    assert!(
+        (d - 0.9).abs() < 0.15,
+        "1s with a 0.2s window at 2x = 0.9s, got {d}; {v}"
+    );
+}

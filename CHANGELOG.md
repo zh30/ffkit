@@ -4,6 +4,13 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.32.0] — 2026-09-22
+
+- `ffkit freeze`: mid-clip hold (`--at T --dur D`) or outro hold (`--end D`) via `tpad` clone; the held window's audio is silence
+- `ffkit censor`: mosaic/blur a region `--region x:y:w:h` (`--mode pixel|blur`)
+- `speed --at S [--dur D]`: speed-ramp only one window (3-segment trim/concat)
+
+
 ## [0.31.0] — 2026-09-22
 
 - `ffkit grid`: N inputs into a `--layout CxR` tile wall via `xstack`; audio mixes when every input has it
