@@ -4476,6 +4476,7 @@ fn broll_still_motion_keeps_window() {
     );
 }
 
+
 #[test]
 fn overlay_windowed_shows_only_inside() {
     if !has_ffmpeg() {
@@ -4636,3 +4637,5 @@ fn subs_extracts_embedded() {
     let text = std::fs::read_to_string(&out).unwrap_or_default();
     assert!(text.contains("hello subs"), "extracted srt has cue: {text}");
 }
+=======
+>>>>>>> devin/1790097349-rsi-round16
