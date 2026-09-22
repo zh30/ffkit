@@ -19,6 +19,9 @@ pub fn run(args: TempoArgs, g: &Globals) -> Result<Contract, Error> {
         ));
     }
 
+    if args.dur.is_some() && args.at.is_none() {
+        return Err(Error::input("--dur requires --at"));
+    }
     // atempo accepts at most 2x per instance on old ffmpeg — chain segments.
     let mut af = String::new();
     let mut f = args.factor;
@@ -35,7 +38,26 @@ pub fn run(args: TempoArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    argv.extend(["-af", &af]);
+    match &args.at {
+        Some(raw) => {
+            let at = crate::time::parse_time(raw)?;
+            if at >= probe.duration - 0.05 {
+                return Err(Error::input("--at is past the end of the input"));
+            }
+            let end = (at + args.dur.unwrap_or(probe.duration - at)).min(probe.duration);
+            // head + retempoed mid + tail
+            let fc = format!(
+                "[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[h];\
+                 [0:a]atrim={at:.3}:{end:.3},asetpts=PTS-STARTPTS,{af}[m];\
+                 [0:a]atrim={end:.3}:,asetpts=PTS-STARTPTS[tl];\
+                 [h][m][tl]concat=n=3:v=0:a=1[aout]"
+            );
+            argv.extend(["-filter_complex", &fc, "-map", "[aout]"]);
+        }
+        None => {
+            argv.extend(["-af", &af]);
+        }
+    }
     if probe.has_video {
         argv.extend(["-c:v", "copy"]);
     }

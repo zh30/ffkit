@@ -10367,3 +10367,175 @@ fn solid_text_puts_text_on_card() {
         .count();
     assert!(white > 50, "expected glyphs on the card, got {white}");
 }
+
+#[test]
+fn tempo_at_retempos_window_only() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("tone.m4a");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("t.m4a");
+    let v = run_json(&[
+        "tempo",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--factor",
+        "2",
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // 1.0s - 0.4s window + 0.4s/2 = 0.8s
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 0.8).abs() < 0.12, "expected ~0.8s, got {d}");
+}
+
+#[test]
+fn broll_position_pips_insert_in_corner() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let ins = dir.path().join("ins.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:size=320x240:duration=1:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=330:duration=1",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&ins)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("pip.mp4");
+    let v = run_json(&[
+        "broll",
+        src.to_str().unwrap(),
+        "--insert",
+        ins.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--duration",
+        "0.4",
+        "-o",
+        out.to_str().unwrap(),
+        "--position",
+        "top-right",
+        "--scale",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = dir.path().join("f.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.35",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let (w, h) = img.dimensions();
+    let red = |x: u32, y: u32| -> bool {
+        let p = img.get_pixel(x, y);
+        p[0] > 150 && p[1] < 90 && p[2] < 90
+    };
+    assert!(red(w - 60, 60), "top-right corner should carry the red PiP");
+    assert!(!red(w / 2, h / 2), "center should stay A-roll, not PiP");
+}
+
+#[test]
+fn subs_burn_safe_lifts_captions_out_of_bottom() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("s.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,900\nSAFE LINE\n").unwrap();
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--safe",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = dir.path().join("f.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let (w, h) = img.dimensions();
+    let bright_in = |y0: u32, y1: u32| -> u32 {
+        let mut n = 0;
+        for y in y0..y1.min(h) {
+            for x in 0..w {
+                let p = img.get_pixel(x, y);
+                if p[0] > 200 && p[1] > 200 && p[2] > 200 {
+                    n += 1;
+                }
+            }
+        }
+        n
+    };
+    let bottom = bright_in((h as f64 * 0.88) as u32, h);
+    let above = bright_in((h as f64 * 0.55) as u32, (h as f64 * 0.80) as u32);
+    assert!(
+        above > bottom,
+        "safe zone should lift text out of the bottom: above {above} vs bottom {bottom}"
+    );
+}

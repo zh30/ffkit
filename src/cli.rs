@@ -479,6 +479,16 @@ pub struct BrollArgs {
     /// Linear gain on the insert audio 0..=4 (with --audio; default 1.0)
     #[arg(long)]
     pub volume: Option<f64>,
+    /// PiP mode: place the insert in a corner/edge instead of full-screen
+    /// (top-left, top, top-right, left, center, right, bottom-left, bottom, bottom-right)
+    #[arg(long)]
+    pub position: Option<String>,
+    /// PiP width as a fraction of the frame (default 0.30, with --position)
+    #[arg(long)]
+    pub scale: Option<f64>,
+    /// PiP edge margin in px (default 24, with --position)
+    #[arg(long)]
+    pub margin: Option<i32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -796,6 +806,9 @@ pub struct SubsArgs {
     /// Language tag on the muxed subtitle stream (eng|spa|zho|…)
     #[arg(long)]
     pub lang: Option<String>,
+    /// Push burned captions into the social-safe zone (bigger MarginV)
+    #[arg(long)]
+    pub safe: bool,
     /// Merge another .srt into the input .srt (dual-language; cues sorted by start)
     #[arg(long)]
     pub merge: Option<PathBuf>,
@@ -1418,6 +1431,12 @@ pub struct TempoArgs {
     /// Speed factor 0.5..=8 (pitch preserved)
     #[arg(long, default_value_t = 1.5)]
     pub factor: f64,
+    /// Retempo only this window (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

@@ -170,11 +170,19 @@ fn burn(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract
         None => "&H00FFFFFF".to_string(),
     };
     let align = if args.top { 8 } else { 2 };
+    let margin_v = if args.safe {
+        // social-safe zone: keep burned text off the bottom 20% / top 15%
+        let probe = engine::probe_or_err(&args.input, g)?;
+        let frac = if args.top { 0.15 } else { 0.20 };
+        ((probe.height.unwrap_or(720) as f64) * frac + 36.0) as u32
+    } else {
+        36
+    };
     let font = args.font.as_deref().unwrap_or("Sans").replace(',', " ");
     let style = format!(
         "FontName={font},FontSize={size},PrimaryColour={color},\
 OutlineColour=&H80000000,BorderStyle=1,Outline=1,Shadow=0,\
-MarginV=36,Alignment={align}"
+MarginV={margin_v},Alignment={align}"
     );
     let vf = format!("subtitles=filename='{path}':force_style='{style}'");
 

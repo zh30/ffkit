@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.95.0] — 2026-09-22
+
+### Added
+
+- `tempo --at/--dur` — pitch-preserving retempo inside a window only (head/mid/tail `atrim`+`concat`); the rest plays at 1x. Audio-only inputs, as before.
+- `broll --position` + `--scale` + `--margin` — PiP mode: the insert scales to a fraction of the frame (default 0.30) and pins to any corner/edge instead of full-screen cutaway. Same `--at`/`--duration`, `--fade`, `--audio` handling.
+- `subs --burn --safe` — raises `MarginV` to clear the bottom 20% (or top 15% with `--top`) so burned captions sit above TikTok/Reels UI chrome.
+
+
 ## [0.94.0] — 2026-09-22
 
 ### Added

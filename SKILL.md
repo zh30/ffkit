@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.94.0
+version: 0.95.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -49,7 +49,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | waveform PNG of audio | `waveform` (`--size`, `--color`, `--scale`, `--at/--dur`) — podcast art, thumbnails |
 | audio spectrogram PNG | `spectrogram` (`--size`, `--color`, `--at/--dur`) — inspect hum/noise before cleanup |
 | mains hum / electrical buzz | `dehum` (`--at`/`--dur` window, `--mains 50|60`, `--harmonics`) — notches the fundamental + harmonics |
-| faster/slower podcast | `tempo` (`--factor 1.5` — pitch held; video inputs: use `speed`) |
+| faster/slower podcast | `tempo` (`--factor 1.5` — pitch held; video inputs: use `speed`), `--at/--dur` window |
 | voice all over the place | `leveler` (`--at`/`--dur` window, `--threshold`/`--ratio`/`--makeup` — `acompressor`) |
 | hiss between sentences | `gate` (`--threshold`, `--preset`, `--at/--dur` — `agate` closes on quiet parts) |
 | pad in room tone / breath | `silence` (`--at`, `--dur` — inserts quiet into audio files; video holds: `freeze`) |
@@ -79,7 +79,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | reframe 9:16 keeping faces | `crop` (`--aspect 9:16 --anchor top` keeps the face) |
 | attach album cover art | `art` (`--image cover.png`) → mp3/m4a/mp4/mkv |
 | grab a cover/thumbnail frame | `thumb` (`--at` / `--frame`) → jpg/png |
-| burn an .srt/.ass into pixels | `subs` (`--burn subs.srt` — libass), `--rate` drift fix |
+| burn an .srt/.ass into pixels | `subs` (`--burn subs.srt` — libass), `--rate` drift fix, `--safe` social zone |
 | split into exactly N parts | `split` (`--parts N` — equal-length grid) |
 | title that fades in/out | `title` (`--fade` secs — soft entry/exit, `--box` card) |
 | fix white balance / color cast | `grade` (`--hue` deg — rotates the hue) |
@@ -99,7 +99,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | split a podcast on pauses | `split` (`--silence=-35` — cuts at gap midpoints) |
 | music bed that eases in/out | `music` (`--fade` on the bed) |
 | one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass`) |
-| soft b-roll cutaway edges | `broll` (`--fade`) |
+| soft b-roll cutaway edges | `broll` (`--fade`), `--position` pip |
 | stills at exact moments | `frames` (`--at 12,45,90`) |
 | audiogram on any canvas | `audiogram` (`--size` — 1080x1920, 1920x1080, 1080x1080) |
 | swapped audio eases in/out | `replace` (`--fade`) |

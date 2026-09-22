@@ -24,6 +24,14 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
         ));
     }
     engine::need_video(&b, "broll")?;
+    if (args.scale.is_some() || args.margin.is_some()) && args.position.is_none() {
+        return Err(Error::input("--scale/--margin need --position"));
+    }
+    if let Some(s) = args.scale {
+        if !(0.05..=0.8).contains(&s) {
+            return Err(Error::input("--scale must be 0.05..=0.8 of the frame"));
+        }
+    }
     if at >= a.duration {
         return Err(Error::input(format!(
             "--at {at} is past A-roll duration {:.3}s",
@@ -34,17 +42,28 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
     let w = paths::even(a.width.unwrap_or(1280)).max(2);
     let h = paths::even(a.height.unwrap_or(720)).max(2);
 
-    let prep = match args.fit {
-        FitMode::Crop => format!(
-            "scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}"
-        ),
-        FitMode::Pad => format!(
-            "scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black"
-        ),
-        // Blurred copy of B fills the A frame; the insert sits centered on it.
-        FitMode::Blur => format!(
-            "split[bb0][bf0];[bb0]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},gblur=sigma=30[bgb];[bf0]scale={w}:{h}:force_original_aspect_ratio=decrease[bfg];[bgb][bfg]overlay=(W-w)/2:(H-h)/2"
-        ),
+    let pip = args.position.is_some();
+    let (ox, oy) = match &args.position {
+        Some(p) => crate::verbs::overlay::overlay_xy(p, args.margin.unwrap_or(24))?,
+        None => ("0".to_string(), "0".to_string()),
+    };
+    let prep = if pip {
+        let sw = (w as f64 * args.scale.unwrap_or(0.30)).round() as u32;
+        let sw = paths::even(sw).max(16);
+        format!("scale={sw}:-2")
+    } else {
+        match args.fit {
+            FitMode::Crop => format!(
+                "scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}"
+            ),
+            FitMode::Pad => format!(
+                "scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black"
+            ),
+            // Blurred copy of B fills the A frame; the insert sits centered on it.
+            FitMode::Blur => format!(
+                "split[bb0][bf0];[bb0]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},gblur=sigma=30[bgb];[bf0]scale={w}:{h}:force_original_aspect_ratio=decrease[bfg];[bgb][bfg]overlay=(W-w)/2:(H-h)/2"
+            ),
+        }
     };
 
     let mut argv = ffmpeg_base(g.progress);
@@ -77,7 +96,7 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
         ("yuv420p", String::new())
     };
     let mut fc = format!(
-        "[1:v]{still_pre}{prep},setsar=1,format={pix},setpts=PTS-STARTPTS+{at:.3}/TB{fade_chain}[br];[0:v][br]overlay=0:0:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
+        "[1:v]{still_pre}{prep},setsar=1,format={pix},setpts=PTS-STARTPTS+{at:.3}/TB{fade_chain}[br];[0:v][br]overlay={ox}:{oy}:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
     );
     if args.audio {
         if let Some(v) = args.volume {

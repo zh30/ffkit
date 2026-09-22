@@ -151,7 +151,7 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     engine::write_job("overlay", &inputs, &args.output, vec![argv], g)
 }
 
-fn overlay_xy(pos: &str, margin: i32) -> Result<(String, String), Error> {
+pub(crate) fn overlay_xy(pos: &str, margin: i32) -> Result<(String, String), Error> {
     let m = margin;
     let (x, y) = match pos {
         "top-left" => (format!("{m}"), format!("{m}")),
