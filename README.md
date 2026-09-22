@@ -97,7 +97,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `doctor` | Whether local ffmpeg works, which encoders/filters exist |
 | `probe` | Duration, size, codecs, channels |
 | `look` | Contact sheet (`--tiles`) or timestamps (`--at`, repeatable) |
-| `cut` | Trim; lossless copy by default, `--accurate` for frame-exact |
+| `cut` | Trim; lossless copy by default, `--accurate`, `--ranges` for frame-exact |
 | `concat` | Join; `--transition` crossfades between every clip (xfade + acrossfade, N inputs) |
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop |
 | `extract` | Audio, a frame, or subtitles from the output extension |
@@ -136,6 +136,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, stream-copy |
 | `subs` | Extract embedded subtitles (`--stream`), `--burn` hardsubs, `--shift ±N` retime an .srt |
 | `thumb` | One-frame cover grab (`--at` / `--frame`) → jpg/png/webp |
+| `solid` | Solid-color clip card (`--color`, `--size`, `--dur`; silent stereo optional) |
 | `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |

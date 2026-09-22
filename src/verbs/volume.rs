@@ -38,6 +38,16 @@ pub fn run(args: VolumeArgs, g: &Globals) -> Result<Contract, Error> {
         (None, Some(_)) => return Err(Error::input("--dur needs --at")),
         (None, None) => format!("volume={}dB", args.db),
     };
+    let af = if let Some(tp) = args.limit {
+        if !(-30.0..=0.0).contains(&tp) {
+            return Err(Error::input("--limit must be -30..=0 dBTP"));
+        }
+        // brickwall ceiling after the gain so the boost can't clip
+        let lin = 10f64.powf(tp / 20.0);
+        format!("{af},alimiter=limit={lin:.4}:level=false")
+    } else {
+        af
+    };
 
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");

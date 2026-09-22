@@ -59,6 +59,7 @@ pub mod sharpen;
 pub mod sheet;
 pub mod silence;
 pub mod slideshow;
+pub mod solid;
 pub mod spectrogram;
 pub mod speed;
 pub mod split;

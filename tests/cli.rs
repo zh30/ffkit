@@ -7258,3 +7258,124 @@ fn meta_album_genre_track_tags() {
     assert!(tags.contains("genre=Podcast"), "{tags}");
     assert!(tags.contains("track=3"), "{tags}");
 }
+
+#[test]
+fn cut_ranges_joins_kept_segments() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path()); // 1s fixture
+    let out = dir.path().join("kept.mp4");
+    let v = run_json(&[
+        "cut",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--ranges",
+        "0-0.4,0.6-1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        (d - 0.8).abs() < 0.15,
+        "0-0.4 + 0.6-1 should give ~0.8s: {d}"
+    );
+}
+
+#[test]
+fn solid_generates_color_clip() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("bg.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--color",
+        "ff0000",
+        "--dur",
+        "0.5",
+        "--size",
+        "320x240",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 0.5).abs() < 0.15, "duration: {d}");
+    assert_eq!(v["probe"]["width"].as_u64(), Some(320));
+    // Red-dominant frame + silent stereo track.
+    let png = dir.path().join("f.png");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&out)
+        .args(["-frames:v", "1"])
+        .arg(&png)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let (r, g, b) = mean_rgb(&png);
+    assert!(r > 150.0 && g < 60.0 && b < 60.0, "red frame: {r},{g},{b}");
+}
+
+#[test]
+fn volume_limit_caps_peak() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // Hot 1kHz tone: +12dB would clip without the limiter.
+    let aud = dir.path().join("hot.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=1000:duration=0.4")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("lim.wav");
+    let v = run_json(&[
+        "volume",
+        aud.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--db",
+        "12",
+        "--limit",
+        "-1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args(["-af", "volumedetect", "-f", "null", "-"])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stderr);
+    let peak = s
+        .lines()
+        .find_map(|l| {
+            l.split("max_volume:")
+                .nth(1)?
+                .split_whitespace()
+                .next()?
+                .parse::<f64>()
+                .ok()
+        })
+        .unwrap_or(0.0);
+    assert!(
+        peak <= -0.5,
+        "limiter -1 dBTP should cap the peak: max_volume={peak}"
+    );
+}

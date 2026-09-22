@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.60.0] - 2026-09-22
+
+- `cut --ranges "a-b,c-d"` — keep several ranges joined into one file (N `trim`/`atrim` + `concat`; always re-encodes for frame-exact, aligned pts).
+- `solid` — new verb: standalone solid-color clip (`lavfi color`), `--color`/`--size`/`--dur`, optional silent stereo (`--audio=false`). For intro cards, lyric backplates, b-roll spacers.
+- `volume --limit dBTP` — `alimiter` brickwall after the gain (linear ceiling from dBTP, `level=false`).
+
 ## [0.59.0] - 2026-09-22
 
 - `overlay --fade` — alpha-fades any overlay (`--image` still or `--video`) in/out over its window; stills are `-loop 1` + `shortest=1` so the composite ends with the main stream.

@@ -140,6 +140,7 @@ pub enum Cmd {
     /// Extract an embedded subtitle track to .srt/.vtt
     Subs(SubsArgs),
     Thumb(ThumbArgs),
+    Solid(SolidArgs),
     /// Still images (+ optional music bed) into a video
     Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
@@ -267,6 +268,9 @@ pub struct CutArgs {
     /// Re-encode for frame-exact cuts
     #[arg(long)]
     pub accurate: bool,
+    /// Keep several ranges joined into one file ("10-20,40-50", seconds or h:mm:ss)
+    #[arg(long)]
+    pub ranges: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -919,6 +923,24 @@ pub struct TitleArgs {
 }
 
 #[derive(clap::Args, Debug)]
+pub struct SolidArgs {
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Fill color: name or RRGGBB/0xRRGGBB (default black)
+    #[arg(long, default_value = "black")]
+    pub color: String,
+    /// Frame size WxH (default 1920x1080)
+    #[arg(long, default_value = "1920x1080")]
+    pub size: String,
+    /// Length in seconds
+    #[arg(long, default_value_t = 5.0)]
+    pub dur: f64,
+    /// Also add a silent stereo track (default true for edit-friendly files)
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+    pub audio: bool,
+}
+
+#[derive(clap::Args, Debug)]
 pub struct LoopArgs {
     pub input: PathBuf,
     #[arg(short, long)]
@@ -1555,6 +1577,9 @@ pub struct VolumeArgs {
     /// Length of the gain window (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Brickwall limiter after the gain, ceiling in dBTP (e.g. -1)
+    #[arg(long, allow_hyphen_values = true)]
+    pub limit: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
