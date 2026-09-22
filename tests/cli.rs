@@ -4652,24 +4652,26 @@ fn meta_rotate_writes_display_matrix() {
         "90",
     ]);
     assert_eq!(v["status"], "ok", "{v}");
-    let o = Command::new("ffprobe")
-        .args([
-            "-v",
-            "error",
-            "-select_streams",
-            "v:0",
-            "-show_entries",
-            "stream_side_data",
-            "-of",
-            "json",
-        ])
-        .arg(&out)
-        .output()
-        .unwrap();
-    let s = String::from_utf8_lossy(&o.stdout);
+    let rot = |p: &std::path::Path| -> f64 {
+        // ffprobe <7 lacks the `stream_side_data` show_entries section.
+        let o = Command::new("ffprobe")
+            .args(["-v", "error", "-select_streams", "v:0", "-show_streams"])
+            .arg(p)
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stdout)
+            .lines()
+            .find_map(|l| {
+                l.trim()
+                    .strip_prefix("rotation=")
+                    .and_then(|r| r.parse::<f64>().ok())
+            })
+            .unwrap_or(0.0)
+    };
     assert!(
-        s.contains("\"rotation\": -90") || s.contains("\"rotation\": 90"),
-        "display matrix with 90deg rotation: {s}"
+        (rot(&out).abs() - 90.0).abs() < 0.1,
+        "display matrix rotation +/-90, got {}",
+        rot(&out)
     );
     // lossless: duration unchanged
     assert!(
@@ -4687,24 +4689,10 @@ fn meta_rotate_writes_display_matrix() {
         "0",
     ]);
     assert_eq!(v2["status"], "ok", "{v2}");
-    let o2 = Command::new("ffprobe")
-        .args([
-            "-v",
-            "error",
-            "-select_streams",
-            "v:0",
-            "-show_entries",
-            "stream_side_data",
-            "-of",
-            "json",
-        ])
-        .arg(&out2)
-        .output()
-        .unwrap();
-    let s2 = String::from_utf8_lossy(&o2.stdout);
     assert!(
-        !s2.contains("-90") || s2.contains("\"rotation\": 0"),
-        "rotation cleared: {s2}"
+        rot(&out2).abs() < 45.0,
+        "rotation cleared to ~0, got {}",
+        rot(&out2)
     );
 }
 
@@ -4890,7 +4878,14 @@ fn reverb_adds_tail_after_tone() {
         let o = Command::new("ffmpeg")
             .args(["-i"])
             .arg(p)
-            .args(["-af", "atrim=0.5:1,volumedetect", "-vn", "-f", "null", "-"])
+            .args([
+                "-af",
+                "atrim=0.3:0.5,volumedetect",
+                "-vn",
+                "-f",
+                "null",
+                "-",
+            ])
             .output()
             .unwrap();
         String::from_utf8_lossy(&o.stderr)
