@@ -41,7 +41,7 @@ pub fn run(args: SheetArgs, g: &Globals) -> Result<Contract, Error> {
         let font_path = crate::font::resolve(None)?;
         let font_bytes =
             std::fs::read(&font_path).map_err(|e| Error::input(format!("read font: {e}")))?;
-        let margin = args.margin.or(args.pad).unwrap_or(6) as u32;
+        let margin = args.margin.or(args.pad).unwrap_or(6);
         let pad = args.pad.unwrap_or(6);
         let label_h = (th / 8).max(14);
         let mut a2 = ffmpeg_base(g.progress);
