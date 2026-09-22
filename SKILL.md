@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.105.0
+version: 0.106.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -55,11 +55,11 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | hiss between sentences | `gate` (`--threshold`, `--preset`, `--at/--dur` — `agate` closes on quiet parts) |
 | pad in room tone / breath | `silence` (`--at`, `--dur` — inserts quiet into audio files; video holds: `freeze`) |
 | one-click look | `grade --preset cinematic|vivid|vintage|soft` (stacks under the sliders) |
-| karaoke / keep only the vocal | `vocal` (`--at`/`--dur` window, `--mode karaoke` drops the center, `isolate` keeps it — stereo only) |
+| karaoke / keep only the vocal | `vocal` (`--at`/`--dur` window, `--mode karaoke` drops the center, `isolate` keeps it — stereo only; `--amount` partial) |
 | container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart) |
 | top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline`, `--at/--dur` window), `--position` center/bottom |
 | fix my podcast voice | `voice` — one-shot chain: gate hiss → compress swings → loudnorm `--lufs` (default −16) |
-| old interlaced footage | `deinterlace` (`--mode field` doubles the rate, `frame` same rate, `--parity` field order) |
+| old interlaced footage | `deinterlace` (`--mode field` doubles the rate, `frame` same rate, `--parity` field order, `--engine` yadif/bwdif) |
 | fade to white | `fade --color white` (`--in`/`--out` seconds as usual) |
 | blend two audio files | `crossfade` (`--second`, `--dur` overlap — acrossfade) |
 | strip location/device tags | `strip` — drops all container metadata + chapters, stream copy |
@@ -79,7 +79,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | fix audio/video sync drift | `sync` (`--ms ±N` — pad or trim audio start) |
 | sync a second take to the camera master | `align` (`ref target -o out` — auto-detects offset by audio cross-correlation; multi-cam, external recorder) |
 | rolling end credits | `scroll` (`--text`/`--file`, `--at`, `--dur` — text rolls bottom→top) |
-| splice a clip into the middle | `insert` (`--clip x.mp4 --at T` — b-roll/ad read without manual split+concat), `--transition` xfade both joints |
+| splice a clip into the middle | `insert` (`--clip x.mp4 --at T` — b-roll/ad read without manual split+concat; `--dur N` first N sec only), `--transition` xfade both joints |
 | two-camera angle switching | `multicam` (`A B --at t1,t2,...` — run `align` first if the takes aren't synced) |
 | reframe 9:16 keeping faces | `crop` (`--aspect 9:16 --anchor top` keeps the face) |
 | attach album cover art | `art` (`--image cover.png`) → mp3/m4a/mp4/mkv, `--extract` pull cover out |
@@ -103,7 +103,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | subtle watermark | `overlay` (`--opacity` on `--image`) |
 | split a podcast on pauses | `split` (`--silence=-35` — cuts at gap midpoints) |
 | music bed that eases in/out | `music` (`--fade` on the bed) |
-| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass`), `--band` parametric |
+| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass`), `--band` parametric, `--tilt` |
 | soft b-roll cutaway edges | `broll` (`--fade`), `--position` pip |
 | stills at exact moments | `frames` (`--at 12,45,90`) |
 | audiogram on any canvas | `audiogram` (`--size` — 1080x1920, 1920x1080, 1080x1080) |

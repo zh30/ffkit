@@ -21,7 +21,11 @@ pub fn run(args: DeinterlaceArgs, g: &Globals) -> Result<Contract, Error> {
         FieldParity::Tff => "tff",
         FieldParity::Bff => "bff",
     };
-    argv.extend(["-vf", &format!("yadif=mode={mode}:parity={parity}")]);
+    let vf = match args.engine.unwrap_or(crate::cli::DeintEngine::Yadif) {
+        crate::cli::DeintEngine::Yadif => format!("yadif=mode={mode}:parity={parity}"),
+        crate::cli::DeintEngine::Bwdif => format!("bwdif=mode={mode}:parity={parity}"),
+    };
+    argv.extend(["-vf", &vf]);
     if probe.has_audio {
         argv.extend(["-c:a", "copy"]);
     }
@@ -35,5 +39,5 @@ pub fn run(args: DeinterlaceArgs, g: &Globals) -> Result<Contract, Error> {
         DeinterlaceMode::Field => "field",
     };
     let c = engine::write_job("deinterlace", &[&args.input], &args.output, vec![argv], g)?;
-    Ok(c.with_extra(json!({ "mode": name, "parity": parity })))
+    Ok(c.with_extra(json!({ "mode": name, "parity": parity, "engine": format!("{:?}", args.engine.unwrap_or(crate::cli::DeintEngine::Yadif)).to_lowercase() })))
 }

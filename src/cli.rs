@@ -1389,6 +1389,9 @@ pub struct EqArgs {
     /// One-shot curve: voice|podcast|bright|bass (flags still apply on top)
     #[arg(long, value_enum)]
     pub preset: Option<EqPreset>,
+    /// Tilt the whole spectrum -10..10 dB (+ warms bass / − brightens)
+    #[arg(long, allow_hyphen_values = true)]
+    pub tilt: Option<f64>,
     /// Parametric band FREQ:GAIN[:WIDTH_OCT], repeatable
     /// (e.g. --band 800:-3 --band 5200:2:0.7)
     #[arg(long)]
@@ -1490,6 +1493,9 @@ pub struct VocalArgs {
     /// karaoke = drop the center (vocals); isolate = keep only the center
     #[arg(long, value_enum, default_value_t = VocalMode::Karaoke)]
     pub mode: VocalMode,
+    /// Effect amount 0..1 (default 1.0 = full cancel / full center)
+    #[arg(long)]
+    pub amount: Option<f64>,
     /// Apply only inside this window (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,
@@ -1575,6 +1581,15 @@ pub struct DeinterlaceArgs {
     /// Field order: auto, tff (top-first), bff (bottom-first). Wrong = judder.
     #[arg(long, value_enum, default_value_t = FieldParity::Auto)]
     pub parity: FieldParity,
+    /// Deinterlacer engine (default yadif; bwdif smoother motion)
+    #[arg(long, value_enum)]
+    pub engine: Option<DeintEngine>,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum DeintEngine {
+    Yadif,
+    Bwdif,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -1888,6 +1903,9 @@ pub struct InsertArgs {
     /// Crossfade seconds at each splice joint (default 0.4)
     #[arg(long)]
     pub duration: Option<f64>,
+    /// Splice only the first N seconds of the clip (default: whole clip)
+    #[arg(long)]
+    pub dur: Option<f64>,
     #[arg(short, long)]
     pub output: PathBuf,
 }

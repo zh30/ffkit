@@ -32,22 +32,26 @@ pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
     let bw = base.width.unwrap_or(1280);
     let bh = base.height.unwrap_or(720);
 
+    let clip_len = match args.dur {
+        Some(d) if d > 0.0 => d.min(clip.duration),
+        _ => clip.duration,
+    };
     if let Some(tr) = &args.transition {
-        return run_xfade(&args, &base, &clip, at, bw, bh, tr, g);
+        return run_xfade(&args, &base, &clip, at, clip_len, bw, bh, tr, g);
     }
 
-    // Three segments: base head, the whole clip (scaled to base size),
+    // Three segments: base head, the clip (scaled to base size, --dur capped),
     // base tail. Same trim/atrim→concat chain as the windowed verbs.
     let mut seg = vec![format!(
         "[0:v]trim=0:{at:.3},setpts=PTS-STARTPTS[v0];\
-         [1:v]scale={bw}:{bh}:force_original_aspect_ratio=decrease,pad={bw}:{bh}:(ow-iw)/2:(oh-ih)/2,setsar=1[v1];\
+         [1:v]trim=0:{clip_len:.3},setpts=PTS-STARTPTS,scale={bw}:{bh}:force_original_aspect_ratio=decrease,pad={bw}:{bh}:(ow-iw)/2:(oh-ih)/2,setsar=1[v1];\
          [0:v]trim={at:.3}:,setpts=PTS-STARTPTS[v2]"
     )];
     let mut pins = String::from("[v0][v1][v2]");
     if base.has_audio {
         seg.push(format!(
             "[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[a0];\
-             [1:a]atrim=0:,asetpts=PTS-STARTPTS[a1];\
+             [1:a]atrim=0:{clip_len:.3},asetpts=PTS-STARTPTS[a1];\
              [0:a]atrim={at:.3}:,asetpts=PTS-STARTPTS[a2]"
         ));
         // concat pads interleave per segment: v0,a0,v1,a1,v2,a2
@@ -90,26 +94,27 @@ pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
 fn run_xfade(
     args: &InsertArgs,
     base: &crate::probe::Probe,
-    clip: &crate::probe::Probe,
+    _clip: &crate::probe::Probe,
     at: f64,
+    clip_len: f64,
     bw: u32,
     bh: u32,
     transition: &str,
     g: &Globals,
 ) -> Result<Contract, Error> {
     let d = args.duration.unwrap_or(0.4);
-    if d <= 0.0 || d >= at || 2.0 * d > clip.duration {
+    if d <= 0.0 || d >= at || 2.0 * d > clip_len {
         return Err(Error::input(format!(
             "--duration {d}s needs --at > {d} and a clip longer than {:.2}s",
-            2.0 * d
+            (2.0 * d).min(clip_len)
         )));
     }
     // xfade offsets are in the FIRST input's timeline:
     //   head(0..at) ⨯ clip at at-d → then ⨯ tail at at+clip.dur-2d
     let off1 = at - d;
-    let off2 = at + clip.duration - 2.0 * d;
+    let off2 = at + clip_len - 2.0 * d;
     let mut segs = vec![format!(
-        "[0:v]trim=0:{at:.3},setpts=PTS-STARTPTS[v0];         [1:v]scale={bw}:{bh}:force_original_aspect_ratio=decrease,pad={bw}:{bh}:(ow-iw)/2:(oh-ih)/2,setsar=1[v1];         [0:v]trim={at:.3}:,setpts=PTS-STARTPTS[v2];         [v0][v1]xfade=transition={transition}:duration={d:.3}:offset={off1:.3}[x1];         [x1][v2]xfade=transition={transition}:duration={d:.3}:offset={off2:.3}[vout]"
+        "[0:v]trim=0:{at:.3},setpts=PTS-STARTPTS[v0];         [1:v]trim=0:{clip_len:.3},setpts=PTS-STARTPTS,scale={bw}:{bh}:force_original_aspect_ratio=decrease,pad={bw}:{bh}:(ow-iw)/2:(oh-ih)/2,setsar=1[v1];         [0:v]trim={at:.3}:,setpts=PTS-STARTPTS[v2];         [v0][v1]xfade=transition={transition}:duration={d:.3}:offset={off1:.3}[x1];         [x1][v2]xfade=transition={transition}:duration={d:.3}:offset={off2:.3}[vout]"
     )];
     if base.has_audio {
         segs.push(format!(

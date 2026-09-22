@@ -129,7 +129,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window) |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap` |
-| `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W] |
+| `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--tilt` warm↔bright |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window) |
 | `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio (`--kind`, `--strength`, `--at`/`--dur`) |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip` |
@@ -163,11 +163,11 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `leveler` | Compress dynamics (`--preset`, `--at/--dur` window) |
 | `gate` | Noise gate — silence below `--threshold` dB (`agate`) (`--preset voice|podcast|studio`, `--at/--dur` window) |
 | `silence` | Insert `--dur` secs of silence at `--at`, or append with `--end` |
-| `vocal` | Remove/isolate center vocals (`--mode`, `--at/--dur` window) |
+| `vocal` | Remove/isolate center vocals (`--mode`, `--at/--dur` window, `--amount` strength) |
 | `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov) |
 | `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window) , `--position` text block top/center/bottom |
 | `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`) |
-| `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order) |
+| `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order, `--engine` yadif/bwdif) |
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
 | `frames` | Still dump every `--every`, `--at` seconds → `stem_001.png…` (`--width`) |
@@ -182,7 +182,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sync` | Shift audio ±ms to fix A/V sync (`--ms`) |
 | `align` | Auto-sync a second recording to a reference by audio cross-correlation — multi-cam/external recorder (`--max-lag`) |
 | `scroll` | Rolling end credits: text rolls bottom→top (`--text`/`--file`, `--at`, `--dur`, `--size`, `--color`, `--font`) |
-| `insert` | Splice a clip mid-video (`--at`; `--transition` any xfade `--duration` S crossfades both joints) |
+| `insert` | Splice a clip mid-video (`--at`; `--dur` cap the insert; `--transition` any xfade `--duration` S crossfades both joints) |
 | `multicam` | Two-camera angle switching across an aligned pair: `--at t1,t2,...` flips angle |
 | `art` | Attach embedded cover art to audio; `--extract` pulls it out to an image |
 | `batch` | One verb on every media file in a directory |

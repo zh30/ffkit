@@ -129,7 +129,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `pitch` | ±12 半音变调不变速（`--at/--dur` 窗口） |
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
 | `channel` | 声道手术：`--mode dualmono|mono|swap` |
-| `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡） ，`--band` 参量频段 |
+| `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡） ，`--band` 参量频段，`--tilt` 暖↔亮 |
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet`（`--at`/`--dur` 局部回声） |
 | `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio（`--kind`、`--strength`、`--at`/`--dur`） |
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip` |
@@ -163,11 +163,11 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `leveler` | 动态压平（`--preset`、`--at/--dur` 窗口） |
 | `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`）（`--preset voice|podcast|studio`，`--at/--dur` 局部生效） |
 | `silence` | 在 `--at` 处插入 `--dur` 秒静音，或 `--end` 追加片尾静音 |
-| `vocal` | 消/留中置人声（`--mode`、`--at/--dur` 窗口） |
+| `vocal` | 消/留中置人声（`--mode`、`--amount` 强度、`--at/--dur` 窗口） |
 | `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart） |
 | `meme` | 上下说明文字梗图（`--outline`、`--at/--dur` 时间窗） ，`--position` 文字块上/中/下 |
 | `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`） |
-| `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序） |
+| `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序、`--engine` yadif/bwdif） |
 | `crossfade` | 两段音频淡接，`--dur` 秒重叠（`acrossfade`） |
 | `strip` | 去掉全部元数据/章节（发片前隐私清理），无损 `-c copy` |
 | `frames` | 每 `--every`、`--at` 秒抽一帧 → `stem_001.png…`（`--width` 缩放） |
@@ -182,7 +182,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sync` | 修复音画同步（`--ms ±N` 垫音/裁音头） |
 | `align` | 音频互相关自动对齐第二路录音（多机位/外接录音笔，`--max-lag`） |
 | `scroll` | 片尾滚动字幕（`--text`/`--file`、`--at`、`--dur`、`--size`、`--color`、`--font`） |
-| `insert` | 在视频中段插入整段素材（`--at`；`--transition` 转场 + `--duration` 两端淡入淡出） |
+| `insert` | 在视频中段插入整段素材（`--at`；`--dur` 只取前 N 秒；`--transition` 转场 + `--duration` 两端淡入淡出） |
 | `multicam` | 双机位对齐后角度切换：`--at t1,t2,...` 逐点换机位 |
 | `art` | 给音频嵌入封面图；`--extract` 反向导出封面 |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |

@@ -16,9 +16,18 @@ pub fn run(args: VocalArgs, g: &Globals) -> Result<Contract, Error> {
         ));
     }
     // Center content (typically the vocal) lives equally in L and R.
+    let a = args.amount.unwrap_or(1.0).clamp(0.0, 1.0);
     let af = match args.mode {
-        VocalMode::Karaoke => "pan=stereo|c0=c0-c1|c1=c1-c0".to_string(),
-        VocalMode::Isolate => "pan=mono|c0=0.5*c0+0.5*c1".to_string(),
+        // partial cancel keeps a fraction of the other channel (backing bleed)
+        VocalMode::Karaoke => {
+            format!("pan=stereo|c0=c0-{a:.3}*c1|c1=c1-{a:.3}*c0")
+        }
+        // amount blends toward a pure-center mix
+        VocalMode::Isolate => {
+            let s = 0.5 * a;
+            let m = 1.0 - s;
+            format!("pan=stereo|c0={m:.3}*c0+{s:.3}*c1|c1={s:.3}*c0+{m:.3}*c1")
+        }
     };
     let fc = match &args.at {
         Some(raw) => {

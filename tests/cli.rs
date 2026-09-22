@@ -11283,3 +11283,130 @@ fn subs_burn_outline_widens_the_stroke() {
     ]);
     assert_eq!(j["status"], "ok");
 }
+
+#[test]
+fn vocal_amount_keeps_a_partial_cancel() {
+    let tmp = tempfile::tempdir().unwrap();
+    let stereo = tmp.path().join("st.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-af",
+            "aformat=channel_layouts=stereo",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&stereo)
+        .status()
+        .expect("ffmpeg");
+    assert!(st.success());
+    let out = tmp.path().join("v.mp4");
+    let j = run_json(&[
+        "vocal",
+        stereo.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--amount",
+        "0.5",
+    ]);
+    assert_eq!(j["status"], "ok");
+}
+
+#[test]
+fn eq_tilt_warms_and_brightens() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("e.mp4");
+    let j = run_json(&[
+        "eq",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--tilt",
+        "5",
+    ]);
+    assert_eq!(j["status"], "ok");
+    // tilt maps to bass=+5 / treble=-5 in the af chain
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("bass=g=5"), "{cmd}");
+    assert!(cmd.contains("treble=g=-5"), "{cmd}");
+}
+
+#[test]
+fn deinterlace_bwdif_engine_runs() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("d.mp4");
+    let j = run_json(&[
+        "deinterlace",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--engine",
+        "bwdif",
+    ]);
+    assert_eq!(j["status"], "ok");
+}
+
+#[test]
+fn insert_dur_splices_only_part_of_the_clip() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let clip = tmp.path().join("clip.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1.5:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1.5",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&clip)
+        .status()
+        .expect("ffmpeg");
+    assert!(st.success());
+    let out = tmp.path().join("i.mp4");
+    let j = run_json(&[
+        "insert",
+        src.to_str().unwrap(),
+        "--clip",
+        clip.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "--dur",
+        "0.5",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", out.to_str().unwrap()]);
+    let d = p["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.5).abs() < 0.15, "duration {d} (1.0 + 0.5 splice)");
+}

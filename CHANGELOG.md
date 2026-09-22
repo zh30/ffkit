@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.106.0] — 2026-09-22
+
+### Added
+- `vocal --amount 0..1` — partial center-channel cancel keeps backing bleed; partial isolate blends toward the center mix.
+- `eq --tilt -10..10` — one-knob warm↔bright tone tilt mapped onto the bass/treble shelves (explicit `--bass`/`--treble` still win).
+- `deinterlace --engine yadif|bwdif` — choose the smoother motion-compensated bwdif. (nnedi intentionally omitted: it aborts without an external weights file on every ffmpeg tested.)
+- `insert --dur N` — splice only the first N seconds of the clip, in both the hard-cut and `--transition` xfade paths.
+
 ## [0.105.0] - 2026-09-23
 
 ### Added

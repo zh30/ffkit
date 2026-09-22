@@ -39,6 +39,17 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input(format!("{name} must be -20..=20 dB")));
         }
     }
+    if let Some(tilt) = args.tilt {
+        if !(-10.0..=10.0).contains(&tilt) {
+            return Err(Error::input("--tilt must be -10..=10 dB"));
+        }
+        if bass == 0.0 {
+            bass = tilt;
+        }
+        if treble == 0.0 {
+            treble = -tilt;
+        }
+    }
     let mut chain: Vec<String> = Vec::new();
     for band in &args.band {
         let mut parts = band.split(':');

@@ -232,6 +232,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 79)
+
+- `vocal --amount 0..1` — partial center cancel keeps backing bleed; partial isolate blends toward center.
+- `eq --tilt -10..10` — one-knob warm↔bright mapped onto the bass/treble shelves.
+- `deinterlace --engine yadif|bwdif` — pick the smoother motion-compensated bwdif (nnedi dropped: aborts without an external weights file on both tested ffmpegs).
+- `insert --dur N` — splice only the first N seconds of the clip, in both the cut and xfade paths.
+
 ## Shipped this run (round 78)
 
 - `mix --duck` — sidechain ducking: B (music bed) compresses under A (voice).
