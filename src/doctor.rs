@@ -43,6 +43,11 @@ const KEY_FILTERS: &[&str] = &[
     "transpose",
     "drawtext",
     "thumbnail",
+    "afftdn",
+    "hqdn3d",
+    "gblur",
+    "showwaves",
+    "colorkey",
 ];
 
 #[derive(Serialize, Clone)]

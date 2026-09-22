@@ -1,7 +1,7 @@
 ---
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
-version: 0.25.1
+version: 0.26.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -35,12 +35,12 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 |-----------|-------|
 | inspect | `doctor`, `probe`, `look` (`--tiles` / `--at`) |
 | trim / join | `cut`, `concat` (`--transition fade` for two clips), `rough` (list speech islands, then `-o` to assemble) |
-| frame / size | `fit`, `zoom` |
-| export | `deliver`, `transcode` |
+| frame / size | `fit` (`--fit pad` / `crop` / `blur`), `zoom` |
+| export | `deliver`, `transcode`, `compress` (`--size 10MB` two-pass), `audiogram` |
 | captions / mute | `caption` (`--mode burn` social safe-zone, or `--mode mux`) |
 | hook text | `title` |
 | cover still | `cover` |
-| speech / music | `jumpcut`, `music`, `loudnorm`, `volume` |
+| speech / music | `jumpcut`, `denoise`, `music`, `loudnorm`, `volume` |
 | motion / loop | `speed`, `reverse`, `loop`, `stabilize`, `fade` |
 | picture | `grade`, `bw`, `vignette`, `sharpen`, `blur` |
 | logo / PiP | `overlay` |

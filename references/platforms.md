@@ -8,7 +8,9 @@ Destination implied by the user (Reels, Shorts, TikTok, YouTube, GIF) picks fram
 | YouTube landscape | 1920x1080 | `--aspect 16:9` | `-I -14` | `h264` (`+faststart` is already on that preset) |
 | Square (feed) | 1080x1080 | `--aspect 1:1` | `-I -14` | `h264` |
 | Podcast audio | no picture | — | `-I -16 --tp -1.5` | `extract` to wav/m4a, then `loudnorm` |
+| Podcast clip → social | 1080x1920 waveform | `ffkit audiogram IN --image cover.png -o OUT` | audio kept | H.264+AAC |
 | GIF preview | short, ≤480px wide | — | no audio | `transcode --preset gif` |
+| Size-capped upload (Discord 10MB / WhatsApp 16MB / email ~25MB) | source frame kept | `ffkit compress IN --size 10MB -o OUT` | − | two-pass H.264+AAC |
 
 Safe-area captions on 9:16: `caption --mode burn` defaults to `--safe social` (above the bottom 20%). Union rectangle is ~900×1400 centered in 1080×1920. `look` the result.
 

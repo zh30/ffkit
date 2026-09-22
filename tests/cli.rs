@@ -1817,3 +1817,164 @@ fn pack_release_zip_runs() {
     assert_eq!(v["status"], "ok", "{v}");
     assert_eq!(v["extra"]["ffkit"], ver, "{v}");
 }
+
+#[test]
+fn denoise_keeps_streams() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("clean.mp4");
+    let v = run_json(&["denoise", f.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["tool"], "denoise");
+    assert_eq!(v["probe"]["has_audio"], true, "{v}");
+    assert_eq!(v["probe"]["has_video"], true, "{v}");
+    assert!(v["extra"]["af"].as_str().unwrap().contains("afftdn"), "{v}");
+    assert_eq!(v["extra"]["video_denoise"], false, "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(d > 0.8 && d < 1.3, "denoise keeps ~1s, got {d}; {v}");
+}
+
+#[test]
+fn compress_lands_under_size() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("small.mp4");
+    let v = run_json(&[
+        "compress",
+        f.to_str().unwrap(),
+        "--size",
+        "150KB",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["passes"], 2, "{v}");
+    assert!(v["extra"]["video_kbps"].as_f64().unwrap() > 0.0, "{v}");
+    let bytes = out.metadata().unwrap().len() as f64;
+    assert!(
+        bytes < 150_000.0,
+        "150KB target should land under it, got {bytes}; {v}"
+    );
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        d > 0.8 && d < 1.3,
+        "compressed clip keeps ~1s, got {d}; {v}"
+    );
+}
+
+#[test]
+fn compress_refuses_impossible_size() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("tiny.mp4");
+    let v = run_json(&[
+        "compress",
+        f.to_str().unwrap(),
+        "--size",
+        "20KB",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    let msg = v["error"]["message"].as_str().unwrap_or("");
+    assert!(msg.contains("--size"), "{v}");
+}
+
+#[test]
+fn fit_blur_pillarboxes() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let out = dir.path().join("blurred.mp4");
+    let v = run_json(&[
+        "fit",
+        f.to_str().unwrap(),
+        "--aspect",
+        "9:16",
+        "--fit",
+        "blur",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"], 1080, "{v}");
+    assert_eq!(v["probe"]["height"], 1920, "{v}");
+
+    let png = dir.path().join("top.png");
+    assert_eq!(
+        run_json(&[
+            "look",
+            out.to_str().unwrap(),
+            "--at",
+            "0.3",
+            "-o",
+            png.to_str().unwrap()
+        ])["status"],
+        "ok"
+    );
+    let img = image::open(&png).unwrap().to_rgb8();
+    // The blurred backdrop fills where black bars would sit — the top of the
+    // frame should carry the clip's colours, not pad black.
+    let (w, _) = img.dimensions();
+    let mut lit = 0u32;
+    for x in 0..w {
+        let p = img.get_pixel(x, 8);
+        if p[0] > 40 || p[1] > 40 || p[2] > 40 {
+            lit += 1;
+        }
+    }
+    assert!(
+        lit > w / 2,
+        "blur fill should cover the top band (lit {lit} of {w} pixels)"
+    );
+}
+
+#[test]
+fn audiogram_paints_waves_on_cover() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("talk.wav");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let out = dir.path().join("reel.mp4");
+    let v = run_json(&[
+        "audiogram",
+        wav.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"], 1080, "{v}");
+    assert_eq!(v["probe"]["height"], 1920, "{v}");
+    assert_eq!(v["probe"]["has_audio"], true, "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(d > 0.8 && d < 1.3, "audiogram keeps ~1s, got {d}; {v}");
+}

@@ -1,11 +1,14 @@
+pub mod audiogram;
 pub mod blur;
 pub mod broll;
 pub mod bw;
 pub mod caption;
+pub mod compress;
 pub mod concat;
 pub mod cover;
 pub mod cut;
 pub mod deliver;
+pub mod denoise;
 pub mod extract;
 pub mod fade;
 pub mod fit;

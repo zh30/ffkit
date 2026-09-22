@@ -44,6 +44,18 @@ Source path as `-o` is always refused. An existing output is refused unless `--o
 
 `transcode --preset h264` sets `+faststart` and yuv420p. A graph that writes mp4 for the browser should do the same.
 
+## Target size
+
+`compress --size` solves bitrate from probe duration: `usable = target×8×0.98`, audio paid first (`--audio-kbps`, default 96), the rest is `-b:v`. Video runs **two-pass** (`-passlogfile` in a tempdir; pass 1 sinks to `-f null -`, portable). Under 64 kbps video it refuses — raise the size or cut first. wav/flac outputs ignore bitrate and are refused for audio-only.
+
+## Denoise
+
+`denoise` chains `highpass` (rumble) + `afftdn` (hiss/fan). `--strength` 0–1 maps to `nr` 6–18 dB; past ~20 dB voice goes "underwater" — suggest a lower value if the report mentions artifacts. `--video` adds `hqdn3d` degrain and re-encodes the picture (default keeps `-c:v copy`).
+
+## fit --fit blur
+
+`--fit blur` pillarboxes with a zoomed, gblur'd copy of the frame (the repurpose look) instead of black bars. Same trick on `broll --fit blur` for the insert. Costs an overlay graph + re-encode; `pad`/`crop` stay the cheap defaults.
+
 ## loudnorm JSON
 
 The first pass prints measured values on stderr. ffkit parses them for the second pass. Do not use `-loglevel quiet` on a hand-rolled loudnorm; you will lose the measurements.

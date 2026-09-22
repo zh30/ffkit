@@ -26,12 +26,16 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
     let w = paths::even(a.width.unwrap_or(1280)).max(2);
     let h = paths::even(a.height.unwrap_or(720)).max(2);
 
-    let scale = match args.fit {
+    let prep = match args.fit {
         FitMode::Crop => format!(
             "scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}"
         ),
         FitMode::Pad => format!(
             "scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black"
+        ),
+        // Blurred copy of B fills the A frame; the insert sits centered on it.
+        FitMode::Blur => format!(
+            "split[bb0][bf0];[bb0]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},gblur=sigma=30[bgb];[bf0]scale={w}:{h}:force_original_aspect_ratio=decrease[bfg];[bgb][bfg]overlay=(W-w)/2:(H-h)/2"
         ),
     };
 
@@ -44,7 +48,7 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
     // a short insert (e.g. 0.5s B at --at 1) has already EOF'd and overlay
     // freezes the last frame for the whole window.
     let fc = format!(
-        "[1:v]{scale},setsar=1,format=yuv420p,setpts=PTS-STARTPTS+{at:.3}/TB[br];[0:v][br]overlay=0:0:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
+        "[1:v]{prep},setsar=1,format=yuv420p,setpts=PTS-STARTPTS+{at:.3}/TB[br];[0:v][br]overlay=0:0:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
     );
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if a.has_audio {
@@ -64,6 +68,7 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
         "fit": match args.fit {
             FitMode::Crop => "crop",
             FitMode::Pad => "pad",
+            FitMode::Blur => "blur",
         },
     }));
     Ok(c)
