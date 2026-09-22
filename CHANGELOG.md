@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.94.0] — 2026-09-22
+
+### Added
+
+- `extract --gif --loop N` — GIF repeat count passthrough: `-1` plays once, `0`/unset loops forever, `N` loops N times.
+- `meme --position top|center|bottom` — move the caption block: `center` stacks both texts mid-screen, `bottom` parks the pair low.
+- `solid --text` / `--text-color` / `--font` — centered card text on the generated clip (end-cards, section titles) — one call instead of solid + title.
+
+
 ## [0.93.0] — 2026-09-22
 
 ### Added

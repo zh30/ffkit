@@ -41,9 +41,46 @@ pub fn run(args: SolidArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-f", "lavfi", "-i", &lavfi]);
+
+    let tmp = if args.text.is_some() {
+        Some(tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?)
+    } else {
+        None
+    };
+    if let Some(text) = &args.text {
+        let font_path = crate::font::resolve(args.font.as_deref().map(std::path::Path::new))?;
+        let font_bytes = std::fs::read(&font_path)?;
+        let fg = crate::color::rgb(args.text_color.as_deref().unwrap_or("ffffff"))?;
+        let img = crate::raster::render_title_styled(text, &font_bytes, w, fg, 1.0)?;
+        let png = tmp.as_ref().unwrap().path().join("t.png");
+        img.save(&png)
+            .map_err(|e| Error::output(format!("write solid text png: {e}")))?;
+        argv.extend(["-i", &png.display().to_string()]);
+    }
+
     if args.audio {
         argv.extend(["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]);
-        argv.extend(["-map", "0:v", "-map", "1:a", "-shortest"]);
+    }
+    match (args.text.is_some(), args.audio) {
+        (true, true) => argv.extend([
+            "-filter_complex",
+            "[0:v][1:v]overlay=(W-w)/2:(H-h)/2[v]",
+            "-map",
+            "[v]",
+            "-map",
+            "2:a",
+            "-shortest",
+        ]),
+        (true, false) => argv.extend([
+            "-filter_complex",
+            "[0:v][1:v]overlay=(W-w)/2:(H-h)/2[v]",
+            "-map",
+            "[v]",
+        ]),
+        (false, true) => argv.extend(["-map", "0:v", "-map", "1:a", "-shortest"]),
+        (false, false) => {}
+    }
+    if args.audio {
         argv.extend(["-c:a", "aac"]);
     }
     argv.extend([

@@ -100,7 +100,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cut` | Trim; lossless copy by default, `--accurate`, `--ranges`, `--drop` for frame-exact |
 | `concat` | Join; `--transition` crossfades between every clip (xfade + acrossfade, N inputs) |
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop , `--position` anchors the picture in the bars |
-| `extract` | Still frame or `--gif` clip (`--bounce` palindrome) | `--at`, `--dur`, `--width`, `--fps` |
+| `extract` | Still frame or `--gif` clip (`--bounce` palindrome) | `--at`, `--dur`, `--width`, `--fps` , `--loop` GIF repeat count |
 | `overlay` | Image/video overlay; position/scale/`--tile`, `--fade`, `--angle`, `--at`/`--dur`, `--mode`, `--opacity` blend composite | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture |
 | `broll` | Cutaway insert (`--insert` video, `--still` image, `--motion kenburns`) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay , `--audio` hear the insert (`--volume` its level) |
 | `caption` | Burn subtitles (`--srt`, `--chunk`, `--karaoke`, `--box-color` card) , `--fade` soft in/out |
@@ -137,7 +137,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
 | `subs` | Extract/mux/burn/shift subtitles (`--merge` dual-language .srt) , `--rate` drift rescale |
 | `thumb` | One-frame cover grab (`--at` / `--frame`, `--width`) → jpg/png/webp |
-| `solid` | Solid-color clip card (`--color`, `--size`, `--dur`; silent stereo optional) (`--gradient` animated) |
+| `solid` | Solid-color clip card (`--color`, `--size`, `--dur`; silent stereo optional) (`--gradient` animated) , `--text` end-card text |
 | `replace` | Swap the audio track (`--mix`, `--duck`, `--fade`, `--loop` short beds) |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (`--merge N` merges keeps closer than N s) (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
@@ -165,7 +165,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `silence` | Insert `--dur` secs of silence at `--at`, or append with `--end` |
 | `vocal` | Remove/isolate center vocals (`--mode`, `--at/--dur` window) |
 | `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov) |
-| `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window) |
+| `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window) , `--position` text block top/center/bottom |
 | `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`) |
 | `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order) |
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |

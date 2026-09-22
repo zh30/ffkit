@@ -8,6 +8,14 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
     if args.bounce && !args.gif {
         return Err(Error::input("--bounce needs --gif"));
     }
+    if args.loop_count.is_some() && !args.gif {
+        return Err(Error::input("--loop needs --gif"));
+    }
+    if let Some(n) = args.loop_count {
+        if !(-1..=100).contains(&n) {
+            return Err(Error::input("--loop must be -1..=100 (-1 = play once)"));
+        }
+    }
     let ext = args
         .output
         .extension()
@@ -62,6 +70,9 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
                 &format!("{seq};[x][1:v]paletteuse=dither=bayer"),
                 "-an",
             ]);
+            if let Some(n) = args.loop_count {
+                use_p.extend(["-loop", &n.to_string()]);
+            }
             use_p.push(&args.output);
             let r = engine::write_job("extract", &[&args.input], &args.output, vec![gen, use_p], g);
             drop(palette);

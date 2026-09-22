@@ -100,7 +100,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges`、`--drop` 才帧精确 |
 | `concat` | 拼接；`--transition` 在每条之间做 xfade 转场（视频 xfade + 音频 acrossfade，支持 N 条） |
 | `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 ，`--position` 画面对齐黑边位置 |
-| `extract` | 抓静帧或 `--gif` 动图（`--bounce` 往返循环） | `--at`、`--dur`、`--width`、`--fps` |
+| `extract` | 抓静帧或 `--gif` 动图（`--bounce` 往返循环） | `--at`、`--dur`、`--width`、`--fps` ，`--loop` GIF 循环次数 |
 | `overlay` | logo/画中画；`--tile N` 全屏草稿水印 | logo、水印、画中画 | `--angle`
 | `broll` | 切入镜头（`--insert` 视频、`--still` 图片、`--motion kenburns` 推镜） | 切走 B-roll（`--insert --at --duration`）；口播声音和时长不变 ，`--audio` 听插播原声（`--volume` 音量） |
 | `caption` | 烧录字幕（`--srt`、`--chunk`、`--karaoke`、`--box-color` 底板） ，`--fade` 淡入淡出 |
@@ -137,7 +137,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`）+ `--rotate`、`--clear` 显示旋转，无损拷贝 |
 | `subs` | 字幕抽取/软封装/压制/移位（`--merge` 合并双语 .srt） ，`--rate` 变速纠偏 |
 | `thumb` | 抓封面单帧（`--at`/`--frame`、`--width`）→ jpg/png/webp |
-| `solid` | 纯色视频卡（`--color`、`--size`、`--dur`，可选静音轨）（`--gradient` 渐变） |（`--color`/`--gradient` 支持颜色名与十六进制） |
+| `solid` | 纯色视频卡（`--color`、`--size`、`--dur`，可选静音轨）（`--gradient` 渐变） |（`--color`/`--gradient` 支持颜色名与十六进制） ，`--text` 卡片文字 |
 | `replace` | 换音轨（`--mix`、`--duck`、`--fade`、`--loop` 短音源循环） |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（`--merge N` 合并间隔小于 N 秒的段；默认只编码要留下的段；`--copy` 无损但按关键帧） |
@@ -165,7 +165,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `silence` | 在 `--at` 处插入 `--dur` 秒静音，或 `--end` 追加片尾静音 |
 | `vocal` | 消/留中置人声（`--mode`、`--at/--dur` 窗口） |
 | `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart） |
-| `meme` | 上下说明文字梗图（`--outline`、`--at/--dur` 时间窗） |
+| `meme` | 上下说明文字梗图（`--outline`、`--at/--dur` 时间窗） ，`--position` 文字块上/中/下 |
 | `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`） |
 | `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序） |
 | `crossfade` | 两段音频淡接，`--dur` 秒重叠（`acrossfade`） |

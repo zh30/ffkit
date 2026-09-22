@@ -392,6 +392,9 @@ pub struct ExtractArgs {
     /// Palindrome loop: forward + reversed (needs --gif)
     #[arg(long)]
     pub bounce: bool,
+    /// GIF repeat count: -1 = play once, 0 or unset = loop forever (needs --gif)
+    #[arg(long = "loop", allow_negative_numbers = true)]
+    pub loop_count: Option<i64>,
     /// GIF clip length in seconds (needs --gif)
     #[arg(long)]
     pub dur: Option<f64>,
@@ -1123,6 +1126,15 @@ pub struct SolidArgs {
     /// Animated gradient RRGGBB:RRGGBB instead of a flat color
     #[arg(long)]
     pub gradient: Option<String>,
+    /// Centered text on the card (end-cards, section titles)
+    #[arg(long)]
+    pub text: Option<String>,
+    /// Text color RRGGBB (default white)
+    #[arg(long)]
+    pub text_color: Option<String>,
+    /// Font .ttf for --text
+    #[arg(long)]
+    pub font: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1465,6 +1477,16 @@ pub struct MemeArgs {
     /// Window length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Text block placement: top (classic), center (mid-screen stacked),
+    /// bottom (paired captions low — out of the UI zone)
+    #[arg(long, value_enum)]
+    pub position: Option<MemePos>,
+}
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum MemePos {
+    Top,
+    Center,
+    Bottom,
 }
 
 #[derive(clap::Args, Debug)]

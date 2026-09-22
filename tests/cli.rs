@@ -10248,3 +10248,122 @@ fn boomerang_at_bounces_window_only() {
     let want = 1.0 + 0.3;
     assert!((d - want).abs() < 0.25, "expected ~{want}s, got {d}");
 }
+
+#[test]
+fn extract_gif_loop_writes_animation() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("e.gif");
+    let v = run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--gif",
+        "--dur",
+        "0.3",
+        "--loop",
+        "-1",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let bytes = std::fs::read(&out).unwrap();
+    let gce = bytes
+        .windows(3)
+        .filter(|w| *w == [0x21, 0xF9, 0x04])
+        .count();
+    assert!(gce >= 2, "expected multiple frames, got {gce}");
+}
+
+#[test]
+fn meme_position_center_stacks_text_mid_screen() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "--top",
+        "MIDDLE",
+        "-o",
+        out.to_str().unwrap(),
+        "--position",
+        "center",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = dir.path().join("f.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let (w, h) = img.dimensions();
+    let white_in = |y0: u32, y1: u32| -> u32 {
+        let mut n = 0;
+        for y in y0..y1.min(h) {
+            for x in 0..w {
+                let p = img.get_pixel(x, y);
+                if p[0] > 220 && p[1] > 220 && p[2] > 220 {
+                    n += 1;
+                }
+            }
+        }
+        n
+    };
+    let mid = white_in(h * 2 / 5, h * 3 / 5);
+    let top = white_in(0, h / 10);
+    assert!(
+        mid > top,
+        "text should sit mid-screen: mid {mid} vs top {top}"
+    );
+}
+
+#[test]
+fn solid_text_puts_text_on_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--dur",
+        "0.6",
+        "--size",
+        "640x360",
+        "--text",
+        "THE END",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = dir.path().join("f.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let white = img
+        .pixels()
+        .filter(|p| p[0] > 200 && p[1] > 200 && p[2] > 200)
+        .count();
+    assert!(white > 50, "expected glyphs on the card, got {white}");
+}

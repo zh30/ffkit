@@ -40,16 +40,13 @@ pub fn run(args: MemeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
 
-    // One PNG input per text run; overlaid top-center / bottom-center.
-    let texts = [
-        (args.top.as_deref(), "(H-h)*0.04"),
-        (args.bottom.as_deref(), "(H-h)*0.96"),
-    ];
-    let mut n_png = 0usize;
-    let mut segs = Vec::new();
-    let mut prev = "[0:v]".to_string();
-    for (text, y) in texts {
-        let Some(text) = text else { continue };
+    // One PNG input per text run; overlaid top-center / bottom-center
+    // (or stacked per --position).
+    let mut renders: Vec<(u32, image::RgbaImage)> = Vec::new();
+    for text in [args.top.as_deref(), args.bottom.as_deref()]
+        .into_iter()
+        .flatten()
+    {
         let img = if args.outline > 0 {
             crate::raster::render_title_outlined(
                 text,
@@ -62,6 +59,41 @@ pub fn run(args: MemeArgs, g: &Globals) -> Result<Contract, Error> {
         } else {
             crate::raster::render_title_styled(text, &font_bytes, vw, fg, args.size as f32)?
         };
+        renders.push((img.height(), img));
+    }
+    // y per rendered PNG, in render order (top text first).
+    let ys: Vec<String> = match args.position {
+        None | Some(crate::cli::MemePos::Top) => {
+            let mut v = vec![];
+            if args.top.is_some() {
+                v.push("(H-h)*0.04".to_string());
+            }
+            if args.bottom.is_some() {
+                v.push("(H-h)*0.96".to_string());
+            }
+            v
+        }
+        Some(crate::cli::MemePos::Center) | Some(crate::cli::MemePos::Bottom) => {
+            let vh = probe.height.unwrap_or(720) as f64;
+            let hs: Vec<f64> = renders.iter().map(|(h, _)| *h as f64).collect();
+            let gap = vh * 0.02;
+            let block: f64 = hs.iter().sum::<f64>() + gap * (hs.len() as f64 - 1.0).max(0.0);
+            let mut y = match args.position.unwrap() {
+                crate::cli::MemePos::Center => (vh - block) / 2.0,
+                _ => vh * 0.96 - block,
+            };
+            let mut v = Vec::new();
+            for h in &hs {
+                v.push(format!("{y:.0}"));
+                y += h + gap;
+            }
+            v
+        }
+    };
+    let mut n_png = 0usize;
+    let mut segs = Vec::new();
+    let mut prev = "[0:v]".to_string();
+    for ((_, img), y) in renders.into_iter().zip(ys) {
         let png = tmp.path().join(format!("t{n_png}.png"));
         img.save(&png)
             .map_err(|e| Error::output(format!("write meme text png: {e}")))?;
