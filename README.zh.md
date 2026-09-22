@@ -119,13 +119,13 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `key` | 绿幕合成：`--color` 抠掉后叠到 `--bg` 图片/视频上（`--similarity`、`--blend`、`--despill` 去边缘绿色） |
 | `grid` | N 路素材拼 `--layout CxR` 宫格（`--size 1920x1080`）；都有音轨时混音输出（`--labels` 瓦片标注） |
 | `progress` | 底/顶部进度条，整段或定时窗口（`--color`、`--height`、`--edge`、`--at`、`--dur`） |
-| `freeze` | `--at T --dur D` 定格某一拍，或 `--end D` 尾帧定格（结尾停留） |
+| `freeze` | 定格画面（`--at`、`--dur`、`--end`、`--ease` 减速入镜） |
 | `censor` | 区域打码（`--mode`、`--strength` 强度、`--at`） |
 | `bleep` | 消音哔声：`--at`/`--dur` 选段，`--freq`/`--level` 调音 |
 | `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法）（`--times` 循环次数） |
 | `chapter` | 章节标记（`--at TIME|TITLE`、`--auto` 按静音自动分段） |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`；`--buffer N` 向外扩 N 像素） |
-| `sheet` | 缩略图墙/预览拼图：`--cols`/`--rows` → 一张 PNG | `--pad`/`--margin`
+| `sheet` | 宫格预览图（`--cols`x`--rows`、`--time` 每格时间戳） |
 | `pitch` | `--semitones N` 升降调（时长不变） |
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
 | `channel` | 声道手术：`--mode dualmono|mono|swap` |
@@ -165,7 +165,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `silence` | 在 `--at` 处插入 `--dur` 秒静音，或 `--end` 追加片尾静音 |
 | `vocal` | `--mode karaoke` 消中置人声、`isolate` 只留中置（需立体声源） |
 | `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart） |
-| `meme` | 上下说明文字梗图（`--outline` 经典描边） |
+| `meme` | 上下说明文字梗图（`--outline`、`--at/--dur` 时间窗） |
 | `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`） |
 | `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序） |
 | `crossfade` | 两段音频淡接，`--dur` 秒重叠（`acrossfade`） |

@@ -1317,6 +1317,9 @@ pub struct SheetArgs {
     /// Outer margin in px (default = --pad)
     #[arg(long)]
     pub margin: Option<u32>,
+    /// Stamp each tile's source timestamp under it (review sheets)
+    #[arg(long)]
+    pub time: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1374,6 +1377,12 @@ pub struct MemeArgs {
     /// Classic meme outline thickness in px (0 = off). Black outline, white text.
     #[arg(long, default_value_t = 0)]
     pub outline: u32,
+    /// Show the text only inside this window (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1941,6 +1950,9 @@ pub struct FreezeArgs {
     /// Freeze the LAST frame for this many seconds (outro freeze)
     #[arg(long)]
     pub end: Option<f64>,
+    /// Seconds before the freeze played at half-speed (swoop-into-hold)
+    #[arg(long)]
+    pub ease: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

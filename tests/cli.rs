@@ -9344,3 +9344,76 @@ fn audiogram_progress_bar() {
     ]);
     assert_eq!(v2["status"], "ok", "{v2}");
 }
+
+#[test]
+fn sheet_time_stamps() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.png");
+    let v = run_json(&[
+        "sheet",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--time",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(v["extra"]["time"].as_bool().unwrap());
+}
+
+#[test]
+fn freeze_ease_swoops_in() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "freeze",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "--dur",
+        "0.5",
+        "--ease",
+        "0.2",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // 1.0s src + 0.5 hold + 0.2 ease stretch
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 1.5);
+}
+
+#[test]
+fn meme_at_dur_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--top",
+        "HI",
+        "--at",
+        "0.2",
+        "--dur",
+        "0.4",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

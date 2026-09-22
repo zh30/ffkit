@@ -24,6 +24,17 @@ pub fn run(args: MemeArgs, g: &Globals) -> Result<Contract, Error> {
         None => [255, 255, 255],
     };
 
+    let enable = match (&args.at, args.dur) {
+        (Some(at), dur) => {
+            let start = crate::time::parse_time(at)?;
+            match dur {
+                Some(d) => format!(":enable='between(t,{start:.3},{:.3})'", start + d),
+                None => format!(":enable='gte(t,{start:.3})'"),
+            }
+        }
+        (None, Some(_)) => return Err(Error::input("--dur needs --at")),
+        (None, None) => String::new(),
+    };
     let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
@@ -58,7 +69,9 @@ pub fn run(args: MemeArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push(png);
         n_png += 1;
         let label = format!("m{n_png}");
-        segs.push(format!("{prev}[{n_png}:v]overlay=x=(W-w)/2:y={y}[{label}]"));
+        segs.push(format!(
+            "{prev}[{n_png}:v]overlay=x=(W-w)/2:y={y}{enable}[{label}]"
+        ));
         prev = format!("[{label}]");
     }
     let fc = segs.join(";");

@@ -55,19 +55,43 @@ pub fn run(args: FreezeArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--dur must be 0.1..30 seconds"));
         }
         let one_frame = 1.0 / probe.fps.unwrap_or(30.0).max(1.0);
-        let mut fc = format!(
-            "[0:v]trim=0:{at:.3},setpts=PTS-STARTPTS[v0];\
-             [0:v]trim={at:.3}:{e:.3},setpts=PTS-STARTPTS,tpad=stop=-1:stop_duration={dur:.3}:stop_mode=clone[v1];\
+        // --ease N: the N s before --at play at half-speed, swooping into the hold.
+        let ease = args.ease.unwrap_or(0.0).clamp(0.0, at);
+        let head_end = at - ease;
+        let mut fc = String::new();
+        if ease > 0.0 {
+            fc.push_str(&format!(
+                "[0:v]trim=0:{head_end:.3},setpts=PTS-STARTPTS[v0];\
+                 [0:v]trim={head_end:.3}:{at:.3},setpts=PTS-STARTPTS,setpts=PTS*2[ve];"
+            ));
+        } else {
+            fc.push_str(&format!("[0:v]trim=0:{at:.3},setpts=PTS-STARTPTS[v0];"));
+        }
+        fc.push_str(&format!(
+            "[0:v]trim={at:.3}:{e:.3},setpts=PTS-STARTPTS,tpad=stop=-1:stop_duration={dur:.3}:stop_mode=clone[v1];\
              [0:v]trim=start={at:.3},setpts=PTS-STARTPTS[v2]",
             e = at + one_frame,
-        );
+        ));
         if probe.has_audio {
+            let ease_audio = if ease > 0.0 {
+                format!("[0:a]atrim={head_end:.3}:{at:.3},asetpts=PTS-STARTPTS,atempo=0.5[ae];")
+            } else {
+                String::new()
+            };
+            let a0_end = if ease > 0.0 { head_end } else { at };
             fc.push_str(&format!(
-                ";[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[a0];\
+                ";[0:a]atrim=0:{a0_end:.3},asetpts=PTS-STARTPTS[a0];\
+                 {ease_audio}\
                  anullsrc=r=48000:cl=stereo,atrim=0:{dur:.3}[a1];\
-                 [0:a]atrim=start={at:.3},asetpts=PTS-STARTPTS[a2];\
-                 [v0][a0][v1][a1][v2][a2]concat=n=3:v=1:a=1[vout][aout]"
+                 [0:a]atrim=start={at:.3},asetpts=PTS-STARTPTS[a2];"
             ));
+            if ease > 0.0 {
+                fc.push_str("[v0][a0][ve][ae][v1][a1][v2][a2]concat=n=4:v=1:a=1[vout][aout]");
+            } else {
+                fc.push_str("[v0][a0][v1][a1][v2][a2]concat=n=3:v=1:a=1[vout][aout]");
+            }
+        } else if ease > 0.0 {
+            fc.push_str(";[v0][ve][v1][v2]concat=n=4:v=1:a=0[vout]");
         } else {
             fc.push_str(";[v0][v1][v2]concat=n=3:v=1:a=0[vout]");
         }

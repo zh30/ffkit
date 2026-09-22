@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.83.0
+version: 0.84.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -56,7 +56,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | one-click look | `grade --preset cinematic|vivid|vintage|soft` (stacks under the sliders) |
 | karaoke / keep only the vocal | `vocal` (`--mode karaoke` drops the center, `isolate` keeps it — stereo only) |
 | container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart) |
-| top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline` classic look) |
+| top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline`, `--at/--dur` window) |
 | fix my podcast voice | `voice` — one-shot chain: gate hiss → compress swings → loudnorm `--lufs` (default −16) |
 | old interlaced footage | `deinterlace` (`--mode field` doubles the rate, `frame` same rate, `--parity` field order) |
 | fade to white | `fade --color white` (`--in`/`--out` seconds as usual) |
@@ -150,14 +150,14 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | green screen | `key` (`--bg`, `--color`/`--similarity`/`--blend`, `--despill` for fringe) |
 | reaction / multi-cam grid | `grid` (`--layout 2x2`, `--size`) |
 | watch-time progress bar | `progress` (`--color`, `--height`, `--edge`) |
-| freeze a beat / outro hold | `freeze` (`--at T --dur D`, or `--end D`) |
+| freeze a beat / outro hold | `freeze` (`--ease` swoop, `--at T --dur D`, or `--end D`) |
 | blur a face / logo | `censor` (`--strength`, `--region x:y:w:h`, `--mode pixel|blur`; `--at`/`--dur` limits the window) |
 | slow-mo punch-in | `speed` (`--factor`, `--at`/`--dur` for just one window) |
 | boomerang replay | `boomerang` (forward then reversed, one loop) |
 | YouTube/player chapters | `chapter` (`--at T|TITLE` repeatable, `--auto` silence gaps; lossless) |
 | punch-zoom a moment | `zoom` (`--factor`, `--at`/`--dur`) |
 | strip letterbox/pillarbox | `autocrop` (cropdetect scan → crop, `--buffer N` keeps N px edge) |
-| contact sheet / preview grid | `sheet` (`--cols`/`--rows`/`--tile` → PNG) |
+| contact sheet / preview grid | `sheet` (`--cols`/`--rows`/`--tile` → PNG, `--time` stamps) |
 | title card mid-clip | `title` (`--text`, `--at` S for lower-third timing) |
 | voice-over on video's own audio | `replace --audio V --mix G --duck` (sidechain) |
 | pitch-shift voice/music | `pitch` (`--semitones N`, duration preserved) |

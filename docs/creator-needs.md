@@ -231,3 +231,6 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `freeze --ease` ramp into hold
 - [ ] `meme --position` (arbitrary text spots)
 - [ ] `grid --audio` polish
+- [ ] `grid --time` (same tile timestamps for grid)
+- [ ] `speed --ramp` linear accel
+- [ ] `subs --merge` combine tracks

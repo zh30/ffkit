@@ -119,13 +119,13 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`) |
 | `grid` | N-input mosaic; `--audio N` keeps one input's track | N inputs into a `--layout CxR` tile wall (`--size 1920x1080`); audios mix when all inputs have one (`--labels` tile labels) |
 | `progress` | Bottom/top progress bar, whole clip or a window (`--color`, `--height`, `--edge`, `--at`, `--dur`) |
-| `freeze` | Hold the frame at `--at T` for `--dur D` (mid-clip), or clone the last frame with `--end D` (outro) |
+| `freeze` | Hold a frame (`--at`, `--dur`, `--end`, `--ease` swoop-in) |
 | `censor` | Blur/mosaic a region (`--mode`, `--strength`, `--at`) |
 | `bleep` | Tone over a word/segment: `--at`/`--dur`, `--freq`, `--level` |
 | `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) |
 | `chapter` | Chapter marks (`--at TIME|TITLE`, `--auto` after silences) |
 | `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`; `--buffer N` keeps N px edge context) |
-| `sheet` | Contact sheet: `--cols`/`--rows` thumbnails → one PNG | `--pad`/`--margin`
+| `sheet` | Contact sheet grid (`--cols`x`--rows`, `--time` stamps) |
 | `pitch` | `--semitones N` voice/music shift, duration preserved |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap` |
@@ -165,7 +165,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `silence` | Insert `--dur` secs of silence at `--at`, or append with `--end` |
 | `vocal` | `--mode karaoke` drops centered vocals; `isolate` keeps the center (stereo) |
 | `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov) |
-| `meme` | Top/bottom meme captions (`--outline` classic look) |
+| `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window) |
 | `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`) |
 | `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order) |
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |

@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.84.0] — 2026-09-22
+
+### Added
+
+- `freeze --ease SEC` — last SEC before the hold plays at half-speed (swoop-in).
+- `sheet --time` — timestamp label under every tile.
+- `meme --at/--dur` — time-windowed meme captions.
+
+
+## [Unreleased]
+
 ## [0.83.0] — 2026-09-22
 
 ### Added
