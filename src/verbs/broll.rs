@@ -15,6 +15,9 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
     let a = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&a, "broll")?;
     let b = engine::probe_or_err(&args.insert, g)?;
+    if args.volume.is_some() && !args.audio {
+        return Err(Error::input("--volume needs --audio"));
+    }
     if args.audio && (args.still || !b.has_audio) {
         return Err(Error::input(
             "--audio needs a video insert with an audio stream",
@@ -77,9 +80,18 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
         "[1:v]{still_pre}{prep},setsar=1,format={pix},setpts=PTS-STARTPTS+{at:.3}/TB{fade_chain}[br];[0:v][br]overlay=0:0:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
     );
     if args.audio {
+        if let Some(v) = args.volume {
+            if !(0.0..=4.0).contains(&v) {
+                return Err(Error::input("--volume: use 0..=4 (linear)"));
+            }
+        }
         let at_ms = (at * 1000.0) as u64;
+        let vol = match args.volume {
+            Some(v) => format!(",volume={v:.4}"),
+            None => String::new(),
+        };
         fc.push_str(&format!(
-            ";[1:a]atrim=duration={win:.3},asetpts=PTS-STARTPTS,adelay={at_ms}:all=1[ba]"
+            ";[1:a]atrim=duration={win:.3},asetpts=PTS-STARTPTS{vol},adelay={at_ms}:all=1[ba]"
         ));
         if a.has_audio {
             fc.push_str(";[0:a][ba]amix=inputs=2:duration=first:normalize=0[aout]");

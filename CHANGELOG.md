@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.91.0] — 2026-09-22
+
+### Added
+
+- `timer --down` — count down to the window end instead of up from `--at`.
+- `broll --volume` — linear gain (0..=4) on the insert audio (needs `--audio`).
+- `mix --loop` — `-stream_loop -1` on the B input so a short bed repeats under A.
+
+
 ## [0.90.0] — 2026-09-22
 
 ### Added

@@ -469,6 +469,9 @@ pub struct BrollArgs {
     /// Also mix in the insert's audio during its window (b-roll sound)
     #[arg(long)]
     pub audio: bool,
+    /// Linear gain on the insert audio 0..=4 (with --audio; default 1.0)
+    #[arg(long)]
+    pub volume: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1591,6 +1594,9 @@ pub struct MixArgs {
     /// Output runs until the LONGER input ends (default: first input's length)
     #[arg(long)]
     pub longest: bool,
+    /// Loop B if it is shorter than the output span (short beds)
+    #[arg(long = "loop")]
+    pub loop_track: bool,
     /// Bring B in only from this time (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,
@@ -1629,6 +1635,9 @@ pub struct TimerArgs {
     /// Filled card behind the digits: RRGGBB hex or color name
     #[arg(long)]
     pub box_color: Option<String>,
+    /// Count DOWN to the window end instead of up from --at
+    #[arg(long)]
+    pub down: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]

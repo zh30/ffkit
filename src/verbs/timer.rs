@@ -25,6 +25,13 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     engine::need_video(&probe, "timer")?;
     let at = args.at.unwrap_or(0.0);
     let until = at + args.dur.unwrap_or(f64::MAX).min(86400.0);
+    // --down: display the remaining time to the window end
+    let tv = if args.down {
+        let end = at + args.dur.unwrap_or(probe.duration - at);
+        format!("max(0,{end:.3}-t)")
+    } else {
+        format!("t-{at:.3}")
+    };
     let font_path = crate::font::resolve(args.font.as_deref().map(Path::new))?;
     let font_bytes =
         std::fs::read(&font_path).map_err(|e| Error::input(format!("read font: {e}")))?;
@@ -155,10 +162,10 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     // crop each field out of the advancing sprite
     for (i, (kind, _)) in xparts.iter().enumerate() {
         let expr = match kind.as_str() {
-            "hh" => format!("min(99,floor((t-{at:.3})/3600))"),
-            "mm" => format!("mod(floor((t-{at:.3})/60),60)"),
-            "cs" => format!("mod(floor((t-{at:.3})*100),100)"),
-            _ => format!("mod(floor(t-{at:.3}),60)"),
+            "hh" => format!("min(99,floor(({tv})/3600))"),
+            "mm" => format!("mod(floor(({tv})/60),60)"),
+            "cs" => format!("mod(floor(({tv})*100),100)"),
+            _ => format!("mod(floor({tv}),60)"),
         };
         fc.push_str(&format!(
             ";[sp{i}]crop=w={cw}:h={ch}:x='{expr}*{cw}':y=0[f{i}]"

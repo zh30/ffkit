@@ -50,6 +50,9 @@ pub fn run(args: MixArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.a.display().to_string()]);
+    if args.loop_track {
+        argv.extend(["-stream_loop".to_string(), "-1".to_string()]);
+    }
     argv.extend(["-i".to_string(), args.b.display().to_string()]);
     argv.extend(["-filter_complex".to_string(), fc]);
     if pa.has_video {

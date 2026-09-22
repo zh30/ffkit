@@ -6337,7 +6337,7 @@ fn mix_merges_two_sources() {
     };
     let a = mk("a.wav", 440, 1.0);
     let b = mk("b.wav", 880, 0.5);
-    let out = dir.path().join("m.wav");
+    let out = dir.path().join("m.mp4");
     let v = run_json(&[
         "mix",
         a.to_str().unwrap(),
@@ -9931,6 +9931,138 @@ fn stabilize_edge_fill() {
         out.to_str().unwrap(),
         "--edge",
         "clamped",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn timer_down_counts_to_end() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "timer",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--down",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn broll_volume_scales_insert_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    // insert with an audio stream
+    let ins = dir.path().join("ins.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=0.6:size=160x120:rate=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.6",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            ins.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(st.status.success());
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "broll",
+        a.to_str().unwrap(),
+        "--insert",
+        ins.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--duration",
+        "0.3",
+        "--audio",
+        "--volume",
+        "0.5",
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn broll_volume_needs_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "broll",
+        a.to_str().unwrap(),
+        "--insert",
+        a.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--duration",
+        "0.3",
+        "--volume",
+        "0.5",
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn mix_loop_repeats_short_b() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    // 0.1s B track — without --loop the mix ends with A alone
+    let b = dir.path().join("b.wav");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=330:duration=0.1",
+            b.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(st.status.success());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "mix",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--loop",
         "--json",
     ]);
     assert_eq!(v["status"], "ok", "{v}");
