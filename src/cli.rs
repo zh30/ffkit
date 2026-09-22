@@ -133,6 +133,8 @@ pub enum Cmd {
     Delogo(DelogoArgs),
     /// Write container metadata tags (title/artist/comment) - lossless copy
     Meta(MetaArgs),
+    /// Extract an embedded subtitle track to .srt/.vtt
+    Subs(SubsArgs),
     /// Still images (+ optional music bed) into a video
     Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
@@ -326,6 +328,12 @@ pub struct OverlayArgs {
     /// Tile the overlay N times across the frame (draft watermark); 0 = off
     #[arg(long, default_value_t = 0)]
     pub tile: u32,
+    /// Show the overlay only from this time (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..until this many seconds after --at (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -373,6 +381,12 @@ pub struct CaptionArgs {
     /// Shift every cue by SEC (negative pulls captions earlier)
     #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
     pub shift: f64,
+    /// Text color as RRGGBB hex (default ffffff)
+    #[arg(long)]
+    pub color: Option<String>,
+    /// Text size multiplier (default 1.0)
+    #[arg(long, default_value_t = 1.0)]
+    pub size: f64,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -533,6 +547,16 @@ pub struct DelogoArgs {
     /// Logo box height (px)
     #[arg(long)]
     pub h: u32,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SubsArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Subtitle stream index (0 = first)
+    #[arg(long, default_value_t = 0)]
+    pub stream: u32,
 }
 
 #[derive(clap::Args, Debug)]

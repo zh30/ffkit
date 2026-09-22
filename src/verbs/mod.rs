@@ -42,6 +42,7 @@ pub mod slideshow;
 pub mod speed;
 pub mod split;
 pub mod stabilize;
+pub mod subs;
 pub mod title;
 pub mod transcode;
 pub mod vignette;

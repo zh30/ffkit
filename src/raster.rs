@@ -3,7 +3,17 @@ use image::{Rgba, RgbaImage};
 use crate::error::Error;
 
 pub fn render_caption(text: &str, font_bytes: &[u8], video_w: u32) -> Result<RgbaImage, Error> {
-    render_text(text, font_bytes, video_w, 14.0, [255, 255, 255], 1.0)
+    render_caption_styled(text, font_bytes, video_w, [255, 255, 255], 1.0)
+}
+
+pub fn render_caption_styled(
+    text: &str,
+    font_bytes: &[u8],
+    video_w: u32,
+    fg: [u8; 3],
+    size: f32,
+) -> Result<RgbaImage, Error> {
+    render_text(text, font_bytes, video_w, 14.0, fg, size)
 }
 
 pub fn render_title_styled(

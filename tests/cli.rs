@@ -4473,3 +4473,180 @@ fn broll_still_motion_keeps_window() {
         "{v}"
     );
 }
+
+#[test]
+fn overlay_windowed_shows_only_inside() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // black 40x40 logo on the bright top-right gradient
+    let logo = dir.path().join("logo.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0x000000:size=40x40",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&logo)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("o.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--image",
+        logo.to_str().unwrap(),
+        "--position",
+        "top-right",
+        "--at",
+        "0.5",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // frame 3 (t=0.1) top-right corner should NOT be white; frame 20 (t=0.67) should be
+    let corner = |n: u32| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"]).arg(&out)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n}),crop=30:30:285:5,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-"),
+                "-frames:v", "1", "-f", "null", "-",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stdout)
+            .split("YAVG=")
+            .nth(1)
+            .and_then(|r| r.lines().next())
+            .and_then(|r| r.trim().parse().ok())
+            .unwrap_or(-1.0)
+    };
+    let (before, inside) = (corner(3), corner(20));
+    assert!(
+        before > inside + 40.0,
+        "black logo drops luma only inside window: {before} -> {inside}; {v}"
+    );
+}
+
+#[test]
+fn caption_color_burns_red() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:01,000\nRED TEXT\n").unwrap();
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--mode",
+        "burn",
+        "--color",
+        "ff0000",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args([
+            "-vf",
+            "select=eq(n\\,5),crop=300:80:10:140",
+            "-frames:v",
+            "1",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let white = dir.path().join("w.mp4");
+    let v2 = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "-o",
+        white.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--mode",
+        "burn",
+    ]);
+    assert_eq!(v2["status"], "ok", "{v2}");
+    // red text drops the B channel vs the white default on the same strip
+    let blue_energy = |f: &Path| -> u64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                "select=eq(n\\,5),crop=300:80:10:140",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        o.stdout.chunks(3).map(|c| c[2] as u64).sum()
+    };
+    let (b_red, b_white) = (blue_energy(&out), blue_energy(&white));
+    assert!(
+        b_red + 3000 < b_white,
+        "red caption drops B energy: {b_white} -> {b_red}; {v}"
+    );
+}
+
+#[test]
+fn subs_extracts_embedded() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // mkv with embedded srt
+    let srt = dir.path().join("in.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,800\nhello subs\n").unwrap();
+    let mkv = dir.path().join("with.mkv");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&src)
+        .args(["-i"])
+        .arg(&srt)
+        .args([
+            "-map", "0", "-map", "1", "-c:v", "copy", "-c:a", "copy", "-c:s", "srt",
+        ])
+        .arg(&mkv)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "fixture mkv w/ subs");
+    let out = dir.path().join("out.srt");
+    let v = run_json(&["subs", mkv.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let text = std::fs::read_to_string(&out).unwrap_or_default();
+    assert!(text.contains("hello subs"), "extracted srt has cue: {text}");
+}

@@ -31,6 +31,23 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
         return tiled(args, overlay_path, &probe, g);
     }
 
+    if args.dur.is_some() && args.at.is_none() {
+        return Err(Error::input("--dur needs --at"));
+    }
+    let enable = match &args.at {
+        Some(s) => {
+            let at = crate::time::parse_time(s)?;
+            if at < 0.0 || at >= probe.duration {
+                return Err(Error::input("--at must land inside the input"));
+            }
+            let end = match args.dur {
+                Some(d) => (at + d).min(probe.duration),
+                None => probe.duration,
+            };
+            format!(":enable='between(t,{at:.3},{end:.3})'")
+        }
+        None => String::new(),
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
@@ -38,9 +55,9 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(overlay);
 
     let fc = if let Some(scale) = args.scale {
-        format!("[1:v]scale={scale}:-1[ov];[0:v][ov]overlay=x={x}:y={y}[vout]")
+        format!("[1:v]scale={scale}:-1[ov];[0:v][ov]overlay=x={x}:y={y}{enable}[vout]")
     } else {
-        format!("[0:v][1:v]overlay=x={x}:y={y}[vout]")
+        format!("[0:v][1:v]overlay=x={x}:y={y}{enable}[vout]")
     };
     let _ = x;
     let _ = y;
@@ -89,6 +106,23 @@ fn tiled(
     let h = probe.height.unwrap_or(720) as i64;
     let scale = args.scale.unwrap_or(320);
     // ffmpeg 4.4 consumes a pad label on first use — split into N copies.
+    if args.dur.is_some() && args.at.is_none() {
+        return Err(Error::input("--dur needs --at"));
+    }
+    let enable = match &args.at {
+        Some(s) => {
+            let at = crate::time::parse_time(s)?;
+            if at < 0.0 || at >= probe.duration {
+                return Err(Error::input("--at must land inside the input"));
+            }
+            let end = match args.dur {
+                Some(d) => (at + d).min(probe.duration),
+                None => probe.duration,
+            };
+            format!(":enable='between(t,{at:.3},{end:.3})'")
+        }
+        None => String::new(),
+    };
     let ovs: String = (0..n).map(|i| format!("[ov{i}]")).collect();
     let mut seg: Vec<String> = vec![format!(
         "[1:v]scale={scale}:-1,format=rgba,colorchannelmixer=aa=0.5,split={n}{ovs}"
@@ -105,7 +139,8 @@ fn tiled(
         } else {
             format!("t{i}")
         };
-        seg.push(format!("{prev}[ov{i}]overlay=x={x}:y={y}[{lab}]"));
+        let en = if i + 1 == n { enable.as_str() } else { "" };
+        seg.push(format!("{prev}[ov{i}]overlay=x={x}:y={y}{en}[{lab}]"));
         prev = format!("[{lab}]");
     }
     let fc = seg.join(";");

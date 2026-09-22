@@ -1,7 +1,7 @@
 ---
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
-version: 0.41.0
+version: 0.42.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -77,6 +77,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | styled title text | `title --size 2 --color ff0000` |
 | container metadata tags | `meta` (`--title`/`--artist`/`--comment`) |
 | Ken Burns on a photo cutaway | `broll --insert img.png --still --motion kenburns` |
+| styled captions | `caption --color ff0000 --size 1.5` |
+| logo only for part of the clip | `overlay --at 2 --dur 5` |
+| rip embedded subtitles | `subs` (`--stream N`) |
 | B-roll cutaway | `broll` (`--insert --at --duration`; A-roll audio stays) |
 | extract | `extract` |
 | many files | `batch` |

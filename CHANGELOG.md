@@ -4,6 +4,13 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.42.0] — 2026-09-22
+
+- `overlay --at`/`--dur`: windowed logo/overlay (single and `--tile` paths)
+- `caption --color`/`--size`: styled caption raster (same knobs as `title`)
+- `ffkit subs`: extract embedded subtitle tracks to `.srt`/`.vtt`/`.ass`
+
+
 ## [0.41.0] — 2026-09-22
 
 - `title --size`/`--color`: text styling on the burned-in title

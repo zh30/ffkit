@@ -7,6 +7,17 @@ use crate::error::Error;
 use crate::paths;
 use crate::srt;
 
+fn caption_hex(c: &str) -> Result<[u8; 3], Error> {
+    let c = c.trim_start_matches('#');
+    if c.len() != 6 {
+        return Err(Error::input("--color must be RRGGBB hex"));
+    }
+    let b = |i: usize| -> Result<u8, Error> {
+        u8::from_str_radix(&c[i..i + 2], 16).map_err(|_| Error::input("--color must be RRGGBB hex"))
+    };
+    Ok([b(0)?, b(2)?, b(4)?])
+}
+
 pub fn run(args: CaptionArgs, g: &Globals) -> Result<Contract, Error> {
     paths::ensure_input(&args.srt)?;
     let probe = engine::probe_or_err(&args.input, g)?;
@@ -72,11 +83,24 @@ fn burn_overlay(
     let font_path = crate::font::resolve(args.font.as_deref().map(Path::new))?;
     let font_bytes = std::fs::read(&font_path)?;
     let vw = probe.width.unwrap_or(1280);
+    let cap_fg = match &args.color {
+        Some(c) => caption_hex(c)?,
+        None => [255, 255, 255],
+    };
+    if !(0.25..=8.0).contains(&args.size) {
+        return Err(Error::input("--size must be 0.25..8"));
+    }
 
     let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
     let mut pngs = Vec::new();
     for (i, cue) in cues.iter().enumerate() {
-        let img = crate::raster::render_caption(&cue.text, &font_bytes, vw)?;
+        let img = crate::raster::render_caption_styled(
+            &cue.text,
+            &font_bytes,
+            vw,
+            cap_fg,
+            args.size as f32,
+        )?;
         let png = tmp.path().join(format!("c{i}.png"));
         img.save(&png)
             .map_err(|e| Error::output(format!("write caption png: {e}")))?;
