@@ -28,10 +28,24 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("--warm must be -1..=1"));
     }
 
-    let mut vf = format!(
+    let mut vf = match args.preset {
+        Some(crate::cli::GradePreset::Cinematic) => {
+            String::from("eq=contrast=1.12:saturation=0.88,colorbalance=bs=0.1:bm=0.06")
+        }
+        Some(crate::cli::GradePreset::Vivid) => String::from("eq=saturation=1.45:contrast=1.12"),
+        Some(crate::cli::GradePreset::Vintage) => String::from("curves=vintage"),
+        Some(crate::cli::GradePreset::Soft) => {
+            String::from("eq=contrast=0.92:brightness=0.04:saturation=0.95")
+        }
+        None => String::new(),
+    };
+    if !vf.is_empty() {
+        vf.push(',');
+    }
+    vf.push_str(&format!(
         "eq=contrast={}:brightness={}:saturation={}",
         args.contrast, args.brightness, args.saturation
-    );
+    ));
     if let Some(lut) = &args.lut {
         // Single quotes group literal path text; escape internal quotes.
         let esc = lut.display().to_string().replace('\'', "\\'");

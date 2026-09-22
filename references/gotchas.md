@@ -173,3 +173,7 @@ Any `-af` chain that changes duration (`atempo`, `atrim` crops) leaves `-c:v cop
 ## Negative values as clap args
 
 `--threshold -30` fails clap parsing ("unexpected argument '-3'") unless the arg carries `allow_hyphen_values = true` — required on every dB-style flag (`--db`, `--threshold`, `--warm`).
+
+## colorbalance midtones on old ffmpeg
+
+`colorbalance` midtone options are `rm`/`gm`/`bm` on ffmpeg ≤5 — the `ms` alias only exists on newer builds (verified crash "Option 'ms' not found" on 4.4). Use `bm`/`rm`/`gm` for midtone shifts.

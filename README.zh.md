@@ -106,7 +106,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `caption` | 烧录/封装 `.srt`；`--chunk` 分词、`--shift` 整体平移 | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass）；`--safe social` 避开底部 20%；`--chunk N` 按 ≤N 词切分字幕 |
 | `loudnorm` | EBU R128 两遍（`-I -14` 社交，`-I -16` 播客） |
 | `denoise` | 人声降噪（风扇/轰隆/嘶嘶声）；`--video` 顺带画面去噪点 |
-| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`） | 预设 `h264` / `webm` / `gif` |
+| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`） | 预设 `h264` / `webm` / `gif`；`--fps` 也可给视频变速帧率 |
 | `compress` | 两遍编码压到 `--size 10MB`（Discord、WhatsApp 16MB、邮箱约 25MB） |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 
@@ -144,7 +144,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | 把成片重复 N 遍（Shorts 循环加长） |
 | `stabilize` | 手持防抖（deshake） |
 | `reverse` | 倒放画面和声音 |
-| `grade` | 调色（对比/饱和/亮度/`--warm` 冷暖，Reels 默认微抬）；`--lut look.cube` 套 3D LUT |
+| `grade` | `--preset` 一键风格 + 对比/饱和/亮度/`--warm` 冷暖；`--lut look.cube` 套 3D LUT | 预设 `cinematic`/`vivid`/`vintage`/`soft` 叠在滑杆之下 |
 | `zoom` | 中心推近（`--factor 1.25`） |
 | `sharpen` | 锐化（unsharp） |
 | `vignette` | 暗角 |
@@ -159,6 +159,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `tempo` | 音频变速 `--factor` 0.5–8，不变调（`atempo` 链；视频请用 `speed`） |
 | `leveler` | 人声动态压缩（忽大忽小）：`--threshold`/`--ratio`/`--makeup` |
 | `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`） |
+| `silence` | 在音频 `--at` 处插入 `--dur` 秒静音（视频定格用 `freeze`） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `pipeline` | 按 JSON 方案顺序执行多步（`$src` / `$in` / `expect`） |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |

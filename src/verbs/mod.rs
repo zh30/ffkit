@@ -44,6 +44,7 @@ pub mod rotate;
 pub mod rough;
 pub mod sharpen;
 pub mod sheet;
+pub mod silence;
 pub mod slideshow;
 pub mod spectrogram;
 pub mod speed;

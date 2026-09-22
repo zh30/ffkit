@@ -41,7 +41,11 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "-movflags",
             "+faststart",
         ]);
-        argv.extend(["-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2"]);
+        let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
+        if let Some(fps) = args.fps {
+            vf.push_str(&format!(",fps={fps}"));
+        }
+        argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
         argv.extend(["-c:a", "aac", "-b:a", "192k"]);
@@ -67,7 +71,11 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "-pix_fmt",
             "yuv420p",
         ]);
-        argv.extend(["-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2"]);
+        let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
+        if let Some(fps) = args.fps {
+            vf.push_str(&format!(",fps={fps}"));
+        }
+        argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
         argv.extend(["-c:a", "libopus", "-b:a", "128k"]);

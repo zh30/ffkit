@@ -50,6 +50,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Spectrogram(args) => verbs::spectrogram::run(args, &g),
         Cmd::Dehum(args) => verbs::dehum::run(args, &g),
         Cmd::Tempo(args) => verbs::tempo::run(args, &g),
+        Cmd::Silence(args) => verbs::silence::run(args, &g),
         Cmd::Leveler(args) => verbs::leveler::run(args, &g),
         Cmd::Gate(args) => verbs::gate::run(args, &g),
         Cmd::Boomerang(args) => verbs::boomerang::run(args, &g),

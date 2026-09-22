@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.48.0] — 2026-09-22
+
+- `ffkit silence`: insert `--dur` seconds of quiet at `--at` in audio files (video holds stay with `freeze`)
+- `grade --preset cinematic|vivid|vintage|soft`: one-click looks applied before the sliders
+- `transcode --fps`: retimes h264/webm video too, not only GIF
+
 ## [0.47.0] — 2026-09-22
 
 - `ffkit tempo`: audio speed `--factor` 0.5–8, pitch preserved (`atempo` chain; refuses video — use `speed`)

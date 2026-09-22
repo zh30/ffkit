@@ -163,6 +163,7 @@ pub enum Cmd {
     Zoom(ZoomArgs),
     /// Speed audio up/down without changing pitch
     Tempo(TempoArgs),
+    Silence(SilenceArgs),
     /// Even out voice dynamic range (compressor)
     Leveler(LevelerArgs),
     /// Noise gate — silence below a threshold
@@ -500,7 +501,7 @@ pub struct TranscodeArgs {
     pub preset: Option<TranscodePreset>,
     #[arg(long)]
     pub crf: Option<u8>,
-    /// GIF-only: frames per second (default 10)
+    /// Frames per second (GIF default 10; h264/webm retimes to N fps)
     #[arg(long)]
     pub fps: Option<u32>,
     /// GIF-only: output width (default 480)
@@ -889,6 +890,17 @@ pub struct GradeArgs {
     /// Warmth: positive warms (red cast), negative cools (blue), -1..1
     #[arg(long, default_value_t = 0.0, allow_hyphen_values = true)]
     pub warm: f64,
+    /// One-click look applied before the sliders: cinematic, vivid, vintage, soft
+    #[arg(long, value_enum)]
+    pub preset: Option<GradePreset>,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum GradePreset {
+    Cinematic,
+    Vivid,
+    Vintage,
+    Soft,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1033,6 +1045,19 @@ pub struct TempoArgs {
     /// Speed factor 0.5..=8 (pitch preserved)
     #[arg(long, default_value_t = 1.5)]
     pub factor: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SilenceArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Insert silence at this position, seconds (default 0 = leading pad)
+    #[arg(long)]
+    pub at: Option<f64>,
+    /// Seconds of silence to insert
+    #[arg(long)]
+    pub dur: f64,
 }
 
 #[derive(clap::Args, Debug)]

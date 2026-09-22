@@ -5605,3 +5605,163 @@ fn gate_silences_the_quiet_parts() {
         "gate drops the quiet tail: {before} -> {after} dB; {v}"
     );
 }
+
+#[test]
+fn silence_inserts_quiet_mid_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("t.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "tone fixture");
+    let out = dir.path().join("s.m4a");
+    let v = run_json(&[
+        "silence",
+        wav.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.25",
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        (d - 1.5).abs() < 0.25,
+        "1s + 0.5s pad = ~1.5s, got {d}; {v}"
+    );
+    let mean_at = |ss: &str, dur: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-ss", ss, "-t", dur, "-i"])
+            .arg(&out)
+            .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stderr);
+        s.lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(0.0)
+    };
+    assert!(
+        mean_at("0.3", "0.35") < -50.0,
+        "inserted window is silent; {v}"
+    );
+    assert!(mean_at("0.9", "0.4") > -40.0, "tone resumes after pad; {v}");
+    // Video inputs are refused — freeze holds frames.
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "silence",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("v.m4a").to_str().unwrap(),
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "failed", "video refused for silence; {v}");
+}
+
+#[test]
+fn transcode_fps_retimes_video() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("r.mp4");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "h264",
+        "--fps",
+        "10",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-count_frames",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=nb_read_frames",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    let frames: u32 = s.trim().parse().unwrap_or(0);
+    assert!(
+        (9..=12).contains(&frames),
+        "1s at 10fps = ~10 frames, got {frames}; {v}"
+    );
+}
+
+#[test]
+fn grade_preset_vintage_shifts_warm() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("v.mp4");
+    let v = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "vintage",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = |f: &Path| -> (f64, f64) {
+        let png = f.with_extension("warm.png");
+        let ok = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+            .arg(f)
+            .args(["-frames:v", "1"])
+            .arg(&png)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok, "frame extract");
+        let (r, _g, b) = mean_rgb(&png);
+        (r, b)
+    };
+    let (sr, sb) = frame(&src);
+    let (r, b) = frame(&out);
+    assert!(
+        (r - b) > (sr - sb) + 4.0,
+        "vintage warms the cast: R-B {} -> {}; {v}",
+        sr - sb,
+        r - b
+    );
+}
