@@ -15,7 +15,14 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         ));
     }
 
+    if args.blur && args.pad.is_some() {
+        return Err(Error::input("--blur fills the letterbox — drop --pad"));
+    }
+    if args.blur && args.size.is_none() {
+        return Err(Error::input("--blur needs --size (the target canvas)"));
+    }
     let mut vf: Vec<String> = Vec::new();
+    let mut blur_fc: Option<String> = None;
     if let Some(sz) = &args.size {
         let (w, h) = sz
             .split_once(['x', 'X'])
@@ -31,6 +38,16 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
             let c = crate::color::lavfi(raw);
             vf.push(format!("pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:{c}"));
         }
+        if args.blur {
+            let fps_tail = match args.fps {
+                Some(f) if (1.0..=240.0).contains(&f) => format!(",fps={f}"),
+                Some(_) => return Err(Error::input("--fps must be 1..=240")),
+                None => String::new(),
+            };
+            blur_fc = Some(format!(
+                "[0:v]split[cm][cb];[cb]scale={w}:{h}:force_original_aspect_ratio=increase:force_divisible_by=2,crop={w}:{h},gblur=sigma=40[bg];[cm]scale=w={w}:h={h}:force_original_aspect_ratio=decrease:force_divisible_by=2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2{fps_tail},format=yuv420p[vout]"
+            ));
+        }
     }
     if let Some(fps) = args.fps {
         if !(1.0..=240.0).contains(&fps) {
@@ -43,7 +60,12 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
     if probe.has_video {
-        argv.extend(["-vf".to_string(), vf.join(",")]);
+        if let Some(fc) = blur_fc {
+            argv.extend(["-filter_complex".to_string(), fc]);
+            argv.extend(["-map".to_string(), "[vout]".to_string()]);
+        } else {
+            argv.extend(["-vf".to_string(), vf.join(",")]);
+        }
         argv.extend([
             "-c:v".to_string(),
             "libx264".to_string(),
@@ -82,6 +104,7 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
     let mut c = engine::write_job("conform", &inputs, &args.output, vec![argv], g)?;
     c = c.with_extra(json!({
         "size": args.size,
+        "blur": args.blur,
         "fps": args.fps,
         "lufs": args.lufs,
     }));

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.114.0] — 2026-09-22
+
+### Added
+
+- `multicam --transition N` — xfade/acrossfade at every camera switch instead of hard cuts
+- `title --wrap N` — greedy word-wrap at N chars per line before rasterization
+- `fade --dip T --dur N` — dip-to-color at T for scene-change transitions (video + audio)
+- `conform --blur` — blurred-video letterbox fill instead of `--pad` color
+
 ## [0.113.0] — 2026-09-22
 
 ### Added

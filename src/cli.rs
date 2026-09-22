@@ -1161,6 +1161,12 @@ pub struct FadeArgs {
     /// Fade to this color (default black; e.g. white)
     #[arg(long)]
     pub color: Option<String>,
+    /// Dip to the color at this time — scene-change transition (half out, half back)
+    #[arg(long)]
+    pub dip: Option<f64>,
+    /// Dip length in seconds (default 0.8 — needs --dip)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1171,6 +1177,9 @@ pub struct TitleArgs {
     /// Hook text (newlines allowed)
     #[arg(long)]
     pub text: String,
+    /// Auto word-wrap the text at N chars per line
+    #[arg(long)]
+    pub wrap: Option<u32>,
     /// Seconds the title stays on screen
     #[arg(long, default_value_t = 1.0)]
     pub duration: f64,
@@ -1911,6 +1920,9 @@ pub struct ConformArgs {
     /// Pad color for the letterbox: name or RRGGBB/0xRRGGBB (needs --size)
     #[arg(long)]
     pub pad: Option<String>,
+    /// Fill the letterbox with a blurred copy of the video (needs --size)
+    #[arg(long)]
+    pub blur: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2006,6 +2018,9 @@ pub struct MulticamArgs {
     /// audio with the angle (interview standard)
     #[arg(long)]
     pub keep_audio: bool,
+    /// xfade duration at each switch in seconds (default 0 = hard cut)
+    #[arg(long)]
+    pub transition: Option<f64>,
     #[arg(short, long)]
     pub output: PathBuf,
 }

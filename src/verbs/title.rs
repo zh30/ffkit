@@ -7,11 +7,39 @@ use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
+/// Greedy word-wrap: break lines at ~`n` chars on spaces.
+fn wrap(text: &str, n: usize) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    for raw_line in text.lines() {
+        let mut cur = String::new();
+        for w in raw_line.split_whitespace() {
+            if !cur.is_empty() && cur.len() + 1 + w.len() > n {
+                lines.push(std::mem::take(&mut cur));
+            }
+            if !cur.is_empty() {
+                cur.push(' ');
+            }
+            cur.push_str(w);
+        }
+        lines.push(std::mem::take(&mut cur));
+    }
+    lines.join("\n")
+}
+
 pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
-    let text = args.text.trim();
-    if text.is_empty() {
+    let raw = args.text.trim();
+    if raw.is_empty() {
         return Err(Error::input("--text is empty"));
     }
+    let wrapped;
+    let text = match args.wrap {
+        Some(n) if n >= 4 => {
+            wrapped = crate::verbs::title::wrap(raw, n as usize);
+            wrapped.as_str()
+        }
+        Some(_) => return Err(Error::input("--wrap needs at least 4 chars")),
+        None => raw,
+    };
     if args.duration <= 0.0 {
         return Err(Error::input("--duration must be > 0"));
     }

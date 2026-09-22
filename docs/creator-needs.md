@@ -232,6 +232,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 87)
+
+- `multicam --transition N` — `xfade`/`acrossfade` chains at every switch (offset `T_k - k·f`) instead of hard concat cuts; stays hard-cut at 0. `--keep-audio` still works.
+- `title --wrap N` — greedy word-wrap at N chars before rasterization (long hooks stop overflowing the frame).
+- `fade --dip T --dur N` — dip-to-color at T: `fade` out for N/2 ending at T, `fade` back in for N/2 (video + audio).
+- `conform --blur` — letterbox filled by a blurred copy of the video (`split` → upscale `crop` + `gblur` bg + `overlay` fg) instead of `--pad` color.
+
 ## Shipped this run (round 86)
 
 - `split --chapters` — cuts at the input's embedded chapter marks (`ffprobe -show_chapters`); lectures/courses/books split into one file per chapter.

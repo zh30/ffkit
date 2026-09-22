@@ -12290,3 +12290,121 @@ fn subs_burn_box_plates_the_lines() {
     assert!(cmds.contains("BorderStyle=3"), "{cmds}");
     assert!(cmds.contains("BackColour"), "{cmds}");
 }
+
+#[test]
+fn multicam_transition_softens_the_switch() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let cam_a = fixture(dir.path());
+    let cam_b = lavfi_fixture(dir.path(), "b.mp4", "660", 1.0);
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "multicam",
+        cam_a.to_str().unwrap(),
+        cam_b.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "--transition",
+        "0.2",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("xfade=transition=fade"), "{cmds}");
+    assert!(cmds.contains("offset=0.3"), "{cmds}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 0.8).abs() < 0.15, "xfade overlaps 0.2s, got {d}");
+}
+
+#[test]
+fn title_wrap_breaks_long_hooks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "a hook that is far too long for one row of pixels",
+        "--wrap",
+        "16",
+        "--duration",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 0.8);
+}
+
+#[test]
+fn fade_dip_marks_the_scene_change() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("d.mp4");
+    let v = run_json(&[
+        "fade",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--dip",
+        "0.5",
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("fade=t=out:st=0.350"), "{cmds}");
+    assert!(cmds.contains("fade=t=in:st=0.500"), "{cmds}");
+    assert!(cmds.contains("afade=t=out:st=0.350"), "{cmds}");
+}
+
+#[test]
+fn conform_blur_fills_the_letterbox() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("sq.mp4");
+    let v = run_json(&[
+        "conform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "240x240",
+        "--blur",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("gblur=sigma=40"), "{cmds}");
+    assert!(cmds.contains("split"), "{cmds}");
+}

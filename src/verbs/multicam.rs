@@ -90,7 +90,39 @@ pub fn run(args: MulticamArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     let n = segs.len();
-    if has_audio && !args.keep_audio {
+    if let Some(f) = args.transition {
+        if !(f > 0.0) || segs.iter().any(|(s, e, _)| e - s <= f) {
+            return Err(Error::input(
+                "--transition must be > 0 and shorter than every segment",
+            ));
+        }
+        // xfade chain: switch k lands fade earlier each time (offset = T_k - k*f).
+        let mut prev_v = "vs0".to_string();
+        let mut prev_a = "as0".to_string();
+        let audio = has_audio && !args.keep_audio;
+        for k in 1..n {
+            let last = k == n - 1;
+            let ov = if last {
+                "vout".to_string()
+            } else {
+                format!("xv{k}")
+            };
+            let off = segs[k].0 - k as f64 * f;
+            fc.push(format!(
+                "[{prev_v}][vs{k}]xfade=transition=fade:duration={f:.3}:offset={off:.3}[{ov}]"
+            ));
+            prev_v = ov;
+            if audio {
+                let oa = if last {
+                    "aout".to_string()
+                } else {
+                    format!("xa{k}")
+                };
+                fc.push(format!("[{prev_a}][as{k}]acrossfade=d={f:.3}[{oa}]"));
+                prev_a = oa;
+            }
+        }
+    } else if has_audio && !args.keep_audio {
         fc.push(format!("{ins}concat=n={n}:v=1:a=1[vout][aout]"));
     } else {
         fc.push(format!("{ins}concat=n={n}:v=1:a=0[vout]"));
@@ -132,6 +164,6 @@ pub fn run(args: MulticamArgs, g: &Globals) -> Result<Contract, Error> {
 
     let inputs: Vec<&Path> = vec![&args.cam_a, &args.cam_b];
     let mut c = engine::write_job("multicam", &inputs, &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "cuts": cuts, "angles": n, "keep_audio": args.keep_audio }));
+    c = c.with_extra(json!({ "cuts": cuts, "angles": n, "keep_audio": args.keep_audio, "transition": args.transition }));
     Ok(c)
 }
