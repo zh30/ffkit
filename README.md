@@ -153,6 +153,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `blur` | Gaussian blur (`--sigma`) |
 | `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30 (nlmeans; slow on long clips) |
 | `crop` | Crop a `--region x:y:w:h` box, or `--aspect W:H` center-reframe (1:1, 9:16) |
+| `waveform` | Audio waveform → PNG (`--size`, `--color`) for podcast art/thumbnails |
+| `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup |
+| `dehum` | Notch mains hum `--mains 50|60` + `--harmonics` (Q=12 `equalizer` chain) |
 | `batch` | One verb on every media file in a directory |
 | `pipeline` | Run a JSON scheme in order (`$src` / `$in` / `expect`) |
 | `graph` | JSON filter graph, see [`references/graph.md`](references/graph.md) |

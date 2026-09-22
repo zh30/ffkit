@@ -5265,3 +5265,134 @@ fn title_position_bottom_puts_text_low() {
         "title edits the bottom band (top diff {top_band} vs bottom {bot_band}); {v}"
     );
 }
+
+#[test]
+fn waveform_renders_a_drawn_png() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let png = dir.path().join("w.png");
+    let v = run_json(&[
+        "waveform",
+        src.to_str().unwrap(),
+        "-o",
+        png.to_str().unwrap(),
+        "--size",
+        "320x120",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let img = image::open(&png).expect("png").to_rgb8();
+    let lit = img
+        .pixels()
+        .filter(|p| u32::from(p[0]) + u32::from(p[1]) + u32::from(p[2]) > 200)
+        .count();
+    assert!(lit > 300, "waveform PNG draws the wave ({lit} lit px); {v}");
+}
+
+#[test]
+fn spectrogram_renders_a_drawn_png() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let png = dir.path().join("s.png");
+    let v = run_json(&[
+        "spectrogram",
+        src.to_str().unwrap(),
+        "-o",
+        png.to_str().unwrap(),
+        "--size",
+        "320x240",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let img = image::open(&png).expect("png").to_rgb8();
+    let lit = img
+        .pixels()
+        .filter(|p| u32::from(p[0]) + u32::from(p[1]) + u32::from(p[2]) > 60)
+        .count();
+    assert!(
+        lit > 1000,
+        "spectrogram PNG draws energy ({lit} lit px); {v}"
+    );
+}
+
+#[test]
+fn dehum_notches_the_mains_tone() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let hum = dir.path().join("hum.wav");
+    // 440 Hz voice over a 60 Hz mains hum.
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=60:duration=1",
+            "-filter_complex",
+            "[0:a][1:a]amix=inputs=2:normalize=0[a]",
+            "-map",
+            "[a]",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&hum)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "hum fixture");
+    let out = dir.path().join("clean.m4a");
+    let v = run_json(&[
+        "dehum",
+        hum.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mains",
+        "60",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let band = |f: &Path, hz: u32| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-af",
+                &format!("bandpass=f={hz}:w=15,volumedetect"),
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(-99.0)
+    };
+    let (hum_in, hum_out, voice_out) = (band(&hum, 60), band(&out, 60), band(&out, 440));
+    assert!(
+        hum_out < hum_in - 15.0,
+        "60Hz hum notched: {hum_in} -> {hum_out} dB; {v}"
+    );
+    assert!(
+        voice_out > -40.0,
+        "440 voice survives ({voice_out} dB); {v}"
+    );
+}

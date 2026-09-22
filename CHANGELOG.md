@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.46.0] — 2026-09-22
+
+- `ffkit waveform`: audio waveform → PNG (`--size`, `--color`) via `showwavespic`
+- `ffkit spectrogram`: audio spectrogram → PNG (`--size`) via `showspectrumpic`
+- `ffkit dehum`: notch mains hum `--mains 50|60` + `--harmonics` (`equalizer` Q=12 chain)
+
 ## [0.45.0] — 2026-09-22
 
 - `ffkit vdenoise`: spatial video denoise for grainy footage (`--strength` 0.5–30) via `nlmeans`

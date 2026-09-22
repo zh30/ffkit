@@ -153,6 +153,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `blur` | 高斯模糊（`--sigma`） |
 | `vdenoise` | 视频降噪（暗光噪点）：`--strength` 0.5–30（nlmeans，长片较慢） |
 | `crop` | 裁剪 `--region x:y:w:h` 区域，或 `--aspect W:H` 居中重构画面（1:1、9:16） |
+| `waveform` | 音频波形 → PNG（`--size`、`--color`），播客封面/缩略图用 |
+| `spectrogram` | 音频频谱图 → PNG（`--size`），清理前先看嗡鸣/噪声 |
+| `dehum` | 消除市电嗡鸣 `--mains 50|60` + `--harmonics`（Q=12 `equalizer` 陷波链） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `pipeline` | 按 JSON 方案顺序执行多步（`$src` / `$in` / `expect`） |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |

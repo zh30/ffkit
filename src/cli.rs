@@ -161,6 +161,12 @@ pub enum Cmd {
     Grade(GradeArgs),
     /// Punch-in / Ken Burns-style center zoom
     Zoom(ZoomArgs),
+    /// Render the audio waveform to a PNG
+    Waveform(WaveformArgs),
+    /// Render the audio spectrogram to a PNG
+    Spectrogram(SpectrogramArgs),
+    /// Remove mains hum (50/60 Hz) and harmonics
+    Dehum(DehumArgs),
     /// Spatial video denoise for grainy low-light footage
     Vdenoise(VdenoiseArgs),
     /// Crop a region or reframe to an aspect
@@ -1011,6 +1017,50 @@ pub struct SheetArgs {
     /// Tile width px (height follows aspect, forced even)
     #[arg(long, default_value_t = 320)]
     pub tile: u32,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct WaveformArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// PNG size WxH (default 1920x540)
+    #[arg(long, default_value = "1920x540")]
+    pub size: String,
+    /// Waveform colour RRGGBB hex or ffmpeg name (default ffffff)
+    #[arg(long)]
+    pub color: Option<String>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SpectrogramArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// PNG size WxH (default 1920x1080)
+    #[arg(long, default_value = "1920x1080")]
+    pub size: String,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum MainsFreq {
+    #[value(name = "50")]
+    F50,
+    #[value(name = "60")]
+    F60,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DehumArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Mains frequency: 50 (EU/Asia) or 60 (US) Hz
+    #[arg(long, value_enum, default_value_t = MainsFreq::F60)]
+    pub mains: MainsFreq,
+    /// Harmonics to notch beyond the fundamental (1..8)
+    #[arg(long, default_value_t = 4)]
+    pub harmonics: u32,
 }
 
 #[derive(clap::Args, Debug)]
