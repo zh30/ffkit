@@ -17,9 +17,13 @@ pub fn run(args: DenoiseArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("denoise: input has no audio stream"));
     }
 
-    // strength 0–1 → afftdn nr 6–18 dB; past ~20 dB voice goes "underwater"
-    let nr = 6.0 + 12.0 * args.strength;
-    let mut af = format!("afftdn=nr={nr:.1}");
+    // strength 0–1 → afwtdn sigma 0.02–0.08. afwtdn over afftdn: in ffmpeg
+    // 9.x afftdn with default nf=-50 extracts almost nothing (measured ~0 dB
+    // hiss reduction); a small fixed wavelet sigma reliably takes ~16 dB off
+    // broadband noise for <3 dB voice cost across input levels. anlmdn is
+    // stronger on paper but segfaults in this build.
+    let sigma = 0.02 + 0.06 * args.strength;
+    let mut af = format!("afwtdn=sigma={sigma:.3}");
     if args.highpass > 0.0 {
         af = format!("highpass=f={:.0},{af}", args.highpass);
     }

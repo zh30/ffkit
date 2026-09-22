@@ -36,7 +36,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     // going past audio EOF.
     let fc =
         "[1:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg];\
-              [0:a]showwaves=s=940x320:mode=cline:rate=30:colors=white[wv];\
+              [0:a]showwaves=s=940x320:mode=cline:rate=30:colors=white:draw=full[wv];\
               [wv]colorkey=0x000000:0.12:0.1[wvk];\
               [bg][wvk]overlay=(W-w)/2:(H-h)*0.62:shortest=1[vout]";
     argv.extend(["-filter_complex", fc, "-map", "[vout]", "-map", "0:a"]);

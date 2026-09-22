@@ -50,7 +50,7 @@ Source path as `-o` is always refused. An existing output is refused unless `--o
 
 ## Denoise
 
-`denoise` chains `highpass` (rumble) + `afftdn` (hiss/fan). `--strength` 0–1 maps to `nr` 6–18 dB; past ~20 dB voice goes "underwater" — suggest a lower value if the report mentions artifacts. `--video` adds `hqdn3d` degrain and re-encodes the picture (default keeps `-c:v copy`).
+`denoise` chains `highpass` (rumble) + `afwtdn` (hiss/fan). `--strength` 0–1 maps to wavelet `sigma` 0.02–0.08. Not `afftdn`: with ffmpeg ≥9 defaults (`nf=-50`) it measures ~0 dB of noise reduction; `anlmdn` segfaults in this build. `--video` adds `hqdn3d` degrain and re-encodes the picture (default keeps `-c:v copy`).
 
 ## fit --fit blur
 

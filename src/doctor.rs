@@ -43,7 +43,7 @@ const KEY_FILTERS: &[&str] = &[
     "transpose",
     "drawtext",
     "thumbnail",
-    "afftdn",
+    "afwtdn",
     "hqdn3d",
     "gblur",
     "showwaves",

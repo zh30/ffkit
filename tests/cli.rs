@@ -1831,7 +1831,7 @@ fn denoise_keeps_streams() {
     assert_eq!(v["tool"], "denoise");
     assert_eq!(v["probe"]["has_audio"], true, "{v}");
     assert_eq!(v["probe"]["has_video"], true, "{v}");
-    assert!(v["extra"]["af"].as_str().unwrap().contains("afftdn"), "{v}");
+    assert!(v["extra"]["af"].as_str().unwrap().contains("afwtdn"), "{v}");
     assert_eq!(v["extra"]["video_denoise"], false, "{v}");
     let d = v["probe"]["duration"].as_f64().unwrap();
     assert!(d > 0.8 && d < 1.3, "denoise keeps ~1s, got {d}; {v}");

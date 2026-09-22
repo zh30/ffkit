@@ -11,7 +11,7 @@ Researched 2026-09-22 against **ffkit 0.25.1** (`main`). Previous pass 2026-09-1
 
 **Podcast→clips is the #1 scaled workflow.** [Loopdesk, Jul 2026](https://loopdesk.ai/blog/video-workflows-for-creators): the four workflows that cover almost every creator are podcast-to-clips, weekly YouTube, archive mining, multi-platform publishing. Audio-only episodes need a **picture** before they can be a Reel/Short — the standard artifact is a cover still with an animated waveform (**audiogram**). ffmpeg `showwaves` renders it without any extra dependency.
 
-**Audio cleanup comes before loudness.** [MSY Editor, Mar 2026](https://msyeditor.com/ai-video-editing-workflow-2026/): in every AI edit pipeline, noise reduction is applied *first*, before levels and B-roll — room rumble, laptop fan, hiss. Homebrew/apt ffmpeg ships `afftdn`, `highpass`, `anlmdn`; no model files needed.
+**Audio cleanup comes before loudness.** [MSY Editor, Mar 2026](https://msyeditor.com/ai-video-editing-workflow-2026/): in every AI edit pipeline, noise reduction is applied *first*, before levels and B-roll — room rumble, laptop fan, hiss. Homebrew/apt ffmpeg ships `afwtdn`, `highpass`, `afftdn`; no model files needed.
 
 **Landscape→vertical repurpose wants a blurred fill, not black bars.** The repurpose playbooks (CuteDyno Jun 2026, loopdesk multi-platform) assume a blurred pillarbox when the source is 16:9 — black `pad` bars read as unedited. `split + scale=increase,crop + gblur + overlay=centered fg` is a known-graph but error-prone raw.
 
@@ -23,7 +23,7 @@ Researched 2026-09-22 against **ffkit 0.25.1** (`main`). Previous pass 2026-09-1
 ||-----------------|-------|-----|
 || "压到 10MB 发 Discord / shrink for email" | `transcode` presets pick a codec/CRF, not a size | No size target; bitrate math + two-pass must be hand-built |
 || "把这段播客做成能发的视频" | audio-only input has no video verbs at all | No waveform/cover audiogram path to 9:16 |
-|| "房间底噪 / fan noise / 降噪" | `loudnorm` / `volume` only | No `afftdn` voice denoise (queued last run) |
+|| "房间底噪 / fan noise / 降噪" | `loudnorm` / `volume` only | No voice denoise (queued last run) (queued last run) |
 || "竖屏但背景要模糊" | `fit --fit pad` = black bars; `crop` cuts the subject | No blurred-fill mode |
 || Swap camera audio for lav mic | `music` mixes a bed under; nothing replaces | Raw `ffmpeg -map` only; queue next |
 || Word-highlight karaoke captions | whole-cue raster burn | Needs per-word timing source; still deferred |
@@ -32,7 +32,7 @@ Researched 2026-09-22 against **ffkit 0.25.1** (`main`). Previous pass 2026-09-1
 
 ## Ordered directions (this run)
 
-1. **`denoise`** — `ffkit denoise IN -o OUT`: `highpass` + `afftdn` voice cleanup, `--video` adds `hqdn3d` on the picture. Maps to "降噪 / 底噪 / room tone". Already queued by the previous run's ordered list.
+1. **`denoise`** — `ffkit denoise IN -o OUT`: `highpass` + `afwtdn` voice cleanup, `--video` adds `hqdn3d` on the picture. Maps to "降噪 / 底噪 / room tone". Already queued by the previous run's ordered list.
 2. **`compress`** — `ffkit compress IN -o OUT --size 10MB`: probe duration → bitrate budget (2% mux reserve, audio paid first at 96 kbps) → libx264 **two-pass**. Audio-only input single-passes `-b:a`. Fails fast when the math is impossible (<64 kbps video). Maps to "发不出去，太大了".
 3. **`fit --fit blur`** — blurred-pillarbox fill behind the scaled foreground. Maps to "竖屏化不要黑边".
 4. **`audiogram`** — `ffkit audiogram IN [-o reel.mp4 --image cover.png]`: `showwaves` over a cover still (or flat colour) → 1080×1920, audio kept. Maps to "播客做成 Reel".
