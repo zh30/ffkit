@@ -742,6 +742,9 @@ pub struct MetaArgs {
     /// Fix the display rotation flag (0/90/180/270) without re-encoding
     #[arg(long)]
     pub rotate: Option<u32>,
+    /// Strip ALL container metadata (privacy clean before publishing)
+    #[arg(long)]
+    pub clear: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1607,6 +1610,12 @@ pub struct SharpenArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
+    /// Sharpen only from this time (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
     /// luma unsharp amount (0.3–2)
     #[arg(long, default_value_t = 1.0)]
     pub amount: f64,
@@ -1627,6 +1636,12 @@ pub struct BwArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
+    /// Desaturate only from this time (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

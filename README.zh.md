@@ -133,7 +133,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet` |
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip` |
 | `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h`；`--at`/`--dur` 只处理窗口 |
-| `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`）+ `--rotate` 显示旋转，无损拷贝 |
+| `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`）+ `--rotate`、`--clear` 显示旋转，无损拷贝 |
 | `subs` | 抽取内嵌字幕（`--stream`）、`--burn` 压制字幕、`--shift ±N` 整体平移 .srt |
 | `thumb` | 抓封面单帧（`--at`/`--frame`、`--width`）→ jpg/png/webp |
 | `solid` | 纯色视频卡（`--color`、`--size`、`--dur`，可选静音轨） |
@@ -148,9 +148,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `reverse` | 倒放画面和声音 |
 | `grade` | `--preset` 一键风格 + 对比/饱和/亮度/`--gamma`/`--hue`/`--warm`；`--lut look.cube` 套 3D LUT | 预设 `cinematic`/`vivid`/`vintage`/`soft` 叠在滑杆之下 |
 | `zoom` | 中心推近（`--factor 1.25`） |
-| `sharpen` | 锐化（unsharp） |
+| `sharpen` | USM 锐化，整段或定时窗口（`--amount`、`--at`、`--dur`） |
 | `vignette` | 暗角 |
-| `bw` | 黑白 |
+| `bw` | 黑白化，整段或定时窗口（`--at`、`--dur`） |
 | `volume` | 音量 ±dB（平台响度请用 `loudnorm`） |
 | `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`、`--dur`） |
 | `vdenoise` | 视频降噪（暗光噪点）：`--strength` 0.5–30（nlmeans，长片较慢） |

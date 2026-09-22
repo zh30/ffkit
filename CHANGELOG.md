@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.67.0] - 2026-09-22
+
+- `bw --at/--dur` — windowed desaturation (`hue=s=0:enable='between(...)'`).
+- `sharpen --at/--dur` — windowed `unsharp` (same enable pattern; `--dur` alone refuses).
+- `meta --clear` — `-map_metadata -1`, strips every container tag before publishing; refuses to combine with tag flags.
+
 ## [0.66.0] - 2026-09-22
 
 - `invert --at/--dur` — windowed negation via `negate=enable='between(...)'` (flashback accents).

@@ -24,8 +24,15 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--rotate must be 0, 90, 180 or 270"));
         }
     }
-    if tags.is_empty() && args.rotate.is_none() {
-        return Err(Error::input("meta needs at least one tag flag or --rotate"));
+    if args.clear && (!tags.is_empty() || args.rotate.is_some()) {
+        return Err(Error::input(
+            "--clear strips everything; drop the tag flags",
+        ));
+    }
+    if tags.is_empty() && args.rotate.is_none() && !args.clear {
+        return Err(Error::input(
+            "meta needs at least one tag flag, --rotate or --clear",
+        ));
     }
     // ffmpeg >= 7 dropped the rotate metadata tag in favour of the
     // -display_rotation input option; older ffmpeg only knows the tag.
@@ -38,6 +45,9 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push("-i");
     argv.push(&args.input);
+    if args.clear {
+        argv.extend(["-map_metadata", "-1"]);
+    }
     argv.extend(["-map", "0", "-c", "copy"]);
     for (k, v) in &tags {
         argv.extend(["-metadata", &format!("{k}={v}")]);

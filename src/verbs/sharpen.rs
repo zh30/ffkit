@@ -15,17 +15,33 @@ pub fn run(args: SharpenArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
+    let vf = match &args.at {
+        Some(s) => {
+            let at = crate::time::parse_time(s)?;
+            if !(0.0..probe.duration).contains(&at) {
+                return Err(Error::input("--at is outside the input"));
+            }
+            match args.dur {
+                Some(d) if at + d < probe.duration => format!(
+                    "unsharp=5:5:{}:5:5:0.0:enable='between(t,{at:.3},{:.3})'",
+                    args.amount,
+                    at + d
+                ),
+                _ => format!(
+                    "unsharp=5:5:{}:5:5:0.0:enable='gte(t,{at:.3})'",
+                    args.amount
+                ),
+            }
+        }
+        None => {
+            if args.dur.is_some() {
+                return Err(Error::input("--dur needs --at"));
+            }
+            format!("unsharp=5:5:{}:5:5:0.0", args.amount)
+        }
+    };
     argv.extend([
-        "-vf",
-        &format!("unsharp=5:5:{}:5:5:0.0", args.amount),
-        "-c:v",
-        "libx264",
-        "-preset",
-        "fast",
-        "-crf",
-        "18",
-        "-pix_fmt",
-        "yuv420p",
+        "-vf", &vf, "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
     ]);
     if probe.has_audio {
         argv.extend(["-c:a", "copy"]);
