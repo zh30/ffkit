@@ -141,11 +141,11 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
 | `cover` | 9:16 cover still (1080×1920) |
 | `fade` | Video and audio fade (`--in` / `--out`, `--color` e.g. white) |
-| `title` | Burned-in hook text; `--at`, `--tile`, `--size`, `--color`, `--position top|center|bottom` | First-second hook card (`--text`, no libass) |
+| `title` | Centered hook text (`--duration`, `--at`, `--position`, `--fade` soft in/out) |
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) |
 | `stabilize` | Handheld deshake |
 | `reverse` | Play picture and sound backwards |
-| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--lut/--grain/--warm` | Presets `cinematic`/`vivid`/`vintage`/`soft` stack under the sliders; `--lut look.cube` applies a 3D LUT |
+| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm` | Presets `cinematic`/`vivid`/`vintage`/`soft` stack under the sliders; `--lut look.cube` applies a 3D LUT |
 | `zoom` | Center punch-in (`--factor 1.25`) |
 | `sharpen` | Unsharp |
 | `vignette` | Darken corners |
@@ -160,7 +160,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `tempo` | Speed audio `--factor` 0.5–8, pitch held (`atempo` chain; use `speed` for video) |
 | `leveler` | Voice dynamic-range compressor (`--threshold`/`--ratio`/`--makeup`) |
 | `gate` | Noise gate — silence below `--threshold` dB (`agate`) |
-| `silence` | Insert `--dur` seconds of quiet at `--at` in audio files (video holds: `freeze`) |
+| `silence` | Insert `--dur` secs of silence at `--at`, or append with `--end` |
 | `vocal` | `--mode karaoke` drops centered vocals; `isolate` keeps the center (stereo) |
 | `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov) |
 | `meme` | `--top`/`--bottom` caption text burned in (`--color`, `--size`) |

@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.58.0] - 2026-09-22
+
+- `title --fade` — fades the title in/out over N s (looped still + `fade alpha=1`; clamps to half the window).
+- `grade --hue` — `hue=h=N` rotate (-180..180) for white-balance rescue or color FX.
+- `silence --end` — append the `--dur` silence to the tail without doing the math.
+
 ## [0.57.0] - 2026-09-22
 
 - `thumb` — single-frame cover grab: `--at 2.5` (fast `-ss` seek) or `--frame N` (exact `select`); writes jpg/png/webp.

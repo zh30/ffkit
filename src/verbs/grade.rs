@@ -46,6 +46,9 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         "eq=contrast={}:brightness={}:saturation={}:gamma={}",
         args.contrast, args.brightness, args.saturation, args.gamma
     ));
+    if args.hue != 0.0 {
+        vf.push_str(&format!(",hue=h={}", args.hue.clamp(-180.0, 180.0)));
+    }
     if let Some(lut) = &args.lut {
         // Single quotes group literal path text; escape internal quotes.
         let esc = lut.display().to_string().replace('\'', "\\'");
@@ -81,5 +84,6 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         "lut": args.lut,
         "grain": args.grain,
         "warm": args.warm,
+        "hue": args.hue,
     })))
 }

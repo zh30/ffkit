@@ -141,11 +141,11 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |
 | `cover` | 导出 9:16 封面图（1080×1920） |
 | `fade` | 画面和声音淡入淡出（`--in` / `--out`，`--color` 淡出到白等） |
-| `title` | 片头/hook 大字（`--text`，不依赖 libass；`--position top|center|bottom` 选位置） |
+| `title` | 居中标题文字（`--duration`、`--at`、`--position`、`--fade` 淡入淡出） |
 | `loop` | 把成片重复 N 遍（Shorts 循环加长） |
 | `stabilize` | 手持防抖（deshake） |
 | `reverse` | 倒放画面和声音 |
-| `grade` | `--preset` 一键风格 + 对比/饱和/亮度/`--gamma`/`--warm`；`--lut look.cube` 套 3D LUT | 预设 `cinematic`/`vivid`/`vintage`/`soft` 叠在滑杆之下 |
+| `grade` | `--preset` 一键风格 + 对比/饱和/亮度/`--gamma`/`--hue`/`--warm`；`--lut look.cube` 套 3D LUT | 预设 `cinematic`/`vivid`/`vintage`/`soft` 叠在滑杆之下 |
 | `zoom` | 中心推近（`--factor 1.25`） |
 | `sharpen` | 锐化（unsharp） |
 | `vignette` | 暗角 |
@@ -160,7 +160,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `tempo` | 音频变速 `--factor` 0.5–8，不变调（`atempo` 链；视频请用 `speed`） |
 | `leveler` | 人声动态压缩（忽大忽小）：`--threshold`/`--ratio`/`--makeup` |
 | `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`） |
-| `silence` | 在音频 `--at` 处插入 `--dur` 秒静音（视频定格用 `freeze`） |
+| `silence` | 在 `--at` 处插入 `--dur` 秒静音，或 `--end` 追加片尾静音 |
 | `vocal` | `--mode karaoke` 消中置人声、`isolate` 只留中置（需立体声源） |
 | `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart） |
 | `meme` | 顶部/底部说明文字烧入（`--top`/`--bottom`，`--color`，`--size`） |

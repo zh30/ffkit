@@ -895,6 +895,9 @@ pub struct TitleArgs {
     /// center (default), top, or bottom
     #[arg(long, default_value = "center")]
     pub position: String,
+    /// Fade the title in/out over this many seconds (0 = cut)
+    #[arg(long, default_value_t = 0.0)]
+    pub fade: f64,
 }
 
 #[derive(clap::Args, Debug)]
@@ -956,6 +959,9 @@ pub struct GradeArgs {
     /// One-click look applied before the sliders: cinematic, vivid, vintage, soft
     #[arg(long, value_enum)]
     pub preset: Option<GradePreset>,
+    /// Rotate the hue by N degrees (-180..180): white-balance rescue or color FX
+    #[arg(long, default_value_t = 0.0, allow_hyphen_values = true)]
+    pub hue: f64,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1371,6 +1377,9 @@ pub struct SilenceArgs {
     /// Insert silence at this position, seconds (default 0 = leading pad)
     #[arg(long)]
     pub at: Option<f64>,
+    /// Append the silence at the end instead (overrides --at)
+    #[arg(long)]
+    pub end: bool,
     /// Seconds of silence to insert
     #[arg(long)]
     pub dur: f64,

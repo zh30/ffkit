@@ -6,13 +6,6 @@ use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
 pub fn run(args: SilenceArgs, g: &Globals) -> Result<Contract, Error> {
-    let at = args.at.unwrap_or(0.0);
-    if args.dur <= 0.0 {
-        return Err(Error::input("--dur must be > 0"));
-    }
-    if at < 0.0 {
-        return Err(Error::input("--at must be >= 0"));
-    }
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_audio {
         return Err(Error::input("silence: input has no audio stream"));
@@ -21,6 +14,17 @@ pub fn run(args: SilenceArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input(
             "silence pads audio only — use `freeze` to hold video frames",
         ));
+    }
+    let at = if args.end {
+        probe.duration
+    } else {
+        args.at.unwrap_or(0.0)
+    };
+    if args.dur <= 0.0 {
+        return Err(Error::input("--dur must be > 0"));
+    }
+    if at < 0.0 {
+        return Err(Error::input("--at must be >= 0"));
     }
 
     // anullsrc must match the input layout for concat to chain.

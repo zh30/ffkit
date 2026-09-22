@@ -7025,3 +7025,122 @@ fn split_parts_n_equal_chunks() {
     let p1 = dir.path().join("p_1.mp4");
     assert!(p0.is_file() && p1.is_file(), "expected p_0 + p_1");
 }
+
+#[test]
+fn title_fade_terminates_and_renders() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("faded.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "FADE ME",
+        "--duration",
+        "0.9",
+        "--fade",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // Infinite looped secondary must not stretch the output past the input.
+    let d = v["probe"]["duration"].as_f64().unwrap_or(99.0);
+    assert!(d < 1.3, "fade title should end with the source: {d}");
+}
+
+#[test]
+fn grade_hue_rotates_colors() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // Pure red frame: hue=120 should turn it green-ish.
+    let src = dir.path().join("red.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=red:s=320x240:d=0.3:rate=30")
+        .args(["-pix_fmt", "yuv420p", "-c:v", "libx264"])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("rot.mp4");
+    let v = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--hue",
+        "120",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let png = dir.path().join("f.png");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&out)
+        .args(["-frames:v", "1"])
+        .arg(&png)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let (r, g, _b) = mean_rgb(&png);
+    assert!(
+        g > r + 20.0,
+        "hue=120 turns a red frame green-ish (r={r} g={g})"
+    );
+}
+
+#[test]
+fn silence_end_appends_quiet_tail() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let aud = dir.path().join("a.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=440:duration=1")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("pad.wav");
+    let v = run_json(&[
+        "silence",
+        aud.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--end",
+        "--dur",
+        "1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        (d - 2.0).abs() < 0.1,
+        "--end appends 1s of silence to a 1s clip: {d}"
+    );
+}

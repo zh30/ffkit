@@ -66,11 +66,28 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     };
+    let fade = args.fade.clamp(0.0, ((until - at) / 2.0).max(0.0));
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
+    if fade > 0.0 {
+        // Looping the PNG gives the still advancing pts so alpha fades animate.
+        argv.extend(["-loop", "1", "-framerate", "30"]);
+    }
     argv.push("-i");
     argv.push(&png);
+    let (pre, ovl) = if fade > 0.0 {
+        (
+            format!(
+                "[1:v]format=rgba,fade=t=in:st={at:.3}:d={fade:.3}:alpha=1,fade=t=out:st={:.3}:d={fade:.3}:alpha=1[ovl];",
+                until - fade
+            ),
+            "ovl",
+        )
+    } else {
+        (String::new(), "1:v")
+    };
+    let shortest = if fade > 0.0 { ":shortest=1" } else { "" };
     let fc = if args.tile > 0 {
         // N copies on a diagonal cascade — text draft watermark
         let n = args.tile.clamp(2, 6);
@@ -85,14 +102,15 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
                 format!("t{i}")
             };
             seg.push(format!(
-                "{prev}[1:v]overlay=x={fx:.3}*(W-w):y={fy:.3}*(H-h):enable='between(t,{at:.3},{until:.3})'[{lab}]"
+                "{prev}[{ovl}]overlay=x={fx:.3}*(W-w):y={fy:.3}*(H-h):enable='between(t,{at:.3},{until:.3})'{shortest}[{lab}]"
             ));
             prev = format!("[{lab}]");
         }
         seg.join(";")
     } else {
-        format!("[0:v][1:v]overlay=x={x}:y={y}:enable='between(t,{at:.3},{until:.3})'[vout]")
+        format!("[0:v][{ovl}]overlay=x={x}:y={y}:enable='between(t,{at:.3},{until:.3})'{shortest}[vout]")
     };
+    let fc = format!("{pre}{fc}");
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if probe.has_audio {
         argv.extend(["-map", "0:a", "-c:a", "copy"]);
