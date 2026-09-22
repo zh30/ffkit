@@ -2,6 +2,7 @@ use crate::cli::{CutArgs, Globals};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
+use crate::probe::Probe;
 use crate::time::{fmt_time, parse_time};
 
 pub fn run(args: CutArgs, g: &Globals) -> Result<Contract, Error> {
@@ -18,9 +19,10 @@ pub fn run(args: CutArgs, g: &Globals) -> Result<Contract, Error> {
         && args.end.is_none()
         && args.duration.is_none()
         && args.ranges.is_none()
+        && args.drop.is_none()
     {
         return Err(Error::input(
-            "cut needs --start/--end/--duration or --ranges",
+            "cut needs --start/--end/--duration/--ranges/--drop",
         ));
     }
 
@@ -45,6 +47,9 @@ pub fn run(args: CutArgs, g: &Globals) -> Result<Contract, Error> {
 
     if let Some(ranges) = &args.ranges {
         return ranges_cut(&args, ranges, g);
+    }
+    if let Some(dropped) = &args.drop {
+        return drop_cut(&args, dropped, g);
     }
 
     let mut argv = ffmpeg_base(g.progress);
@@ -76,11 +81,7 @@ pub fn run(args: CutArgs, g: &Globals) -> Result<Contract, Error> {
     engine::write_job("cut", &[&args.input], &args.output, vec![argv], g)
 }
 
-/// Keep several ranges joined into one output: N atrim/trim pairs + concat.
-/// Always re-encodes (frame-exact, and the concat needs aligned pts anyway).
-fn ranges_cut(args: &CutArgs, ranges: &str, g: &Globals) -> Result<Contract, Error> {
-    let probe = engine::probe_or_err(&args.input, g)?;
-    engine::need_video(&probe, "cut --ranges")?;
+fn parse_ranges(ranges: &str) -> Result<Vec<(f64, f64)>, Error> {
     let mut segs: Vec<(f64, f64)> = Vec::new();
     for part in ranges.split(',') {
         let (a, b) = part
@@ -93,13 +94,61 @@ fn ranges_cut(args: &CutArgs, ranges: &str, g: &Globals) -> Result<Contract, Err
                 "bad range '{part}' — end after start"
             )));
         }
-        segs.push((a, b.min(probe.duration)));
+        segs.push((a, b));
     }
+    Ok(segs)
+}
+
+/// Keep only the listed ranges, joined into one output.
+fn ranges_cut(args: &CutArgs, ranges: &str, g: &Globals) -> Result<Contract, Error> {
+    let probe = engine::probe_or_err(&args.input, g)?;
+    engine::need_video(&probe, "cut --ranges")?;
+    let mut segs = parse_ranges(ranges)?
+        .into_iter()
+        .map(|(a, b)| (a, b.min(probe.duration)))
+        .collect::<Vec<_>>();
     if segs.len() < 2 {
         return Err(Error::input("pass 2+ ranges or use --start/--end"));
     }
     segs.sort_by(|x, y| x.0.total_cmp(&y.0));
+    concat_segs(args, segs, probe, g)
+}
 
+/// Drop the listed ranges, keep everything else joined.
+fn drop_cut(args: &CutArgs, ranges: &str, g: &Globals) -> Result<Contract, Error> {
+    let probe = engine::probe_or_err(&args.input, g)?;
+    engine::need_video(&probe, "cut --drop")?;
+    let mut drops = parse_ranges(ranges)?
+        .into_iter()
+        .map(|(a, b)| (a, b.min(probe.duration)))
+        .collect::<Vec<_>>();
+    drops.sort_by(|x, y| x.0.total_cmp(&y.0));
+    let mut segs: Vec<(f64, f64)> = Vec::new();
+    let mut cur = 0.0;
+    for (a, b) in drops {
+        if a > cur {
+            segs.push((cur, a.min(probe.duration)));
+        }
+        cur = cur.max(b);
+    }
+    if cur < probe.duration {
+        segs.push((cur, probe.duration));
+    }
+    segs.retain(|(a, b)| b - a > 0.01);
+    if segs.is_empty() {
+        return Err(Error::input("--drop removes the whole input"));
+    }
+    concat_segs(args, segs, probe, g)
+}
+
+/// Join several ranges into one output: N atrim/trim pairs + concat.
+/// Always re-encodes (frame-exact, and the concat needs aligned pts anyway).
+fn concat_segs(
+    args: &CutArgs,
+    segs: Vec<(f64, f64)>,
+    probe: Probe,
+    g: &Globals,
+) -> Result<Contract, Error> {
     let mut seg = String::new();
     let mut labels = String::new();
     for (i, (a, b)) in segs.iter().enumerate() {

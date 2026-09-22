@@ -271,6 +271,9 @@ pub struct CutArgs {
     /// Keep several ranges joined into one file ("10-20,40-50", seconds or h:mm:ss)
     #[arg(long)]
     pub ranges: Option<String>,
+    /// Comma list of ranges to DROP, keeps the rest joined: "a-b,c-d"
+    #[arg(long)]
+    pub drop: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -323,6 +326,9 @@ pub struct FitArgs {
     pub height: Option<u32>,
     #[arg(long, value_enum, default_value_t = FitMode::Pad)]
     pub fit: FitMode,
+    /// Pad bar color (RRGGBB hex, default black)
+    #[arg(long)]
+    pub color: Option<String>,
     #[arg(long)]
     pub rotate: Option<u32>,
     #[arg(long, value_enum)]
@@ -920,6 +926,9 @@ pub struct TitleArgs {
     /// Fade the title in/out over this many seconds (0 = cut)
     #[arg(long, default_value_t = 0.0)]
     pub fade: f64,
+    /// Stroke color around the text (RRGGBB hex)
+    #[arg(long)]
+    pub outline: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

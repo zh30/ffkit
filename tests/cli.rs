@@ -7379,3 +7379,91 @@ fn volume_limit_caps_peak() {
         "limiter -1 dBTP should cap the peak: max_volume={peak}"
     );
 }
+
+#[test]
+fn cut_drop_removes_middle_segment() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path()); // 1s
+    let out = dir.path().join("dropped.mp4");
+    let v = run_json(&[
+        "cut",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--drop",
+        "0.3-0.6",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        (d - 0.7).abs() < 0.15,
+        "1s minus 0.3-0.6 should give ~0.7s: {d}"
+    );
+}
+
+#[test]
+fn title_outline_keeps_dark_stroke_around_text() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t_out.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "HI",
+        "--duration",
+        "0.3",
+        "--color",
+        "ffffff",
+        "--outline",
+        "000000",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn fit_pad_color_fills_bars() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path()); // 16:9 src
+    let out = dir.path().join("fit_c.mp4");
+    let v = run_json(&[
+        "fit",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--aspect",
+        "1:1",
+        "--color",
+        "ff0000",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // top-left pad bar should be red, not black
+    let png = dir.path().join("fitc.png");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&out)
+        .args(["-frames:v", "1"])
+        .arg(&png)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let img = image::open(&png).unwrap().to_rgb8();
+    let (w, _h) = img.dimensions();
+    let p = img.get_pixel(w / 2, 4);
+    assert!(
+        p[0] > 150 && p[1] < 60 && p[2] < 60,
+        "top pad bar should be red: {p:?}"
+    );
+}

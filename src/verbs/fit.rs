@@ -68,12 +68,18 @@ pub fn run(args: FitArgs, g: &Globals) -> Result<Contract, Error> {
         }
     } else {
         let scale_pad = match args.fit {
-            FitMode::Pad => format!(
-                "scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2:black"
-            ),
-            FitMode::Crop => format!(
-                "scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}"
-            ),
+            FitMode::Pad => {
+                let pad_color = match &args.color {
+                    Some(c) => format!("0x{}", c.trim_start_matches("0x").trim_start_matches('#')),
+                    None => "black".to_string(),
+                };
+                format!(
+                    "scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2:{pad_color}"
+                )
+            }
+            FitMode::Crop => {
+                format!("scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}")
+            }
             FitMode::Blur => unreachable!(),
         };
         vf.push(scale_pad);

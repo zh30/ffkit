@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.61.0] - 2026-09-22
+
+- `cut --drop "a-b,c-d"` — remove middle sections, keep the rest joined (complement of `--ranges`; same N-trim + concat path).
+- `title --outline RRGGBB` — stroke around every glyph (`render_title_outlined`: 16-offset ring blits under the fill) for readable text on busy frames.
+- `fit --color RRGGBB` — pad bars in a brand color instead of black (`pad` filter color arg).
+
 ## [0.60.0] - 2026-09-22
 
 - `cut --ranges "a-b,c-d"` — keep several ranges joined into one file (N `trim`/`atrim` + `concat`; always re-encodes for frame-exact, aligned pts).

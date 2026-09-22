@@ -26,6 +26,19 @@ pub fn render_title_styled(
     render_text(text, font_bytes, video_w, 8.0, fg, size)
 }
 
+/// Title text with a stroke around each glyph (readability on busy frames).
+/// `outline` = (rgb, width_px) — blits each glyph at 16 offsets before the fill.
+pub fn render_title_outlined(
+    text: &str,
+    font_bytes: &[u8],
+    video_w: u32,
+    fg: [u8; 3],
+    size: f32,
+    outline: ([u8; 3], u32),
+) -> Result<RgbaImage, Error> {
+    render_text_inner(text, font_bytes, video_w, 8.0, fg, size, Some(outline))
+}
+
 pub fn render_title(text: &str, font_bytes: &[u8], video_w: u32) -> Result<RgbaImage, Error> {
     render_text(text, font_bytes, video_w, 8.0, [255, 255, 255], 1.0)
 }
@@ -37,6 +50,19 @@ fn render_text(
     divisor: f32,
     fg: [u8; 3],
     size: f32,
+) -> Result<RgbaImage, Error> {
+    render_text_inner(text, font_bytes, video_w, divisor, fg, size, None)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_text_inner(
+    text: &str,
+    font_bytes: &[u8],
+    video_w: u32,
+    divisor: f32,
+    fg: [u8; 3],
+    size: f32,
+    outline: Option<([u8; 3], u32)>,
 ) -> Result<RgbaImage, Error> {
     let font = fontdue::Font::from_bytes(font_bytes, fontdue::FontSettings::default())
         .map_err(|e| Error::input(format!("font parse: {e}")))?;
@@ -81,6 +107,21 @@ fn render_text(
         for (metrics, bitmap) in glyphs {
             let gx = x + metrics.xmin as f32;
             let gy = y as f32 + (*lh as f32) + metrics.ymin as f32 - metrics.height as f32;
+            if let Some((oc, ow)) = outline {
+                // cheap stroke: ring of offset blits under the fill
+                let r = ow.max(1) as f32;
+                for k in 0..16 {
+                    let a = k as f32 * std::f32::consts::TAU / 16.0;
+                    blit_glyph(
+                        &mut img,
+                        (gx + a.cos() * r).round() as i32,
+                        (gy + a.sin() * r).round() as i32,
+                        metrics,
+                        bitmap,
+                        oc,
+                    );
+                }
+            }
             blit_glyph(
                 &mut img,
                 gx.round() as i32,

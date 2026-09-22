@@ -46,7 +46,24 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     if !(0.25..=8.0).contains(&args.size) {
         return Err(Error::input("--size must be 0.25..8"));
     }
-    let img = crate::raster::render_title_styled(text, &font_bytes, vw, fg, args.size as f32)?;
+    let img = match &args.outline {
+        Some(c) => {
+            let oc = parse_hex(c)?;
+            // stroke ~6% of glyph height so it scales with --size
+            let ow = ((vw as f32 / 8.0 * args.size as f32) * 0.06)
+                .round()
+                .clamp(2.0, 24.0) as u32;
+            crate::raster::render_title_outlined(
+                text,
+                &font_bytes,
+                vw,
+                fg,
+                args.size as f32,
+                (oc, ow),
+            )?
+        }
+        None => crate::raster::render_title_styled(text, &font_bytes, vw, fg, args.size as f32)?,
+    };
     let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
     let png = tmp.path().join("title.png");
     img.save(&png)

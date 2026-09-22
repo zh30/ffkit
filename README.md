@@ -97,7 +97,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `doctor` | Whether local ffmpeg works, which encoders/filters exist |
 | `probe` | Duration, size, codecs, channels |
 | `look` | Contact sheet (`--tiles`) or timestamps (`--at`, repeatable) |
-| `cut` | Trim; lossless copy by default, `--accurate`, `--ranges` for frame-exact |
+| `cut` | Trim; lossless copy by default, `--accurate`, `--ranges`, `--drop` for frame-exact |
 | `concat` | Join; `--transition` crossfades between every clip (xfade + acrossfade, N inputs) |
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop |
 | `extract` | Audio, a frame, or subtitles from the output extension |
@@ -142,7 +142,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
 | `cover` | 9:16 cover still (1080×1920) |
 | `fade` | Video and audio fade (`--in` / `--out`, `--color` e.g. white) |
-| `title` | Centered hook text (`--duration`, `--at`, `--position`, `--fade` soft in/out) |
+| `title` | Centered hook text (`--duration`, `--at`, `--position`, `--fade`, `--outline` soft in/out) |
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) |
 | `stabilize` | Handheld deshake |
 | `reverse` | Play picture and sound backwards |

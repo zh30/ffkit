@@ -97,7 +97,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `doctor` | 本机 ffmpeg 是否可用、有哪些 encoder/filter |
 | `probe` | 时长、分辨率、编码、声道 |
 | `look` | 联系表（`--tiles`）或指定时间点（`--at`，可重复） |
-| `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges` 才帧精确 |
+| `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges`、`--drop` 才帧精确 |
 | `concat` | 拼接；`--transition` 在每条之间做 xfade 转场（视频 xfade + 音频 acrossfade，支持 N 条） |
 | `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 |
 | `extract` | 按输出扩展名抽音频、帧、字幕 |
@@ -142,7 +142,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |
 | `cover` | 导出 9:16 封面图（1080×1920） |
 | `fade` | 画面和声音淡入淡出（`--in` / `--out`，`--color` 淡出到白等） |
-| `title` | 居中标题文字（`--duration`、`--at`、`--position`、`--fade` 淡入淡出） |
+| `title` | 居中标题文字（`--duration`、`--at`、`--position`、`--fade`、`--outline` 淡入淡出） |
 | `loop` | 把成片重复 N 遍（Shorts 循环加长） |
 | `stabilize` | 手持防抖（deshake） |
 | `reverse` | 倒放画面和声音 |
