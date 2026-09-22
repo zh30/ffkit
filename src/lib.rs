@@ -72,6 +72,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Leveler(args) => verbs::leveler::run(args, &g),
         Cmd::Gate(args) => verbs::gate::run(args, &g),
         Cmd::Boomerang(args) => verbs::boomerang::run(args, &g),
+        Cmd::Fx(args) => verbs::fx::run(args, &g),
         Cmd::Chapter(args) => verbs::chapter::run(args, &g),
         Cmd::Autocrop(args) => verbs::autocrop::run(args, &g),
         Cmd::Sheet(args) => verbs::sheet::run(args, &g),

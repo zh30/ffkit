@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.73.0
+version: 0.74.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -129,6 +129,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | diagonal watermark | `overlay` (`--angle`) |
 | waveform showing quiet detail | `waveform` (`--scale log`) |
 | split on longer pauses | `split` (`--silence --min-silence`) |
+| wobble/sci-fi voice effect | `fx` (`--kind tremolo|vibrato|flanger|phaser|chorus`) |
+| effect only in the drop | `fx` (`--at`/`--dur`) |
+| boomerang that loops 3x | `boomerang` (`--times`) |
 | reframe / crop out an edge | `crop` (`--region x:y:w:h` or `--aspect 1:1`/`9:16` centered) |
 | motion / loop | `speed`, `reverse`, `loop`, `stabilize`, `fade` |
 | picture | `grade` (+ `--lut` .cube), `bw`, `vignette`, `sharpen`, `blur` |
@@ -168,6 +171,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | container metadata tags | `meta` (`--title`/`--artist`/`--comment`) |
 | fix display rotation flag | `meta --rotate 90` (lossless; clears with `--rotate 0`) |
 | room tone on a voice | `reverb` (`--size room|hall|cave`, `--wet 0..0.9`) |
+| wobble/sci-fi audio effect | `fx` (`--kind`, `--strength`, `--at`/`--dur`) |
 | Ken Burns on a photo cutaway | `broll --insert img.png --still --motion kenburns` |
 | styled captions | `caption --color ff0000 --size 1.5` |
 | logo only for part of the clip | `overlay --at 2 --dur 5` |

@@ -122,7 +122,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `freeze` | `--at T --dur D` 定格某一拍，或 `--end D` 尾帧定格（结尾停留） |
 | `censor` | 马赛克/高斯模糊打码区域 `--region x:y:w:h`（`--mode pixel|blur`；`--at`/`--dur` 限定窗口） |
 | `bleep` | 消音哔声：`--at`/`--dur` 选段，`--freq`/`--level` 调音 |
-| `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法） |
+| `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法）（`--times` 循环次数） |
 | `chapter` | 写入 `--at T|TITLE` 章节标记（`-c copy` 无损元数据） |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`） |
 | `sheet` | 缩略图墙/预览拼图：`--cols`/`--rows` → 一张 PNG | `--pad`/`--margin`
@@ -131,6 +131,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `channel` | 声道手术：`--mode dualmono|mono|swap` |
 | `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB |
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet` |
+| `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus（`--kind`、`--strength`、`--at`/`--dur`） |
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip` |
 | `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h`；`--at`/`--dur` 只处理窗口 |
 | `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`）+ `--rotate`、`--clear` 显示旋转，无损拷贝 |

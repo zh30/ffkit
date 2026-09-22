@@ -4,6 +4,13 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.74.0] — 2026-09-22
+
+## [0.74.0] - 2026-09-22
+
+- `fx` — audio FX rack: `--kind tremolo|vibrato|flanger|phaser|chorus` with `--strength` scaling depth and `--at/--dur` enable windows (chorus lacks timeline support and refuses `--at` cleanly).
+- `boomerang --times N` — `loop`/`aloop` the fwd+rev cycle N times (duration ×N).
+
 ## [0.73.0] - 2026-09-22
 
 - `overlay --angle DEG` — `format=rgba,rotate=a=rad:c=none` pre-chain ahead of any fade/opacity chain (diagonal watermarks).

@@ -122,7 +122,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `freeze` | Hold the frame at `--at T` for `--dur D` (mid-clip), or clone the last frame with `--end D` (outro) |
 | `censor` | Mosaic/blur a face/logo region `--region x:y:w:h` (`--mode pixel|blur`; `--at`/`--dur` window) |
 | `bleep` | Tone over a word/segment: `--at`/`--dur`, `--freq`, `--level` |
-| `boomerang` | Forward + reversed replay (one loop, social trick) |
+| `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) |
 | `chapter` | Embed `--at T|TITLE` chapter markers (lossless `-c copy` metadata pass) |
 | `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`) |
 | `sheet` | Contact sheet: `--cols`/`--rows` thumbnails → one PNG | `--pad`/`--margin`
@@ -131,6 +131,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `channel` | Channel surgery: `--mode dualmono|mono|swap` |
 | `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` |
+| `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus (`--kind`, `--strength`, `--at`/`--dur`) |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip` |
 | `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window |
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |

@@ -30,6 +30,7 @@ pub mod fade;
 pub mod fit;
 pub mod frames;
 pub mod freeze;
+pub mod fx;
 pub mod gate;
 pub mod grade;
 pub mod grid;

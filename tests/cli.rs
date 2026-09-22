@@ -8466,3 +8466,64 @@ fn waveform_scale_log() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn fx_tremolo_wobbles() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("fx.m4a");
+    let v = run_json(&[
+        "fx",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--kind",
+        "tremolo",
+        "--strength",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["effect"], "tremolo");
+}
+
+#[test]
+fn boomerang_times_repeats_cycle() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("bo.mp4");
+    let v = run_json(&[
+        "boomerang",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--times",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let dur = v["extra"]["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        dur > 1.6,
+        "boomerang --times 2 should ~2x duration, got {dur}"
+    );
+}

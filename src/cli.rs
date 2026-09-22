@@ -113,6 +113,8 @@ pub enum Cmd {
     Censor(CensorArgs),
     /// Forward + reversed replay loop
     Boomerang(BoomerangArgs),
+    /// Audio FX rack: tremolo/vibrato/flanger/phaser/chorus
+    Fx(FxArgs),
     /// Embed chapter markers (lossless metadata pass)
     Chapter(ChapterArgs),
     /// Detect and remove black bars (cropdetect scan + crop)
@@ -1768,6 +1770,37 @@ pub struct BoomerangArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
+    /// Repeat the forward-backward cycle N times total (default 1)
+    #[arg(long, default_value_t = 1)]
+    pub times: u32,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct FxArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Effect to apply
+    #[arg(long, value_enum, required = true)]
+    pub kind: FxKind,
+    /// Effect depth 0..1 (default 0.5)
+    #[arg(long, default_value_t = 0.5)]
+    pub strength: f64,
+    /// Effect only from this time (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum FxKind {
+    Tremolo,
+    Vibrato,
+    Flanger,
+    Phaser,
+    Chorus,
 }
 
 #[derive(clap::Args, Debug)]

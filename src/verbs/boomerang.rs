@@ -8,6 +8,9 @@ use crate::error::Error;
 pub fn run(args: BoomerangArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "boomerang")?;
+    if args.times == 0 {
+        return Err(Error::input("--times must be >= 1"));
+    }
     if probe.duration < 0.3 {
         return Err(Error::input("boomerang needs at least 0.3s of footage"));
     }
@@ -24,14 +27,28 @@ pub fn run(args: BoomerangArgs, g: &Globals) -> Result<Contract, Error> {
         seg.push("[af][arev]concat=n=2:v=0:a=1[aout]".to_string());
         seg.push("[vf][vrev]concat=n=2:v=1:a=0[vout]".to_string());
     }
-    let fc = seg.join(";");
+    let mut fc = seg.join(";");
+    let (vmap, amap) = if args.times > 1 {
+        let n = args.times - 1;
+        if probe.has_audio {
+            fc.push_str(&format!(
+                ";[vout]loop=loop={n}:size=0[vl];[aout]aloop=loop={n}:size=0[al]"
+            ));
+            ("[vl]", "[al]")
+        } else {
+            fc.push_str(&format!(";[vout]loop=loop={n}:size=0[vl]"));
+            ("[vl]", "[aout]")
+        }
+    } else {
+        ("[vout]", "[aout]")
+    };
 
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
+    argv.extend(["-filter_complex", &fc, "-map", vmap]);
     if probe.has_audio {
-        argv.extend(["-map", "[aout]", "-c:a", "aac"]);
+        argv.extend(["-map", amap, "-c:a", "aac"]);
     }
     argv.extend([
         "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
@@ -39,7 +56,7 @@ pub fn run(args: BoomerangArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
 
     let c = engine::write_job("boomerang", &[&args.input], &args.output, vec![argv], g)?;
-    let mut extra = json!({ "loops": 2 });
+    let mut extra = json!({ "loops": args.times * 2 });
     if matches!(c.status, Status::Ok) {
         if let Ok(p) = engine::probe_or_err(&args.output, g) {
             extra["probe"] = json!(p);
