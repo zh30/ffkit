@@ -88,8 +88,10 @@ fn tiled(
     let w = probe.width.unwrap_or(1280) as i64;
     let h = probe.height.unwrap_or(720) as i64;
     let scale = args.scale.unwrap_or(320);
+    // ffmpeg 4.4 consumes a pad label on first use — split into N copies.
+    let ovs: String = (0..n).map(|i| format!("[ov{i}]")).collect();
     let mut seg: Vec<String> = vec![format!(
-        "[1:v]scale={scale}:-1,format=rgba,colorchannelmixer=aa=0.5[ov]"
+        "[1:v]scale={scale}:-1,format=rgba,colorchannelmixer=aa=0.5,split={n}{ovs}"
     )];
     let mut prev = "[0:v]".to_string();
     for i in 0..n {
@@ -103,7 +105,7 @@ fn tiled(
         } else {
             format!("t{i}")
         };
-        seg.push(format!("{prev}[ov]overlay=x={x}:y={y}[{lab}]"));
+        seg.push(format!("{prev}[ov{i}]overlay=x={x}:y={y}[{lab}]"));
         prev = format!("[{lab}]");
     }
     let fc = seg.join(";");
