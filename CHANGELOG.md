@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.88.0] — 2026-09-22
+
+### Added
+
+- `pitch --at/--dur` — windowed pitch shift.
+- `dehum --at/--dur` — windowed mains-hum notches.
+- `vocal --at/--dur` — windowed karaoke/isolate.
+
+
+## [Unreleased]
+
 ## [0.87.0] — 2026-09-22
 
 ### Added

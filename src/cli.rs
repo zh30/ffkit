@@ -1205,6 +1205,12 @@ pub struct PitchArgs {
     /// Semitones: +4 chipmunk-ish, -3 deeper (duration preserved)
     #[arg(long, allow_hyphen_values = true)]
     pub semitones: f64,
+    /// Shift pitch only inside this window (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1361,6 +1367,12 @@ pub struct VocalArgs {
     /// karaoke = drop the center (vocals); isolate = keep only the center
     #[arg(long, value_enum, default_value_t = VocalMode::Karaoke)]
     pub mode: VocalMode,
+    /// Apply only inside this window (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1791,6 +1803,12 @@ pub struct DehumArgs {
     /// Harmonics to notch beyond the fundamental (1..8)
     #[arg(long, default_value_t = 4)]
     pub harmonics: u32,
+    /// Notch only inside this window (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

@@ -20,14 +20,41 @@ pub fn run(args: VocalArgs, g: &Globals) -> Result<Contract, Error> {
         VocalMode::Karaoke => "pan=stereo|c0=c0-c1|c1=c1-c0".to_string(),
         VocalMode::Isolate => "pan=mono|c0=0.5*c0+0.5*c1".to_string(),
     };
+    let fc = match &args.at {
+        Some(raw) => {
+            let at = crate::time::parse_time(raw)?;
+            if !(0.0..probe.duration).contains(&at) {
+                return Err(Error::input("--at is outside the input"));
+            }
+            Some(engine::audio_window(&af, at, args.dur))
+        }
+        None => {
+            if args.dur.is_some() {
+                return Err(Error::input("--dur needs --at"));
+            }
+            None
+        }
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    if probe.has_video {
-        argv.extend(["-filter_complex", &format!("[0:a]{af}[aout]")]);
-        argv.extend(["-map", "0:v", "-map", "[aout]", "-c:v", "copy"]);
-    } else {
-        argv.extend(["-af", &af]);
+    match &fc {
+        Some(fc) => {
+            argv.extend(["-filter_complex", fc]);
+            if probe.has_video {
+                argv.extend(["-map", "0:v", "-map", "[aout]", "-c:v", "copy"]);
+            } else {
+                argv.extend(["-map", "[aout]"]);
+            }
+        }
+        None => {
+            if probe.has_video {
+                argv.extend(["-filter_complex", &format!("[0:a]{af}[aout]")]);
+                argv.extend(["-map", "0:v", "-map", "[aout]", "-c:v", "copy"]);
+            } else {
+                argv.extend(["-af", &af]);
+            }
+        }
     }
     argv.extend(["-c:a", "aac"]);
     argv.push(&args.output);

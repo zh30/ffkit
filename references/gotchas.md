@@ -209,3 +209,11 @@ filters ignore `enable`.
 counts the centisecond field). `replace --loop` is `-stream_loop -1` on the
 replacement — the existing `atrim=duration=<video>` still caps it at the video
 edge, so a 3s jingle fills a 60s vlog.
+
+## audio window family — complete
+
+`eq`/`reverb`/`fx`/`denoise`/`leveler`/`pitch`/`dehum`/`vocal` all share
+`engine::audio_window` for `--at`/`--dur` (dry ducked to 0 in-window, FX
+trim+adelay'ed into place). Skip it only for duration-changing chains —
+`speed`/`tempo` must keep their own trim/concat structure, since atrim slicing
+an atempo'd whole-file render would shift the window.

@@ -126,7 +126,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `chapter` | 章节标记（`--at TIME|TITLE`、`--auto` 按静音自动分段） |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`；`--buffer N` 向外扩 N 像素） |
 | `sheet` | 宫格预览图（`--cols`x`--rows`、`--time` 每格时间戳） |
-| `pitch` | `--semitones N` 升降调（时长不变） |
+| `pitch` | ±12 半音变调不变速（`--at/--dur` 窗口） |
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
 | `channel` | 声道手术：`--mode dualmono|mono|swap` |
 | `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡） |
@@ -158,12 +158,12 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `crop` | 裁剪 `--region` 区域，或 `--aspect` 重构（`--anchor center|top|bottom|left|right` 可选锚点） |
 | `waveform` | 音频波形 → PNG（`--size`、`--color`, `--scale`），播客封面/缩略图用 |
 | `spectrogram` | 音频频谱图 → PNG（`--size`），清理前先看嗡鸣/噪声（`--color` magma/viridis…） |
-| `dehum` | 消除市电嗡鸣 `--mains 50|60` + `--harmonics`（Q=12 `equalizer` 陷波链） |
+| `dehum` | 市电嗡鸣陷波（`--mains 50|60`、`--harmonics`、`--at/--dur`） |
 | `tempo` | 音频变速 `--factor` 0.5–8，不变调（`atempo` 链；视频请用 `speed`） |
 | `leveler` | 动态压平（`--preset`、`--at/--dur` 窗口） |
 | `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`）（`--preset voice|podcast|studio`） |
 | `silence` | 在 `--at` 处插入 `--dur` 秒静音，或 `--end` 追加片尾静音 |
-| `vocal` | `--mode karaoke` 消中置人声、`isolate` 只留中置（需立体声源） |
+| `vocal` | 消/留中置人声（`--mode`、`--at/--dur` 窗口） |
 | `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart） |
 | `meme` | 上下说明文字梗图（`--outline`、`--at/--dur` 时间窗） |
 | `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`） |

@@ -126,7 +126,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `chapter` | Chapter marks (`--at TIME|TITLE`, `--auto` after silences) |
 | `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`; `--buffer N` keeps N px edge context) |
 | `sheet` | Contact sheet grid (`--cols`x`--rows`, `--time` stamps) |
-| `pitch` | `--semitones N` voice/music shift, duration preserved |
+| `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window) |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap` |
 | `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) |
@@ -158,12 +158,12 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `crop` | Crop `--region x:y:w:h`, or `--aspect` reframe with `--anchor center|top|bottom|left|right` |
 | `waveform` | Audio waveform → PNG (`--size`, `--color`, `--scale`) for podcast art/thumbnails |
 | `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup (`--color` magma/viridis…) |
-| `dehum` | Notch mains hum `--mains 50|60` + `--harmonics` (Q=12 `equalizer` chain) |
+| `dehum` | Notch out mains hum (`--mains 50|60`, `--harmonics`, `--at/--dur`) |
 | `tempo` | Speed audio `--factor` 0.5–8, pitch held (`atempo` chain; use `speed` for video) |
 | `leveler` | Compress dynamics (`--preset`, `--at/--dur` window) |
 | `gate` | Noise gate — silence below `--threshold` dB (`agate`) (`--preset voice|podcast|studio`) |
 | `silence` | Insert `--dur` secs of silence at `--at`, or append with `--end` |
-| `vocal` | `--mode karaoke` drops centered vocals; `isolate` keeps the center (stereo) |
+| `vocal` | Remove/isolate center vocals (`--mode`, `--at/--dur` window) |
 | `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov) |
 | `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window) |
 | `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`) |

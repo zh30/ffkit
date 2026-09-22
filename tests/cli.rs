@@ -9656,3 +9656,102 @@ fn replace_loop_extends_short_audio() {
     assert!((d - v["summary"].as_str().map(|_| 0.0).unwrap_or(0.0)).abs() < 10.0);
     assert!(d > 0.5);
 }
+
+#[test]
+fn pitch_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "pitch",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--semitones",
+        "4",
+        "--at",
+        "0.1",
+        "--dur",
+        "0.3",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn dehum_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "dehum",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--dur",
+        "0.3",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn vocal_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    // vocal needs a stereo source
+    let src = dir.join("st.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=0.6:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.6",
+            "-t",
+            "0.6",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-ac",
+            "2",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "vocal",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--dur",
+        "0.3",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

@@ -228,3 +228,6 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `progress --position` / `--color`
 - [ ] `waveform --duration` clip visuals
 - [ ] `mix --gain`
+- [ ] `gate --at/--dur`, `mix --at/--dur` (same window family)
+- [ ] `audiogram --subs` burn captions on the waveform video
+- [ ] `broll --volume` scale insert audio
