@@ -610,6 +610,8 @@ pub struct TranscodeArgs {
 #[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum TranscodePreset {
     H264,
+    /// H.265 ~50% smaller at same quality; hvc1 tag keeps QuickTime happy
+    Hevc,
     Webm,
     Gif,
 }
@@ -1594,6 +1596,16 @@ pub struct GateArgs {
     /// Release ms (default 100)
     #[arg(long, default_value_t = 100.0)]
     pub release: f64,
+    /// Tuned settings instead of manual ones
+    #[arg(long, value_enum)]
+    pub preset: Option<GatePreset>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum GatePreset {
+    Voice,
+    Podcast,
+    Studio,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1801,6 +1813,9 @@ pub enum FxKind {
     Flanger,
     Phaser,
     Chorus,
+    Echo,
+    Lofi,
+    Radio,
 }
 
 #[derive(clap::Args, Debug)]

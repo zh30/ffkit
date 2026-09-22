@@ -1,12 +1,18 @@
 use serde_json::json;
 
-use crate::cli::{GateArgs, Globals};
+use crate::cli::{GateArgs, GatePreset, Globals};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
 pub fn run(args: GateArgs, g: &Globals) -> Result<Contract, Error> {
-    if !(-80.0..=0.0).contains(&args.threshold) {
+    let (thr_db, ratio, attack, release) = match args.preset {
+        Some(GatePreset::Voice) => (-40.0, 8.0, 10.0, 100.0),
+        Some(GatePreset::Podcast) => (-45.0, 10.0, 15.0, 150.0),
+        Some(GatePreset::Studio) => (-50.0, 4.0, 5.0, 80.0),
+        None => (args.threshold, args.ratio, args.attack, args.release),
+    };
+    if !(-80.0..=0.0).contains(&thr_db) {
         return Err(Error::input("--threshold must be -80..=0 dB"));
     }
     let probe = engine::probe_or_err(&args.input, g)?;
@@ -15,12 +21,12 @@ pub fn run(args: GateArgs, g: &Globals) -> Result<Contract, Error> {
     }
 
     // agate threshold is linear amplitude, creators think in dB.
-    let lin = 10f64.powf(args.threshold / 20.0);
+    let lin = 10f64.powf(thr_db / 20.0);
     let af = format!(
         "agate=threshold={lin:.6}:ratio={r}:attack={a}:release={rel}:makeup=2",
-        r = args.ratio,
-        a = args.attack,
-        rel = args.release,
+        r = ratio,
+        a = attack,
+        rel = release,
     );
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
@@ -34,7 +40,7 @@ pub fn run(args: GateArgs, g: &Globals) -> Result<Contract, Error> {
 
     let c = engine::write_job("gate", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({
-        "threshold_db": args.threshold,
-        "ratio": args.ratio,
+        "threshold_db": thr_db,
+        "ratio": ratio,
     })))
 }

@@ -18,6 +18,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     match preset {
         TranscodePreset::Gif => gif(&args, g),
         TranscodePreset::H264 => h264(&args, g),
+        TranscodePreset::Hevc => hevc(&args, g),
         TranscodePreset::Webm => webm(&args, g),
     }
 }
@@ -40,6 +41,38 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "yuv420p",
             "-movflags",
             "+faststart",
+        ]);
+        let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
+        if let Some(fps) = args.fps {
+            vf.push_str(&format!(",fps={fps}"));
+        }
+        argv.extend(["-vf", &vf]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "aac", "-b:a", "192k"]);
+    }
+    argv.push(&args.output);
+    engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
+}
+
+fn hevc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let probe = engine::probe_or_err(&args.input, g)?;
+    let crf = args.crf.unwrap_or(28);
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    if probe.has_video {
+        argv.extend([
+            "-c:v",
+            "libx265",
+            "-preset",
+            "medium",
+            "-crf",
+            &crf.to_string(),
+            "-pix_fmt",
+            "yuv420p",
+            "-tag:v",
+            "hvc1",
         ]);
         let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
         if let Some(fps) = args.fps {

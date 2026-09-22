@@ -106,7 +106,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `caption` | 烧录/封装 `.srt`；`--chunk` 分词、`--shift` 整体平移、`--position top` 置顶 | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass）；`--safe social` 避开底部 20%；`--chunk N` 按 ≤N 词切分字幕 |
 | `loudnorm` | EBU R128 两遍（`-I -14` 社交，`-I -16` 播客） |
 | `denoise` | 人声降噪（风扇/轰隆/嘶嘶声）；`--video` 顺带画面去噪点 |
-| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`） | 预设 `h264` / `webm` / `gif`；`--fps` 也可给视频变速帧率 |
+| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`） | 预设 `h264` / `webm` / `gif`；`--fps` 也可给视频变速帧率（`--preset hevc` H.265） |
 | `compress` | 两遍编码压到 `--size 10MB`（Discord、WhatsApp 16MB、邮箱约 25MB） |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 
@@ -131,7 +131,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `channel` | 声道手术：`--mode dualmono|mono|swap` |
 | `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB |
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet` |
-| `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus（`--kind`、`--strength`、`--at`/`--dur`） |
+| `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio（`--kind`、`--strength`、`--at`/`--dur`） |
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip` |
 | `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h`；`--at`/`--dur` 只处理窗口 |
 | `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`）+ `--rotate`、`--clear` 显示旋转，无损拷贝 |
@@ -161,7 +161,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `dehum` | 消除市电嗡鸣 `--mains 50|60` + `--harmonics`（Q=12 `equalizer` 陷波链） |
 | `tempo` | 音频变速 `--factor` 0.5–8，不变调（`atempo` 链；视频请用 `speed`） |
 | `leveler` | 人声动态压缩（忽大忽小）：`--threshold`/`--ratio`/`--makeup`（`--preset` voice/podcast/master） |
-| `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`） |
+| `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`）（`--preset voice|podcast|studio`） |
 | `silence` | 在 `--at` 处插入 `--dur` 秒静音，或 `--end` 追加片尾静音 |
 | `vocal` | `--mode karaoke` 消中置人声、`isolate` 只留中置（需立体声源） |
 | `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart） |

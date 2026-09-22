@@ -4,6 +4,13 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.75.0] - 2026-09-22
+
+- `fx --kind` +`echo` (aecho), `lofi` (acrusher + lowpass), `radio` (telephone bandpass + compressor).
+- `fx --at/--dur` reworked: ffmpeg 4.4 gives none of the FX filters timeline support, so the window is now a split → duck-dry / delay-wet → amix graph (works for every kind, chorus included).
+- `transcode --preset hevc` — libx265 at crf 28 with the `hvc1` tag so QuickTime/Safari play it.
+- `gate --preset voice|podcast|studio` — tuned threshold/ratio/attack/release curves.
+
 ## [0.74.0] — 2026-09-22
 
 ## [0.74.0] - 2026-09-22

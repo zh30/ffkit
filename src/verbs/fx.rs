@@ -15,7 +15,7 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("fx: input has no audio stream"));
     }
     let s = args.strength;
-    let mut af = match args.kind {
+    let af = match args.kind {
         FxKind::Tremolo => format!("tremolo=f=6:d={:.2}", 0.3 + 0.7 * s),
         FxKind::Vibrato => format!("vibrato=f=5:d={:.2}", 0.3 + 0.7 * s),
         FxKind::Flanger => format!(
@@ -29,34 +29,57 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
             0.5 + s
         ),
         FxKind::Chorus => format!("chorus=0.7:0.9:55:0.4:0.25:{:.1}", 1.0 + 2.0 * s),
+        FxKind::Echo => format!("aecho=0.8:0.9:{:.0}:{:.2}", 40.0 + 80.0 * s, 0.3 + 0.5 * s),
+        FxKind::Lofi => format!(
+            "acrusher=level_in=1:level_out=1:bits={}:mode=log:aa=0.7,lowpass=f={:.0}",
+            (10.0 - 6.0 * s).round() as u32,
+            3200.0 + 1800.0 * s
+        ),
+        FxKind::Radio => String::from(
+            "highpass=f=300,lowpass=f=3400,acompressor=threshold=-24dB:ratio=6:attack=5:release=80:makeup=4dB",
+        ),
     };
-    if args.at.is_some() && matches!(args.kind, FxKind::Chorus) {
-        return Err(Error::input("chorus has no timeline support — drop --at"));
-    }
-    match &args.at {
+    // --at/--dur: duck the dry feed to 0 inside the window, add the FX in its place.
+    // (on ffmpeg 4.4 none of these filters accept a timeline `enable` option)
+    let fc = match &args.at {
         Some(raw) => {
             let at = crate::time::parse_time(raw)?;
             if !(0.0..probe.duration).contains(&at) {
                 return Err(Error::input("--at is outside the input"));
             }
-            af.push_str(&match args.dur {
-                Some(d) if at + d < probe.duration => {
-                    format!(":enable='between(t,{at:.3},{:.3})'", at + d)
-                }
-                _ => format!(":enable='gte(t,{at:.3})'"),
-            });
+            let (gate, slice) = match args.dur {
+                Some(d) if at + d < probe.duration => (
+                    format!("1-between(t,{at:.3},{:.3})", at + d),
+                    format!("atrim=start={at:.3}:duration={d:.3}"),
+                ),
+                _ => (format!("lt(t,{at:.3})"), format!("atrim=start={at:.3}")),
+            };
+            Some(format!(
+                "[0:a]asplit=2[d][w];[d]volume='{gate}':eval=frame[dout];[w]{af},{slice},asetpts=PTS-STARTPTS,adelay={:.0}:all=1[wx];[dout][wx]amix=inputs=2:duration=first:normalize=0[aout]",
+                at * 1000.0
+            ))
         }
         None => {
             if args.dur.is_some() {
                 return Err(Error::input("--dur needs --at"));
             }
+            None
         }
-    }
+    };
 
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    argv.extend(["-af", &af]);
+    match &fc {
+        Some(fc) => {
+            argv.extend(["-filter_complex", fc]);
+            if probe.has_video {
+                argv.extend(["-map", "0:v"]);
+            }
+            argv.extend(["-map", "[aout]"]);
+        }
+        None => argv.extend(["-af", &af]),
+    }
     if probe.has_video {
         argv.extend(["-c:v", "copy"]);
     }

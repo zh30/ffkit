@@ -106,7 +106,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `caption` | SRT burn (`--mode`, `--safe`, `--chunk`, `--shift`, `--color`, `--size`, `--position`) | Burn/mux `.srt`; `--chunk` word groups, `--shift` timing nudge | `--mode mux` soft subs; `burn` overlay raster (no libass); `--safe social` clears the bottom 20%; `--chunk N` splits cues into ≤N-word groups |
 | `loudnorm` | EBU R128 two-pass (`-I -14` social, `-I -16` podcast) |
 | `denoise` | Voice cleanup (fan / rumble / hiss); `--video` also degrains the picture |
-| `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`) | Presets `h264` / `webm` / `gif`; `--fps` retimes video too |
+| `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`) | Presets `h264` / `webm` / `gif`; `--fps` retimes video too (`--preset hevc` for H.265/hvc1) |
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 
@@ -131,7 +131,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `channel` | Channel surgery: `--mode dualmono|mono|swap` |
 | `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` |
-| `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus (`--kind`, `--strength`, `--at`/`--dur`) |
+| `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio (`--kind`, `--strength`, `--at`/`--dur`) |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip` |
 | `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window |
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
@@ -161,7 +161,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `dehum` | Notch mains hum `--mains 50|60` + `--harmonics` (Q=12 `equalizer` chain) |
 | `tempo` | Speed audio `--factor` 0.5–8, pitch held (`atempo` chain; use `speed` for video) |
 | `leveler` | Voice dynamic-range compressor (`--threshold`/`--ratio`/`--makeup`) (`--preset` voice/podcast/master) |
-| `gate` | Noise gate — silence below `--threshold` dB (`agate`) |
+| `gate` | Noise gate — silence below `--threshold` dB (`agate`) (`--preset voice|podcast|studio`) |
 | `silence` | Insert `--dur` secs of silence at `--at`, or append with `--end` |
 | `vocal` | `--mode karaoke` drops centered vocals; `isolate` keeps the center (stereo) |
 | `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov) |
