@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.81.0] — 2026-09-22
+
+### Added
+
+- `deinterlace --parity auto|tff|bff` — field-order override for DV/HDV/archival sources.
+- `transcode --copy-audio` — keep the original audio bitstream while re-encoding video.
+- `meme --outline N` — classic white-on-black-outline meme text.
+
+
+## [Unreleased]
+
 ## [0.80.0] — 2026-09-22
 
 ### Added

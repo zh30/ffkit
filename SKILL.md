@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.80.0
+version: 0.81.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -39,7 +39,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | trim / join | `cut`, `concat` (`--transition` any xfade, N clips), `split` (`--every` story chunks, `--at` chapter points), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur`), `zoom` |
 
-| export | `deliver`, `transcode`, `compress` (`--size 10MB` two-pass), `audiogram` (`--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split` |
+| export | `deliver`, `transcode` (`--copy-audio`), `compress` (`--size 10MB` two-pass), `audiogram` (`--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split` |
 | captions / mute | `caption` (`--mode burn` social safe-zone, `--chunk N` word groups, or `--mode mux`) |
 | hook text | `title` |
 | cover still | `cover` |
@@ -56,9 +56,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | one-click look | `grade --preset cinematic|vivid|vintage|soft` (stacks under the sliders) |
 | karaoke / keep only the vocal | `vocal` (`--mode karaoke` drops the center, `isolate` keeps it — stereo only) |
 | container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart) |
-| top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`) |
+| top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline` classic look) |
 | fix my podcast voice | `voice` — one-shot chain: gate hiss → compress swings → loudnorm `--lufs` (default −16) |
-| old interlaced footage | `deinterlace` (`--mode field` doubles the rate, `frame` same rate) |
+| old interlaced footage | `deinterlace` (`--mode field` doubles the rate, `frame` same rate, `--parity` field order) |
 | fade to white | `fade --color white` (`--in`/`--out` seconds as usual) |
 | blend two audio files | `crossfade` (`--second`, `--dur` overlap — acrossfade) |
 | strip location/device tags | `strip` — drops all container metadata + chapters, stream copy |

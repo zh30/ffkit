@@ -611,6 +611,9 @@ pub struct TranscodeArgs {
     /// GIF-only: output width (default 480)
     #[arg(long)]
     pub width: Option<u32>,
+    /// Keep the original audio bitstream (no re-encode) while transcoding video
+    #[arg(long)]
+    pub copy_audio: bool,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1350,6 +1353,9 @@ pub struct MemeArgs {
     /// Text color as RRGGBB hex (default ffffff)
     #[arg(long)]
     pub color: Option<String>,
+    /// Classic meme outline thickness in px (0 = off). Black outline, white text.
+    #[arg(long, default_value_t = 0)]
+    pub outline: u32,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1373,6 +1379,19 @@ pub struct DeinterlaceArgs {
     /// frame = same rate progressive (default); field = double rate smoothest
     #[arg(long, value_enum, default_value_t = DeinterlaceMode::Frame)]
     pub mode: DeinterlaceMode,
+    /// Field order: auto, tff (top-first), bff (bottom-first). Wrong = judder.
+    #[arg(long, value_enum, default_value_t = FieldParity::Auto)]
+    pub parity: FieldParity,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum FieldParity {
+    #[default]
+    Auto,
+    /// Top field first (most DV/HDV)
+    Tff,
+    /// Bottom field first (some DV, PAL)
+    Bff,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]

@@ -49,7 +49,11 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
-        argv.extend(["-c:a", "aac", "-b:a", "192k"]);
+        if args.copy_audio {
+            argv.extend(["-c:a", "copy"]);
+        } else {
+            argv.extend(["-c:a", "aac", "-b:a", "192k"]);
+        }
     }
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
@@ -81,7 +85,11 @@ fn hevc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
-        argv.extend(["-c:a", "aac", "-b:a", "192k"]);
+        if args.copy_audio {
+            argv.extend(["-c:a", "copy"]);
+        } else {
+            argv.extend(["-c:a", "aac", "-b:a", "192k"]);
+        }
     }
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
@@ -111,7 +119,11 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
-        argv.extend(["-c:a", "libopus", "-b:a", "128k"]);
+        if args.copy_audio {
+            argv.extend(["-c:a", "copy"]);
+        } else {
+            argv.extend(["-c:a", "libopus", "-b:a", "128k"]);
+        }
     }
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)

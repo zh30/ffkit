@@ -9103,3 +9103,71 @@ fn hls_single_and_copy() {
     ]);
     assert_eq!(v2["status"], "ok", "{v2}");
 }
+
+#[test]
+fn deinterlace_parity_flag() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "deinterlace",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--parity",
+        "tff",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["parity"], "tff");
+}
+
+#[test]
+fn meme_outline_renders() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--top",
+        "HELLO",
+        "--outline",
+        "4",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 0.5);
+}
+
+#[test]
+fn transcode_copy_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "h264",
+        "--copy-audio",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

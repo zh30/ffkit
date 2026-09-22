@@ -222,3 +222,6 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `deinterlace --parity ttf|bff`
 - [ ] `freeze --ease` (ramp into freeze)
 - [ ] `extract --gif` palette tuning / `gif` verb
+- [ ] `speed --ramp` (linear speed ramp)
+- [ ] `title --box` (background card)
+- [ ] `audiogram --progress` (elapsed marker)

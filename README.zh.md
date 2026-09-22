@@ -106,7 +106,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `caption` | 烧录/封装 `.srt`；`--chunk` 分词、`--shift` 整体平移、`--position top` 置顶 | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass）；`--safe social` 避开底部 20%；`--chunk N` 按 ≤N 词切分字幕（`--outline` 描边） |
 | `loudnorm` | EBU R128 两遍（`-I -14` 社交，`-I -16` 播客） |
 | `denoise` | 人声降噪（风扇/轰隆/嘶嘶声）；`--video` 顺带画面去噪点 |
-| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`） | 预设 `h264` / `webm` / `gif`；`--fps` 也可给视频变速帧率（`--preset hevc` H.265） |
+| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`） | 预设 `h264`/`webm`/`gif`/`hevc`；`--fps` 也可给视频变速帧率 |
 | `compress` | 两遍编码压到 `--size 10MB`（Discord、WhatsApp 16MB、邮箱约 25MB） |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 
@@ -165,9 +165,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `silence` | 在 `--at` 处插入 `--dur` 秒静音，或 `--end` 追加片尾静音 |
 | `vocal` | `--mode karaoke` 消中置人声、`isolate` 只留中置（需立体声源） |
 | `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart） |
-| `meme` | 顶部/底部说明文字烧入（`--top`/`--bottom`，`--color`，`--size`） |
+| `meme` | 上下说明文字梗图（`--outline` 经典描边） |
 | `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`） |
-| `deinterlace` | 老录像/DV 隔行转逐行（`--mode frame`/`field`） |
+| `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序） |
 | `crossfade` | 两段音频淡接，`--dur` 秒重叠（`acrossfade`） |
 | `strip` | 去掉全部元数据/章节（发片前隐私清理），无损 `-c copy` |
 | `frames` | 每 `--every`、`--at` 秒抽一帧 → `stem_001.png…`（`--width` 缩放） |

@@ -106,7 +106,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `caption` | SRT burn (`--mode`, `--safe`, `--chunk`, `--shift`, `--color`, `--size`, `--position`) | Burn/mux `.srt`; `--chunk` word groups, `--shift` timing nudge | `--mode mux` soft subs; `burn` overlay raster (no libass); `--safe social` clears the bottom 20%; `--chunk N` splits cues into ≤N-word groups (`--outline` glyph stroke) |
 | `loudnorm` | EBU R128 two-pass (`-I -14` social, `-I -16` podcast) |
 | `denoise` | Voice cleanup (fan / rumble / hiss); `--video` also degrains the picture |
-| `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`) | Presets `h264` / `webm` / `gif`; `--fps` retimes video too (`--preset hevc` for H.265/hvc1) |
+| `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`) | Presets `h264` / `webm` / `gif` / `hevc`; `--fps` retimes video too |
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 
@@ -165,9 +165,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `silence` | Insert `--dur` secs of silence at `--at`, or append with `--end` |
 | `vocal` | `--mode karaoke` drops centered vocals; `isolate` keeps the center (stereo) |
 | `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov) |
-| `meme` | `--top`/`--bottom` caption text burned in (`--color`, `--size`) |
+| `meme` | Top/bottom meme captions (`--outline` classic look) |
 | `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`) |
-| `deinterlace` | `yadif` for DV/interlaced sources (`--mode frame`/`field`) |
+| `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order) |
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
 | `frames` | Still dump every `--every`, `--at` seconds → `stem_001.png…` (`--width`) |

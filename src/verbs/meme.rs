@@ -39,7 +39,18 @@ pub fn run(args: MemeArgs, g: &Globals) -> Result<Contract, Error> {
     let mut prev = "[0:v]".to_string();
     for (text, y) in texts {
         let Some(text) = text else { continue };
-        let img = crate::raster::render_title_styled(text, &font_bytes, vw, fg, args.size as f32)?;
+        let img = if args.outline > 0 {
+            crate::raster::render_title_outlined(
+                text,
+                &font_bytes,
+                vw,
+                fg,
+                args.size as f32,
+                ([0, 0, 0], args.outline),
+            )?
+        } else {
+            crate::raster::render_title_styled(text, &font_bytes, vw, fg, args.size as f32)?
+        };
         let png = tmp.path().join(format!("t{n_png}.png"));
         img.save(&png)
             .map_err(|e| Error::output(format!("write meme text png: {e}")))?;
