@@ -31,12 +31,14 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
 
     // Waveform sits in the lower-middle band — clear of Reels/TikTok top and
     // bottom chrome — and the black showwaves floor is keyed out so the cover
-    // shows through.
+    // shows through. overlay shortest=1 ends [vout] with the waveform: -shortest
+    // alone overshoots because the encoder queue keeps the infinite cover
+    // going past audio EOF.
     let fc =
         "[1:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg];\
               [0:a]showwaves=s=940x320:mode=cline:rate=30:colors=white[wv];\
               [wv]colorkey=0x000000:0.12:0.1[wvk];\
-              [bg][wvk]overlay=(W-w)/2:(H-h)*0.62[vout]";
+              [bg][wvk]overlay=(W-w)/2:(H-h)*0.62:shortest=1[vout]";
     argv.extend(["-filter_complex", fc, "-map", "[vout]", "-map", "0:a"]);
     argv.extend([
         "-c:v",
