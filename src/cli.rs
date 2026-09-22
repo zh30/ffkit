@@ -661,8 +661,11 @@ pub struct SpeedArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Playback factor: 2 = twice as fast, 0.5 = slow-mo
+    #[arg(long, required_unless_present = "ramp")]
+    pub factor: Option<f64>,
+    /// Linear speed ramp FROM,TO across the input (or --at/--dur window), e.g. 0.5,3
     #[arg(long)]
-    pub factor: f64,
+    pub ramp: Option<String>,
     /// Apply the factor only inside this window (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,
@@ -747,6 +750,9 @@ pub struct SubsArgs {
     /// Language tag on the muxed subtitle stream (eng|spa|zho|…)
     #[arg(long)]
     pub lang: Option<String>,
+    /// Merge another .srt into the input .srt (dual-language; cues sorted by start)
+    #[arg(long)]
+    pub merge: Option<PathBuf>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1953,6 +1959,9 @@ pub struct FreezeArgs {
     /// Seconds before the freeze played at half-speed (swoop-into-hold)
     #[arg(long)]
     pub ease: Option<f64>,
+    /// Seconds before the freeze replayed backwards (rewind-into-hold)
+    #[arg(long)]
+    pub reverse: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

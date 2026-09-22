@@ -9417,3 +9417,76 @@ fn meme_at_dur_window() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn freeze_reverse_rewinds_in() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "freeze",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "--dur",
+        "0.5",
+        "--reverse",
+        "0.2",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // 1.0s src + 0.5 hold + 0.2 rewind replay
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 1.5);
+}
+
+#[test]
+fn speed_ramp_full_clip() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "speed",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--ramp",
+        "0.5,2",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(v["extra"]["out_duration"].as_f64().unwrap() > 0.3);
+}
+
+#[test]
+fn subs_merge_combines_cues() {
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let a = dir.join("a.srt");
+    let b = dir.join("b.srt");
+    let out = dir.join("both.srt");
+    std::fs::write(&a, "1\n00:00:00,000 --> 00:00:00,400\nA\n\n").unwrap();
+    std::fs::write(&b, "1\n00:00:00,100 --> 00:00:00,500\nB\n\n").unwrap();
+    let v = run_json(&[
+        "subs",
+        a.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--merge",
+        b.to_str().unwrap(),
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["cues"].as_u64().unwrap(), 2);
+    let body = std::fs::read_to_string(&out).unwrap();
+    assert!(body.contains("A") && body.contains("B"));
+}

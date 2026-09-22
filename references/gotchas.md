@@ -88,7 +88,7 @@ Source path as `-o` is always refused. An existing output is refused unless `--o
 
 `freeze --at T --dur D` rebuilds the clip as 3 concat segments with a `tpad stop_mode=clone` still in the middle; the freeze window's audio is silence (`anullsrc`), not held sound. `freeze --end D` is a simpler outro hold (tpad at the tail, `apad` silence under it).
 
-`speed --factor F --at S --dur D` is a speed ramp: same 3-segment concat, middle `setpts=(PTS-STARTPTS)/F` + `atempo`. `censor --region x:y:w:h` mosaics with 16px `pixelize` cells (or `--mode blur` → `gblur sigma=30`).
+`speed --factor F --at S --dur D` is a speed window: same 3-segment concat, middle `setpts=(PTS-STARTPTS)/F` + `atempo`. `speed --ramp FROM,TO` steps the change as an 8-segment constant-factor concat (also windowable with --at/--dur); `freeze --reverse N` replays the N s before the hold backwards (`reverse`/`areverse` inside the same concat skeleton) and holds the frame the rewind lands on. `censor --region x:y:w:h` mosaics with 16px `pixelize` cells (or `--mode blur` → `gblur sigma=30`).
 
 ## boomerang / chapter / key --despill
 

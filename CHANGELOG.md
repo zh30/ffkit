@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.85.0] — 2026-09-22
+
+### Added
+
+- `freeze --reverse SEC` — rewinds the SEC before the hold, then freezes.
+- `speed --ramp FROM,TO` — linear speed ramp (whole clip or --at/--dur window).
+- `subs --merge FILE` — merge two .srt files into one, cues sorted by start.
+
+
+## [Unreleased]
+
 ## [0.84.0] — 2026-09-22
 
 ### Added

@@ -9,6 +9,9 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(offset) = args.shift {
         return shift(&args, offset, g);
     }
+    if let Some(other) = &args.merge {
+        return merge(&args, other, g);
+    }
     let _probe = engine::probe_or_err(&args.input, g)?;
     if let Some(subs) = &args.burn {
         return burn(&args, subs, g);
@@ -42,6 +45,55 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c.with_extra(json!({
         "stream": args.stream,
         "codec": codec,
+    })))
+}
+
+/// Merge two .srt files into one: cues from both, sorted by start, renumbered.
+fn merge(args: &SubsArgs, other: &std::path::Path, g: &Globals) -> Result<Contract, Error> {
+    for p in [&args.input, other] {
+        if p.extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_ascii_lowercase())
+            .as_deref()
+            != Some("srt")
+        {
+            return Err(Error::input("subs --merge combines two .srt files"));
+        }
+    }
+    if !other.is_file() {
+        return Err(Error::input(format!(
+            "no such subtitle file: {}",
+            other.display()
+        )));
+    }
+    let read = |p: &std::path::Path| -> Result<Vec<crate::srt::Cue>, Error> {
+        let raw = std::fs::read_to_string(p)
+            .map_err(|e| Error::input(format!("read {}: {e}", p.display())))?;
+        crate::srt::parse_srt(&raw)
+    };
+    let mut cues = read(&args.input)?;
+    let added = read(other)?.len();
+    cues.extend(read(other)?);
+    cues.sort_by(|a, b| {
+        a.start
+            .partial_cmp(&b.start)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let out = crate::srt::to_srt(&cues);
+    if g.dry_run {
+        return Ok(Contract::dry_run(
+            "subs",
+            Some(crate::paths::display(&args.output)),
+            None,
+        ));
+    }
+    std::fs::write(&args.output, out).map_err(|e| Error::output(e.to_string()))?;
+    let mut c = Contract::ok("subs", Some(crate::paths::display(&args.output)), None);
+    c.verified = Some(args.output.is_file());
+    Ok(c.with_extra(json!({
+        "mode": "merge",
+        "added_cues": added,
+        "cues": cues.len(),
     })))
 }
 
