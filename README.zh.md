@@ -110,10 +110,11 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | 两遍编码压到 `--size 10MB`（Discord、WhatsApp 16MB、邮箱约 25MB） |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 | `audiogram` | 播客音频 → 9:16 波形视频（封面图用 `--image`） |
-| `split` | 切成定长分段（`--every 30` → `stem_00..`，强制关键帧 + segment muxer 精确切点） |
+| `split` | 切成分段（`--every 30` 等长，或 `--at 30,90` 章节点）→ `stem_00..` |
 | `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐、`--size` 画布） |
 | `speed` | 变速（`--factor 2` 加速一倍，口播保持音调） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
+| `key` | 绿幕合成：`--color` 抠掉后叠到 `--bg` 图片/视频上（`--similarity`、`--blend`） |
 | `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐、`--mix` 保留原音轨 |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |

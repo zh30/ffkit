@@ -1,7 +1,7 @@
 ---
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
-version: 0.29.0
+version: 0.30.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -34,7 +34,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | Plan step | Hands |
 |-----------|-------|
 | inspect | `doctor`, `probe`, `look` (`--tiles` / `--at`) |
-| trim / join | `cut`, `concat` (`--transition` any xfade, N clips), `split` (`--every` story chunks), `rough` (list speech islands, then `-o` to assemble) |
+| trim / join | `cut`, `concat` (`--transition` any xfade, N clips), `split` (`--every` story chunks, `--at` chapter points), `rough` (list speech islands, then `-o` to assemble) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur`), `zoom` |
 | export | `deliver`, `transcode`, `compress` (`--size 10MB` two-pass), `audiogram`, `slideshow` (`--motion kenburns`, `--transition`), `split` |
 | captions / mute | `caption` (`--mode burn` social safe-zone, `--chunk N` word groups, or `--mode mux`) |
@@ -44,6 +44,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | motion / loop | `speed`, `reverse`, `loop`, `stabilize`, `fade` |
 | picture | `grade` (+ `--lut` .cube), `bw`, `vignette`, `sharpen`, `blur` |
 | logo / PiP | `overlay` |
+| green screen | `key` (`--bg` image or video, `--color`/`--similarity`/`--blend`) |
 | B-roll cutaway | `broll` (`--insert --at --duration`; A-roll audio stays) |
 | extract | `extract` |
 | many files | `batch` |

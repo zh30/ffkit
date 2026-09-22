@@ -14,14 +14,53 @@ use crate::paths;
 /// cuts exactly on `--every`, writing `stem_%02d.ext` (or the caller's own
 /// printf pattern) next to it.
 pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
-    if !(0.5..=3600.0).contains(&args.every) {
-        return Err(Error::input("--every must be 0.5..=3600 seconds"));
-    }
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_video && !probe.has_audio {
         return Err(Error::input("split: input has no streams"));
     }
     paths::ensure_input(&args.input)?;
+
+    // Boundaries in source seconds: regular grid from --every, or explicit
+    // chapter points from --at.
+    let mut cuts: Vec<f64> = Vec::new();
+    match (args.every, args.at.is_empty()) {
+        (Some(e), true) => {
+            if !(0.5..=3600.0).contains(&e) {
+                return Err(Error::input("--every must be 0.5..=3600 seconds"));
+            }
+            let mut k = 1usize;
+            while (k as f64) * e < probe.duration - 0.05 {
+                cuts.push(k as f64 * e);
+                k += 1;
+            }
+        }
+        (None, false) => {
+            for s in &args.at {
+                let t = crate::time::parse_time(s)?;
+                if !(0.05..probe.duration - 0.05).contains(&t) {
+                    return Err(Error::input(format!(
+                        "split --at {s} is outside the {:.2}s source",
+                        probe.duration
+                    )));
+                }
+                cuts.push(t);
+            }
+            cuts.sort_by(|a, b| a.total_cmp(b));
+            cuts.dedup();
+        }
+        (Some(_), false) => {
+            return Err(Error::input("split takes --every or --at, not both"));
+        }
+        (None, true) => {
+            return Err(Error::input("split needs --every S or --at t1,t2,..."));
+        }
+    }
+    if cuts.is_empty() {
+        return Err(Error::input("split produced no parts inside the source"));
+    }
+    if cuts.len() > 500 {
+        return Err(Error::input("split is capped at 500 boundaries"));
+    }
 
     let out_s = args.output.to_string_lossy().into_owned();
     let template: PathBuf = if out_s.contains('%') {
@@ -43,16 +82,19 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             .join(format!("{stem}_%02d.{ext}"))
     };
 
-    // Boundaries at k*every. The muxer cuts at the first keyframe *after* a
-    // listed time, so list each boundary a hair early — the forced keyframe
-    // sitting exactly on it is then the chosen cut point.
-    let mut boundaries = Vec::new();
-    let mut k = 1usize;
-    while (k as f64) * args.every < probe.duration - 0.05 {
-        boundaries.push(format!("{:.3}", k as f64 * args.every - 0.01));
-        k += 1;
-    }
-    let times = boundaries.join(",");
+    // The muxer cuts at the first keyframe *after* a listed time, so list
+    // each boundary a hair early — the forced keyframe sitting exactly on it
+    // is then the chosen cut point.
+    let times = cuts
+        .iter()
+        .map(|t| format!("{:.3}", t - 0.01))
+        .collect::<Vec<_>>()
+        .join(",");
+    let forced = cuts
+        .iter()
+        .map(|t| format!("{:.3}", t))
+        .collect::<Vec<_>>()
+        .join(",");
 
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
@@ -61,10 +103,7 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend([
             "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
         ]);
-        argv.extend([
-            "-force_key_frames",
-            &format!("expr:gte(t,n_forced*{:.3})", args.every),
-        ]);
+        argv.extend(["-force_key_frames", &forced]);
     }
     if probe.has_audio {
         argv.extend(["-c:a", "aac"]);
@@ -100,6 +139,7 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         .with_commands(commands)
         .with_extra(json!({
             "every": args.every,
+            "cuts": cuts,
             "parts": names,
             "count": parts.len(),
         }));

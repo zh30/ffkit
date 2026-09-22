@@ -101,6 +101,8 @@ pub enum Cmd {
     Music(MusicArgs),
     /// Replace a video's audio track (lav mic, clean voice, new music)
     Replace(ReplaceArgs),
+    /// Green-screen composite: foreground over a background image/video
+    Key(KeyArgs),
     /// Still images (+ optional music bed) into a video
     Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
@@ -216,7 +218,10 @@ pub struct SplitArgs {
     pub output: PathBuf,
     /// Max seconds per part (story/WhatsApp chunks)
     #[arg(long)]
-    pub every: f64,
+    pub every: Option<f64>,
+    /// Cut at these timestamps instead (comma list, e.g. --at 30,90,150)
+    #[arg(long, value_delimiter = ',')]
+    pub at: Vec<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -497,6 +502,26 @@ pub struct SlideshowArgs {
     /// Output frame rate
     #[arg(long, default_value_t = 30.0)]
     pub fps: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct KeyArgs {
+    /// Foreground footage with the color to remove
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Background image or video (sized to the foreground canvas)
+    #[arg(long)]
+    pub bg: PathBuf,
+    /// Hex color to remove, e.g. 0x00ff00 or 00ff00
+    #[arg(long, default_value = "0x00ff00")]
+    pub color: String,
+    /// Similarity threshold 0..1
+    #[arg(long, default_value_t = 0.3)]
+    pub similarity: f64,
+    /// Edge blend 0..1
+    #[arg(long, default_value_t = 0.05)]
+    pub blend: f64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]

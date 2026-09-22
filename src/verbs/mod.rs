@@ -14,6 +14,7 @@ pub mod fade;
 pub mod fit;
 pub mod grade;
 pub mod jumpcut;
+pub mod key;
 pub mod r#loop;
 pub mod loudnorm;
 pub mod music;

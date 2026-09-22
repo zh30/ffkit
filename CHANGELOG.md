@@ -4,6 +4,8 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.30.0] — 2026-09-22
+
 ## [0.29.0] — 2026-09-22
 
 ## [0.28.0] — 2026-09-22
