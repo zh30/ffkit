@@ -25,7 +25,16 @@ pub fn render_caption_outlined(
     size: f32,
     outline: ([u8; 3], u32),
 ) -> Result<RgbaImage, Error> {
-    render_text_inner(text, font_bytes, video_w, 14.0, fg, size, Some(outline))
+    render_text_inner(
+        text,
+        font_bytes,
+        video_w,
+        14.0,
+        fg,
+        size,
+        Some(outline),
+        TextAlign::Center,
+    )
 }
 
 pub fn render_title_styled(
@@ -48,7 +57,16 @@ pub fn render_title_outlined(
     size: f32,
     outline: ([u8; 3], u32),
 ) -> Result<RgbaImage, Error> {
-    render_text_inner(text, font_bytes, video_w, 8.0, fg, size, Some(outline))
+    render_text_inner(
+        text,
+        font_bytes,
+        video_w,
+        8.0,
+        fg,
+        size,
+        Some(outline),
+        TextAlign::Center,
+    )
 }
 
 /// Title card with a soft drop shadow: renders the card twice, blurs a
@@ -61,9 +79,27 @@ pub fn render_title_shadow(
     size: f32,
     blur: u32,
 ) -> Result<RgbaImage, Error> {
-    let card = render_text_inner(text, font_bytes, video_w, 8.0, fg, size, None)?;
+    let card = render_text_inner(
+        text,
+        font_bytes,
+        video_w,
+        8.0,
+        fg,
+        size,
+        None,
+        TextAlign::Center,
+    )?;
     let off = (blur.max(2) / 2).max(2);
-    let mut ghost = render_text_inner(text, font_bytes, video_w, 8.0, [12, 12, 16], size, None)?;
+    let mut ghost = render_text_inner(
+        text,
+        font_bytes,
+        video_w,
+        8.0,
+        [12, 12, 16],
+        size,
+        None,
+        TextAlign::Center,
+    )?;
     for px in ghost.pixels_mut() {
         px.0[0] = 12;
         px.0[1] = 12;
@@ -92,7 +128,16 @@ fn render_text(
     fg: [u8; 3],
     size: f32,
 ) -> Result<RgbaImage, Error> {
-    render_text_inner(text, font_bytes, video_w, divisor, fg, size, None)
+    render_text_inner(
+        text,
+        font_bytes,
+        video_w,
+        divisor,
+        fg,
+        size,
+        None,
+        TextAlign::Center,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -104,6 +149,7 @@ fn render_text_inner(
     fg: [u8; 3],
     size: f32,
     outline: Option<([u8; 3], u32)>,
+    align: TextAlign,
 ) -> Result<RgbaImage, Error> {
     let font = fontdue::Font::from_bytes(font_bytes, fontdue::FontSettings::default())
         .map_err(|e| Error::input(format!("font parse: {e}")))?;
@@ -144,7 +190,11 @@ fn render_text_inner(
         .iter()
         .zip(line_widths.iter().zip(line_heights.iter()))
     {
-        let mut x = (pad + (content_w.saturating_sub(*lw)) / 2) as f32;
+        let mut x = match align {
+            TextAlign::Left => pad as f32,
+            TextAlign::Right => (pad + content_w.saturating_sub(*lw)) as f32,
+            TextAlign::Center => (pad + (content_w.saturating_sub(*lw)) / 2) as f32,
+        };
         for (metrics, bitmap) in glyphs {
             let gx = x + metrics.xmin as f32;
             let gy = y as f32 + (*lh as f32) + metrics.ymin as f32 - metrics.height as f32;
@@ -209,4 +259,25 @@ fn blit_glyph(
             img.put_pixel(x, y, Rgba([fg[0], fg[1], fg[2], a]));
         }
     }
+}
+
+/// Multi-line alignment inside a rendered text card.
+#[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
+pub enum TextAlign {
+    Left,
+    #[default]
+    Center,
+    Right,
+}
+
+/// render_title_styled with a line alignment (lower-thirds convention).
+pub fn render_title_aligned(
+    text: &str,
+    font_bytes: &[u8],
+    video_w: u32,
+    fg: [u8; 3],
+    size: f32,
+    align: TextAlign,
+) -> Result<RgbaImage, Error> {
+    render_text_inner(text, font_bytes, video_w, 8.0, fg, size, None, align)
 }

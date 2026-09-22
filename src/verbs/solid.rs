@@ -51,7 +51,12 @@ pub fn run(args: SolidArgs, g: &Globals) -> Result<Contract, Error> {
         let font_path = crate::font::resolve(args.font.as_deref().map(std::path::Path::new))?;
         let font_bytes = std::fs::read(&font_path)?;
         let fg = crate::color::rgb(args.text_color.as_deref().unwrap_or("ffffff"))?;
-        let img = crate::raster::render_title_styled(text, &font_bytes, w, fg, 1.0)?;
+        let text = match args.wrap {
+            Some(n) if n >= 4 => crate::verbs::title::wrap(text, n as usize),
+            Some(_) => return Err(Error::input("--wrap must be ≥ 4 columns")),
+            None => text.clone(),
+        };
+        let img = crate::raster::render_title_styled(&text, &font_bytes, w, fg, 1.0)?;
         let png = tmp.as_ref().unwrap().path().join("t.png");
         img.save(&png)
             .map_err(|e| Error::output(format!("write solid text png: {e}")))?;

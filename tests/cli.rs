@@ -12819,3 +12819,106 @@ fn scroll_ticker_crawls_the_bottom() {
     assert!(cmds.contains("x=W-(W+w)"), "{cmds}");
     assert!(cmds.contains("y=H-h-40"), "{cmds}");
 }
+
+#[test]
+fn title_align_left_shifts_the_lines() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "line one\nlonger line two",
+        "--align",
+        "left",
+        "--duration",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn timer_start_seeds_the_readout() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "timer",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--start",
+        "65",
+        "--dur",
+        "1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    // 65s start: mm field reads floor((65+t)/60)
+    assert!(
+        cmds.contains("mod(floor((65.000+(t-0.000))/60),60)"),
+        "{cmds}"
+    );
+}
+
+#[test]
+fn waveform_peak_renders_transients() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("w.png");
+    let v = run_json(&[
+        "waveform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--peak",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains(":filter=peak"), "{cmds}");
+}
+
+#[test]
+fn solid_wrap_folds_the_end_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "a long end card message that needs wrapping",
+        "--wrap",
+        "10",
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

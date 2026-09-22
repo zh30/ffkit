@@ -26,6 +26,7 @@ pub fn run(args: WaveformArgs, g: &Globals) -> Result<Contract, Error> {
         None => String::new(),
     };
     // --at/--dur: crop the rendered wave to the window, then stretch to --size.
+    let flt = if args.peak { ":filter=peak" } else { "" };
     let win = match &args.at {
         Some(raw) => {
             let at = crate::time::parse_time(raw)?;
@@ -55,7 +56,7 @@ pub fn run(args: WaveformArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.input);
     argv.extend([
         "-filter_complex",
-        &format!("[0:a]showwavespic=s={w}x{h}:colors={color}{sc}[w0]{win}"),
+        &format!("[0:a]showwavespic=s={w}x{h}:colors={color}{flt}{sc}[w0]{win}"),
         "-map",
         "[v]",
         "-frames:v",

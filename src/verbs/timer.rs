@@ -26,11 +26,15 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     let at = args.at.unwrap_or(0.0);
     let until = at + args.dur.unwrap_or(f64::MAX).min(86400.0);
     // --down: display the remaining time to the window end
+    // --start seeds the readout: up counts N+t-at, down counts N-(t-at).
     let tv = if args.down {
-        let end = at + args.dur.unwrap_or(probe.duration - at);
-        format!("max(0,{end:.3}-t)")
+        let start = args
+            .start
+            .unwrap_or_else(|| args.dur.unwrap_or(probe.duration - at));
+        format!("max(0,{start:.3}-(t-{at:.3}))")
     } else {
-        format!("t-{at:.3}")
+        let start = args.start.unwrap_or(0.0);
+        format!("{start:.3}+(t-{at:.3})")
     };
     let font_path = crate::font::resolve(args.font.as_deref().map(Path::new))?;
     let font_bytes =

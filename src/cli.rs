@@ -1241,6 +1241,9 @@ pub struct TitleArgs {
     /// Filled card behind the text: RRGGBB or RRGGBBAA hex / color name
     #[arg(long)]
     pub box_color: Option<String>,
+    /// Multi-line text alignment inside the title card
+    #[arg(long, value_enum)]
+    pub align: Option<crate::raster::TextAlign>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1274,6 +1277,9 @@ pub struct SolidArgs {
     /// Fade the card in from / out to black over N seconds each side
     #[arg(long)]
     pub fade: Option<f64>,
+    /// Word-wrap --text at N columns (≥4)
+    #[arg(long)]
+    pub wrap: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1869,6 +1875,9 @@ pub struct TimerArgs {
     /// Filled card behind the digits: RRGGBB hex or color name
     #[arg(long)]
     pub box_color: Option<String>,
+    /// Readout starts at N seconds (up: counts from N; down: from N to 0)
+    #[arg(long)]
+    pub start: Option<f64>,
     /// Count DOWN to the window end instead of up from --at
     #[arg(long)]
     pub down: bool,
@@ -2199,6 +2208,9 @@ pub struct WaveformArgs {
     /// Amplitude scale: lin (default), log, sqrt, cbrt — log shows quiet detail
     #[arg(long)]
     pub scale: Option<String>,
+    /// Peak-sample rendering instead of average (transient detail)
+    #[arg(long)]
+    pub peak: bool,
     /// Render only this slice (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,

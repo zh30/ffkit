@@ -27,6 +27,11 @@ pub(crate) fn wrap(text: &str, n: usize) -> String {
 }
 
 pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
+    if args.align.is_some() && (args.outline.is_some() || args.shadow.is_some()) {
+        return Err(Error::input(
+            "--align works on plain titles (drop --outline/--shadow)",
+        ));
+    }
     let raw = args.text.trim();
     if raw.is_empty() {
         return Err(Error::input("--text is empty"));
@@ -79,6 +84,14 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
                 (oc, ow),
             )?
         }
+        None if args.align.is_some() => crate::raster::render_title_aligned(
+            text,
+            &font_bytes,
+            vw,
+            fg,
+            args.size as f32,
+            args.align.unwrap_or_default(),
+        )?,
         None => match args.shadow {
             Some(b) => crate::raster::render_title_shadow(
                 text,

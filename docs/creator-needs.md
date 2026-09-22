@@ -38,8 +38,10 @@ Researched 2026-09-22 against **ffkit 0.78.0** (`main` + round-34 branch). Same-
 || HDR→SDR for iPhone clips | — | needs libzimg (`zscale` absent on Homebrew/apt) |
 
 ## Ordered directions (this run)
-
-*(round 53: `grid --labels`, `delogo --soft`, `solid --gradient`. round 52: `subs --mux/--lang`, `caption --outline`, `audiogram --font`. round 51: `reverb --at/--dur`, `eq --at/--dur` (shared duck/mix helper), `loop --from/--to`, boomerang/loop `size=0` no-op fixed. round 50: `fx` +echo/lofi/radio, `fx --at` via duck/mix (4.4-safe), `transcode --preset hevc`, `gate --preset`. round 49: `fx` verb (5 audio effects), `boomerang --times`. round 48: `overlay --angle`, `waveform --scale`, `split --min-silence`. round 47: `music --at/--dur`, `channel --mode invert`, `sheet --pad/--margin`. round 46: `countdown --beep`, `leveler --preset`, `spectrogram --color`. round 45: `zoom --out`, `title --shadow`, `extract --width`. round 44: `subs --font`, `progress --at/--dur`, `audiogram --position`. round 43: `vignette --at/--dur`, `grade --at/--dur`, `broll --audio`. round 42: `bw --at/--dur`, `sharpen --at/--dur`, `meta --clear`. round 41: `invert --at/--dur`, `blur --at/--dur`, `title` corner positions. round 40: `replace --fade`, `audiogram --text`, `thumb --width`. round 39: `broll --fade`, `frames --at`, `audiogram --size`. round 38: `split --silence`, `music --fade`, `eq --preset`. round 37: `subs --size/--color/--top`, `audiogram --bg`, `overlay --opacity` for stills. round 36: `cut --drop`, `title --outline`, `fit --color`. round 35: `cut --ranges`, `solid`, `volume --limit`. round 34: `overlay --fade`, `subs --shift`, `meta` extra tags. round 33: `title --fade`, `grade --hue`, `silence --end` (batch already existed). round 32: `thumb`, `subs --burn`, `split --parts`. round 31: `sync`, `crop --anchor`, `art`. round 30: `qa`, `conform`, `overlay --mode`. round 29: `timer`, `mute`, `hls`. round 28: `mix`, `caption --position`, `grade --gamma`. round 27: `countdown`, `invert`, `split --size`. round 26: `crossfade`, `strip`, `frames`. round 25: `voice`, `deinterlace`, `fade --color`. round 24: `vocal`, `remux`, `meme`. round 23: `silence`, `grade --preset`, `transcode --fps` video. round 22: `tempo`, `leveler`, `gate`. round 21: `waveform`, `spectrogram`, `dehum`. round 20: `vdenoise`, `crop`, `title --position bottom`. round 19: `bleep`, `censor --at/--dur`, `grade --warm`. round 18: `reverb`, `audiogram --mode/--color`, `delogo --at/--dur`, `meta --rotate`)*
+- [ ] `mix --gain G` — scale the bed's level on entry (final mixing knob).
+- [ ] `caption --lang XX` — lang tag on burned+muxed captions.
+- [ ] `rough --by-scene` — auto segment boundaries from scene scores.
+- [ ] `spectrogram --scale sqrt|cbrt` — amp-scale knob (match waveform's).
 
 1. **`grid --labels`** — "cada tile con su nombre" → raster PNG labels overlaid per cell (no drawtext needed — local ffmpeg 9 lacks it).
 2. **`delogo --soft`** — "quitar el logo suave" → generated PNG mask + removelogo interpolation.
@@ -231,6 +233,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `gate --at/--dur`, `mix --at/--dur` (same window family)
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
+
+## Shipped this run (round 91)
+
+- `title --align left|center|right` — per-line alignment inside the card; lower-thirds convention (conflicts `--outline`/`--shadow`).
+- `timer --start N` — seed the readout: up counts `N+(t-at)`, down counts `N-(t-at)` (default down-start = window length).
+- `waveform --peak` — `showwavespic filter=peak` transient rendering instead of average.
+- `solid --wrap N` — folds long `--text` via the shared title wrap helper.
 
 ## Shipped this run (round 90)
 

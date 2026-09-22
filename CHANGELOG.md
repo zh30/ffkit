@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.118.0] — 2026-09-22
+
+### Added
+
+- `title --align left|center|right` — per-line text alignment in the rendered card (plain titles; conflicts `--outline`/`--shadow`)
+- `timer --start N` — seed the countdown/counter readout at N seconds
+- `waveform --peak` — peak-sample waveform rendering (`showwavespic filter=peak`)
+- `solid --wrap N` — word-wrap long `--text` on solid/gradient cards
+
 ## [0.117.0] — 2026-09-22
 
 ### Added

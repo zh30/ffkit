@@ -137,7 +137,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
 | `subs` | Extract (`--stream`, `--all`)/burn/mux subtitles (`--shift/--merge/--rate`, burn style + `--outline`/`--box` plate/`--align`, `--safe`); `--convert` .srt↔.vtt; `--case` cue text |
 | `thumb` | One-frame cover grab (`--at` / `--frame`, `--count` N stills, `--width`) → jpg/png/webp; `--scenes` stills at cuts |
-| `solid` | Solid-color clip card (`--color`, `--size`, `--dur`; silent stereo optional) (`--gradient` animated) , `--text` end-card text |
+| `solid` | Solid-color clip card (`--color`, `--size`, `--dur`; silent stereo optional) (`--gradient` animated) , `--text` end-card text (`--wrap` fold long text) |
 | `replace` | Swap the audio track (`--mix`, `--duck`, `--fade`, `--loop` short beds, `--at`/`--dur` window) |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (`--merge N` merges keeps closer than N s) (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
@@ -156,7 +156,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `blur` | Full-frame or windowed gaussian blur (`--sigma`, `--at`, `--dur`) |
 | `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30 (nlmeans; slow on long clips) |
 | `crop` | Crop `--region x:y:w:h`, or `--aspect` reframe with `--anchor center|top|bottom|left|right` |
-| `waveform` | Audio waveform → PNG (`--size`, `--color`, `--scale`) for podcast art/thumbnails (`--at/--dur` slice) |
+| `waveform` | Audio waveform → PNG (`--size`, `--color`, `--scale`, `--peak` transient detail) for podcast art/thumbnails (`--at/--dur` slice) |
 | `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup (`--color` magma/viridis…) (`--at/--dur` slice) |
 | `dehum` | Notch out mains hum (`--mains 50|60`, `--harmonics`, `--at/--dur`) |
 | `tempo` | Speed audio `--factor` 0.5–8, pitch held (`atempo` chain; use `speed` for video) , `--at/--dur` retempo just a window |
@@ -175,7 +175,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `invert` | Full-frame or windowed color inversion (`--at`, `--dur`) |
 | `mix` | Blend two sources (`--vol-a/--vol-b`, `--at/--dur`, `--loop`, `--duck` sidechain bed under voice) , `--normalize`, `--fade` bed edges |
 | `mute` | Drop the audio track, stream-copy the rest , `--at/--dur` silences only that window |
-| `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown) |
+| `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown, `--start` seed the readout) |
 | `hls` | Web-ready HLS (`--seg`, `--single`, `--copy`, `--ladder` ABR, `--audio-only` podcast streams, `--fmp4` CMAF) |
 | `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
 | `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill |

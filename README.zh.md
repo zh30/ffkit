@@ -137,7 +137,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`）+ `--rotate`、`--clear` 显示旋转，无损拷贝 |
 | `subs` | 提取（`--stream`、`--all` 全部）/烧录/封装字幕（`--shift/--merge/--rate`、烧录样式 + `--outline` 描边/`--box` 衬底、`--safe`）；`--convert` .srt↔.vtt 互转；烧录 `--align` 对齐；`--case` 大小写 |
 | `thumb` | 抓封面帧（`--at`/`--frame`、`--count` 均布 N 张、`--width`）→ jpg/png/webp；`--scenes` 场景切换抓帧 |
-| `solid` | 纯色视频卡（`--color`、`--size`、`--dur`，可选静音轨）（`--gradient` 渐变） |（`--color`/`--gradient` 支持颜色名与十六进制） ，`--text` 卡片文字 |
+| `solid` | 纯色视频卡（`--color`、`--size`、`--dur`，可选静音轨）（`--gradient` 渐变） |（`--color`/`--gradient` 支持颜色名与十六进制） ，`--text` 卡片文字（`--wrap` 长文折行） |
 | `replace` | 换音轨（`--mix`、`--duck`、`--fade`、`--loop` 短音源循环、`--at`/`--dur` 局部替换） |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（`--merge N` 合并间隔小于 N 秒的段；默认只编码要留下的段；`--copy` 无损但按关键帧） |
@@ -156,7 +156,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`、`--dur`） |
 | `vdenoise` | 视频降噪（暗光噪点）：`--strength` 0.5–30（nlmeans，长片较慢） |
 | `crop` | 裁剪 `--region` 区域，或 `--aspect` 重构（`--anchor center|top|bottom|left|right` 可选锚点） |
-| `waveform` | 音频波形 → PNG（`--size`、`--color`, `--scale`），播客封面/缩略图用（`--at/--dur` 只画片段） |
+| `waveform` | 音频波形 → PNG（`--size`、`--color`, `--scale`、`--peak` 峰值细节），播客封面/缩略图用（`--at/--dur` 只画片段） |
 | `spectrogram` | 音频频谱图 → PNG（`--size`），清理前先看嗡鸣/噪声（`--color` magma/viridis…）（`--at/--dur` 只画片段） |
 | `dehum` | 市电嗡鸣陷波（`--mains 50|60`、`--harmonics`、`--at/--dur`） |
 | `tempo` | 音频变速 `--factor` 0.5–8，不变调（`atempo` 链；视频请用 `speed`） ，`--at/--dur` 局部变速 |
@@ -175,7 +175,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `invert` | 全帧或定时反色（`--at`、`--dur`） |
 | `mix` | 双音轨叠加（`--vol-a/--vol-b`、`--at/--dur`、`--loop`、`--duck` 人声闪避音乐） ，`--normalize` 归一求和、`--fade` 淡入淡出 |
 | `mute` | 去掉音轨（其余流直接封装，不重编码） ，`--at/--dur` 局部静音 |
-| `timer` | 画面计时器（`--position`、`--format ms`、`--box-color` 底板） （`--format`、`--box-color`、`--down` 倒计时） |
+| `timer` | 画面计时器（`--position`、`--format ms`、`--box-color` 底板） （`--format`、`--box-color`、`--down` 倒计时、`--start` 设定起始读数） |
 | `hls` | 网页 HLS 封装（`--seg`、`--single`、`--copy`、`--ladder` 多码率、`--audio-only` 纯音频、`--fmp4` CMAF） |
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM，`--metric`） |
 | `conform` | 一键统一规格（`--size WxH`、`--fps 30`、`--lufs -14`、`--crf`、`--pad` 黑边颜色 + `--anchor` 锚点、`--blur` 模糊填充） |

@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.117.0
+version: 0.118.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -42,7 +42,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 
 | export | `deliver`, `transcode` (`--copy-audio`), `compress` (`--size 10MB` two-pass, `--crf` quality one-pass, `--res` downscale), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores`, `--target` platform sizes |
 | captions / mute | `caption` (`--karaoke` word reveal, `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, or `--mode mux`), `--fade` |
-| hook text | `title` (`--wrap` auto line breaks, `--box`/`--outline`/`--shadow`) |
+| hook text | `title` (`--wrap` auto line breaks, `--align` left/right lower-thirds, `--box`/`--outline`/`--shadow`) |
 | dutch-angle tilt | `rotate` (`--angle 15`) |
 | chapters already in the file | `chapter` (`--list`) or `split` (`--chapters`) |
 | thumbnail candidates | `thumb` (`--scenes` grabs stills at every cut) |
@@ -77,7 +77,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | captions on top instead of bottom | `caption --position top` |
 | lift/crush mid-tones | `grade --gamma` |
 | drop the audio track entirely | `mute` (stream-copy video, no re-encode), `--at/--dur` window |
-| elapsed-time corner counter | `timer` (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds), `--down` countdown |
+| elapsed-time corner counter | `timer` (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds), `--down` countdown, `--start` seed the readout |
 | web-embed HLS package | `hls` (`--seg` seconds, `--single` one-file, `--copy` repack) → dir/`index.m3u8` + `seg_*.ts`; `--ladder 1080,720,480` → ABR variant playlists + `master.m3u8`; `--audio-only` podcast HLS; `--fmp4` CMAF `.m4s` segments |
 | check encode quality loss | `qa` `ref.mp4 test.mp4` → psnr/ssim numbers |
 | normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill) |
@@ -100,7 +100,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | subtitle file is early/late | `subs` (`--shift ±N` — retimes every cue) |
 | full podcast/music tags | `meta` (`--album`/`--genre`/`--date`/`--track`) |
 | keep only the good parts | `cut` (`--ranges "10-20,40-50"` — joined) |
-| solid color card / backplate | `solid` (`--color`/`--size`/`--dur`, optional silent track), `--text` card text, `--fade` card fades |
+| solid color card / backplate | `solid` (`--color`/`--size`/`--dur`, optional silent track), `--text` card text (`--wrap` folds), `--fade` card fades |
 | boost without clipping | `volume` (`--limit` dBTP — brickwall after the gain) |
 | rip out a middle section | `cut` (`--drop "30-45"` — keeps the rest joined) |
 | text that survives busy frames | `title` (`--outline` — stroke around every glyph) |
