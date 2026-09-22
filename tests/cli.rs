@@ -10974,3 +10974,59 @@ fn split_subs_writes_retimed_part_srts() {
     assert!(txt.contains("hello world"), "{txt}");
     assert!(txt.contains("00,500"), "cue end clamped to part end: {txt}");
 }
+
+#[test]
+fn hls_ladder_writes_master_and_variants() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("hls");
+    let v = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--ladder",
+        "240,144",
+        "--seg",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let master = out.join("master.m3u8");
+    assert!(master.exists(), "master.m3u8 missing");
+    let txt = std::fs::read_to_string(&master).unwrap();
+    assert_eq!(
+        txt.matches("EXT-X-STREAM-INF").count(),
+        2,
+        "two variants in master: {txt}"
+    );
+    assert!(out.join("v0.m3u8").exists() && out.join("v1.m3u8").exists());
+}
+
+#[test]
+fn concat_level_loudnorms_each_input() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    let b = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "concat",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--level",
+        "-14",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let v2 = run_json(&["probe", out.to_str().unwrap()]);
+    let d = v2["probe"]["duration"].as_f64().unwrap();
+    assert!(d > 1.6, "two 1s clips joined ≈ 2s, got {d}");
+}

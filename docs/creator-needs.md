@@ -232,6 +232,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 75)
+
+- `hls --ladder 1080,720,480` — ABR variant playlists + `master.m3u8` (per-variant bitrate tiers + aac).
+- `concat --level LUFS` — one-pass loudnorm on every input before joining.
+
 ## Shipped this run (round 74)
 
 - `multicam` — two-camera angle switching across an aligned pair (`--at` cuts flip the angle).

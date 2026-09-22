@@ -40,6 +40,142 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
+    if !args.ladder.is_empty() {
+        // ABR ladder: N variants at tiered bitrates, one audio, master.m3u8.
+        if args.copy || args.single {
+            return Err(Error::input(
+                "--ladder doesn't combine with --copy/--single",
+            ));
+        }
+        if !probe.has_video {
+            return Err(Error::input("--ladder needs a video stream"));
+        }
+        if args.output.extension().is_some() {
+            return Err(Error::input("--ladder needs a directory -o"));
+        }
+        let mut hs = args.ladder.clone();
+        hs.sort_unstable_by(|a, b| b.cmp(a));
+        hs.dedup();
+        if hs.len() < 2 || hs.len() > 6 {
+            return Err(Error::input("--ladder needs 2..=6 heights"));
+        }
+        let n = hs.len();
+        let bitrate = |h: u32| -> u32 {
+            if h >= 1080 {
+                4500
+            } else if h >= 720 {
+                2800
+            } else if h >= 480 {
+                1400
+            } else {
+                800
+            }
+        };
+        let mut fc = String::new();
+        fc.push_str(&format!(
+            "[0:v]split={n}{}",
+            (0..n).map(|i| format!("[sp{i}]")).collect::<String>()
+        ));
+        for (i, h) in hs.iter().enumerate() {
+            fc.push_str(&format!(";[sp{i}]scale=-2:{h}[lv{i}]"));
+        }
+        argv.extend(["-filter_complex".to_string(), fc]);
+        for (i, h) in hs.iter().enumerate() {
+            let r = bitrate(*h);
+            argv.extend([
+                "-map".to_string(),
+                format!("[lv{i}]"),
+                format!("-c:v:{i}"),
+                "libx264".to_string(),
+                format!("-preset:v:{i}"),
+                "veryfast".to_string(),
+                format!("-b:v:{i}"),
+                format!("{r}k"),
+                format!("-maxrate:v:{i}"),
+                format!("{r}k"),
+                format!("-bufsize:v:{i}"),
+                format!("{}k", r * 2),
+                format!("-pix_fmt:v:{i}"),
+                "yuv420p".to_string(),
+            ]);
+        }
+        if probe.has_audio {
+            // ffmpeg <7 hls: an elementary stream may appear in only one
+            // variant group — so each variant gets its own aac encode.
+            for i in 0..n {
+                argv.extend([
+                    "-map".to_string(),
+                    "0:a".to_string(),
+                    format!("-c:a:{i}"),
+                    "aac".to_string(),
+                    format!("-b:a:{i}"),
+                    "128k".to_string(),
+                ]);
+            }
+        }
+        let varmap = if probe.has_audio {
+            (0..n)
+                .map(|i| format!("v:{i},a:{i}"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        } else {
+            (0..n)
+                .map(|i| format!("v:{i}"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
+        argv.extend([
+            "-f".to_string(),
+            "hls".to_string(),
+            "-hls_time".to_string(),
+            format!("{:.3}", args.seg),
+            "-hls_playlist_type".to_string(),
+            "vod".to_string(),
+            "-hls_segment_filename".to_string(),
+            dir.join("seg_%v_%03d.ts").display().to_string(),
+            "-master_pl_name".to_string(),
+            "master.m3u8".to_string(),
+            "-var_stream_map".to_string(),
+            varmap,
+        ]);
+        argv.push(dir.join("v%v.m3u8").display().to_string());
+
+        let commands = engine::commands_of(std::slice::from_ref(&argv));
+        if g.dry_run {
+            return Ok(Contract::dry_run(
+                "hls",
+                Some(paths::display(&dir.join("master.m3u8"))),
+                Some(probe),
+            )
+            .with_commands(commands));
+        }
+        if let Err(e) = engine::run_argvs(&[argv], g) {
+            return Ok(Contract::failed("hls", &e).with_commands(commands));
+        }
+        let master = dir.join("master.m3u8");
+        if !master.is_file() {
+            return Err(Error::verification(
+                "hls --ladder finished but master.m3u8 is missing",
+            ));
+        }
+        let variants = hs
+            .iter()
+            .enumerate()
+            .map(|(i, h)| format!("v{i}.m3u8 ({h}p)"))
+            .collect::<Vec<_>>();
+        let mut c = Contract::ok(
+            "hls",
+            Some(paths::display(&master)),
+            crate::probe::probe(&master, std::time::Duration::from_secs(60)).ok(),
+        )
+        .with_commands(commands);
+        c = c.with_extra(json!({
+            "playlist": paths::display(&master),
+            "variants": variants,
+            "segment_seconds": args.seg,
+        }));
+        return Ok(c);
+    }
     if args.copy {
         argv.extend([
             "-c:v".to_string(),

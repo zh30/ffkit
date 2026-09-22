@@ -98,7 +98,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `probe` | Duration, size, codecs, channels |
 | `look` | Contact sheet (`--tiles`) or timestamps (`--at`, repeatable) |
 | `cut` | Trim; lossless copy by default, `--accurate`, `--ranges`, `--drop` for frame-exact |
-| `concat` | Join; `--transition` crossfades between every clip (xfade + acrossfade, N inputs) |
+| `concat` | Join N clips (any xfade `--transition`, `--audio-fade`); `--level -14` loudnorms each clip first |
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop , `--position` anchors the picture in the bars |
 | `extract` | Still frame or `--gif` clip (`--bounce` palindrome) | `--at`, `--dur`, `--width`, `--fps` , `--loop` GIF repeat count |
 | `overlay` | Image/video overlay; position/scale/`--tile`, `--fade`, `--angle`, `--at`/`--dur`, `--mode`, `--opacity` blend composite | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture |
@@ -176,7 +176,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `mix` | Sum two audio sources (`--vol-a`/`--vol-b` linear, `--longest`, `--at/--dur` fades B in/out of a window) , `--loop` repeat short B |
 | `mute` | Drop the audio track, stream-copy the rest , `--at/--dur` silences only that window |
 | `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown) |
-| `hls` | HTTP Live Streaming package (`--seg`, `--single` one-file, `--copy` stream-copy) |
+| `hls` | Web-ready HLS playlist + segments (`--seg`, `--single`, `--copy`, `--ladder 1080,720,480` ABR variants + master) |
 | `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
 | `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf` |
 | `sync` | Shift audio ±ms to fix A/V sync (`--ms`) |

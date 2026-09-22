@@ -298,6 +298,10 @@ pub struct ConcatArgs {
     /// Transition duration in seconds
     #[arg(long, default_value_t = 0.5)]
     pub duration: f64,
+    /// Loudnorm every input to this I target before joining (mixed-source
+    /// loudness, e.g. -14) — one-pass per clip
+    #[arg(long, allow_hyphen_values = true)]
+    pub level: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1751,6 +1755,10 @@ pub struct HlsArgs {
     /// Stream-copy the essence (fast repack; needs h264/aac input)
     #[arg(long)]
     pub copy: bool,
+    /// ABR ladder: comma list of heights (e.g. 1080,720,480) → variant
+    /// playlists + master.m3u8 (requires a directory -o)
+    #[arg(long, value_delimiter = ',')]
+    pub ladder: Vec<u32>,
 }
 
 #[derive(clap::Args, Debug)]

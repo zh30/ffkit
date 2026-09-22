@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.102.0] - 2026-09-23
+
+### Added
+- `hls --ladder 1080,720,480` — ABR ladder: variant playlists + `master.m3u8`, tiered bitrates per height, one aac encode per variant (ffmpeg <7 rejects shared streams across groups).
+- `concat --level LUFS` — one-pass loudnorm on every input before joining (mixed-source loudness).
+
+
+## [0.102.0] — 2026-09-22
+
 ## [0.101.0] - 2026-09-23
 
 ### Added

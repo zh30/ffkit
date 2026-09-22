@@ -98,7 +98,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `probe` | 时长、分辨率、编码、声道 |
 | `look` | 联系表（`--tiles`）或指定时间点（`--at`，可重复） |
 | `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges`、`--drop` 才帧精确 |
-| `concat` | 拼接；`--transition` 在每条之间做 xfade 转场（视频 xfade + 音频 acrossfade，支持 N 条） |
+| `concat` | 拼接 N 段（任意 xfade `--transition`、`--audio-fade`）；`--level -14` 先统一各段响度 |
 | `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 ，`--position` 画面对齐黑边位置 |
 | `extract` | 抓静帧或 `--gif` 动图（`--bounce` 往返循环） | `--at`、`--dur`、`--width`、`--fps` ，`--loop` GIF 循环次数 |
 | `overlay` | logo/画中画；`--tile N` 全屏草稿水印 | logo、水印、画中画 | `--angle`
@@ -176,7 +176,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `mix` | 两段音频等权叠加（`--vol-a`/`--vol-b` 线性电平，`--longest` 按长者收尾，`--at/--dur` 副轨只在窗口内混入） ，`--loop` 短副轨循环 |
 | `mute` | 去掉音轨（其余流直接封装，不重编码） ，`--at/--dur` 局部静音 |
 | `timer` | 画面计时器（`--position`、`--format ms`、`--box-color` 底板） （`--format`、`--box-color`、`--down` 倒计时） |
-| `hls` | HLS 网页播放封装（`--seg` 时长、`--single` 单文件、`--copy` 流直拷） |
+| `hls` | 网页播放 HLS 封装（`--seg`、`--single`、`--copy`、`--ladder 1080,720,480` 多码率 + 主播放列表） |
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM，`--metric`） |
 | `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf` |
 | `sync` | 修复音画同步（`--ms ±N` 垫音/裁音头） |

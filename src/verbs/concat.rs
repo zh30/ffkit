@@ -9,6 +9,11 @@ use crate::paths;
 use crate::probe::Probe;
 
 pub fn run(args: ConcatArgs, g: &Globals) -> Result<Contract, Error> {
+    if let Some(l) = args.level {
+        if !(-70.0..=-5.0).contains(&l) {
+            return Err(Error::input("--level must be -70..=-5 LUFS (e.g. -14)"));
+        }
+    }
     if args.inputs.len() < 2 {
         return Err(Error::input("concat needs at least two inputs"));
     }
@@ -172,8 +177,12 @@ fn transition_chain(
             "[{i}:v]scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={fps:.3},format=yuv420p[v{i}]"
         ));
         if all_audio {
+            let lvl = args
+                .level
+                .map(|l| format!(",loudnorm=I={l:.1}"))
+                .unwrap_or_default();
             seg.push(format!(
-                "[{i}:a]aresample=48000,aformat=channel_layouts=stereo[a{i}]"
+                "[{i}:a]aresample=48000,aformat=channel_layouts=stereo{lvl}[a{i}]"
             ));
         }
     }
