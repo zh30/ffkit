@@ -1671,6 +1671,9 @@ pub struct MemeArgs {
     /// Word-wrap meme text at N columns (≥4)
     #[arg(long)]
     pub wrap: Option<u32>,
+    /// Per-line alignment inside each meme card (with --wrap)
+    #[arg(long, value_enum)]
+    pub align: Option<crate::raster::TextAlign>,
 }
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
 pub enum MemePos {
@@ -2220,6 +2223,9 @@ pub struct WaveformArgs {
     /// Peak-sample rendering instead of average (transient detail)
     #[arg(long)]
     pub peak: bool,
+    /// Draw each channel on its own row (stereo split view)
+    #[arg(long)]
+    pub split: bool,
     /// Render only this slice (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,
@@ -2242,6 +2248,9 @@ pub struct SpectrogramArgs {
     /// Display scale: lin|sqrt|cbrt|log|4thrt|5thrt (default log)
     #[arg(long)]
     pub scale: Option<String>,
+    /// Drop the axis/scale legend strip
+    #[arg(long)]
+    pub no_legend: bool,
     /// Render only this slice (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,
@@ -2266,6 +2275,9 @@ pub struct DehumArgs {
     /// Mains frequency: 50 (EU/Asia) or 60 (US) Hz
     #[arg(long, value_enum, default_value_t = MainsFreq::F60)]
     pub mains: MainsFreq,
+    /// Custom fundamental hum in Hz (fan/transformer buzz; overrides --mains)
+    #[arg(long)]
+    pub freq: Option<u32>,
     /// Harmonics to notch beyond the fundamental (1..8)
     #[arg(long, default_value_t = 4)]
     pub harmonics: u32,

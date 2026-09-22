@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.120.0] — 2026-09-22
+
+### Added
+
+- `waveform --split` — per-channel rows (stereo L/R split view)
+- `spectrogram --no-legend` — drop the axis strip for clean thumbnails
+- `dehum --freq HZ` — custom hum fundamental 20–500 Hz, overrides `--mains`
+- `meme --align left|center|right` — per-line alignment in wrapped meme cards
+
 ## [0.119.0] — 2026-09-22
 
 ### Added

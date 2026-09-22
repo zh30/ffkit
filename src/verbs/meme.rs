@@ -67,7 +67,19 @@ pub fn run(args: MemeArgs, g: &Globals) -> Result<Contract, Error> {
                 ([0, 0, 0], args.outline),
             )?
         } else {
-            crate::raster::render_title_styled(text, &font_bytes, vw, fg, args.size as f32)?
+            match args.align {
+                Some(al) => crate::raster::render_title_aligned(
+                    text,
+                    &font_bytes,
+                    vw,
+                    fg,
+                    args.size as f32,
+                    al,
+                )?,
+                None => {
+                    crate::raster::render_title_styled(text, &font_bytes, vw, fg, args.size as f32)?
+                }
+            }
         };
         renders.push((img.height(), img));
     }

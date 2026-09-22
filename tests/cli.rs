@@ -13036,3 +13036,105 @@ fn subs_burn_shadow_reaches_force_style() {
         .join(" ");
     assert!(cmds.contains("Shadow=4"), "{cmds}");
 }
+
+#[test]
+fn waveform_split_draws_channels() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("w.png");
+    let v = run_json(&[
+        "waveform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--split",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains(":split_channels=1"), "{cmds}");
+}
+
+#[test]
+fn spectrogram_no_legend_drops_strip() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("s.png");
+    let v = run_json(&[
+        "spectrogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--no-legend",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("legend=0"), "{cmds}");
+}
+
+#[test]
+fn dehum_freq_overrides_mains() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("d.mp4");
+    let v = run_json(&[
+        "dehum",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--freq",
+        "120",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("equalizer=f=120:t=q:w=12:g=-20"), "{cmds}");
+}
+
+#[test]
+fn meme_align_left_renders_wrapped_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--top",
+        "a left aligned meme line that wraps",
+        "--wrap",
+        "10",
+        "--align",
+        "left",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

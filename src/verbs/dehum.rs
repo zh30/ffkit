@@ -13,9 +13,15 @@ pub fn run(args: DehumArgs, g: &Globals) -> Result<Contract, Error> {
     if !(1..=8).contains(&args.harmonics) {
         return Err(Error::input("--harmonics must be 1..=8"));
     }
-    let hz: u32 = match args.mains {
-        MainsFreq::F50 => 50,
-        MainsFreq::F60 => 60,
+    let hz: u32 = match (args.freq, args.mains) {
+        (Some(f), _) => {
+            if !(20..=500).contains(&f) {
+                return Err(Error::input("--freq must be 20..=500 Hz"));
+            }
+            f
+        }
+        (None, MainsFreq::F50) => 50,
+        (None, MainsFreq::F60) => 60,
     };
 
     // Narrow Q=12 notches at the mains fundamental and its harmonics —

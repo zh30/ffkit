@@ -234,6 +234,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 93)
+
+- `waveform --split` — `split_channels=1` per-channel rows (stereo L/R inspection).
+- `spectrogram --no-legend` — `legend=0` drops the axis strip for clean thumbnails.
+- `dehum --freq HZ` — custom hum fundamental 20–500 Hz (fan/transformer buzz); overrides --mains.
+- `meme --align left|center|right` — per-line alignment in wrapped meme cards (plain path).
+
 ## Shipped this run (round 92)
 
 - `caption --align left|center|right` — per-line caption card alignment via shared raster `TextAlign` (burn path).

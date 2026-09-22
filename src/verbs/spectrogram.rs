@@ -61,6 +61,7 @@ pub fn run(args: SpectrogramArgs, g: &Globals) -> Result<Contract, Error> {
             String::new()
         }
     };
+    let lg = if args.no_legend { "0" } else { "1" };
     let sc = match &args.scale {
         Some(s) => {
             if !["lin", "sqrt", "cbrt", "log", "4thrt", "5thrt"].contains(&s.as_str()) {
@@ -75,7 +76,7 @@ pub fn run(args: SpectrogramArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.input);
     argv.extend([
         "-filter_complex",
-        &format!("[0:a]{slice}showspectrumpic=s={w}x{h}:legend=1{color}{sc}[v]"),
+        &format!("[0:a]{slice}showspectrumpic=s={w}x{h}:legend={lg}{color}{sc}[v]"),
         "-map",
         "[v]",
         "-frames:v",
