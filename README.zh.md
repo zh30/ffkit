@@ -100,7 +100,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges`、`--drop` 才帧精确 |
 | `concat` | 拼接 N 段（任意 xfade `--transition`、`--audio-fade`）；`--level -14` 先统一各段响度 |
 | `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 ，`--position` 画面对齐黑边位置 ，`--strength` 模糊力度 |
-| `extract` | 抓静帧或 `--gif` 动图（`--bounce` 往返循环） | `--at`、`--dur`、`--width`、`--fps` ，`--loop` GIF 循环次数 |
+| `extract` | 抓静帧或 `--gif` 动图（`--bounce` 往返循环） | `--at`、`--dur`、`--width`、`--fps` ，`--loop` GIF 循环次数、`--colors` 调色板大小 |
 | `overlay` | logo/画中画；`--tile N` 全屏草稿水印 | logo、水印、画中画 | `--angle`
 | `broll` | 切入镜头（`--insert` 视频、`--still` 图片、`--motion kenburns` 推镜） | 切走 B-roll（`--insert --at --duration`）；口播声音和时长不变 ，`--audio` 听插播原声（`--volume` 音量） ，`--position` 画中画角位 + `--scale` |
 | `caption` | 烧录字幕（`--srt`、`--chunk`、`--karaoke`、`--box-color` 底板） ，`--fade` 淡入淡出 |

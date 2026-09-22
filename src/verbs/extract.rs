@@ -46,7 +46,11 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
                 .tempfile()
                 .map_err(|e| Error::output(e.to_string()))?;
             let palette_path = palette.path().to_path_buf();
-            gen.extend(["-vf", &format!("{scale},palettegen=stats_mode=full")]);
+            let max_colors = args.colors.unwrap_or(256).clamp(2, 256);
+            gen.extend([
+                "-vf",
+                &format!("{scale},palettegen=stats_mode=full:max_colors={max_colors}"),
+            ]);
             gen.push(&palette_path);
 
             let mut use_p = ffmpeg_base(g.progress);

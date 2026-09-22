@@ -11742,3 +11742,107 @@ fn compress_res_downscales_to_free_bitrate() {
     assert_eq!(j["probe"]["height"], 240);
     assert_eq!(j["extra"]["res"], 240);
 }
+
+#[test]
+fn meta_copy_carries_tags_and_chapters() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("tagged.mp4");
+    let j = run_json(&[
+        "meta",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--copy",
+        src.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert!(j["extra"]["copied_from"].as_str().is_some());
+    assert!(out.exists());
+}
+
+#[test]
+fn extract_gif_colors_shrinks_the_palette() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("tiny.gif");
+    let j = run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--gif",
+        "--dur",
+        "0.5",
+        "--colors",
+        "8",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert!(out.exists());
+}
+
+#[test]
+fn broll_loop_covers_a_window_longer_than_the_insert() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("br.mp4");
+    // fixture is 1s; a 0.8s window is still inside A but needs the
+    // loop filter emitted so a short insert replays instead of freezing
+    let j = run_json(&[
+        "broll",
+        src.to_str().unwrap(),
+        "--insert",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0",
+        "--duration",
+        "0.8",
+        "--loop",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("loop=loop=-1:size="), "{cmd}");
+    assert!(out.exists());
+}
+
+#[test]
+fn align_window_bounds_the_decode() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("al.mp4");
+    let j = run_json(&[
+        "align",
+        src.to_str().unwrap(),
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--window",
+        "0.8",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["window"], 0.8);
+}

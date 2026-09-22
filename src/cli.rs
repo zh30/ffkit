@@ -419,6 +419,9 @@ pub struct ExtractArgs {
     /// GIF frames per second (default 10)
     #[arg(long)]
     pub fps: Option<u32>,
+    /// GIF palette size 2–256 (needs --gif; smaller = tinier file, banding)
+    #[arg(long)]
+    pub colors: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -507,6 +510,10 @@ pub struct BrollArgs {
     /// PiP edge margin in px (default 24, with --position)
     #[arg(long)]
     pub margin: Option<i32>,
+    /// Loop a video --insert shorter than the cutaway window
+    /// (default freezes on its last frame)
+    #[arg(long = "loop")]
+    pub loop_insert: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -922,6 +929,9 @@ pub struct MetaArgs {
     /// Strip ALL container metadata (privacy clean before publishing)
     #[arg(long)]
     pub clear: bool,
+    /// Copy metadata + chapters from this file onto the output
+    #[arg(long)]
+    pub copy: Option<PathBuf>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1895,6 +1905,10 @@ pub struct AlignArgs {
     /// Max shift to search, seconds either way (default 10)
     #[arg(long, default_value_t = 10.0)]
     pub max_lag: f64,
+    /// Decode only this many seconds of each file for the correlation
+    /// (long multicam takes correlate much faster)
+    #[arg(long)]
+    pub window: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

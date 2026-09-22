@@ -24,14 +24,14 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--rotate must be 0, 90, 180 or 270"));
         }
     }
-    if args.clear && (!tags.is_empty() || args.rotate.is_some()) {
+    if args.clear && (!tags.is_empty() || args.rotate.is_some() || args.copy.is_some()) {
         return Err(Error::input(
-            "--clear strips everything; drop the tag flags",
+            "--clear strips everything; drop the tag flags and --copy",
         ));
     }
-    if tags.is_empty() && args.rotate.is_none() && !args.clear {
+    if tags.is_empty() && args.rotate.is_none() && !args.clear && args.copy.is_none() {
         return Err(Error::input(
-            "meta needs at least one tag flag, --rotate or --clear",
+            "meta needs at least one tag flag, --rotate, --clear or --copy",
         ));
     }
     // ffmpeg >= 7 dropped the rotate metadata tag in favour of the
@@ -45,10 +45,17 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push("-i");
     argv.push(&args.input);
+    if let Some(src) = &args.copy {
+        argv.push("-i");
+        argv.push(src);
+    }
     if args.clear {
         argv.extend(["-map_metadata", "-1"]);
     }
     argv.extend(["-map", "0", "-c", "copy"]);
+    if args.copy.is_some() {
+        argv.extend(["-map_metadata", "1", "-map_chapters", "1"]);
+    }
     for (k, v) in &tags {
         argv.extend(["-metadata", &format!("{k}={v}")]);
     }
@@ -63,5 +70,6 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c.with_extra(json!({
         "tags": tags.iter().map(|(k, _)| k).collect::<Vec<_>>(),
         "rotate": args.rotate,
+        "copied_from": args.copy,
     })))
 }

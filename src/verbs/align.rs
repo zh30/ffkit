@@ -17,11 +17,30 @@ const SAMPLE_RATE: u32 = 16_000;
 const ANALYZE_SECS: f64 = 45.0;
 
 /// Decode `path` to mono s16 PCM at SAMPLE_RATE, truncated to ANALYZE_SECS.
-fn pcm(path: &Path) -> Result<Vec<f32>, Error> {
+fn pcm(path: &Path, window: Option<f64>) -> Result<Vec<f32>, Error> {
+    let mut a = vec![
+        "-hide_banner".to_string(),
+        "-nostdin".to_string(),
+        "-v".to_string(),
+        "error".to_string(),
+        "-i".to_string(),
+        path.display().to_string(),
+    ];
+    if let Some(w) = window {
+        a.extend(["-t".to_string(), format!("{w:.3}")]);
+    }
+    a.extend([
+        "-vn".to_string(),
+        "-ac".to_string(),
+        "1".to_string(),
+        "-ar".to_string(),
+        "16000".to_string(),
+        "-f".to_string(),
+        "s16le".to_string(),
+        "-".to_string(),
+    ]);
     let out = Command::new("ffmpeg")
-        .args(["-hide_banner", "-nostdin", "-v", "error", "-i"])
-        .arg(path)
-        .args(["-vn", "-ac", "1", "-ar", "16000", "-f", "s16le", "-"])
+        .args(&a)
         .stderr(Stdio::piped())
         .stdout(Stdio::piped())
         .output()
@@ -165,7 +184,8 @@ pub fn run(args: AlignArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("--max-lag must be 1..=60 seconds"));
     }
 
-    let (a, b) = (pcm(&args.reference)?, pcm(&args.target)?);
+    let window = args.window.filter(|w| *w > 0.0);
+    let (a, b) = (pcm(&args.reference, window)?, pcm(&args.target, window)?);
     let lag = detect_lag(&a, &b, (args.max_lag * SAMPLE_RATE as f64) as usize)
         .ok_or_else(|| Error::input("no usable audio to align (too short)"))?;
     let ms = lag as f64 * 1000.0 / SAMPLE_RATE as f64;
@@ -198,6 +218,6 @@ pub fn run(args: AlignArgs, g: &Globals) -> Result<Contract, Error> {
 
     let inputs: Vec<&Path> = vec![&args.reference, &args.target];
     let mut c = engine::write_job("align", &inputs, &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "offset_ms": (ms * 10.0).round() / 10.0 }));
+    c = c.with_extra(json!({ "offset_ms": (ms * 10.0).round() / 10.0, "window": window }));
     Ok(c)
 }

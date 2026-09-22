@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.109.0
+version: 0.110.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -77,7 +77,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`) |
 | light-leak / screen-blend overlay | `overlay --video leak.mp4 --mode screen` |
 | fix audio/video sync drift | `sync` (`--ms ±N` — pad or trim audio start) |
-| sync a second take to the camera master | `align` (`ref target -o out` — auto-detects offset by audio cross-correlation; multi-cam, external recorder) |
+| sync a second take to the camera master | `align` (`ref target -o out` — auto-detects offset by audio cross-correlation; multi-cam, external recorder; `--window` bounds long takes) |
 | rolling end credits | `scroll` (`--text`/`--file`, `--at`, `--dur` — text rolls bottom→top) |
 | splice a clip into the middle | `insert` (`--clip x.mp4 --at T` — b-roll/ad read without manual split+concat; `--dur N` first N sec only), `--transition` xfade both joints |
 | two-camera angle switching | `multicam` (`A B --at t1,t2,...` — run `align` first if the takes aren't synced) |
@@ -172,7 +172,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | grid with one input's audio | `grid --audio N` |
 | draft/tiled watermark | `overlay --tile N` (diagonal watermark pass) |
 | shift subtitle timing | `caption --shift SEC` |
-| gif tuning | `transcode --preset gif --fps --width`, `extract --gif --bounce` (palindrome loop) |
+| gif tuning | `transcode --preset gif --fps --width`, `extract --gif --bounce` (palindrome loop), `extract --colors` palette size |
 | one-ear voice fix | `channel` (`--mode dualmono`/`mono`/`swap`) |
 | loop to a length | `loop --until SEC` |
 | text draft watermark | `title --tile N` |
@@ -184,7 +184,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | smooth slow-mo | `speed --factor 0.5 --interp` |
 | styled title text | `title --size 2 --color ff0000` |
 | lower-third placement | `title --position bottom` (or `top`/`center`) |
-| container metadata tags | `meta` (`--title`/`--artist`/`--comment`) |
+| container metadata tags | `meta` (`--title`/`--artist`/`--comment`, `--copy` pulls tags+chapters from another file) |
 | fix display rotation flag | `meta --rotate 90` (lossless; clears with `--rotate 0`) |
 | room tone on a voice | `reverb` (`--size room|hall|cave`, `--wet 0..0.9`) |
 | wobble/sci-fi/echo/lofi/telephone audio | `fx` (`--kind`, `--strength`, `--at`/`--dur`) |
@@ -194,7 +194,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | rip embedded subtitles | `subs` (`--stream N`, `--all` every stream) |
 | bleep out a word | `bleep` (`--at`/`--dur`; `--freq`/`--level`) |
 | warm/cool white balance | `grade --warm -1..1` |
-| B-roll cutaway | `broll` (`--insert --at --duration`; A-roll audio stays) |
+| B-roll cutaway | `broll` (`--insert --at --duration`; A-roll audio stays; `--loop` replays short inserts) |
 | extract | `extract` |
 | many files | `batch` |
 | no verb | `graph` — [graph.md](references/graph.md) |

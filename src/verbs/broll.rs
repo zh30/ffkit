@@ -79,6 +79,13 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
             "loop=loop=-1:size=1,fps={:.3},",
             a.fps.unwrap_or(30.0).max(1.0)
         )
+    } else if args.loop_insert {
+        // Buffer the whole insert and replay it: without this a short insert
+        // hits EOF mid-window and overlay freezes the last frame.
+        let b = engine::probe_or_err(&args.insert, g)?;
+        let bfps = b.fps.unwrap_or(30.0).max(1.0);
+        let frames = (b.duration * bfps).ceil().max(1.0) as u64;
+        format!("loop=loop=-1:size={frames},setpts=N/({bfps}*TB),fps={bfps:.3},")
     } else {
         String::new()
     };

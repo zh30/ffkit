@@ -232,6 +232,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 83)
+
+- `meta --copy SRC` — `-map_metadata 1 -map_chapters 1` pulls every tag + chapter mark out of a sibling export (re-renders stop losing titles and chapters).
+- `extract --colors N` — `palettegen max_colors=` for `--gif`: 8-color palettes drop the file hard, 256 keeps gradients clean.
+- `broll --loop` — video insert shorter than the cutaway window now replays via `loop=loop=-1:size=F` + restamp instead of freezing on its last frame.
+- `align --window SECS` — caps the PCM decode for the cross-correlation search; a 2-hour multicam take no longer correlates over its full length.
+
 ## Shipped this run (round 82)
 
 - `remux --audio` — rip just the audio track (`-map 0:a`, `-c:a copy` when the container holds the codec, else re-encode mp3/ogg/wav/aac to fit). Pulling a podcast track out of a recorded video needs no re-encode now.

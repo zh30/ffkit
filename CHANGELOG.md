@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.110.0] — 2026-09-22
+
+### Added
+
+- `meta --copy SRC` — carry every metadata tag + chapter mark from a sibling export (`-map_metadata 1 -map_chapters 1`)
+- `extract --colors N` — GIF palette size via `palettegen max_colors=` (2–256; small palettes shrink files)
+- `broll --loop` — replay a video insert shorter than the cutaway window (`loop=loop=-1:size=F` + restamp) instead of freezing its last frame
+- `align --window SECS` — cap the PCM decode behind the cross-correlation search so long multicam takes align fast
+
 ## [0.109.0] — 2026-09-22
 
 ### Added

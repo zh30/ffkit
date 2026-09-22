@@ -100,7 +100,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cut` | Trim; lossless copy by default, `--accurate`, `--ranges`, `--drop` for frame-exact |
 | `concat` | Join N clips (any xfade `--transition`, `--audio-fade`); `--level -14` loudnorms each clip first |
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop , `--position` anchors the picture in the bars , `--strength` sigma |
-| `extract` | Still frame or `--gif` clip (`--bounce` palindrome) | `--at`, `--dur`, `--width`, `--fps` , `--loop` GIF repeat count |
+| `extract` | Still frame or `--gif` clip (`--bounce` palindrome) | `--at`, `--dur`, `--width`, `--fps` , `--loop` GIF repeat count, `--colors` palette size |
 | `overlay` | Image/video overlay; position/scale/`--tile`, `--fade`, `--angle`, `--at`/`--dur`, `--mode`, `--opacity` blend composite | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture |
 | `broll` | Cutaway insert (`--insert` video, `--still` image, `--motion kenburns`) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay , `--audio` hear the insert (`--volume` its level) , `--position` PiP corner + `--scale` |
 | `caption` | Burn subtitles (`--srt`, `--chunk`, `--karaoke`, `--box-color` card) , `--fade` soft in/out |
