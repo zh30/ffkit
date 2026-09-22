@@ -32,7 +32,7 @@ pub fn run(args: FadeArgs, g: &Globals) -> Result<Contract, Error> {
         Some(t) => {
             let dl = args.dur.unwrap_or(0.8);
             let h = dl / 2.0;
-            if !(h > 0.0) || t - h < 0.0 || t + h > probe.duration {
+            if h <= 0.0 || t - h < 0.0 || t + h > probe.duration {
                 return Err(Error::input("--dip ± --dur/2 must fit inside the input"));
             }
             Some((t, h))

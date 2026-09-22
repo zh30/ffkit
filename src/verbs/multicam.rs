@@ -91,7 +91,7 @@ pub fn run(args: MulticamArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let n = segs.len();
     if let Some(f) = args.transition {
-        if !(f > 0.0) || segs.iter().any(|(s, e, _)| e - s <= f) {
+        if f <= 0.0 || segs.iter().any(|(s, e, _)| e - s <= f) {
             return Err(Error::input(
                 "--transition must be > 0 and shorter than every segment",
             ));
@@ -100,14 +100,14 @@ pub fn run(args: MulticamArgs, g: &Globals) -> Result<Contract, Error> {
         let mut prev_v = "vs0".to_string();
         let mut prev_a = "as0".to_string();
         let audio = has_audio && !args.keep_audio;
-        for k in 1..n {
+        for (k, seg) in segs.iter().enumerate().take(n).skip(1) {
             let last = k == n - 1;
             let ov = if last {
                 "vout".to_string()
             } else {
                 format!("xv{k}")
             };
-            let off = segs[k].0 - k as f64 * f;
+            let off = seg.0 - k as f64 * f;
             fc.push(format!(
                 "[{prev_v}][vs{k}]xfade=transition=fade:duration={f:.3}:offset={off:.3}[{ov}]"
             ));
