@@ -1,5 +1,6 @@
 [package]
 name = "ffkit"
+
 version = "0.29.0"
 edition = "2021"
 rust-version = "1.80"
