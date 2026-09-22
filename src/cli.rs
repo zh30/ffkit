@@ -115,6 +115,10 @@ pub enum Cmd {
     Boomerang(BoomerangArgs),
     /// Embed chapter markers (lossless metadata pass)
     Chapter(ChapterArgs),
+    /// Detect and remove black bars (cropdetect scan + crop)
+    Autocrop(AutocropArgs),
+    /// Contact sheet: cols×rows thumbnails from the whole clip
+    Sheet(SheetArgs),
     /// Still images (+ optional music bed) into a video
     Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
@@ -656,6 +660,9 @@ pub struct TitleArgs {
     /// Seconds the title stays on screen
     #[arg(long, default_value_t = 1.0)]
     pub duration: f64,
+    /// Show the title at this time instead of the start (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
     #[arg(long)]
     pub font: Option<String>,
     /// center (default) or top
@@ -723,6 +730,27 @@ pub struct ZoomArgs {
     /// Window length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct AutocropArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SheetArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    #[arg(long, default_value_t = 4)]
+    pub cols: u32,
+    #[arg(long, default_value_t = 3)]
+    pub rows: u32,
+    /// Tile width px (height follows aspect, forced even)
+    #[arg(long, default_value_t = 320)]
+    pub tile: u32,
 }
 
 #[derive(clap::Args, Debug)]

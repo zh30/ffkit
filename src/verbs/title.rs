@@ -26,7 +26,14 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     };
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "title")?;
-    let until = args.duration.min(probe.duration.max(0.05));
+    let at = match &args.at {
+        Some(s) => crate::time::parse_time(s)?,
+        None => 0.0,
+    };
+    if at < 0.0 || at >= probe.duration {
+        return Err(Error::input("--at must land inside the input"));
+    }
+    let until = (at + args.duration).min(probe.duration);
     let font_path = crate::font::resolve(args.font.as_deref().map(Path::new))?;
     let font_bytes = std::fs::read(&font_path)?;
     let vw = probe.width.unwrap_or(1280);
@@ -41,7 +48,7 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.input);
     argv.push("-i");
     argv.push(&png);
-    let fc = format!("[0:v][1:v]overlay=x={x}:y={y}:enable='between(t,0,{until:.3})'[vout]");
+    let fc = format!("[0:v][1:v]overlay=x={x}:y={y}:enable='between(t,{at:.3},{until:.3})'[vout]");
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if probe.has_audio {
         argv.extend(["-map", "0:a", "-c:a", "copy"]);
@@ -57,6 +64,7 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
         "text": text,
         "duration": until,
         "position": args.position,
+        "at": at,
         "font": font_path.display().to_string(),
     })))
 }

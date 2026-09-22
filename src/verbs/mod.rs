@@ -1,4 +1,5 @@
 pub mod audiogram;
+pub mod autocrop;
 pub mod blur;
 pub mod boomerang;
 pub mod broll;
@@ -29,6 +30,7 @@ pub mod replace;
 pub mod reverse;
 pub mod rough;
 pub mod sharpen;
+pub mod sheet;
 pub mod slideshow;
 pub mod speed;
 pub mod split;

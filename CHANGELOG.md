@@ -4,6 +4,13 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.34.0] — 2026-09-22
+
+- `ffkit autocrop`: cropdetect scan → crop out letterbox/pillarbox (refuses when nothing detected)
+- `ffkit sheet`: `--cols`/`--rows`/`--tile` contact-sheet PNG
+- `title --at S`: title/lower-third at any offset, not just t=0
+
+
 ## [0.33.0] — 2026-09-22
 
 - `ffkit boomerang`: forward + reversed replay loop

@@ -3180,3 +3180,127 @@ fn key_despill_keeps_composite_working() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn autocrop_strips_letterbox() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let padded = dir.path().join("padded.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-vf",
+            "pad=320:320:0:40:color=black",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&padded)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("cropped.mp4");
+    let v = run_json(&[
+        "autocrop",
+        padded.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["extra"]["detected"].as_object().unwrap();
+    let h = d["h"].as_u64().unwrap();
+    assert!(
+        h <= 242,
+        "letterboxed 240 of 320 rows should be detected, got {h}"
+    );
+}
+
+#[test]
+fn sheet_tiles_the_clip() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("sheet.png");
+    let v = run_json(&[
+        "sheet",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--cols",
+        "2",
+        "--rows",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // sheet output is a single PNG with 4 tile regions differing in pixels
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+    let (w, h) = s
+        .split_once(',')
+        .map(|(a, b)| (a.parse::<u32>().unwrap_or(0), b.parse::<u32>().unwrap_or(0)))
+        .unwrap_or((0, 0));
+    assert!(
+        w >= 640 && h >= 480,
+        "2x2 @ 320 tiles+padding ≥ 640x480, got {w}x{h}"
+    );
+}
+
+#[test]
+fn title_at_shows_mid_clip() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "MID",
+        "--at",
+        "0.4",
+        "--duration",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        (v["extra"]["at"].as_f64().unwrap() - 0.4).abs() < 1e-6,
+        "{v}"
+    );
+}
