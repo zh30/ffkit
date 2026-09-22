@@ -131,6 +131,8 @@ pub enum Cmd {
     Rotate(RotateArgs),
     /// Blur out a burned-in logo/watermark box
     Delogo(DelogoArgs),
+    /// Write container metadata tags (title/artist/comment) - lossless copy
+    Meta(MetaArgs),
     /// Still images (+ optional music bed) into a video
     Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
@@ -346,6 +348,9 @@ pub struct BrollArgs {
     /// Treat --insert as a still image (looped over the cutaway window)
     #[arg(long)]
     pub still: bool,
+    /// Animate a --still insert (kenburns = slow push over the window)
+    #[arg(long, value_enum)]
+    pub motion: Option<SlideMotion>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -528,6 +533,22 @@ pub struct DelogoArgs {
     /// Logo box height (px)
     #[arg(long)]
     pub h: u32,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct MetaArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Title tag
+    #[arg(long)]
+    pub title: Option<String>,
+    /// Artist / author tag
+    #[arg(long)]
+    pub artist: Option<String>,
+    /// Comment / description tag
+    #[arg(long)]
+    pub comment: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -736,6 +757,12 @@ pub struct TitleArgs {
     /// Tile the text N times diagonally at 50% alpha (text draft watermark)
     #[arg(long, default_value_t = 0)]
     pub tile: u32,
+    /// Text size multiplier (default 1.0)
+    #[arg(long, default_value_t = 1.0)]
+    pub size: f64,
+    /// Text color as RRGGBB hex (default ffffff)
+    #[arg(long)]
+    pub color: Option<String>,
     /// center (default) or top
     #[arg(long, default_value = "center")]
     pub position: String,

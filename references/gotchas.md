@@ -101,6 +101,10 @@ Source path as `-o` is always refused. An existing output is refused unless `--o
 
 `eq` chains `bass=g=N`, `equalizer=f=3000:g=N`, `treble=g=N` — audio-only. `zoom --motion kenburns` swaps the static scale/crop punch for `zoompan=z='min(pzoom+STEP,F)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=WxH` where STEP=(F-1)/(dur*fps) — works whole-clip and inside an --at/--dur window. `-vf` output is NOT auto-mapped once any `-map` appears: use `-filter_complex …[vout]` + explicit `-map "[vout]"` whenever the same command also `-map`s audio. `broll --still` prepends `loop=loop=-1:size=1,fps=N` so a single-frame image streams through the cutaway window.
 
+## title --size/--color / meta / broll --motion
+
+`title --size` multiplies the auto px (video_w/8, clamped 8-512); `--color RRGGBB` sets glyph fill on the translucent-dark plate — `render_title_styled` threads fg+size through `render_text`, `render_caption` keeps the old defaults. `meta` is a `-map 0 -c copy` metadata pass (title/artist/comment) — lossless, no re-encode. `broll --motion kenburns` appends a `zoompan` push (1.0→1.3) after the `loop` when `--still` is set; refuses on video inserts.
+
 ## rotate / delogo / speed --interp
 
 `rotate` maps `--deg` to `transpose=1` (90cw), `transpose=1,transpose=1` (180), `transpose=2` (270); `--flip h|v` is `hflip`/`vflip`. `delogo` blends a box (`x y w h`, >=4px, must fit the frame). `speed --interp` (factor<1) upsamples with `minterpolate=fps={src_fps/factor}:mi_mode=blend` before `setpts` — cheap smooth slow-mo without optical flow.

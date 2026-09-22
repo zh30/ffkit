@@ -4338,3 +4338,138 @@ fn speed_interp_adds_frames() {
     let (a, b) = (frames(&plain), frames(&interp));
     assert!(b > a + 10, "interp should add frames: {a} -> {b}; {v2}");
 }
+
+#[test]
+fn title_color_and_size_render() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // red title, 2x size
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "HI",
+        "--duration",
+        "0.5",
+        "--color",
+        "ff0000",
+        "--size",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // R channel should dominate in center rows where the title sits
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args([
+            "-vf",
+            "select=eq(n\\,5),crop=200:80:60:80",
+            "-frames:v",
+            "1",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let px = o.stdout;
+    let mut r = 0u64;
+    let mut b = 0u64;
+    for c in px.chunks(3) {
+        r += c[0] as u64;
+        b += c[2] as u64;
+    }
+    assert!(r > b, "red title should dominate: R {r} vs B {b}; {v}");
+}
+
+#[test]
+fn meta_writes_title_tag() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "meta",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--title",
+        "Episode 12",
+        "--artist",
+        "Pod Team",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args(["-v", "error", "-show_entries", "format_tags", "-of", "json"])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    assert!(s.contains("Episode 12"), "title tag written: {s}");
+    assert!(s.contains("Pod Team"), "artist tag written: {s}");
+    // lossless copy: same duration
+    assert!(
+        (v["probe"]["duration"].as_f64().unwrap_or(0.0) - 1.0).abs() < 0.05,
+        "{v}"
+    );
+}
+
+#[test]
+fn broll_still_motion_keeps_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let still = dir.path().join("s.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0x00ff00:size=320x240",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&still)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "broll",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--insert",
+        still.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--duration",
+        "0.5",
+        "--still",
+        "--motion",
+        "kenburns",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // window shows the green still, and duration stays at A-roll's 1s
+    assert!(
+        (v["probe"]["duration"].as_f64().unwrap_or(0.0) - 1.0).abs() < 0.2,
+        "{v}"
+    );
+}

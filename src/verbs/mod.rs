@@ -27,6 +27,7 @@ pub mod jumpcut;
 pub mod key;
 pub mod r#loop;
 pub mod loudnorm;
+pub mod meta;
 pub mod music;
 pub mod overlay;
 pub mod pitch;

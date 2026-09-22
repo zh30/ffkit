@@ -102,7 +102,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 |
 | `extract` | 按输出扩展名抽音频、帧、字幕 |
 | `overlay` | logo/画中画；`--tile N` 全屏草稿水印 | logo、水印、画中画 |
-| `broll` | 切入镜头（`--insert` 视频或 `--still` 图片） | 切走 B-roll（`--insert --at --duration`）；口播声音和时长不变 |
+| `broll` | 切入镜头（`--insert` 视频、`--still` 图片、`--motion kenburns` 推镜） | 切走 B-roll（`--insert --at --duration`）；口播声音和时长不变 |
 | `caption` | 烧录/封装 `.srt`；`--chunk` 分词、`--shift` 整体平移 | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass）；`--safe social` 避开底部 20%；`--chunk N` 按 ≤N 词切分字幕 |
 | `loudnorm` | EBU R128 两遍（`-I -14` 社交，`-I -16` 播客） |
 | `denoise` | 人声降噪（风扇/轰隆/嘶嘶声）；`--video` 顺带画面去噪点 |
@@ -129,6 +129,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `eq` | 音频均衡：`--bass`/`--treble`/`--presence` dB |
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip` |
 | `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h` |
+| `meta` | 写入容器标签（`--title`/`--artist`/`--comment`），无损拷贝 |
 | `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐、`--mix` 保留原音轨 |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |

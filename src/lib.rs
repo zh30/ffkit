@@ -54,6 +54,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Eq(args) => verbs::eq::run(args, &g),
         Cmd::Rotate(args) => verbs::rotate::run(args, &g),
         Cmd::Delogo(args) => verbs::delogo::run(args, &g),
+        Cmd::Meta(args) => verbs::meta::run(args, &g),
         Cmd::Fit(args) => verbs::fit::run(args, &g),
         Cmd::Extract(args) => verbs::extract::run(args, &g),
         Cmd::Overlay(args) => verbs::overlay::run(args, &g),

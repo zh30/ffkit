@@ -3,11 +3,21 @@ use image::{Rgba, RgbaImage};
 use crate::error::Error;
 
 pub fn render_caption(text: &str, font_bytes: &[u8], video_w: u32) -> Result<RgbaImage, Error> {
-    render_text(text, font_bytes, video_w, 14.0)
+    render_text(text, font_bytes, video_w, 14.0, [255, 255, 255], 1.0)
+}
+
+pub fn render_title_styled(
+    text: &str,
+    font_bytes: &[u8],
+    video_w: u32,
+    fg: [u8; 3],
+    size: f32,
+) -> Result<RgbaImage, Error> {
+    render_text(text, font_bytes, video_w, 8.0, fg, size)
 }
 
 pub fn render_title(text: &str, font_bytes: &[u8], video_w: u32) -> Result<RgbaImage, Error> {
-    render_text(text, font_bytes, video_w, 8.0)
+    render_text(text, font_bytes, video_w, 8.0, [255, 255, 255], 1.0)
 }
 
 fn render_text(
@@ -15,10 +25,12 @@ fn render_text(
     font_bytes: &[u8],
     video_w: u32,
     divisor: f32,
+    fg: [u8; 3],
+    size: f32,
 ) -> Result<RgbaImage, Error> {
     let font = fontdue::Font::from_bytes(font_bytes, fontdue::FontSettings::default())
         .map_err(|e| Error::input(format!("font parse: {e}")))?;
-    let px = ((video_w as f32) / divisor).clamp(16.0, 96.0);
+    let px = ((video_w as f32) / divisor * size).clamp(8.0, 512.0);
     let pad = (px * 0.35).round() as u32;
     let lines: Vec<&str> = text.lines().filter(|l| !l.is_empty()).collect();
     if lines.is_empty() {
@@ -65,6 +77,7 @@ fn render_text(
                 gy.round() as i32,
                 metrics,
                 bitmap,
+                fg,
             );
             x += metrics.advance_width;
         }
@@ -73,7 +86,14 @@ fn render_text(
     Ok(img)
 }
 
-fn blit_glyph(img: &mut RgbaImage, x0: i32, y0: i32, metrics: &fontdue::Metrics, bitmap: &[u8]) {
+fn blit_glyph(
+    img: &mut RgbaImage,
+    x0: i32,
+    y0: i32,
+    metrics: &fontdue::Metrics,
+    bitmap: &[u8],
+    fg: [u8; 3],
+) {
     let w = metrics.width;
     let h = metrics.height;
     if w == 0 || h == 0 {
@@ -94,7 +114,7 @@ fn blit_glyph(img: &mut RgbaImage, x0: i32, y0: i32, metrics: &fontdue::Metrics,
             if x >= img.width() || y >= img.height() {
                 continue;
             }
-            img.put_pixel(x, y, Rgba([255, 255, 255, a]));
+            img.put_pixel(x, y, Rgba([fg[0], fg[1], fg[2], a]));
         }
     }
 }

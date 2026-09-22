@@ -74,6 +74,7 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
         "end": end,
         "insert": paths::display(&args.insert),
         "still": args.still,
+        "motion": args.motion.map(|_| "kenburns"),
         "fit": match args.fit {
             FitMode::Crop => "crop",
             FitMode::Pad => "pad",
