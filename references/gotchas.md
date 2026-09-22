@@ -101,6 +101,10 @@ Source path as `-o` is always refused. An existing output is refused unless `--o
 
 `eq` chains `bass=g=N`, `equalizer=f=3000:g=N`, `treble=g=N` — audio-only. `zoom --motion kenburns` swaps the static scale/crop punch for `zoompan=z='min(pzoom+STEP,F)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=WxH` where STEP=(F-1)/(dur*fps) — works whole-clip and inside an --at/--dur window. `-vf` output is NOT auto-mapped once any `-map` appears: use `-filter_complex …[vout]` + explicit `-map "[vout]"` whenever the same command also `-map`s audio. `broll --still` prepends `loop=loop=-1:size=1,fps=N` so a single-frame image streams through the cutaway window.
 
+## rotate / delogo / speed --interp
+
+`rotate` maps `--deg` to `transpose=1` (90cw), `transpose=1,transpose=1` (180), `transpose=2` (270); `--flip h|v` is `hflip`/`vflip`. `delogo` blends a box (`x y w h`, >=4px, must fit the frame). `speed --interp` (factor<1) upsamples with `minterpolate=fps={src_fps/factor}:mi_mode=blend` before `setpts` — cheap smooth slow-mo without optical flow.
+
 ## channel / loop --until / title --tile
 
 `channel --mode dualmono` = `pan=stereo|FL<c0|FR<c0` (one-ear voice → both), `mono` = `aformat=channel_layouts=mono`, `swap` = `channelmap=map=FR-FL|FL-FR`. `loop --until` derives `times = ceil(SECS/dur)` then `-t SECS` trims the concat. `title --tile N` chains N overlay passes on a diagonal (same 4.4-safe pattern — a reused `[ov]` pad is consumed once on ffmpeg ≤5, so split=N first or chain distinct labels).

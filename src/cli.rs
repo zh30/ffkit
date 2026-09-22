@@ -127,6 +127,10 @@ pub enum Cmd {
     Channel(ChannelArgs),
     /// Audio EQ: bass/treble/presence shelves
     Eq(EqArgs),
+    /// Rotate a video 90/180/270 deg or mirror it
+    Rotate(RotateArgs),
+    /// Blur out a burned-in logo/watermark box
+    Delogo(DelogoArgs),
     /// Still images (+ optional music bed) into a video
     Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
@@ -489,6 +493,41 @@ pub struct SpeedArgs {
     /// Window length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Blend interpolated frames for smooth slow-mo (needs factor < 1)
+    #[arg(long)]
+    pub interp: bool,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct RotateArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Degrees clockwise: 90, 180, 270
+    #[arg(long, default_value_t = 90)]
+    pub deg: u32,
+    /// Mirror instead of rotating: h or v
+    #[arg(long, value_enum)]
+    pub flip: Option<FlipMode>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DelogoArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Logo box left edge (px)
+    #[arg(long)]
+    pub x: u32,
+    /// Logo box top edge (px)
+    #[arg(long)]
+    pub y: u32,
+    /// Logo box width (px)
+    #[arg(long)]
+    pub w: u32,
+    /// Logo box height (px)
+    #[arg(long)]
+    pub h: u32,
 }
 
 #[derive(clap::Args, Debug)]

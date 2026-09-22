@@ -4,6 +4,13 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.40.0] — 2026-09-22
+
+- `ffkit rotate`: `--deg 90/180/270` or `--flip h|v` for mis-oriented phone clips
+- `ffkit delogo`: blend out a burned-in logo/watermark box (`--x --y --w --h`)
+- `speed --interp`: `minterpolate` blend upsampling for smooth slow-mo (factor < 1)
+
+
 ## [0.39.0] — 2026-09-22
 
 - `ffkit eq`: `--bass`/`--treble`/`--presence` dB shelving on audio

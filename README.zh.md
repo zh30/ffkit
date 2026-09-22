@@ -127,6 +127,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
 | `channel` | 声道手术：`--mode dualmono|mono|swap` |
 | `eq` | 音频均衡：`--bass`/`--treble`/`--presence` dB |
+| `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip` |
+| `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h` |
 | `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐、`--mix` 保留原音轨 |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |

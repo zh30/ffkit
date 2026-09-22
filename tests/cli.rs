@@ -4172,3 +4172,169 @@ fn broll_still_inserts_image() {
         "red still fills the window, YAVG {y}; {v}"
     );
 }
+
+#[test]
+fn rotate_swaps_dimensions() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("r.mp4");
+    let v = run_json(&[
+        "rotate",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--deg",
+        "90",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    assert_eq!(
+        s.trim(),
+        "240,320",
+        "90deg should swap 320x240 -> 240x320; {v}"
+    );
+}
+
+#[test]
+fn delogo_blends_out_box() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // Burn a solid white box at 10,10 60x40
+    let marked = dir.path().join("marked.mp4");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&src)
+        .args([
+            "-vf",
+            "drawbox=x=10:y=10:w=60:h=40:color=white:t=fill",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "18",
+            "-c:a",
+            "copy",
+        ])
+        .arg(&marked)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("d.mp4");
+    let v = run_json(&[
+        "delogo",
+        marked.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--x",
+        "10",
+        "--y",
+        "10",
+        "--w",
+        "60",
+        "--h",
+        "40",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let mean_luma = |f: &Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                "crop=40:20:20:20,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-",
+                "-frames:v",
+                "1",
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stdout);
+        s.split("YAVG=")
+            .nth(1)
+            .and_then(|r| r.lines().next())
+            .and_then(|r| r.trim().parse().ok())
+            .unwrap_or(-1.0)
+    };
+    let (a, b) = (mean_luma(&marked), mean_luma(&out));
+    assert!(
+        b < a - 30.0,
+        "logo box luma drops after delogo: {a} -> {b}; {v}"
+    );
+}
+
+#[test]
+fn speed_interp_adds_frames() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let plain = dir.path().join("p.mp4");
+    let interp = dir.path().join("i.mp4");
+    let v1 = run_json(&[
+        "speed",
+        src.to_str().unwrap(),
+        "-o",
+        plain.to_str().unwrap(),
+        "--factor",
+        "0.5",
+    ]);
+    assert_eq!(v1["status"], "ok", "{v1}");
+    let v2 = run_json(&[
+        "speed",
+        src.to_str().unwrap(),
+        "-o",
+        interp.to_str().unwrap(),
+        "--factor",
+        "0.5",
+        "--interp",
+    ]);
+    assert_eq!(v2["status"], "ok", "{v2}");
+    let frames = |f: &Path| -> u64 {
+        let o = Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-count_packets",
+                "-show_entries",
+                "stream=nb_read_packets",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(f)
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stdout)
+            .trim()
+            .parse()
+            .unwrap_or(0)
+    };
+    let (a, b) = (frames(&plain), frames(&interp));
+    assert!(b > a + 10, "interp should add frames: {a} -> {b}; {v2}");
+}

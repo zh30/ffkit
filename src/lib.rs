@@ -52,6 +52,8 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Cutsil(args) => verbs::cutsil::run(args, &g),
         Cmd::Channel(args) => verbs::channel::run(args, &g),
         Cmd::Eq(args) => verbs::eq::run(args, &g),
+        Cmd::Rotate(args) => verbs::rotate::run(args, &g),
+        Cmd::Delogo(args) => verbs::delogo::run(args, &g),
         Cmd::Fit(args) => verbs::fit::run(args, &g),
         Cmd::Extract(args) => verbs::extract::run(args, &g),
         Cmd::Overlay(args) => verbs::overlay::run(args, &g),

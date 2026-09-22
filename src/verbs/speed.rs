@@ -28,8 +28,19 @@ pub fn run(args: SpeedArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
 
+    if args.interp && factor >= 1.0 {
+        return Err(Error::input("--interp only helps slow-mo (factor < 1)"));
+    }
     if probe.has_video {
-        argv.extend(["-filter:v", &format!("setpts=PTS/{factor}")]);
+        let vf = if args.interp {
+            // Upsample fps by blend-interpolating so the stretch stays smooth:
+            // src_fps/factor real frames per source second, then re-time.
+            let out_fps = (probe.fps.unwrap_or(30.0) / factor).min(120.0).max(1.0);
+            format!("minterpolate=fps={out_fps:.3}:mi_mode=blend,setpts=PTS/{factor}")
+        } else {
+            format!("setpts=PTS/{factor}")
+        };
+        argv.extend(["-filter:v", &vf]);
         argv.extend([
             "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
         ]);
@@ -48,6 +59,7 @@ pub fn run(args: SpeedArgs, g: &Globals) -> Result<Contract, Error> {
     c = c.with_extra(json!({
         "factor": factor,
         "keep_pitch": true,
+        "interp": args.interp,
     }));
     Ok(c)
 }

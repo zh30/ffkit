@@ -127,6 +127,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap` |
 | `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence` dB |
+| `rotate` | 90/180/270 or mirror: `--deg`/`--flip` |
+| `delogo` | Blend out a burned-in logo box: `--x --y --w --h` |
 | `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
