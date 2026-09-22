@@ -11225,3 +11225,61 @@ fn grid_fill_crops_tiles_to_the_cell() {
     ]);
     assert_eq!(j["status"], "ok");
 }
+
+#[test]
+fn mix_duck_sidechains_the_bed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("duck.mp4");
+    let j = run_json(&[
+        "mix",
+        src.to_str().unwrap(),
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--duck",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", out.to_str().unwrap()]);
+    assert!(p["probe"]["has_audio"].as_bool().unwrap());
+}
+
+#[test]
+fn compress_target_sizes_for_platforms() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("d.mp4");
+    let j = run_json(&[
+        "compress",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--target",
+        "discord",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert!(std::fs::metadata(&out).unwrap().len() < 8 * 1024 * 1024);
+}
+
+#[test]
+fn subs_burn_outline_widens_the_stroke() {
+    if !has_filter("subtitles") {
+        return;
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let srt = tmp.path().join("t.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,900\nHI\n").unwrap();
+    let out = tmp.path().join("b.mp4");
+    let j = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--outline",
+        "3",
+    ]);
+    assert_eq!(j["status"], "ok");
+}

@@ -13,7 +13,18 @@ const MUX_RESERVE: f64 = 0.98;
 const PCM_EXTS: &[&str] = &["wav", "aif", "aiff", "caf", "flac"];
 
 pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
-    let target = parse_size(&args.size)?;
+    let size_str = match &args.size {
+        Some(s) => s.clone(),
+        None => match args.target {
+            Some(crate::cli::CompressTarget::Discord) => "8MB".to_string(),
+            Some(crate::cli::CompressTarget::Whatsapp) => "16MB".to_string(),
+            Some(crate::cli::CompressTarget::Gmail) => "25MB".to_string(),
+            None => {
+                return Err(Error::input("compress needs --size or --target"));
+            }
+        },
+    };
+    let target = parse_size(&size_str)?;
     if !(8.0..=512.0).contains(&args.audio_kbps) {
         return Err(Error::input("--audio-kbps must be 8–512"));
     }
@@ -46,13 +57,13 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
     if probe.has_video && video_bps < MIN_VIDEO_BPS {
         return Err(Error::input(format!(
             "--size {} cannot fit {:.1}s of video under 64 kbps; raise --size or cut first",
-            args.size, probe.duration
+            size_str, probe.duration
         )));
     }
     if !probe.has_video && audio_bps < 16_000.0 {
         return Err(Error::input(format!(
             "--size {} cannot fit {:.1}s of audio; raise --size",
-            args.size, probe.duration
+            size_str, probe.duration
         )));
     }
 

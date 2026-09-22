@@ -595,8 +595,11 @@ pub struct CompressArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Target size, e.g. 10MB (Discord), 16MB (WhatsApp), 25MB (email); KB/MB/GB
-    #[arg(long)]
-    pub size: String,
+    #[arg(long, required_unless_present = "target")]
+    pub size: Option<String>,
+    /// Size preset by platform: discord(8MB) whatsapp(16MB) gmail(25MB)
+    #[arg(long, value_enum)]
+    pub target: Option<CompressTarget>,
     /// Audio bitrate budget in kbps
     #[arg(long, default_value_t = 96.0)]
     pub audio_kbps: f64,
@@ -680,6 +683,16 @@ pub enum LoudnormTarget {
     Podcast,
     /// -23 LUFS / -2.0 dBTP, LRA 7 (EBU R128)
     Broadcast,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum CompressTarget {
+    /// 8 MB — Discord free-tier upload limit
+    Discord,
+    /// 16 MB — WhatsApp video limit
+    Whatsapp,
+    /// 25 MB — Gmail attachment limit
+    Gmail,
 }
 
 #[derive(clap::Args, Debug)]
@@ -829,6 +842,9 @@ pub struct SubsArgs {
     /// Push burned captions into the social-safe zone (bigger MarginV)
     #[arg(long)]
     pub safe: bool,
+    /// Burned subtitle outline width in px (default 1)
+    #[arg(long)]
+    pub outline: Option<f64>,
     /// Merge another .srt into the input .srt (dual-language; cues sorted by start)
     #[arg(long)]
     pub merge: Option<PathBuf>,
@@ -1684,6 +1700,9 @@ pub struct MixArgs {
     /// Loop B if it is shorter than the output span (short beds)
     #[arg(long = "loop")]
     pub loop_track: bool,
+    /// Sidechain-duck B under A's voice (podcast music bed)
+    #[arg(long)]
+    pub duck: bool,
     /// Bring B in only from this time (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,

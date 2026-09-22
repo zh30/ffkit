@@ -41,9 +41,20 @@ pub fn run(args: MixArgs, g: &Globals) -> Result<Contract, Error> {
         }
     };
 
+    let (split, b1, bed) = if args.duck {
+        // sidechain: the bed (B) compresses whenever the voice (A) is loud —
+        // ffmpeg <7 needs an explicit asplit to feed A to both the key and the mix
+        (
+            ",asplit=2[a0][a0sc]",
+            "[a1pre]",
+            ";[a1pre]aformat=sample_fmts=fltp:channel_layouts=stereo[a1f];[a0sc]aformat=sample_fmts=fltp:channel_layouts=stereo[a0scf];[a1f][a0scf]sidechaincompress=threshold=0.02:ratio=8:attack=25:release=350:makeup=1[a1]",
+        )
+    } else {
+        ("[a0]", "[a1]", "")
+    };
     let fc = format!(
-        "[0:a]aresample=48000,volume={:.4}[a0];\
-         [1:a]aresample=48000,volume={:.4}{gate}[a1];\
+        "[0:a]aresample=48000,volume={:.4}{split};\
+         [1:a]aresample=48000,volume={:.4}{gate}{b1}{bed};\
          [a0][a1]amix=inputs=2:duration={dur}:normalize=0[aout]",
         args.vol_a, args.vol_b
     );

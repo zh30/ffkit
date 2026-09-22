@@ -182,9 +182,10 @@ fn burn(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract
         36
     };
     let font = args.font.as_deref().unwrap_or("Sans").replace(',', " ");
+    let outline = args.outline.unwrap_or(1.0).clamp(0.0, 8.0);
     let style = format!(
         "FontName={font},FontSize={size},PrimaryColour={color},\
-OutlineColour=&H80000000,BorderStyle=1,Outline=1,Shadow=0,\
+OutlineColour=&H80000000,BorderStyle=1,Outline={outline},Shadow=0,\
 MarginV={margin_v},Alignment={align}"
     );
     let vf = format!("subtitles=filename='{path}':force_style='{style}'");

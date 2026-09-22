@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.105.0] - 2026-09-23
+
+### Added
+- `mix --duck` — sidechain compression: the B bed ducks whenever A (voice) is loud (asplit + aformat so it works on ffmpeg <7).
+- `compress --target discord|whatsapp|gmail` — platform size presets (8/16/25 MB) in place of `--size`.
+- `subs --burn --outline N` — burned-caption stroke width via ASS `Outline`.
+
+
+## [0.105.0] — 2026-09-22
+
 ## [0.104.0] - 2026-09-23
 
 ### Added

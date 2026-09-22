@@ -232,6 +232,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 78)
+
+- `mix --duck` — sidechain ducking: B (music bed) compresses under A (voice).
+- `compress --target discord|whatsapp|gmail` — platform size presets (8/16/25MB).
+- `subs --burn --outline N` — burned-caption stroke width.
+
 ## Shipped this run (round 77)
 
 - `insert --transition T --duration D` — xfade into and out of the spliced clip.

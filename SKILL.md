@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.104.0
+version: 0.105.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -40,7 +40,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | platform loudness | `loudnorm` (`--target`, `-I/--tp/--lra`; `--measure` report-only) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur`), `zoom`, `--position` top/bottom/corners |
 
-| export | `deliver`, `transcode` (`--copy-audio`), `compress` (`--size 10MB` two-pass), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores` |
+| export | `deliver`, `transcode` (`--copy-audio`), `compress` (`--size 10MB` two-pass), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores`, `--target` platform sizes |
 | captions / mute | `caption` (`--karaoke` word reveal, `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, or `--mode mux`), `--fade` |
 | hook text | `title` |
 | cover still | `cover` |
@@ -67,7 +67,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | 3-2-1 intro countdown | `countdown` (`--from`, `--each`, `--go`, `--at`, `--text`, `--position`) |
 | invert / negative look | `invert` — `negate` the picture |
 | split to fit a size cap | `split --size 9MB` — even grid aimed at Discord/WhatsApp caps |
-| merge two audio sources at full level | `mix` `A B` (`--vol-a/--vol-b`, `--longest`, `--at/--dur`) |
+| merge two audio sources at full level | `mix` `A B` (`--vol-a/--vol-b`, `--longest`, `--at/--dur`), `--duck` bed dips under voice |
 | captions on top instead of bottom | `caption --position top` |
 | lift/crush mid-tones | `grade --gamma` |
 | drop the audio track entirely | `mute` (stream-copy video, no re-encode), `--at/--dur` window |
@@ -98,7 +98,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | rip out a middle section | `cut` (`--drop "30-45"` — keeps the rest joined) |
 | text that survives busy frames | `title` (`--outline` — stroke around every glyph) |
 | bars in brand color | `fit` (`--color` — pad fill instead of black) |
-| burned subs, your style | `subs` (`--size`/`--color`/`--top`) |
+| burned subs, your style | `subs` (`--size`/`--color`/`--top`/`--outline`/`--font`) |
 | audiogram in brand colors | `audiogram` (`--bg` backdrop) |
 | subtle watermark | `overlay` (`--opacity` on `--image`) |
 | split a podcast on pauses | `split` (`--silence=-35` — cuts at gap midpoints) |
