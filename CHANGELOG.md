@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.82.0] — 2026-09-22
+
+### Added
+
+- `title --box COLOR` — filled backplate behind title text (lower-third legibility).
+- `censor --strength N` — mosaic block px / blur sigma.
+- `chapter --auto MIN_GAP` — auto chapter marks after silences (podcast segments).
+
+
+## [Unreleased]
+
 ## [0.81.0] — 2026-09-22
 
 ### Added

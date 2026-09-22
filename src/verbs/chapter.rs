@@ -9,6 +9,18 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
 
     let mut marks: Vec<(f64, String)> = Vec::new();
+    if let Some(min_gap) = args.auto {
+        let silences = crate::silence::detect(&args.input, -35.0, min_gap, g.timeout, true)?;
+        for (i, (_s, e)) in silences.iter().enumerate() {
+            let t = *e;
+            if t < probe.duration - 0.2 {
+                marks.push((t, format!("Part {}", i + 2)));
+            }
+        }
+        if !marks.is_empty() {
+            marks.insert(0, (0.0, "Part 1".to_string()));
+        }
+    }
     for raw in &args.at {
         let (t, title) = raw
             .split_once('|')
@@ -23,7 +35,9 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
     marks.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
     marks.dedup_by(|a, b| (a.0 - b.0).abs() < 0.05);
     if marks.is_empty() {
-        return Err(Error::input("chapter needs at least one --at TIME|TITLE"));
+        return Err(Error::input(
+            "chapter needs --at TIME|TITLE or --auto found no silence gaps",
+        ));
     }
     if marks[0].0 > 0.05 {
         marks[0].0 = 0.0;

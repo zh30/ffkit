@@ -61,7 +61,24 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
                 b.min(48),
             )?,
             None => {
-                crate::raster::render_title_styled(text, &font_bytes, vw, fg, args.size as f32)?
+                let mut img = crate::raster::render_title_styled(
+                    text,
+                    &font_bytes,
+                    vw,
+                    fg,
+                    args.size as f32,
+                )?;
+                if let Some(b) = &args.box_color {
+                    let [r, g_, b_] = crate::color::rgb(b)?;
+                    let pad = (img.height() / 2).max(8);
+                    let mut card = image::RgbaImage::new(img.width() + 2 * pad, img.height() + pad);
+                    for px in card.pixels_mut() {
+                        *px = image::Rgba([r, g_, b_, 200]);
+                    }
+                    image::imageops::overlay(&mut card, &img, pad as i64, (pad / 2) as i64);
+                    img = card;
+                }
+                img
             }
         },
     };

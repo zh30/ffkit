@@ -120,10 +120,10 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `grid` | N 路素材拼 `--layout CxR` 宫格（`--size 1920x1080`）；都有音轨时混音输出（`--labels` 瓦片标注） |
 | `progress` | 底/顶部进度条，整段或定时窗口（`--color`、`--height`、`--edge`、`--at`、`--dur`） |
 | `freeze` | `--at T --dur D` 定格某一拍，或 `--end D` 尾帧定格（结尾停留） |
-| `censor` | 马赛克/高斯模糊打码区域 `--region x:y:w:h`（`--mode pixel|blur`；`--at`/`--dur` 限定窗口） |
+| `censor` | 区域打码（`--mode`、`--strength` 强度、`--at`） |
 | `bleep` | 消音哔声：`--at`/`--dur` 选段，`--freq`/`--level` 调音 |
 | `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法）（`--times` 循环次数） |
-| `chapter` | 写入 `--at T|TITLE` 章节标记（`-c copy` 无损元数据） |
+| `chapter` | 章节标记（`--at TIME|TITLE`、`--auto` 按静音自动分段） |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`；`--buffer N` 向外扩 N 像素） |
 | `sheet` | 缩略图墙/预览拼图：`--cols`/`--rows` → 一张 PNG | `--pad`/`--margin`
 | `pitch` | `--semitones N` 升降调（时长不变） |
@@ -143,7 +143,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（`--merge N` 合并间隔小于 N 秒的段；默认只编码要留下的段；`--copy` 无损但按关键帧） |
 | `cover` | 导出 9:16 封面图（1080×1920） |
 | `fade` | 画面和声音淡入淡出（`--in` / `--out`，`--color` 淡出到白等） |
-| `title` | 屏幕标题 PNG（`--at`、`--position` 含四角、`--fade`、`--outline`, `--shadow`） |
+| `title` | 标题卡烧录（`--at`、`--fade`、`--outline`、`--box` 底板） |
 | `loop` | 把成片重复 N 遍（Shorts 循环加长）（`--from`/`--to` 只循环片段） |
 | `stabilize` | 手持防抖（deshake） |
 | `reverse` | 倒放画面和声音 |

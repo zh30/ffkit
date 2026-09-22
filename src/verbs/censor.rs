@@ -40,10 +40,10 @@ pub fn run(args: CensorArgs, g: &Globals) -> Result<Contract, Error> {
     let effect = match args.mode {
         CensorMode::Pixel => format!(
             "scale=w={bw}:h={bh}:flags=neighbor,scale={w}:{h}:flags=neighbor",
-            bw = (w / 16).max(2),
-            bh = (h / 16).max(2),
+            bw = (w as f64 / args.strength.max(2.0)).max(2.0) as u32,
+            bh = (h as f64 / args.strength.max(2.0)).max(2.0) as u32,
         ),
-        CensorMode::Blur => "gblur=sigma=30".to_string(),
+        CensorMode::Blur => format!("gblur=sigma={:.0}", args.strength.max(1.0)),
     };
     let enable = match (&args.at, args.dur) {
         (Some(at), dur) => {

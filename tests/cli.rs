@@ -9171,3 +9171,83 @@ fn transcode_copy_audio() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn title_box_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "LOWER THIRD",
+        "--box-color",
+        "black",
+        "--duration",
+        "0.5",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn censor_strength_blur() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--region",
+        "40:40:80:80",
+        "--mode",
+        "blur",
+        "--strength",
+        "20",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn chapter_auto_from_silence() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = dir.join("sp.m4a");
+    Command::new("ffmpeg")
+        .args([
+            "-v", "error", "-y", "-f", "lavfi", "-i",
+            "sine=frequency=440:duration=3,volume='lt(t,0.5)+between(t,0.8,1.2)+gte(t,1.8)':eval=frame",
+            "-c:a", "aac",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    let out = dir.join("o.m4a");
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--auto",
+        "0.2",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

@@ -1029,6 +1029,9 @@ pub struct TitleArgs {
     /// Soft drop shadow under the title card (blur radius in px)
     #[arg(long)]
     pub shadow: Option<u32>,
+    /// Filled card behind the text: RRGGBB or RRGGBBAA hex / color name
+    #[arg(long)]
+    pub box_color: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1902,8 +1905,11 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required = true)]
+    #[arg(long = "at", required_unless_present = "auto")]
     pub at: Vec<String>,
+    /// Auto-place chapters after each silence >= N seconds (podcast segments)
+    #[arg(long)]
+    pub auto: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1939,6 +1945,9 @@ pub struct CensorArgs {
     /// Window length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Effect intensity: mosaic block size in px (pixel) / blur sigma (blur)
+    #[arg(long, default_value_t = 12.0)]
+    pub strength: f64,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug, Default, PartialEq)]
