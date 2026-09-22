@@ -1,6 +1,6 @@
 # Creator multimedia needs → remaining ffkit gaps
 
-Researched 2026-09-22 against **ffkit 0.25.1** (`main`). Previous pass 2026-09-15 (vs 0.22.1). This note is not a restatement of landed work — the tail lists what not to redo.
+Researched 2026-09-22 against **ffkit 0.26.0** (`main`). Same-day research base as the 0.26.0 round below — refreshed priorities only, no new sources needed. This note is not a restatement of landed work — the tail lists what not to redo.
 
 ## What 2026 creators still trip on
 
@@ -13,32 +13,32 @@ Researched 2026-09-22 against **ffkit 0.25.1** (`main`). Previous pass 2026-09-1
 
 **Audio cleanup comes before loudness.** [MSY Editor, Mar 2026](https://msyeditor.com/ai-video-editing-workflow-2026/): in every AI edit pipeline, noise reduction is applied *first*, before levels and B-roll — room rumble, laptop fan, hiss. Homebrew/apt ffmpeg ships `afwtdn`, `highpass`, `afftdn`; no model files needed.
 
+**Multi-source audio is the other half of "my audio is bad".** Creators record on the camera AND a lav mic; "swap in the clean track" is a daily ask. `music` mixes a bed *under* the original; nothing *replaces* it. Raw `-map 0:v -map 1:a` is simple but error-prone (sync offset, length mismatch, codec copy of an incompatible container).
+
+**Photo montages are the second-largest audio-only adjacent case.** "Turn these 12 photos into a 30-second Reel with music" is the classic slideshow ask: normalize stills onto a canvas, crossfade, lay a bed that ends cleanly. Doable in raw ffmpeg (`-loop 1 -t` + xfade chain) but the offset math (`k*(per-fade)`) is exactly the kind of thing agents get wrong.
+
 **Landscape→vertical repurpose wants a blurred fill, not black bars.** The repurpose playbooks (CuteDyno Jun 2026, loopdesk multi-platform) assume a blurred pillarbox when the source is 16:9 — black `pad` bars read as unedited. `split + scale=increase,crop + gblur + overlay=centered fg` is a known-graph but error-prone raw.
 
 **HDR iPhone footage washed out in SDR feeds** needs `zscale`+`tonemap`; Homebrew ffmpeg here has `tonemap` but **no `zscale`** (needs `--with-libzimg`). Gate behind `doctor` before promising it.
 
-## Gaps vs ffkit 0.25.1
+## Gaps vs ffkit 0.26.0
 
 || Creator request | Today | Gap |
 ||-----------------|-------|-----|
-|| "压到 10MB 发 Discord / shrink for email" | `transcode` presets pick a codec/CRF, not a size | No size target; bitrate math + two-pass must be hand-built |
-|| "把这段播客做成能发的视频" | audio-only input has no video verbs at all | No waveform/cover audiogram path to 9:16 |
-|| "房间底噪 / fan noise / 降噪" | `loudnorm` / `volume` only | No voice denoise (queued last run) (queued last run) |
-|| "竖屏但背景要模糊" | `fit --fit pad` = black bars; `crop` cuts the subject | No blurred-fill mode |
-|| Swap camera audio for lav mic | `music` mixes a bed under; nothing replaces | Raw `ffmpeg -map` only; queue next |
+|| Swap camera audio for lav mic / new voice / new music | `music` mixes a bed under; nothing replaces | Raw `ffmpeg -map` only — landed this run as `replace` |
+|| Photo dump → montage video ("把照片做成视频") | nothing builds video from stills | Landed this run as `slideshow` |
+|| "套我的 LUT / film look" | `grade` sliders only | Landed this run as `grade --lut` (`lut3d`) |
 || Word-highlight karaoke captions | whole-cue raster burn | Needs per-word timing source; still deferred |
-|| LUT / film look | `grade` sliders only | `lut3d` exists; queue if asked |
 || HDR→SDR for iPhone clips | — | needs libzimg (`zscale` absent on Homebrew/apt) |
 
 ## Ordered directions (this run)
 
-1. **`denoise`** — `ffkit denoise IN -o OUT`: `highpass` + `afwtdn` voice cleanup, `--video` adds `hqdn3d` on the picture. Maps to "降噪 / 底噪 / room tone". Already queued by the previous run's ordered list.
-2. **`compress`** — `ffkit compress IN -o OUT --size 10MB`: probe duration → bitrate budget (2% mux reserve, audio paid first at 96 kbps) → libx264 **two-pass**. Audio-only input single-passes `-b:a`. Fails fast when the math is impossible (<64 kbps video). Maps to "发不出去，太大了".
-3. **`fit --fit blur`** — blurred-pillarbox fill behind the scaled foreground. Maps to "竖屏化不要黑边".
-4. **`audiogram`** — `ffkit audiogram IN [-o reel.mp4 --image cover.png]`: `showwaves` over a cover still (or flat colour) → 1080×1920, audio kept. Maps to "播客做成 Reel".
+1. **`replace`** — `ffkit replace IN --audio NEW -o OUT [--audio-offset S]`: video stream-copy + new aac track padded/trimmed to video length (`apad,atrim` — duration follows the picture). Maps to "换音轨 / 用领夹麦替换相机收音".
+2. **`slideshow`** — `ffkit slideshow IMG... -o OUT [--per S] [--fade S] [--audio bed] [--size WxH]`: normalize stills to canvas → xfade chain (offset `k*(per-fade)`) → bed faded at end or silent track. Maps to "照片做成视频 / photo dump Reel".
+3. **`grade --lut`** — append `lut3d=file=...` after the `eq` sliders. Kept as a flag on `grade` (not a new verb) per the "no verb per look" rule. Maps to "套 LUT / film look".
 
-Next (not this run): replace-audio mux (`--audio`), word-chunk caption highlight (needs word-timed source), `lut3d`, `audiogram` needs none — but HDR needs libzimg; slideshow (zoompan over N stills + bed) if agents keep hand-rolling it.
+Next (not this run): word-chunk caption highlight (needs word-timed source — whisper export or `align`; no timing data in repo), HDR→SDR (needs libzimg — absent on Homebrew/apt), xfade transition variety on `slideshow`/`concat` (only `fade` wired today), `--mix` mode on `replace` (blend original under new track), slideshow Ken Burns (`zoompan`) if static stills read flat.
 
 ## Already landed (do not redo)
 
-Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bottom-20%; broll cutaway keeps A-roll audio/duration and plays B from its first frame; rough-cut speech islands (list, then encode only keeps); music duck (aformat dbl pin for sidechaincompress on apt ffmpeg); speed; jumpcut; cover; fade; title; loop; stabilize; reverse; grade/zoom/sharpen/vignette/bw/volume/blur; pipeline `$src`/`$in`/`expect`; GitHub Release zips; English + Chinese README.
+Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bottom-20%; broll cutaway keeps A-roll audio/duration and plays B from its first frame; rough-cut speech islands (list, then encode only keeps); music duck (aformat dbl pin for sidechaincompress on apt ffmpeg); speed; jumpcut; cover; fade; title; loop; stabilize; reverse; grade/zoom/sharpen/vignette/bw/volume/blur; pipeline `$src`/`$in`/`expect`; GitHub Release zips; English + Chinese README; **0.26.0**: `denoise` (afwtdn/afftdn fallback), `compress --size` two-pass budget, `fit`/`broll --fit blur`, `audiogram`.

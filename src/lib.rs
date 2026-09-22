@@ -51,6 +51,8 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Audiogram(args) => verbs::audiogram::run(args, &g),
         Cmd::Speed(args) => verbs::speed::run(args, &g),
         Cmd::Music(args) => verbs::music::run(args, &g),
+        Cmd::Replace(args) => verbs::replace::run(args, &g),
+        Cmd::Slideshow(args) => verbs::slideshow::run(args, &g),
         Cmd::Jumpcut(args) => verbs::jumpcut::run(args, &g),
         Cmd::Rough(args) => verbs::rough::run(args, &g),
         Cmd::Cover(args) => verbs::cover::run(args, &g),

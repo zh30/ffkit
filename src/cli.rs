@@ -97,6 +97,10 @@ pub enum Cmd {
     Speed(SpeedArgs),
     /// Mix a music bed under speech, with ducking
     Music(MusicArgs),
+    /// Replace a video's audio track (lav mic, clean voice, new music)
+    Replace(ReplaceArgs),
+    /// Still images (+ optional music bed) into a video
+    Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
     Jumpcut(JumpcutArgs),
     /// Map speech islands in a long take, then lossless/cheap assemble
@@ -435,6 +439,42 @@ pub struct MusicArgs {
 }
 
 #[derive(clap::Args, Debug)]
+pub struct ReplaceArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Replacement audio file (lav mic, clean voice, music)
+    #[arg(long)]
+    pub audio: PathBuf,
+    /// Shift the new audio in seconds: positive delays, negative trims its start
+    #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
+    pub audio_offset: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SlideshowArgs {
+    /// Still images, in order
+    pub inputs: Vec<PathBuf>,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Seconds each image stays on screen
+    #[arg(long, default_value_t = 3.0)]
+    pub per: f64,
+    /// Crossfade seconds between images (0 = hard cuts)
+    #[arg(long, default_value_t = 0.6)]
+    pub fade: f64,
+    /// Canvas WxH (even numbers)
+    #[arg(long, default_value = "1920x1080")]
+    pub size: String,
+    /// Music bed under the slideshow (faded out at the end)
+    #[arg(long)]
+    pub audio: Option<PathBuf>,
+    /// Output frame rate
+    #[arg(long, default_value_t = 30.0)]
+    pub fps: f64,
+}
+
+#[derive(clap::Args, Debug)]
 pub struct JumpcutArgs {
     pub input: PathBuf,
     #[arg(short, long)]
@@ -552,6 +592,9 @@ pub struct GradeArgs {
     pub saturation: f64,
     #[arg(long, default_value_t = 0.02, allow_hyphen_values = true)]
     pub brightness: f64,
+    /// Apply a 3D LUT file (.cube etc) after the slider correction
+    #[arg(long)]
+    pub lut: Option<PathBuf>,
 }
 
 #[derive(clap::Args, Debug)]

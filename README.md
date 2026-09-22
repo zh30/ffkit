@@ -110,8 +110,10 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 | `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`) |
+| `slideshow` | Still images → video montage (`--per`, `--fade`, `--audio` bed, `--size` canvas) |
 | `speed` | `--factor 2` is 2×; talking-head keeps pitch |
 | `music` | Bed under speech with ducking (`--track`) |
+| `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
 | `cover` | 9:16 cover still (1080×1920) |
@@ -120,7 +122,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | Repeat the clip N times (Shorts replay length) |
 | `stabilize` | Handheld deshake |
 | `reverse` | Play picture and sound backwards |
-| `grade` | Contrast / saturation / brightness (mild Reels pop) |
+| `grade` | Contrast / saturation / brightness (mild Reels pop); `--lut look.cube` applies a 3D LUT |
 | `zoom` | Center punch-in (`--factor 1.25`) |
 | `sharpen` | Unsharp |
 | `vignette` | Darken corners |

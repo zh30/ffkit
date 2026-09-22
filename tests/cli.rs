@@ -1979,3 +1979,222 @@ fn audiogram_paints_waves_on_cover() {
     let d = v["probe"]["duration"].as_f64().unwrap();
     assert!(d > 0.8 && d < 1.3, "audiogram keeps ~1s, got {d}; {v}");
 }
+
+#[test]
+fn replace_swaps_audio_keeps_video_and_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // 2s replacement audio; fixture video is ~1s so the bed must be trimmed.
+    let wav = dir.path().join("bed.wav");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=2",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let out = dir.path().join("swapped.mp4");
+    let v = run_json(&[
+        "replace",
+        f.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        wav.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["tool"], "replace");
+    assert_eq!(v["probe"]["has_video"], true, "{v}");
+    assert_eq!(v["probe"]["has_audio"], true, "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        d > 0.8 && d < 1.3,
+        "replace keeps video length, got {d}; {v}"
+    );
+}
+
+#[test]
+fn replace_refuses_audio_without_stream() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // A silent video as the --audio source must be refused.
+    let silent = dir.path().join("silent.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=64x64:rate=10",
+            "-an",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&silent)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let v = run_json(&[
+        "replace",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+        "--audio",
+        silent.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    // An mp4 that *does* carry audio is a valid --audio source too.
+    let v = run_json(&[
+        "replace",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("y.mp4").to_str().unwrap(),
+        "--audio",
+        f.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn grade_lut_shifts_pixels() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // Tiny 2x2x2 .cube that crushes red.
+    let lut = dir.path().join("crush.cube");
+    std::fs::write(
+        &lut,
+        "LUT_3D_SIZE 2\n0 0 0\n0 0 1\n0 1 0\n0 1 1\n0 0 0\n0 0 1\n0 1 0\n0 1 1\n",
+    )
+    .unwrap();
+    let out = dir.path().join("lutted.mp4");
+    let v = run_json(&[
+        "grade",
+        f.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--lut",
+        lut.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(
+        v["extra"]["lut"].as_str().unwrap(),
+        lut.to_str().unwrap(),
+        "{v}"
+    );
+}
+
+#[test]
+fn slideshow_assembles_stills_with_bed() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mut imgs = vec![];
+    for (i, c) in ["red", "green", "blue"].iter().enumerate() {
+        let p = dir.path().join(format!("i{i}.png"));
+        let status = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color=c={c}:s=320x240:d=0.5"),
+                "-frames:v",
+                "1",
+            ])
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        imgs.push(p);
+    }
+    let out = dir.path().join("show.mp4");
+    let v = run_json(&[
+        "slideshow",
+        imgs[0].to_str().unwrap(),
+        imgs[1].to_str().unwrap(),
+        imgs[2].to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--per",
+        "1",
+        "--fade",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["tool"], "slideshow");
+    // 3*1 - 2*0.2 = 2.6 expected
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 2.6).abs() < 0.4, "slideshow ≈2.6s, got {d}; {v}");
+    assert_eq!(v["probe"]["width"], 1920, "{v}");
+    assert_eq!(v["probe"]["height"], 1080, "{v}");
+    assert_eq!(v["probe"]["has_audio"], true, "{v}");
+}
+
+#[test]
+fn slideshow_refuses_fade_longer_than_per() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = dir.path().join("a.png");
+    let b = dir.path().join("b.png");
+    for p in [&a, &b] {
+        let status = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=red:s=64x64:d=0.5",
+                "-frames:v",
+                "1",
+            ])
+            .arg(p)
+            .status()
+            .unwrap();
+        assert!(status.success());
+    }
+    let v = run_json(&[
+        "slideshow",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        dir.path().join("s.mp4").to_str().unwrap(),
+        "--per",
+        "0.5",
+        "--fade",
+        "0.6",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}

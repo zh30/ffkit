@@ -11,6 +11,8 @@ Destination implied by the user (Reels, Shorts, TikTok, YouTube, GIF) picks fram
 | Podcast clip → social | 1080x1920 waveform | `ffkit audiogram IN --image cover.png -o OUT` | audio kept | H.264+AAC |
 | GIF preview | short, ≤480px wide | — | no audio | `transcode --preset gif` |
 | Size-capped upload (Discord 10MB / WhatsApp 16MB / email ~25MB) | source frame kept | `ffkit compress IN --size 10MB -o OUT` | − | two-pass H.264+AAC |
+| Photo montage (anniversary / listing / event recap) | `--size 1920x1080` or `720x1280` | `ffkit slideshow a.jpg b.jpg c.jpg --audio bed.mp3 -o OUT` | bed faded at end | H.264+AAC |
+| Synced lav-mic audio onto camera footage | source frame kept | `ffkit replace cam.mp4 --audio lav.wav -o OUT` | trimmed/padded to video | H.264+AAC |
 
 Safe-area captions on 9:16: `caption --mode burn` defaults to `--safe social` (above the bottom 20%). Union rectangle is ~900×1400 centered in 1080×1920. `look` the result.
 

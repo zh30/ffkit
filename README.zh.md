@@ -110,8 +110,10 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | 两遍编码压到 `--size 10MB`（Discord、WhatsApp 16MB、邮箱约 25MB） |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 | `audiogram` | 播客音频 → 9:16 波形视频（封面图用 `--image`） |
+| `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数、`--fade` 转场、`--audio` 配乐、`--size` 画布） |
 | `speed` | 变速（`--factor 2` 加速一倍，口播保持音调） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
+| `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐 |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |
 | `cover` | 导出 9:16 封面图（1080×1920） |
@@ -120,7 +122,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | 把成片重复 N 遍（Shorts 循环加长） |
 | `stabilize` | 手持防抖（deshake） |
 | `reverse` | 倒放画面和声音 |
-| `grade` | 调色（对比/饱和/亮度，Reels 默认微抬） |
+| `grade` | 调色（对比/饱和/亮度，Reels 默认微抬）；`--lut look.cube` 套 3D LUT |
 | `zoom` | 中心推近（`--factor 1.25`） |
 | `sharpen` | 锐化（unsharp） |
 | `vignette` | 暗角 |

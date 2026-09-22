@@ -32,6 +32,7 @@ const KEY_FILTERS: &[&str] = &[
     "palettegen",
     "paletteuse",
     "xfade",
+    "lut3d",
     "acrossfade",
     "crop",
     "pad",
