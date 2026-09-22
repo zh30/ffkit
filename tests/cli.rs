@@ -1818,7 +1818,6 @@ fn pack_release_zip_runs() {
     assert_eq!(v["extra"]["ffkit"], ver, "{v}");
 }
 
-
 #[test]
 fn denoise_keeps_streams() {
     if !has_ffmpeg() {
@@ -2199,7 +2198,6 @@ fn slideshow_refuses_fade_longer_than_per() {
     ]);
     assert_eq!(v["status"], "failed", "{v}");
 }
-
 
 #[test]
 fn caption_chunk_splits_long_cues() {
@@ -4476,7 +4474,6 @@ fn broll_still_motion_keeps_window() {
     );
 }
 
-
 #[test]
 fn overlay_windowed_shows_only_inside() {
     if !has_ffmpeg() {
@@ -4637,5 +4634,3 @@ fn subs_extracts_embedded() {
     let text = std::fs::read_to_string(&out).unwrap_or_default();
     assert!(text.contains("hello subs"), "extracted srt has cue: {text}");
 }
-=======
->>>>>>> devin/1790097349-rsi-round16
