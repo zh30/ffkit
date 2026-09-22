@@ -232,6 +232,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 80)
+
+- `silence --detect [--threshold --min]` — report-only silence ranges as JSON extras (no `-o`) so agents can plan cuts before `split --silence`/`jumpcut`.
+- `thumb --count N` — N evenly-spaced stills (`stem_01..NN.jpg`, `fps=(n-0.5)/dur` so all frames land before EOF).
+- `sheet --from/--to` — contact-sheet sampling window (timestamps re-anchor when `--time` stamps).
+- `loudnorm --dynamic` — per-frame dynamic gain (`linear=false`) for speech that linear offset pumps on.
+
 ## Shipped this run (round 79)
 
 - `vocal --amount 0..1` — partial center cancel keeps backing bleed; partial isolate blends toward center.

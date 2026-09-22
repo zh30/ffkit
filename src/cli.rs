@@ -671,6 +671,9 @@ pub struct LoudnormArgs {
     /// Measure-only: report I/TP/LRA in extras without writing a file
     #[arg(long)]
     pub measure: bool,
+    /// Dynamic normalization (per-frame gain) instead of the default linear offset
+    #[arg(long)]
+    pub dynamic: bool,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -867,6 +870,9 @@ pub struct ThumbArgs {
     /// Exact frame index instead of a timestamp
     #[arg(long)]
     pub frame: Option<u64>,
+    /// Grab N evenly-spaced stills instead of one (out_01.jpg … out_NN.jpg)
+    #[arg(long)]
+    pub count: Option<u32>,
     /// Scale the still to this width (height follows aspect)
     #[arg(long)]
     pub width: Option<u32>,
@@ -1467,6 +1473,12 @@ pub struct SheetArgs {
     /// Stamp each tile's source timestamp under it (review sheets)
     #[arg(long)]
     pub time: bool,
+    /// Sample tiles only from this time on (h:mm:ss or seconds)
+    #[arg(long)]
+    pub from: Option<String>,
+    /// ..up to this time (default: input end)
+    #[arg(long)]
+    pub to: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1941,7 +1953,7 @@ pub struct ArtArgs {
 pub struct SilenceArgs {
     pub input: PathBuf,
     #[arg(short, long)]
-    pub output: PathBuf,
+    pub output: Option<PathBuf>,
     /// Insert silence at this position, seconds (default 0 = leading pad)
     #[arg(long)]
     pub at: Option<f64>,
@@ -1950,7 +1962,16 @@ pub struct SilenceArgs {
     pub end: bool,
     /// Seconds of silence to insert
     #[arg(long)]
-    pub dur: f64,
+    pub dur: Option<f64>,
+    /// Report-only: list silence ranges in extras (no -o needed)
+    #[arg(long)]
+    pub detect: bool,
+    /// With --detect: noise floor dB (default -35)
+    #[arg(long, allow_hyphen_values = true)]
+    pub threshold: Option<f64>,
+    /// With --detect: minimum gap seconds (default 0.4)
+    #[arg(long)]
+    pub min: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

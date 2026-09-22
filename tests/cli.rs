@@ -11410,3 +11410,104 @@ fn insert_dur_splices_only_part_of_the_clip() {
     let d = p["probe"]["duration"].as_f64().unwrap();
     assert!((d - 1.5).abs() < 0.15, "duration {d} (1.0 + 0.5 splice)");
 }
+
+#[test]
+fn silence_detect_reports_ranges() {
+    let tmp = tempfile::tempdir().unwrap();
+    // 0.5s tone + trailing pad → one silence range near the tail
+    let gap = tmp.path().join("gap.aac");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.5",
+            "-af",
+            "apad",
+            "-t",
+            "1.2",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&gap)
+        .status()
+        .expect("ffmpeg");
+    assert!(st.success());
+    let j = run_json(&[
+        "silence",
+        gap.to_str().unwrap(),
+        "--detect",
+        "--threshold",
+        "-35",
+        "--min",
+        "0.2",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let ranges = j["extra"]["ranges"].as_array().unwrap();
+    assert_eq!(ranges.len(), 1);
+    assert!(ranges[0]["start"].as_f64().unwrap() > 0.4);
+}
+
+#[test]
+fn thumb_count_writes_n_stills() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("t.jpg");
+    let j = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--count",
+        "3",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let files = j["extra"]["files"].as_array().unwrap();
+    assert_eq!(files.len(), 3);
+    for f in files {
+        assert!(std::path::Path::new(f.as_str().unwrap()).is_file(), "{f}");
+    }
+}
+
+#[test]
+fn sheet_from_to_windows_the_samples() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("sh.png");
+    let j = run_json(&[
+        "sheet",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--cols",
+        "2",
+        "--rows",
+        "2",
+        "--from",
+        "0.2",
+        "--to",
+        "0.8",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert!(out.is_file());
+}
+
+#[test]
+fn loudnorm_dynamic_normalizes_per_frame() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("ln.mp4");
+    let j = run_json(&[
+        "loudnorm",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--dynamic",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["dynamic"], true);
+}

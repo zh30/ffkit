@@ -10,6 +10,29 @@ pub fn run(args: SilenceArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_audio {
         return Err(Error::input("silence: input has no audio stream"));
     }
+    if args.detect {
+        let threshold = args.threshold.unwrap_or(-35.0);
+        let min = args.min.unwrap_or(0.4);
+        let ranges = crate::silence::detect(&args.input, threshold, min, g.timeout, false)?;
+        return Ok(
+            Contract::ok("silence", None, Some(probe)).with_extra(json!({
+                "detect": true,
+                "threshold_db": threshold,
+                "min_duration": min,
+                "ranges": ranges
+                    .iter()
+                    .map(|(s, e)| json!({ "start": s, "end": e, "duration": e - s }))
+                    .collect::<Vec<_>>(),
+            })),
+        );
+    }
+    let dur = args
+        .dur
+        .ok_or_else(|| Error::input("silence needs --dur unless --detect"))?;
+    let output = args
+        .output
+        .as_ref()
+        .ok_or_else(|| Error::input("silence needs -o unless --detect"))?;
     if probe.has_video {
         return Err(Error::input(
             "silence pads audio only — use `freeze` to hold video frames",
@@ -20,7 +43,7 @@ pub fn run(args: SilenceArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         args.at.unwrap_or(0.0)
     };
-    if args.dur <= 0.0 {
+    if dur <= 0.0 {
         return Err(Error::input("--dur must be > 0"));
     }
     if at < 0.0 {
@@ -34,7 +57,6 @@ pub fn run(args: SilenceArgs, g: &Globals) -> Result<Contract, Error> {
         "stereo"
     };
     let sr = probe.sample_rate.unwrap_or(48000);
-    let dur = args.dur;
     let fc = format!(
         "[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[a0];\
          anullsrc=r={sr}:cl={cl},atrim=0:{dur:.3},asetpts=PTS-STARTPTS[a1];\
@@ -45,9 +67,9 @@ pub fn run(args: SilenceArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-filter_complex", &fc, "-map", "[aout]", "-c:a", "aac"]);
-    argv.push(&args.output);
+    argv.push(output);
 
-    let c = engine::write_job("silence", &[&args.input], &args.output, vec![argv], g)?;
+    let c = engine::write_job("silence", &[&args.input], output, vec![argv], g)?;
     Ok(c.with_extra(json!({
         "at": at,
         "dur": dur,

@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.106.0
+version: 0.107.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -37,7 +37,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | inspect | `doctor`, `probe`, `look` (`--tiles` / `--at`) |
 
 | trim / join | `cut`, `concat` (`--transition` any xfade, N clips, `--level -14` loudnorms each), `split` (`--every` story chunks, `--at` chapter points), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps) |
-| platform loudness | `loudnorm` (`--target`, `-I/--tp/--lra`; `--measure` report-only) |
+| platform loudness | `loudnorm` (`--target`, `-I/--tp/--lra`; `--measure` report-only, `--dynamic` per-frame) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur`), `zoom`, `--position` top/bottom/corners |
 
 | export | `deliver`, `transcode` (`--copy-audio`), `compress` (`--size 10MB` two-pass), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores`, `--target` platform sizes |
@@ -53,7 +53,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | faster/slower podcast | `tempo` (`--factor 1.5` — pitch held; video inputs: use `speed`), `--at/--dur` window |
 | voice all over the place | `leveler` (`--at`/`--dur` window, `--threshold`/`--ratio`/`--makeup` — `acompressor`) |
 | hiss between sentences | `gate` (`--threshold`, `--preset`, `--at/--dur` — `agate` closes on quiet parts) |
-| pad in room tone / breath | `silence` (`--at`, `--dur` — inserts quiet into audio files; video holds: `freeze`) |
+| pad in room tone / breath | `silence` (`--at`, `--dur` inserts quiet; `--detect` reports ranges; video holds: `freeze`) |
 | one-click look | `grade --preset cinematic|vivid|vintage|soft` (stacks under the sliders) |
 | karaoke / keep only the vocal | `vocal` (`--at`/`--dur` window, `--mode karaoke` drops the center, `isolate` keeps it — stereo only; `--amount` partial) |
 | container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart) |
@@ -83,7 +83,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | two-camera angle switching | `multicam` (`A B --at t1,t2,...` — run `align` first if the takes aren't synced) |
 | reframe 9:16 keeping faces | `crop` (`--aspect 9:16 --anchor top` keeps the face) |
 | attach album cover art | `art` (`--image cover.png`) → mp3/m4a/mp4/mkv, `--extract` pull cover out |
-| grab a cover/thumbnail frame | `thumb` (`--at` / `--frame`) → jpg/png |
+| grab a cover/thumbnail frame | `thumb` (`--at` / `--frame`, `--count N` even spreads) → jpg/png |
 | burn an .srt/.ass into pixels | `subs` (`--burn subs.srt` — libass), `--rate` drift fix, `--safe` social zone; `--convert` srt↔vtt |
 | split into exactly N parts | `split` (`--parts N` — equal-length grid) |
 | title that fades in/out | `title` (`--fade` secs — soft entry/exit, `--box` card) |
@@ -162,7 +162,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | YouTube/player chapters | `chapter` (`--at T|TITLE` repeatable, `--auto` silence gaps; lossless) |
 | punch-zoom a moment | `zoom` (`--factor`, `--at`/`--dur`) |
 | strip letterbox/pillarbox | `autocrop` (cropdetect scan → crop, `--buffer N` keeps N px edge) |
-| contact sheet / preview grid | `sheet` (`--cols`/`--rows`/`--tile` → PNG, `--time` stamps) |
+| contact sheet / preview grid | `sheet` (`--cols`/`--rows`/`--tile` → PNG, `--time` stamps, `--from`/`--to` window) |
 | title card mid-clip | `title` (`--text`, `--at` S for lower-third timing) |
 | voice-over on video's own audio | `replace --audio V --mix G --duck` (sidechain) |
 | pitch-shift voice/music | `pitch` (`--at`/`--dur` window, `--semitones N`, duration preserved) |

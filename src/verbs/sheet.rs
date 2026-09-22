@@ -11,8 +11,27 @@ pub fn run(args: SheetArgs, g: &Globals) -> Result<Contract, Error> {
     if args.cols == 0 || args.rows == 0 || args.cols * args.rows > 100 {
         return Err(Error::input("--cols x --rows must be 1..=100 tiles"));
     }
+    let t0 = args
+        .from
+        .as_deref()
+        .map(crate::time::parse_time)
+        .transpose()?
+        .unwrap_or(0.0);
+    let t1 = args
+        .to
+        .as_deref()
+        .map(crate::time::parse_time)
+        .transpose()?
+        .unwrap_or(probe.duration);
+    if t0 < 0.0 || t1 <= t0 || t0 >= probe.duration {
+        return Err(Error::input(
+            "--from/--to need 0 <= from < to within the input",
+        ));
+    }
+    let t1 = t1.min(probe.duration);
+    let span = t1 - t0;
     let n = (args.cols * args.rows) as f64;
-    let fps = n / probe.duration.max(0.05);
+    let fps = n / span;
     // Even tile size so h264-ish math stays sane; tiles shrink on huge inputs.
     let w = probe.width.unwrap_or(1280);
     let h = probe.height.unwrap_or(720);
@@ -26,8 +45,14 @@ pub fn run(args: SheetArgs, g: &Globals) -> Result<Contract, Error> {
         pad = args.pad.unwrap_or(6),
     );
     let mut argv = ffmpeg_base(g.progress);
+    if t0 > 0.0 {
+        argv.extend(["-ss", &crate::time::fmt_time(t0)]);
+    }
     argv.push("-i");
     argv.push(&args.input);
+    if t1 < probe.duration {
+        argv.extend(["-t", &format!("{span:.3}")]);
+    }
     argv.extend(["-vf", &vf, "-frames:v", "1"]);
     if args.time {
         // Two passes: tile → sheet.png in a tempdir, then overlay per-tile
@@ -49,7 +74,7 @@ pub fn run(args: SheetArgs, g: &Globals) -> Result<Contract, Error> {
         let mut fc = String::new();
         let mut cur = "0:v".to_string();
         for k in 0..n_tiles {
-            let secs = probe.duration * (k as f64 + 0.5) / n_tiles as f64;
+            let secs = t0 + span * (k as f64 + 0.5) / n_tiles as f64;
             let text = crate::time::fmt_time(secs.max(0.0));
             let img = crate::raster::render_caption_outlined(
                 &text,

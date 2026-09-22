@@ -54,7 +54,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             let meas = loudnorm::parse_measured(&spawn::stderr_str(&spawned))?;
             apply.extend([
                 "-af",
-                &loudnorm::apply_filter(TARGET_I, TARGET_TP, TARGET_LRA, &meas),
+                &loudnorm::apply_filter(TARGET_I, TARGET_TP, TARGET_LRA, &meas, false),
             ]);
             measured = Some(meas);
         } else {

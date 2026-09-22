@@ -70,7 +70,7 @@ pub fn run(args: LoudnormArgs, g: &Globals) -> Result<Contract, Error> {
         c = c.with_extra(json!({ "measured": meas }));
         return Ok(c);
     }
-    let second = apply_filter(i, tp, lra, &meas);
+    let second = apply_filter(i, tp, lra, &meas, args.dynamic);
 
     let mut apply = ffmpeg_base(g.progress);
     apply.push("-i");
@@ -90,6 +90,7 @@ pub fn run(args: LoudnormArgs, g: &Globals) -> Result<Contract, Error> {
         "target_i": i,
         "target_tp": tp,
         "measured": meas,
+        "dynamic": args.dynamic,
     }));
     Ok(contract)
 }
@@ -98,14 +99,21 @@ pub(crate) fn measure_filter(i: f64, tp: f64, lra: f64) -> String {
     format!("loudnorm=I={i}:TP={tp}:LRA={lra}:print_format=json")
 }
 
-pub(crate) fn apply_filter(i: f64, tp: f64, lra: f64, meas: &serde_json::Value) -> String {
+pub(crate) fn apply_filter(
+    i: f64,
+    tp: f64,
+    lra: f64,
+    meas: &serde_json::Value,
+    dynamic: bool,
+) -> String {
     format!(
-        "loudnorm=I={i}:TP={tp}:LRA={lra}:measured_I={}:measured_TP={}:measured_LRA={}:measured_thresh={}:offset={}:linear=true",
+        "loudnorm=I={i}:TP={tp}:LRA={lra}:measured_I={}:measured_TP={}:measured_LRA={}:measured_thresh={}:offset={}:linear={}",
         num(meas, "input_i"),
         num(meas, "input_tp"),
         num(meas, "input_lra"),
         num(meas, "input_thresh"),
         num(meas, "target_offset"),
+        if dynamic { "false" } else { "true" },
     )
 }
 

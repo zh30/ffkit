@@ -1,5 +1,7 @@
 use serde_json::json;
 
+use std::path::Path;
+
 use crate::cli::{Globals, ThumbArgs};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
@@ -26,6 +28,45 @@ pub fn run(args: ThumbArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("pass --at or --frame, not both"));
     }
 
+    if let Some(n) = args.count {
+        if args.at.is_some() || args.frame.is_some() {
+            return Err(Error::input("--count spreads frames; drop --at/--frame"));
+        }
+        if !(1..=50).contains(&n) {
+            return Err(Error::input("--count must be 1..=50"));
+        }
+        let stem = args
+            .output
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("thumb");
+        let parent = args.output.parent().filter(|p| !p.as_os_str().is_empty());
+        // fps=(n-0.5)/dur spaces the picks across ~95% of the clip; a higher
+        // rate lands the last pts past EOF and drops a frame.
+        let fps = (n as f64 - 0.5).max(0.5) / probe.duration.max(0.05);
+        let files: Vec<String> = (1..=n)
+            .map(|k| {
+                let name = format!("{stem}_{k:02}.{ext}");
+                match parent {
+                    Some(d) => d.join(name).display().to_string(),
+                    None => name,
+                }
+            })
+            .collect();
+        let mut argv = ffmpeg_base(g.progress);
+        argv.push("-i");
+        argv.push(&args.input);
+        let scale = args
+            .width
+            .map(|w| format!(",scale={w}:-2"))
+            .unwrap_or_default();
+        argv.extend(["-vf", &format!("fps={fps:.6}{scale}")]);
+        argv.extend(["-frames:v", &n.to_string()]);
+        argv.push(files[0].replacen("_01.", "_%02d.", 1));
+        // write_job verifies files[0] (the first still); extras lists them all.
+        let c = engine::write_job("thumb", &[&args.input], Path::new(&files[0]), vec![argv], g)?;
+        return Ok(c.with_extra(json!({ "count": n, "files": files })));
+    }
     let mut argv = ffmpeg_base(g.progress);
     match (args.at.as_deref(), args.frame) {
         (Some(at), None) => {

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.107.0] — 2026-09-22
+
+### Added
+- `silence --detect [--threshold --min]` — report-only silence ranges in JSON extras (no `-o`), for planning cuts before `split --silence`/`jumpcut`.
+- `thumb --count N` — write N evenly-spaced stills (`stem_01..NN.ext`); `fps=(n-0.5)/dur` keeps every pick before EOF.
+- `sheet --from/--to` — sample the contact sheet only within a window; `--time` stamps re-anchor to the window.
+- `loudnorm --dynamic` — per-frame dynamic normalization (`linear=false` on the two-pass apply) for speech that a linear offset pumps on.
+
 ## [0.106.0] — 2026-09-22
 
 ### Added
