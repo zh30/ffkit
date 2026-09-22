@@ -109,7 +109,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `transcode` | Presets `h264` / `webm` / `gif` |
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
+
 | `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`) |
+
 | `split` | `--every` regular parts, `--at` explicit, `--scenes` shot-detection | Chop into parts (`--every 30` even chunks, or `--at 30,90` chapter points) → `stem_00..` |
 | `slideshow` | Still images → video montage (`--per`, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed, `--size` canvas) |
 | `speed` | `--factor 2` is 2×; talking-head keeps pitch |
