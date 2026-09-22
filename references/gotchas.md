@@ -194,3 +194,11 @@ branch stalls at ~1 frame and `shortest=1` then ends the whole output.
 One-pass `loudnorm` outputs at its internal rate (seen: 96 kHz output from 48 kHz
 input). Any conform/normalize chain must put `aresample` AFTER loudnorm, not
 before. `conform` does `loudnorm=…,aresample=48000,aformat=…` in that order.
+
+## karaoke / audio windows
+
+`caption --karaoke` renders one PNG per word step (cap 200 steps) — each shows
+words 1..=k, enabled over an even slice of the cue. `denoise --at`/`leveler --at`
+route through `engine::audio_window` like eq/reverb/fx: dry feed ducked to 0 in
+the window, FX trim+delayed into place — required on ffmpeg 4.4 where audio
+filters ignore `enable`.

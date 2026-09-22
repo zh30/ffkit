@@ -103,9 +103,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `extract` | 抓静帧或 `--gif` 动图 | `--at`、`--dur`、`--width`、`--fps` |
 | `overlay` | logo/画中画；`--tile N` 全屏草稿水印 | logo、水印、画中画 | `--angle`
 | `broll` | 切入镜头（`--insert` 视频、`--still` 图片、`--motion kenburns` 推镜） | 切走 B-roll（`--insert --at --duration`）；口播声音和时长不变 |
-| `caption` | 烧录/封装 `.srt`；`--chunk` 分词、`--shift` 整体平移、`--position top` 置顶 | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass）；`--safe social` 避开底部 20%；`--chunk N` 按 ≤N 词切分字幕（`--outline` 描边） |
+| `caption` | 烧录字幕（`--srt`、`--chunk`、`--karaoke` 逐词浮现） |
 | `loudnorm` | EBU R128 两遍（`-I -14` 社交，`-I -16` 播客） |
-| `denoise` | 人声降噪（风扇/轰隆/嘶嘶声）；`--video` 顺带画面去噪点 |
+| `denoise` | 音频降噪（`--strength`、`--highpass`、`--at/--dur` 窗口） |
 | `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`） | 预设 `h264`/`webm`/`gif`/`hevc`；`--fps` 也可给视频变速帧率 |
 | `compress` | 两遍编码压到 `--size 10MB`（Discord、WhatsApp 16MB、邮箱约 25MB） |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
@@ -160,7 +160,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `spectrogram` | 音频频谱图 → PNG（`--size`），清理前先看嗡鸣/噪声（`--color` magma/viridis…） |
 | `dehum` | 消除市电嗡鸣 `--mains 50|60` + `--harmonics`（Q=12 `equalizer` 陷波链） |
 | `tempo` | 音频变速 `--factor` 0.5–8，不变调（`atempo` 链；视频请用 `speed`） |
-| `leveler` | 人声动态压缩（忽大忽小）：`--threshold`/`--ratio`/`--makeup`（`--preset` voice/podcast/master） |
+| `leveler` | 动态压平（`--preset`、`--at/--dur` 窗口） |
 | `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`）（`--preset voice|podcast|studio`） |
 | `silence` | 在 `--at` 处插入 `--dur` 秒静音，或 `--end` 追加片尾静音 |
 | `vocal` | `--mode karaoke` 消中置人声、`isolate` 只留中置（需立体声源） |

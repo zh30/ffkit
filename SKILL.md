@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.85.0
+version: 0.86.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -40,7 +40,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | frame / size | `fit` (`--fit pad` / `crop` / `blur`), `zoom` |
 
 | export | `deliver`, `transcode` (`--copy-audio`), `compress` (`--size 10MB` two-pass), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split` |
-| captions / mute | `caption` (`--mode burn` social safe-zone, `--chunk N` word groups, or `--mode mux`) |
+| captions / mute | `caption` (`--karaoke` word reveal, `--mode burn` social safe-zone, `--chunk N` word groups, or `--mode mux`) |
 | hook text | `title` |
 | cover still | `cover` |
 
@@ -50,7 +50,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | audio spectrogram PNG | `spectrogram` (`--size`) — inspect hum/noise before cleanup |
 | mains hum / electrical buzz | `dehum` (`--mains 50|60`, `--harmonics`) — notches the fundamental + harmonics |
 | faster/slower podcast | `tempo` (`--factor 1.5` — pitch held; video inputs: use `speed`) |
-| voice all over the place | `leveler` (`--threshold`/`--ratio`/`--makeup` — `acompressor`) |
+| voice all over the place | `leveler` (`--at`/`--dur` window, `--threshold`/`--ratio`/`--makeup` — `acompressor`) |
 | hiss between sentences | `gate` (`--threshold` dB — `agate` closes on quiet parts) |
 | pad in room tone / breath | `silence` (`--at`, `--dur` — inserts quiet into audio files; video holds: `freeze`) |
 | one-click look | `grade --preset cinematic|vivid|vintage|soft` (stacks under the sliders) |

@@ -91,16 +91,43 @@ fn burn_overlay(
         return Err(Error::input("--size must be 0.25..8"));
     }
 
+    // karaoke: each cue becomes a word-by-word reveal — one PNG per step,
+    // the window split evenly across the cue's time.
+    let mut jobs: Vec<(f64, f64, String)> = Vec::new();
+    for cue in &cues {
+        if args.karaoke {
+            let words: Vec<&str> = cue.text.split_whitespace().collect();
+            if words.len() > 1 {
+                let wd = (cue.end - cue.start) / words.len() as f64;
+                for (k, _) in words.iter().enumerate() {
+                    let end = if k + 1 == words.len() {
+                        cue.end
+                    } else {
+                        cue.start + (k + 1) as f64 * wd
+                    };
+                    jobs.push((cue.start + k as f64 * wd, end, words[..=k].join(" ")));
+                }
+                continue;
+            }
+        }
+        jobs.push((cue.start, cue.end, cue.text.clone()));
+    }
+    if jobs.len() > 200 {
+        return Err(Error::input(
+            "karaoke burn supports at most 200 word steps; split the srt or use graph",
+        ));
+    }
+
     let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
     let mut pngs = Vec::new();
     let outline = match &args.outline {
         Some(c) => Some((caption_hex(c)?, 3u32)),
         None => None,
     };
-    for (i, cue) in cues.iter().enumerate() {
+    for (i, (_, _, text)) in jobs.iter().enumerate() {
         let img = match outline {
             Some(oc) => crate::raster::render_caption_outlined(
-                &cue.text,
+                text,
                 &font_bytes,
                 vw,
                 cap_fg,
@@ -108,7 +135,7 @@ fn burn_overlay(
                 oc,
             )?,
             None => crate::raster::render_caption_styled(
-                &cue.text,
+                text,
                 &font_bytes,
                 vw,
                 cap_fg,
@@ -132,18 +159,18 @@ fn burn_overlay(
     let y = overlay_y(args.safe, args.position);
     let mut fc = String::new();
     let mut last = "0:v".to_string();
-    for (i, cue) in cues.iter().enumerate() {
+    for (i, (start, end, _)) in jobs.iter().enumerate() {
         let ov_idx = i + 1;
-        let out_lab = if i + 1 == cues.len() {
+        let out_lab = if i + 1 == jobs.len() {
             "vout".to_string()
         } else {
             format!("v{i}")
         };
         fc.push_str(&format!(
             "[{last}][{ov_idx}:v]overlay=x=(W-w)/2:y={y}:enable='between(t,{:.3},{:.3})'[{out_lab}]",
-            cue.start, cue.end
+            start, end
         ));
-        if i + 1 != cues.len() {
+        if i + 1 != jobs.len() {
             fc.push(';');
         }
         last = out_lab;

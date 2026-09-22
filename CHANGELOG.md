@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.86.0] — 2026-09-22
+
+### Added
+
+- `caption --karaoke` — word-by-word caption reveal inside each cue.
+- `denoise --at/--dur` — windowed noise cleanup.
+- `leveler --at/--dur` — windowed compression.
+
+
+## [Unreleased]
+
 ## [0.85.0] — 2026-09-22
 
 ### Added

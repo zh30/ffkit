@@ -9490,3 +9490,77 @@ fn subs_merge_combines_cues() {
     let body = std::fs::read_to_string(&out).unwrap();
     assert!(body.contains("A") && body.contains("B"));
 }
+
+#[test]
+fn denoise_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "denoise",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--dur",
+        "0.3",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn leveler_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "leveler",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--dur",
+        "0.3",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn caption_karaoke_reveals_words() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let srt = dir.join("c.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,100 --> 00:00:00,600\nhello dark world\n\n",
+    )
+    .unwrap();
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--karaoke",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

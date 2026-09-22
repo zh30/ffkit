@@ -488,6 +488,9 @@ pub struct CaptionArgs {
     /// Shift every cue by SEC (negative pulls captions earlier)
     #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
     pub shift: f64,
+    /// Karaoke-style word-by-word reveal inside each cue (burn only)
+    #[arg(long)]
+    pub karaoke: bool,
     /// Burn-in placement: bottom (default) or top of frame
     #[arg(long, value_enum, default_value_t = CaptionPosition::Bottom)]
     pub position: CaptionPosition,
@@ -534,6 +537,12 @@ pub struct DenoiseArgs {
     /// Also run hqdn3d on the picture (grainy footage)
     #[arg(long)]
     pub video: bool,
+    /// Denoise only inside this window (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1681,6 +1690,12 @@ pub struct LevelerArgs {
     /// One-click compression curve: voice|podcast|master — fills the knobs
     #[arg(long, value_enum)]
     pub preset: Option<LevelerPreset>,
+    /// Level only inside this window (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]

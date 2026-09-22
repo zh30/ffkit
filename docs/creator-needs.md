@@ -224,3 +224,6 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `concat --audio-fade` (acrossfade between clips)
 - [ ] `caption --karaoke` word-by-word
 - [ ] `broll --position` PiP corner
+- [ ] `timer --box` backing card
+- [ ] `grid --audio` exists; `grid --labels` done — `grid --time`? (n/a, multi-input)
+- [ ] `progress --position`

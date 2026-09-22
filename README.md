@@ -103,9 +103,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `extract` | Still frame or `--gif` clip | `--at`, `--dur`, `--width`, `--fps` |
 | `overlay` | Image/video overlay; position/scale/`--tile`, `--fade`, `--angle`, `--at`/`--dur`, `--mode`, `--opacity` blend composite | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture |
 | `broll` | Cutaway insert (`--insert` video, `--still` image, `--motion kenburns`) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay |
-| `caption` | SRT burn (`--mode`, `--safe`, `--chunk`, `--shift`, `--color`, `--size`, `--position`) | Burn/mux `.srt`; `--chunk` word groups, `--shift` timing nudge | `--mode mux` soft subs; `burn` overlay raster (no libass); `--safe social` clears the bottom 20%; `--chunk N` splits cues into ≤N-word groups (`--outline` glyph stroke) |
+| `caption` | Burn subtitles (`--srt`, `--chunk`, `--karaoke` word reveal) |
 | `loudnorm` | EBU R128 two-pass (`-I -14` social, `-I -16` podcast) |
-| `denoise` | Voice cleanup (fan / rumble / hiss); `--video` also degrains the picture |
+| `denoise` | Audio cleanup (`--strength`, `--highpass`, `--at/--dur` window) |
 | `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`) | Presets `h264` / `webm` / `gif` / `hevc`; `--fps` retimes video too |
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
@@ -160,7 +160,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup (`--color` magma/viridis…) |
 | `dehum` | Notch mains hum `--mains 50|60` + `--harmonics` (Q=12 `equalizer` chain) |
 | `tempo` | Speed audio `--factor` 0.5–8, pitch held (`atempo` chain; use `speed` for video) |
-| `leveler` | Voice dynamic-range compressor (`--threshold`/`--ratio`/`--makeup`) (`--preset` voice/podcast/master) |
+| `leveler` | Compress dynamics (`--preset`, `--at/--dur` window) |
 | `gate` | Noise gate — silence below `--threshold` dB (`agate`) (`--preset voice|podcast|studio`) |
 | `silence` | Insert `--dur` secs of silence at `--at`, or append with `--end` |
 | `vocal` | `--mode karaoke` drops centered vocals; `isolate` keeps the center (stereo) |
