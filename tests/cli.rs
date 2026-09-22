@@ -7467,3 +7467,103 @@ fn fit_pad_color_fills_bars() {
         "top pad bar should be red: {p:?}"
     );
 }
+
+#[test]
+fn subs_burn_takes_style_overrides() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("s.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,800\nHI\n").unwrap();
+    let out = dir.path().join("burn.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--size",
+        "30",
+        "--color",
+        "ff0000",
+        "--top",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn audiogram_bg_replaces_default_backdrop() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let aud = dir.path().join("a.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=440:duration=0.5")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        aud.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--bg",
+        "ff0000",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn overlay_opacity_blends_image() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let logo = dir.path().join("logo.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=0xff0000:s=64x64:d=1")
+        .args(["-frames:v", "1"])
+        .arg(&logo)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("ov.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--image",
+        logo.to_str().unwrap(),
+        "--opacity",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

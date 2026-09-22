@@ -74,6 +74,13 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
             ),
             "ovl",
         )
+    } else if args.image.is_some() && args.opacity < 1.0 && args.mode.is_none() {
+        // subtle watermark: scale + alpha on the still itself
+        let op = args.opacity.clamp(0.0, 1.0);
+        (
+            format!("[1:v]format=rgba,colorchannelmixer=aa={op:.3}[ovl];"),
+            "ovl",
+        )
     } else {
         (String::new(), "1:v")
     };

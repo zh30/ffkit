@@ -60,9 +60,25 @@ fn burn(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract
         .replace(',', "\\,")
         .replace('[', "\\[")
         .replace(']', "\\]");
-    let style = "FontName=Sans,FontSize=18,PrimaryColour=&H00FFFFFF,\
+    let size = args.size.unwrap_or(18.0).clamp(6.0, 96.0);
+    // ASS hex is &HAABBGGRR — flip the RRGGBB flag arg
+    let color = match &args.color {
+        Some(c) => {
+            let h = c.trim_start_matches('#').trim_start_matches("0x");
+            if h.len() == 6 {
+                format!("&H00{}{}{}", &h[4..6], &h[2..4], &h[0..2])
+            } else {
+                return Err(Error::input("--color must be RRGGBB hex"));
+            }
+        }
+        None => "&H00FFFFFF".to_string(),
+    };
+    let align = if args.top { 8 } else { 2 };
+    let style = format!(
+        "FontName=Sans,FontSize={size},PrimaryColour={color},\
 OutlineColour=&H80000000,BorderStyle=1,Outline=1,Shadow=0,\
-MarginV=36,Alignment=2";
+MarginV=36,Alignment={align}"
+    );
     let vf = format!("subtitles=filename='{path}':force_style='{style}'");
 
     let mut argv = ffmpeg_base(g.progress);

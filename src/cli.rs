@@ -520,6 +520,9 @@ pub struct AudiogramArgs {
     /// Waveform colour (ffmpeg name or 0xRRGGBB)
     #[arg(long, default_value = "white")]
     pub color: String,
+    /// Background colour when no --image (name or 0xRRGGBB, default 101418)
+    #[arg(long)]
+    pub bg: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -659,6 +662,15 @@ pub struct SubsArgs {
     /// Shift every cue of an .srt by ±N seconds (input = .srt, output = .srt)
     #[arg(long, allow_hyphen_values = true)]
     pub shift: Option<f64>,
+    /// Burned subtitle font size (default 18)
+    #[arg(long)]
+    pub size: Option<f64>,
+    /// Burned subtitle color (RRGGBB hex, default white)
+    #[arg(long)]
+    pub color: Option<String>,
+    /// Burned subtitles on top instead of bottom
+    #[arg(long)]
+    pub top: bool,
 }
 
 #[derive(clap::Args, Debug)]

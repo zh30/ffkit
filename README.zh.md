@@ -110,7 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | 两遍编码压到 `--size 10MB`（Discord、WhatsApp 16MB、邮箱约 25MB） |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 
-| `audiogram` | 播客音频 → 9:16 波形视频（`--image` 封面，`--mode`/`--color` 波形样式） |
+| `audiogram` | 播客音频 → 9:16 波形视频（`--image` 封面，`--mode`/`--color`、`--bg` 波形样式） |
 
 | `split` | 切成分段（`--every` 等长、`--at` 章节点、`--scenes` 镜头、`--size` 大小、`--parts N` 等分）→ `stem_00..` |
 | `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐、`--size` 画布） |

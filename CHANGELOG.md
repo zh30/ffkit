@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.62.0] - 2026-09-22
+
+- `subs --burn` style overrides: `--size` (FontSize), `--color` (RRGGBB → ASS `&H00BBGGRR`), `--top` (Alignment 8 vs 2).
+- `audiogram --bg` — backdrop color when no `--image` cover (name or hex, default `0x101418`).
+- `overlay --opacity` now works on `--image` stills too — `format=rgba,colorchannelmixer=aa=N` pre-chain for subtle watermarks (was `--mode`-only).
+
 ## [0.61.0] - 2026-09-22
 
 - `cut --drop "a-b,c-d"` — remove middle sections, keep the rest joined (complement of `--ranges`; same N-trim + concat path).

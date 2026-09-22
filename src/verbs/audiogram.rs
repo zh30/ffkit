@@ -26,7 +26,18 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-loop", "1", "-i"]);
         argv.push(img);
     } else {
-        argv.extend(["-f", "lavfi", "-i", "color=c=0x101418:s=1080x1920:r=30"]);
+        let bg = args.bg.clone().unwrap_or_else(|| "0x101418".to_string());
+        let bg = if bg.starts_with("0x") || bg.chars().all(|c| c.is_ascii_alphabetic()) {
+            bg
+        } else {
+            format!("0x{}", bg.trim_start_matches('#'))
+        };
+        argv.extend([
+            "-f",
+            "lavfi",
+            "-i",
+            &format!("color=c={bg}:s=1080x1920:r=30"),
+        ]);
     }
 
     // Waveform sits in the lower-middle band — clear of Reels/TikTok top and
