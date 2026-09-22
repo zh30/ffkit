@@ -1039,6 +1039,12 @@ pub struct LoopArgs {
     /// Repeat until the output is this long in seconds (overrides --times)
     #[arg(long)]
     pub until: Option<f64>,
+    /// Loop only this section, keep the rest once (needs --to or loops to end)
+    #[arg(long)]
+    pub from: Option<String>,
+    /// Section end (needs --from)
+    #[arg(long)]
+    pub to: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1168,6 +1174,12 @@ pub struct ReverbArgs {
     /// Wet tail amount (0..0.9; 0.3 ≈ subtle room)
     #[arg(long, default_value_t = 0.3)]
     pub wet: f64,
+    /// Start the reverb only here (echo on the hook)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Stop the reverb after this many seconds (needs --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -1195,6 +1207,12 @@ pub struct EqArgs {
     /// One-shot curve: voice|podcast|bright|bass (flags still apply on top)
     #[arg(long, value_enum)]
     pub preset: Option<EqPreset>,
+    /// Apply the EQ only from here (bass boost on the drop)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Stop after this many seconds (needs --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

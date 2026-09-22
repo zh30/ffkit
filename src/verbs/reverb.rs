@@ -27,10 +27,30 @@ pub fn run(args: ReverbArgs, g: &Globals) -> Result<Contract, Error> {
         .join("|");
     let af = format!("aecho=0.8:0.88:{delays}:{decays}");
 
+    let fc = match &args.at {
+        Some(raw) => {
+            let at = crate::time::parse_time(raw)?;
+            if !(0.0..probe.duration).contains(&at) {
+                return Err(Error::input("--at is outside the input"));
+            }
+            Some(engine::audio_window(&af, at, args.dur))
+        }
+        None => {
+            if args.dur.is_some() {
+                return Err(Error::input("--dur needs --at"));
+            }
+            None
+        }
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    argv.extend(["-af", &af, "-map", "0:v?", "-map", "0:a"]);
+    match &fc {
+        Some(fc) => {
+            argv.extend(["-filter_complex", fc, "-map", "0:v?", "-map", "[aout]"]);
+        }
+        None => argv.extend(["-af", &af, "-map", "0:v?", "-map", "0:a"]),
+    }
     if probe.has_video {
         argv.extend(["-c:v", "copy"]);
     }

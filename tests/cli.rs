@@ -8521,10 +8521,10 @@ fn boomerang_times_repeats_cycle() {
         "2",
     ]);
     assert_eq!(v["status"], "ok", "{v}");
-    let dur = v["extra"]["probe"]["duration"].as_f64().unwrap_or(0.0);
+    let dur = v["probe"]["duration"].as_f64().unwrap_or(0.0);
     assert!(
-        dur > 1.6,
-        "boomerang --times 2 should ~2x duration, got {dur}"
+        dur > 3.5,
+        "boomerang --times 2 = 2 full fwd+rev cycles, got {dur}"
     );
 }
 
@@ -8619,4 +8619,106 @@ fn gate_preset_voice() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
     assert_eq!(v["extra"]["threshold_db"], -40.0);
+}
+
+#[test]
+fn reverb_at_windows_the_tail() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("rv.m4a");
+    let v = run_json(&[
+        "reverb",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--wet",
+        "0.6",
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn eq_at_windows_the_boost() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("eq.m4a");
+    let v = run_json(&[
+        "eq",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--bass",
+        "8",
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn loop_section_repeats_only_the_middle() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("lp.mp4");
+    let v = run_json(&[
+        "loop",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--from",
+        "0.2",
+        "--to",
+        "0.6",
+        "--times",
+        "3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let dur = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    // 0.2 head + 0.4x3 section + 0.4 tail = 1.8s from the 1s fixture
+    assert!(dur > 1.5, "looped section should make ~1.8s, got {dur}");
 }

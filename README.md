@@ -129,8 +129,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `pitch` | `--semitones N` voice/music shift, duration preserved |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap` |
-| `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB |
-| `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` |
+| `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) |
+| `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window) |
 | `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio (`--kind`, `--strength`, `--at`/`--dur`) |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip` |
 | `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window |
@@ -144,7 +144,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cover` | 9:16 cover still (1080×1920) |
 | `fade` | Video and audio fade (`--in` / `--out`, `--color` e.g. white) |
 | `title` | On-screen hook/caption PNG (`--at`, `--position` incl. corners, `--fade`, `--outline`, `--shadow`) |
-| `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) |
+| `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section) |
 | `stabilize` | Handheld deshake |
 | `reverse` | Play picture and sound backwards |
 | `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm` | Presets `cinematic`/`vivid`/`vintage`/`soft` stack under the sliders; `--lut look.cube` applies a 3D LUT | `--at`/`--dur`

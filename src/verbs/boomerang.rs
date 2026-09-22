@@ -30,13 +30,19 @@ pub fn run(args: BoomerangArgs, g: &Globals) -> Result<Contract, Error> {
     let mut fc = seg.join(";");
     let (vmap, amap) = if args.times > 1 {
         let n = args.times - 1;
+        // loop=size=0 is a silent no-op: the filter needs an explicit frame
+        // buffer covering the whole fwd+rev stream (2x input duration).
+        let frames = ((probe.duration * 2.0 * probe.fps.unwrap_or(30.0)).ceil() as u32) + 2;
         if probe.has_audio {
+            let samples = ((probe.duration * 2.0 * probe.sample_rate.unwrap_or(44100) as f64).ceil()
+                as u32)
+                + 2;
             fc.push_str(&format!(
-                ";[vout]loop=loop={n}:size=0[vl];[aout]aloop=loop={n}:size=0[al]"
+                ";[vout]loop=loop={n}:size={frames}[vl];[aout]aloop=loop={n}:size={samples}[al]"
             ));
             ("[vl]", "[al]")
         } else {
-            fc.push_str(&format!(";[vout]loop=loop={n}:size=0[vl]"));
+            fc.push_str(&format!(";[vout]loop=loop={n}:size={frames}[vl]"));
             ("[vl]", "[aout]")
         }
     } else {

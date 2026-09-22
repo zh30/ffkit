@@ -100,3 +100,21 @@ pub fn need_video(probe: &Probe, tool: &str) -> Result<(), Error> {
 pub fn probe_or_err(path: &Path, g: &Globals) -> Result<Probe, Error> {
     probe::probe(path, g.timeout.min(Duration::from_secs(120)))
 }
+
+/// Audio window for filters that lack timeline `enable` (ffmpeg 4.4 applies
+/// it to most audio FX): dry feed is ducked to 0 inside [at, end), the FX
+/// chain runs on the whole input and its window is trimmed/delayed into place.
+/// `dur=None` = to input end. Emits a filter_complex body ending in `[aout]`.
+pub fn audio_window(fx: &str, at: f64, dur: Option<f64>) -> String {
+    let (gate, slice) = match dur {
+        Some(d) => (
+            format!("1-between(t,{at:.3},{:.3})", at + d),
+            format!("atrim=start={at:.3}:duration={d:.3}"),
+        ),
+        None => (format!("lt(t,{at:.3})"), format!("atrim=start={at:.3}")),
+    };
+    format!(
+        "[0:a]asplit=2[d][w];[d]volume='{gate}':eval=frame[dout];[w]{fx},{slice},asetpts=PTS-STARTPTS,adelay={:.0}:all=1[wx];[dout][wx]amix=inputs=2:duration=first:normalize=0[aout]",
+        at * 1000.0
+    )
+}

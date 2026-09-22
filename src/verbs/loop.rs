@@ -29,6 +29,9 @@ pub fn run(args: LoopArgs, g: &Globals) -> Result<Contract, Error> {
         None => args.times,
     };
     paths::ensure_input(&args.input)?;
+    if args.from.is_some() || args.to.is_some() {
+        return section(args, g, times);
+    }
     let mut list = tempfile::NamedTempFile::new().map_err(|e| Error::output(e.to_string()))?;
     let abs = paths::abs(&args.input);
     let escaped = abs.to_string_lossy().replace('\'', "'\\''");
@@ -52,4 +55,49 @@ pub fn run(args: LoopArgs, g: &Globals) -> Result<Contract, Error> {
     let c = result?;
     Ok(c.with_extra(json!({ "times": times,
         "until": args.until })))
+}
+
+/// Loop only [from, to] and keep the rest once: three concat arms —
+/// head, the looped section (v loop / a aloop), tail.
+fn section(args: LoopArgs, g: &Globals, times: u32) -> Result<Contract, Error> {
+    let probe = engine::probe_or_err(&args.input, g)?;
+    let from = match &args.from {
+        Some(raw) => crate::time::parse_time(raw)?,
+        None => 0.0,
+    };
+    let to = match &args.to {
+        Some(raw) => crate::time::parse_time(raw)?,
+        None => probe.duration,
+    };
+    if from >= to || to > probe.duration + 0.001 {
+        return Err(Error::input(format!(
+            "section {from}..{to} is outside 0..{:.3}",
+            probe.duration
+        )));
+    }
+    let n = times.saturating_sub(1).max(1);
+    // loop=size=0 is a silent no-op; buffer must cover the whole section.
+    let seg_frames = (((to - from) * probe.fps.unwrap_or(30.0)).ceil() as u32) + 2;
+    let seg_samples = (((to - from) * probe.sample_rate.unwrap_or(44100) as f64).ceil() as u32) + 2;
+    let mut fc = format!(
+        "[0:v]trim=0:{from:.3},setpts=PTS-STARTPTS[v0];         [0:v]trim=start={from:.3}:end={to:.3},setpts=PTS-STARTPTS,loop=loop={n}:size={seg_frames}[v1];         [0:v]trim=start={to:.3},setpts=PTS-STARTPTS[v2];         [v0][v1][v2]concat=n=3:v=1:a=0[vout]"
+    );
+    if probe.has_audio {
+        fc.push_str(&format!(
+            ";[0:a]atrim=0:{from:.3},asetpts=PTS-STARTPTS[a0];             [0:a]atrim=start={from:.3}:end={to:.3},asetpts=PTS-STARTPTS,aloop=loop={n}:size={seg_samples}[a1];             [0:a]atrim=start={to:.3},asetpts=PTS-STARTPTS[a2];             [a0][a1][a2]concat=n=3:v=0:a=1[aout]"
+        ));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
+    if probe.has_audio {
+        argv.extend(["-map", "[aout]", "-c:a", "aac"]);
+    }
+    argv.extend([
+        "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+    ]);
+    argv.push(&args.output);
+    let c = engine::write_job("loop", &[&args.input], &args.output, vec![argv], g)?;
+    Ok(c.with_extra(json!({ "times": times, "from": from, "to": to })))
 }

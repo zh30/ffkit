@@ -47,17 +47,7 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
             if !(0.0..probe.duration).contains(&at) {
                 return Err(Error::input("--at is outside the input"));
             }
-            let (gate, slice) = match args.dur {
-                Some(d) if at + d < probe.duration => (
-                    format!("1-between(t,{at:.3},{:.3})", at + d),
-                    format!("atrim=start={at:.3}:duration={d:.3}"),
-                ),
-                _ => (format!("lt(t,{at:.3})"), format!("atrim=start={at:.3}")),
-            };
-            Some(format!(
-                "[0:a]asplit=2[d][w];[d]volume='{gate}':eval=frame[dout];[w]{af},{slice},asetpts=PTS-STARTPTS,adelay={:.0}:all=1[wx];[dout][wx]amix=inputs=2:duration=first:normalize=0[aout]",
-                at * 1000.0
-            ))
+            Some(engine::audio_window(&af, at, args.dur))
         }
         None => {
             if args.dur.is_some() {

@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.76.0] - 2026-09-22
+
+- `reverb --at/--dur`, `eq --at/--dur` — windowed audio FX via the new shared `engine::audio_window` (dry-duck + wet-delay + amix), extracted from `fx`.
+- `loop --from/--to` — loops only the middle section and keeps head/tail once (three concat arms; reencodes since it can't stream-copy).
+- Fix: `loop=...:size=0` is a silent no-op — the filter needs an explicit frame/sample buffer. `boomerang --times` was silently emitting one cycle; buffer sizes now derive from probe fps/sample_rate.
+
 ## [0.75.0] - 2026-09-22
 
 - `fx --kind` +`echo` (aecho), `lofi` (acrusher + lowpass), `radio` (telephone bandpass + compressor).
