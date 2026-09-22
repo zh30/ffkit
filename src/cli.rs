@@ -491,6 +491,9 @@ pub struct CaptionArgs {
     /// Karaoke-style word-by-word reveal inside each cue (burn only)
     #[arg(long)]
     pub karaoke: bool,
+    /// Filled card behind each caption: RRGGBB hex or color name
+    #[arg(long)]
+    pub box_color: Option<String>,
     /// Burn-in placement: bottom (default) or top of frame
     #[arg(long, value_enum, default_value_t = CaptionPosition::Bottom)]
     pub position: CaptionPosition,
@@ -859,6 +862,9 @@ pub struct ReplaceArgs {
     /// With --mix: sidechain-duck the original under the new audio (voice-over)
     #[arg(long)]
     pub duck: bool,
+    /// Loop the replacement audio if it is shorter than the video
+    #[arg(long = "loop")]
+    pub loop_track: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1569,6 +1575,9 @@ pub struct TimerArgs {
     /// Display format: hms (auto) or ms (mm:ss.cc centiseconds)
     #[arg(long, value_enum, default_value_t = TimerFormat::Hms)]
     pub format: TimerFormat,
+    /// Filled card behind the digits: RRGGBB hex or color name
+    #[arg(long)]
+    pub box_color: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]

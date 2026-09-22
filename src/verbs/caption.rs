@@ -142,6 +142,17 @@ fn burn_overlay(
                 args.size as f32,
             )?,
         };
+        let mut img = img;
+        if let Some(bc) = &args.box_color {
+            let [r, g_, b_] = crate::color::rgb(bc)?;
+            let pad = (img.height() / 2).max(8);
+            let mut card = image::RgbaImage::new(img.width() + 2 * pad, img.height() + pad);
+            for px in card.pixels_mut() {
+                *px = image::Rgba([r, g_, b_, 200]);
+            }
+            image::imageops::overlay(&mut card, &img, pad as i64, (pad / 2) as i64);
+            img = card;
+        }
         let png = tmp.path().join(format!("c{i}.png"));
         img.save(&png)
             .map_err(|e| Error::output(format!("write caption png: {e}")))?;

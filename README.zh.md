@@ -103,7 +103,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `extract` | 抓静帧或 `--gif` 动图 | `--at`、`--dur`、`--width`、`--fps` |
 | `overlay` | logo/画中画；`--tile N` 全屏草稿水印 | logo、水印、画中画 | `--angle`
 | `broll` | 切入镜头（`--insert` 视频、`--still` 图片、`--motion kenburns` 推镜） | 切走 B-roll（`--insert --at --duration`）；口播声音和时长不变 |
-| `caption` | 烧录字幕（`--srt`、`--chunk`、`--karaoke` 逐词浮现） |
+| `caption` | 烧录字幕（`--srt`、`--chunk`、`--karaoke`、`--box-color` 底板） |
 | `loudnorm` | EBU R128 两遍（`-I -14` 社交，`-I -16` 播客） |
 | `denoise` | 音频降噪（`--strength`、`--highpass`、`--at/--dur` 窗口） |
 | `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`） | 预设 `h264`/`webm`/`gif`/`hevc`；`--fps` 也可给视频变速帧率 |
@@ -138,7 +138,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `subs` | 字幕抽取/软封装/压制/移位（`--merge` 合并双语 .srt） |
 | `thumb` | 抓封面单帧（`--at`/`--frame`、`--width`）→ jpg/png/webp |
 | `solid` | 纯色视频卡（`--color`、`--size`、`--dur`，可选静音轨）（`--gradient` 渐变） |（`--color`/`--gradient` 支持颜色名与十六进制） |
-| `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐、`--mix` 保留原音轨 |
+| `replace` | 换音轨（`--mix`、`--duck`、`--fade`、`--loop` 短音源循环） |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（`--merge N` 合并间隔小于 N 秒的段；默认只编码要留下的段；`--copy` 无损但按关键帧） |
 | `cover` | 9:16 封面静帧（`--at`、`--blur` 模糊底填充） |
@@ -175,7 +175,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `invert` | 全帧或定时反色（`--at`、`--dur`） |
 | `mix` | 两段音频等权叠加（`--vol-a`/`--vol-b` 线性电平，`--longest` 按长者收尾） |
 | `mute` | 去掉音轨（其余流直接封装，不重编码） |
-| `timer` | 角落计时器烧录（`--position`、`--at`、`--dur`、`--format ms` 厘秒） |
+| `timer` | 画面计时器（`--position`、`--format ms`、`--box-color` 底板） |
 | `hls` | HLS 网页播放封装（`--seg` 时长、`--single` 单文件、`--copy` 流直拷） |
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM，`--metric`） |
 | `conform` | 统一素材规格便于拼接（`--size`、`--fps`、`--lufs`） |

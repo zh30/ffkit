@@ -103,7 +103,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `extract` | Still frame or `--gif` clip | `--at`, `--dur`, `--width`, `--fps` |
 | `overlay` | Image/video overlay; position/scale/`--tile`, `--fade`, `--angle`, `--at`/`--dur`, `--mode`, `--opacity` blend composite | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture |
 | `broll` | Cutaway insert (`--insert` video, `--still` image, `--motion kenburns`) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay |
-| `caption` | Burn subtitles (`--srt`, `--chunk`, `--karaoke` word reveal) |
+| `caption` | Burn subtitles (`--srt`, `--chunk`, `--karaoke`, `--box-color` card) |
 | `loudnorm` | EBU R128 two-pass (`-I -14` social, `-I -16` podcast) |
 | `denoise` | Audio cleanup (`--strength`, `--highpass`, `--at/--dur` window) |
 | `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`) | Presets `h264` / `webm` / `gif` / `hevc`; `--fps` retimes video too |
@@ -138,7 +138,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `subs` | Extract/mux/burn/shift subtitles (`--merge` dual-language .srt) |
 | `thumb` | One-frame cover grab (`--at` / `--frame`, `--width`) → jpg/png/webp |
 | `solid` | Solid-color clip card (`--color`, `--size`, `--dur`; silent stereo optional) (`--gradient` animated) |
-| `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
+| `replace` | Swap the audio track (`--mix`, `--duck`, `--fade`, `--loop` short beds) |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (`--merge N` merges keeps closer than N s) (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
 | `cover` | 9:16 cover still (`--at`, `--blur` ambient pad) |
@@ -175,7 +175,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `invert` | Full-frame or windowed color inversion (`--at`, `--dur`) |
 | `mix` | Sum two audio sources (`--vol-a`/`--vol-b` linear, `--longest`) |
 | `mute` | Drop the audio track, stream-copy the rest |
-| `timer` | Burn a running MM:SS(/H:) counter (`--position`, `--at`, `--dur`, `--format ms` adds centiseconds) |
+| `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card) |
 | `hls` | HTTP Live Streaming package (`--seg`, `--single` one-file, `--copy` stream-copy) |
 | `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
 | `conform` | Normalize mixed footage for concat (`--size`, `--fps`, `--lufs`) |

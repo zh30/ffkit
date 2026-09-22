@@ -30,6 +30,9 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
         // Input-side seek trims the head of the replacement audio.
         argv.extend(["-ss", &format!("{:.3}", -args.audio_offset)]);
     }
+    if args.loop_track {
+        argv.extend(["-stream_loop", "-1"]);
+    }
     argv.extend(["-i"]);
     argv.push(&args.audio);
 
@@ -97,6 +100,7 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
         "mix": args.mix,
         "duck": args.duck,
         "video_copy": true,
+        "loop": args.loop_track,
     }));
     Ok(c)
 }

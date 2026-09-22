@@ -83,7 +83,10 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     // Layout: [hh:]mm:ss — each digit field is one sprite cell wide.
     let fields = if hours { 3 } else { 2 };
     let colons = fields - 1;
-    let total_w = fields * cw + colons * colw;
+    let mut total_w = fields * cw + colons * colw;
+    if ms {
+        total_w += dotw + cw;
+    }
     let m = args.margin;
     let (x0, y) = match args.position.as_str() {
         "top-left" => (format!("{m}"), format!("{m}")),
@@ -114,11 +117,41 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     let fps = probe.fps.unwrap_or(30.0).max(1.0);
     let enable = format!("enable='between(t,{at:.3},{until:.3})'");
 
+    // --box: a fixed card behind the whole readout
+    let box_png = if let Some(bc) = &args.box_color {
+        let [r, g_, b_] = crate::color::rgb(bc)?;
+        let pad = (ch / 4).max(6);
+        let mut card = image::RgbaImage::new(total_w + 2 * pad, ch + pad);
+        for px in card.pixels_mut() {
+            *px = image::Rgba([r, g_, b_, 200]);
+        }
+        let p = tmp.path().join("box.png");
+        card.save(&p)
+            .map_err(|e| Error::output(format!("write box png: {e}")))?;
+        Some((p, pad))
+    } else {
+        None
+    };
+    let box_idx = 4usize;
+
     let split_labels: String = (0..xparts.len()).map(|i| format!("[sp{i}]")).collect();
-    let mut fc = format!(
-        "[1:v]format=rgba[spr];[spr]split={}{split_labels}",
-        xparts.len()
-    );
+    let mut fc = String::new();
+    if let Some((_, pad)) = &box_png {
+        fc.push_str(&format!(
+            "[0:v][{box_idx}:v]overlay=x={x0}-{pad}:y={y}-{hp}:shortest=1:{enable}[vbox]",
+            hp = pad / 2
+        ));
+    }
+    let mut cur = if box_png.is_some() {
+        "vbox".to_string()
+    } else {
+        "0:v".to_string()
+    };
+    fc.push_str(&format!(
+        "{sc}[1:v]format=rgba[spr];[spr]split={}{split_labels}",
+        xparts.len(),
+        sc = if fc.is_empty() { "" } else { ";" }
+    ));
     // crop each field out of the advancing sprite
     for (i, (kind, _)) in xparts.iter().enumerate() {
         let expr = match kind.as_str() {
@@ -132,7 +165,6 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
         ));
     }
     // overlay chain: field, colon, field, colon, field
-    let mut cur = "0:v".to_string();
     let mut xoff = 0u32; // pixel offset from x0
     let mut pass = 0usize;
     for (i, (kind, w)) in xparts.iter().enumerate() {
@@ -183,6 +215,16 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
         "-i".to_string(),
         dot_path.display().to_string(),
     ]);
+    if let Some((bp, _)) = &box_png {
+        argv.extend([
+            "-loop".to_string(),
+            "1".to_string(),
+            "-framerate".to_string(),
+            format!("{fps:.3}"),
+            "-i".to_string(),
+            bp.display().to_string(),
+        ]);
+    }
     argv.extend(["-filter_complex".to_string(), fc]);
     argv.extend(["-map".to_string(), format!("[{cur}]")]);
     if probe.has_audio {

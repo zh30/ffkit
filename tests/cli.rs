@@ -9564,3 +9564,95 @@ fn caption_karaoke_reveals_words() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn timer_box_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "timer",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--dur",
+        "0.3",
+        "--box-color",
+        "black",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn caption_box_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let srt = dir.join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,100 --> 00:00:00,500\nhi there\n\n").unwrap();
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--box-color",
+        "black",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn replace_loop_extends_short_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let short = dir.join("s.m4a");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=300:duration=0.1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&short)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "replace",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        short.to_str().unwrap(),
+        "--loop",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // video length preserved even though the bed is 0.1s
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - v["summary"].as_str().map(|_| 0.0).unwrap_or(0.0)).abs() < 10.0);
+    assert!(d > 0.5);
+}

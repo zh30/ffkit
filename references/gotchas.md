@@ -202,3 +202,10 @@ words 1..=k, enabled over an even slice of the cue. `denoise --at`/`leveler --at
 route through `engine::audio_window` like eq/reverb/fx: dry feed ducked to 0 in
 the window, FX trim+delayed into place — required on ffmpeg 4.4 where audio
 filters ignore `enable`.
+
+## timer box / replace loop
+
+`timer --box-color` draws a fixed card PNG behind the readout (total_w now
+counts the centisecond field). `replace --loop` is `-stream_loop -1` on the
+replacement — the existing `atrim=duration=<video>` still caps it at the video
+edge, so a 3s jingle fills a 60s vlog.

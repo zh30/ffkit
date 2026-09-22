@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.86.0
+version: 0.87.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -40,11 +40,11 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | frame / size | `fit` (`--fit pad` / `crop` / `blur`), `zoom` |
 
 | export | `deliver`, `transcode` (`--copy-audio`), `compress` (`--size 10MB` two-pass), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split` |
-| captions / mute | `caption` (`--karaoke` word reveal, `--mode burn` social safe-zone, `--chunk N` word groups, or `--mode mux`) |
+| captions / mute | `caption` (`--karaoke` word reveal, `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, or `--mode mux`) |
 | hook text | `title` |
 | cover still | `cover` |
 
-| speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--audio` swap the track, `--mix` keep the original under it), `loudnorm`, `volume` |
+| speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--mix` keep the original under it), `loudnorm`, `volume` |
 | grainy low-light footage | `vdenoise` (`--strength`, nlmeans — slow on long clips) |
 | waveform PNG of audio | `waveform` (`--size`, `--color`) — podcast art, thumbnails |
 | audio spectrogram PNG | `spectrogram` (`--size`) — inspect hum/noise before cleanup |
@@ -70,7 +70,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | captions on top instead of bottom | `caption --position top` |
 | lift/crush mid-tones | `grade --gamma` |
 | drop the audio track entirely | `mute` (stream-copy video, no re-encode) |
-| elapsed-time corner counter | `timer` (`--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds) |
+| elapsed-time corner counter | `timer` (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds) |
 | web-embed HLS package | `hls` (`--seg` seconds, `--single` one-file, `--copy` repack) → dir/`index.m3u8` + `seg_*.ts` |
 | check encode quality loss | `qa` `ref.mp4 test.mp4` → psnr/ssim numbers |
 | normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`) |

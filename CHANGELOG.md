@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.87.0] — 2026-09-22
+
+### Added
+
+- `timer --box-color C` / `caption --box-color C` — card behind the clock or captions.
+- `replace --loop` — loop a short replacement track to fill the video.
+- Fix: `--format ms` position math now counts the centisecond field.
+
+
+## [Unreleased]
+
 ## [0.86.0] — 2026-09-22
 
 ### Added
