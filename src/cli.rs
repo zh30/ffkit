@@ -654,6 +654,9 @@ pub struct AudiogramArgs {
     /// Wave amplitude scale: lin (default)|log|sqrt|cbrt — log shows quiet detail
     #[arg(long)]
     pub scale: Option<String>,
+    /// Draw each channel on its own row (stereo split view)
+    #[arg(long)]
+    pub split: bool,
     /// Background colour when no --image (name or 0xRRGGBB, default 101418)
     #[arg(long)]
     pub bg: Option<String>,
@@ -1289,6 +1292,9 @@ pub struct SolidArgs {
     /// Word-wrap --text at N columns (≥4)
     #[arg(long)]
     pub wrap: Option<u32>,
+    /// Animated film-grain on the card (0-100 strength)
+    #[arg(long)]
+    pub noise: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1812,6 +1818,9 @@ pub struct CountdownArgs {
     /// Beep 880Hz for 120ms at the start of each count
     #[arg(long)]
     pub beep: bool,
+    /// Beep frequency in Hz (default 880)
+    #[arg(long)]
+    pub tone: Option<f64>,
     /// Label shown above the digits for the whole count ("STARTING SOON")
     #[arg(long)]
     pub text: Option<String>,
@@ -2033,6 +2042,9 @@ pub struct ScrollArgs {
     /// Text color (hex or a color name)
     #[arg(long)]
     pub color: Option<String>,
+    /// Per-line alignment inside the credit block (left-justified credits)
+    #[arg(long, value_enum)]
+    pub align: Option<crate::raster::TextAlign>,
     #[arg(long)]
     pub font: Option<String>,
     /// Roll mode: up (end credits) | ticker (bottom news crawl)

@@ -13138,3 +13138,111 @@ fn meme_align_left_renders_wrapped_card() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn solid_noise_adds_grain() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("n.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--noise",
+        "30",
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("noise=alls=30:allf=t"), "{cmds}");
+}
+
+#[test]
+fn countdown_tone_sets_beep_freq() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "countdown",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--beep",
+        "--tone",
+        "440",
+        "--from",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("sin(2*PI*440"), "{cmds}");
+}
+
+#[test]
+fn audiogram_split_draws_channels() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--split",
+        "--mode",
+        "cline",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("split_channels=1"), "{cmds}");
+}
+
+#[test]
+fn scroll_align_left_rolls_text() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "scroll",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "cast\ncrew\npost",
+        "--align",
+        "left",
+        "--dur",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

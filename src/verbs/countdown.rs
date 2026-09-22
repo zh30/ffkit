@@ -102,12 +102,15 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
     if args.beep {
         let win = runs.len() as f64 * args.each;
         // aevalsrc: 880Hz sine gated to the first 120ms of each tick window
+        // aevalsrc: --tone Hz sine gated to the first 120ms of each tick window
+        let hz = args.tone.unwrap_or(880.0).clamp(20.0, 20000.0);
         argv.extend([
             "-f",
             "lavfi",
             "-i",
             &format!(
-                "aevalsrc='sin(2*PI*880*t)*lt(mod(t-{at:.3},{ea:.3}),0.12)':d={dd:.3}:s=44100",
+                "aevalsrc='sin(2*PI*{hz}*t)*lt(mod(t-{at:.3},{ea:.3}),0.12)':d={dd:.3}:s=44100",
+                hz = hz,
                 ea = args.each,
                 dd = at + win
             ),

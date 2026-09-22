@@ -68,7 +68,17 @@ pub fn run(args: ScrollArgs, g: &Globals) -> Result<Contract, Error> {
     let ticker = matches!(args.mode, ScrollMode::Ticker);
     // Ticker text must stay one long line — give the canvas 6× the frame.
     let canvas_w = if ticker { vw * 6 } else { vw };
-    let img = render_title_styled(&text, &font_bytes, canvas_w, fg, args.size as f32)?;
+    let img = match args.align {
+        Some(al) => crate::raster::render_title_aligned(
+            &text,
+            &font_bytes,
+            canvas_w,
+            fg,
+            args.size as f32,
+            al,
+        )?,
+        None => render_title_styled(&text, &font_bytes, canvas_w, fg, args.size as f32)?,
+    };
     let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
     let png = tmp.path().join("credits.png");
     img.save(&png)

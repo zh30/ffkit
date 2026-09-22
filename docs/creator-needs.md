@@ -234,6 +234,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 94)
+
+- `solid --noise N` — animated film grain on color/gradient cards (`noise=alls=N:allf=t`).
+- `countdown --tone HZ` — beep frequency (default 880).
+- `audiogram --split` — `split_channels=1` per-channel rows on the wave strip.
+- `scroll --align left|center|right` — per-line alignment in the credit block.
+
 ## Shipped this run (round 93)
 
 - `waveform --split` — `split_channels=1` per-channel rows (stereo L/R inspection).

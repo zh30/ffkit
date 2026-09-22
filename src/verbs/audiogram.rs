@@ -46,9 +46,9 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     // shows through. overlay shortest=1 ends [vout] with the waveform: -shortest
     // alone overshoots because the encoder queue keeps the infinite cover
     // going past audio EOF.
-    if args.scale.is_some() && matches!(args.mode, WaveMode::Spectrum) {
+    if (args.scale.is_some() || args.split) && matches!(args.mode, WaveMode::Spectrum) {
         return Err(Error::input(
-            "--scale applies to waveform modes (not spectrum)",
+            "--scale/--split apply to waveform modes (not spectrum)",
         ));
     }
     // Spectrum renders frequency bars via showfreqs; the rest use showwaves.
@@ -71,8 +71,9 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
             (
                 {
                     let sc = wave_scale(&args)?;
+                    let sp = if args.split { ":split_channels=1" } else { "" };
                     format!(
-                        "[0:a]showwaves=s={{ww}}x{{wh}}:mode={name}:rate=30:colors={}:draw=full{sc}[wv];",
+                        "[0:a]showwaves=s={{ww}}x{{wh}}:mode={name}:rate=30:colors={}:draw=full{sc}{sp}[wv];",
                         crate::color::lavfi(&args.color)
                     )
                 },

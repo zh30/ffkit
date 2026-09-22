@@ -20,6 +20,12 @@ pub fn run(args: SolidArgs, g: &Globals) -> Result<Contract, Error> {
     if w == 0 || h == 0 {
         return Err(Error::input("--size must be positive"));
     }
+    // --noise: animated film grain appended to whichever source (allf=t).
+    let n = match args.noise {
+        Some(s) if s <= 100 => format!(",noise=alls={s}:allf=t"),
+        Some(_) => return Err(Error::input("--noise must be 0..=100")),
+        None => String::new(),
+    };
     let lavfi = match &args.gradient {
         Some(grad) => {
             let (c0, c1) = grad
@@ -29,13 +35,16 @@ pub fn run(args: SolidArgs, g: &Globals) -> Result<Contract, Error> {
             let c0 = crate::color::lavfi(c0);
             let c1 = crate::color::lavfi(c1);
             format!(
-                "gradients=c0={c0}:c1={c1}:s={w}x{h}:d={}:speed=0.02:rate=30",
+                "gradients=c0={c0}:c1={c1}:s={w}x{h}:d={}:speed=0.02:rate=30{n}",
                 fmt_time(args.dur)
             )
         }
         None => {
             let color = crate::color::lavfi(&args.color);
-            format!("color=c={color}:s={w}x{h}:d={}:rate=30", fmt_time(args.dur))
+            format!(
+                "color=c={color}:s={w}x{h}:d={}:rate=30{n}",
+                fmt_time(args.dur)
+            )
         }
     };
 

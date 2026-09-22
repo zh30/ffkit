@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.121.0] — 2026-09-22
+
+### Added
+
+- `solid --noise N` — animated film grain on solid/gradient cards
+- `countdown --tone HZ` — beep frequency (default 880 Hz)
+- `audiogram --split` — per-channel waveform rows (stereo split view)
+- `scroll --align left|center|right` — per-line alignment in the credit block
+
 ## [0.120.0] — 2026-09-22
 
 ### Added
