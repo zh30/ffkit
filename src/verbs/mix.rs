@@ -23,9 +23,27 @@ pub fn run(args: MixArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let dur = if args.longest { "longest" } else { "first" };
 
+    // --at/--dur: gate the B track into the window (outside it, A alone).
+    let gate = match &args.at {
+        Some(raw) => {
+            let at = crate::time::parse_time(raw)?;
+            if !(0.0..pa.duration).contains(&at) {
+                return Err(Error::input("--at is outside the A input"));
+            }
+            let end = args.dur.map(|d| at + d).unwrap_or(pa.duration);
+            format!(",volume='between(t,{at:.3},{end:.3})':eval=frame")
+        }
+        None => {
+            if args.dur.is_some() {
+                return Err(Error::input("--dur needs --at"));
+            }
+            String::new()
+        }
+    };
+
     let fc = format!(
         "[0:a]aresample=48000,volume={:.4}[a0];\
-         [1:a]aresample=48000,volume={:.4}[a1];\
+         [1:a]aresample=48000,volume={:.4}{gate}[a1];\
          [a0][a1]amix=inputs=2:duration={dur}:normalize=0[aout]",
         args.vol_a, args.vol_b
     );

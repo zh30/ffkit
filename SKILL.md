@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.88.0
+version: 0.89.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -46,12 +46,12 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 
 | speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--mix` keep the original under it), `loudnorm`, `volume` |
 | grainy low-light footage | `vdenoise` (`--strength`, nlmeans — slow on long clips) |
-| waveform PNG of audio | `waveform` (`--size`, `--color`) — podcast art, thumbnails |
-| audio spectrogram PNG | `spectrogram` (`--size`) — inspect hum/noise before cleanup |
+| waveform PNG of audio | `waveform` (`--size`, `--color`, `--scale`, `--at/--dur`) — podcast art, thumbnails |
+| audio spectrogram PNG | `spectrogram` (`--size`, `--color`, `--at/--dur`) — inspect hum/noise before cleanup |
 | mains hum / electrical buzz | `dehum` (`--at`/`--dur` window, `--mains 50|60`, `--harmonics`) — notches the fundamental + harmonics |
 | faster/slower podcast | `tempo` (`--factor 1.5` — pitch held; video inputs: use `speed`) |
 | voice all over the place | `leveler` (`--at`/`--dur` window, `--threshold`/`--ratio`/`--makeup` — `acompressor`) |
-| hiss between sentences | `gate` (`--threshold` dB — `agate` closes on quiet parts) |
+| hiss between sentences | `gate` (`--threshold`, `--preset`, `--at/--dur` — `agate` closes on quiet parts) |
 | pad in room tone / breath | `silence` (`--at`, `--dur` — inserts quiet into audio files; video holds: `freeze`) |
 | one-click look | `grade --preset cinematic|vivid|vintage|soft` (stacks under the sliders) |
 | karaoke / keep only the vocal | `vocal` (`--at`/`--dur` window, `--mode karaoke` drops the center, `isolate` keeps it — stereo only) |
@@ -66,7 +66,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | 3-2-1 intro countdown | `countdown` (`--from`, `--each`, `--go`, `--at`) |
 | invert / negative look | `invert` — `negate` the picture |
 | split to fit a size cap | `split --size 9MB` — even grid aimed at Discord/WhatsApp caps |
-| merge two audio sources at full level | `mix` `A B` (`--vol-a/--vol-b`, `--longest`) |
+| merge two audio sources at full level | `mix` `A B` (`--vol-a/--vol-b`, `--longest`, `--at/--dur`) |
 | captions on top instead of bottom | `caption --position top` |
 | lift/crush mid-tones | `grade --gamma` |
 | drop the audio track entirely | `mute` (stream-copy video, no re-encode) |

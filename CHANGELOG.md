@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.89.0] — 2026-09-22
+
+### Added
+
+- `gate --at/--dur` — windowed noise gate (same dry/wet graph as denoise/leveler/pitch/dehum/vocal).
+- `mix --at/--dur` — the B track enters only inside the window (`volume=between(t,…)` gate on the B feed).
+- `waveform --at/--dur` — render just a slice: crops the rendered wave to the window then stretches to `--size`.
+- `spectrogram --at/--dur` — render just a slice (`atrim` before `showspectrumpic`).
+
 ## [0.88.0] — 2026-09-22
 
 ### Added

@@ -156,12 +156,12 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `blur` | Full-frame or windowed gaussian blur (`--sigma`, `--at`, `--dur`) |
 | `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30 (nlmeans; slow on long clips) |
 | `crop` | Crop `--region x:y:w:h`, or `--aspect` reframe with `--anchor center|top|bottom|left|right` |
-| `waveform` | Audio waveform → PNG (`--size`, `--color`, `--scale`) for podcast art/thumbnails |
-| `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup (`--color` magma/viridis…) |
+| `waveform` | Audio waveform → PNG (`--size`, `--color`, `--scale`) for podcast art/thumbnails (`--at/--dur` slice) |
+| `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup (`--color` magma/viridis…) (`--at/--dur` slice) |
 | `dehum` | Notch out mains hum (`--mains 50|60`, `--harmonics`, `--at/--dur`) |
 | `tempo` | Speed audio `--factor` 0.5–8, pitch held (`atempo` chain; use `speed` for video) |
 | `leveler` | Compress dynamics (`--preset`, `--at/--dur` window) |
-| `gate` | Noise gate — silence below `--threshold` dB (`agate`) (`--preset voice|podcast|studio`) |
+| `gate` | Noise gate — silence below `--threshold` dB (`agate`) (`--preset voice|podcast|studio`, `--at/--dur` window) |
 | `silence` | Insert `--dur` secs of silence at `--at`, or append with `--end` |
 | `vocal` | Remove/isolate center vocals (`--mode`, `--at/--dur` window) |
 | `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov) |
@@ -173,7 +173,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `frames` | Still dump every `--every`, `--at` seconds → `stem_001.png…` (`--width`) |
 | `countdown` | 3-2-1(-GO) intro overlay (`--from`, `--each`, `--go`, `--at`) (`--beep` tick tones) |
 | `invert` | Full-frame or windowed color inversion (`--at`, `--dur`) |
-| `mix` | Sum two audio sources (`--vol-a`/`--vol-b` linear, `--longest`) |
+| `mix` | Sum two audio sources (`--vol-a`/`--vol-b` linear, `--longest`, `--at/--dur` fades B in/out of a window) |
 | `mute` | Drop the audio track, stream-copy the rest |
 | `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card) |
 | `hls` | HTTP Live Streaming package (`--seg`, `--single` one-file, `--copy` stream-copy) |

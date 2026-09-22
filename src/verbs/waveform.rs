@@ -25,12 +25,37 @@ pub fn run(args: WaveformArgs, g: &Globals) -> Result<Contract, Error> {
         }
         None => String::new(),
     };
+    // --at/--dur: crop the rendered wave to the window, then stretch to --size.
+    let win = match &args.at {
+        Some(raw) => {
+            let at = crate::time::parse_time(raw)?;
+            if !(0.0..probe.duration).contains(&at) {
+                return Err(Error::input("--at is outside the input"));
+            }
+            let end = args
+                .dur
+                .map(|d| at + d)
+                .unwrap_or(probe.duration)
+                .min(probe.duration);
+            format!(
+                ";[w0]crop=w=iw*{fw:.6}:x=iw*{fx:.6}:h=ih,scale={w}:{h}[v]",
+                fw = (end - at) / probe.duration,
+                fx = at / probe.duration
+            )
+        }
+        None => {
+            if args.dur.is_some() {
+                return Err(Error::input("--dur needs --at"));
+            }
+            ";[w0]copy[v]".to_string()
+        }
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
     argv.extend([
         "-filter_complex",
-        &format!("[0:a]showwavespic=s={w}x{h}:colors={color}{sc}[v]"),
+        &format!("[0:a]showwavespic=s={w}x{h}:colors={color}{sc}[w0]{win}"),
         "-map",
         "[v]",
         "-frames:v",

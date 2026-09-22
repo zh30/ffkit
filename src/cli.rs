@@ -1558,6 +1558,12 @@ pub struct MixArgs {
     /// Output runs until the LONGER input ends (default: first input's length)
     #[arg(long)]
     pub longest: bool,
+    /// Bring B in only from this time (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1746,6 +1752,12 @@ pub struct GateArgs {
     /// Tuned settings instead of manual ones
     #[arg(long, value_enum)]
     pub preset: Option<GatePreset>,
+    /// Gate only inside this window (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -1769,6 +1781,12 @@ pub struct WaveformArgs {
     /// Amplitude scale: lin (default), log, sqrt, cbrt — log shows quiet detail
     #[arg(long)]
     pub scale: Option<String>,
+    /// Render only this slice (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Slice length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1782,6 +1800,12 @@ pub struct SpectrogramArgs {
     /// Color scheme: magma|viridis|fire|rainbow|green|terrain (ffmpeg names)
     #[arg(long)]
     pub color: Option<String>,
+    /// Render only this slice (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Slice length in seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]

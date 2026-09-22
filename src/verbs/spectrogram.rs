@@ -46,12 +46,27 @@ pub fn run(args: SpectrogramArgs, g: &Globals) -> Result<Contract, Error> {
         .filter(|(w, h)| (16..=8192).contains(w) && (16..=8192).contains(h))
         .ok_or_else(|| Error::input("--size must look like WxH (e.g. 1920x1080)"))?;
 
+    let slice = match &args.at {
+        Some(raw) => {
+            let at = crate::time::parse_time(raw)?;
+            match args.dur {
+                Some(d) => format!("atrim={at:.3}:{e:.3},asetpts=PTS-STARTPTS,", e = at + d),
+                None => format!("atrim=start={at:.3},asetpts=PTS-STARTPTS,"),
+            }
+        }
+        None => {
+            if args.dur.is_some() {
+                return Err(Error::input("--dur needs --at"));
+            }
+            String::new()
+        }
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
     argv.extend([
         "-filter_complex",
-        &format!("[0:a]showspectrumpic=s={w}x{h}:legend=1{color}[v]"),
+        &format!("[0:a]{slice}showspectrumpic=s={w}x{h}:legend=1{color}[v]"),
         "-map",
         "[v]",
         "-frames:v",

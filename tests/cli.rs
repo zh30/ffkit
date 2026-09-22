@@ -9755,3 +9755,94 @@ fn vocal_window() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn gate_window_applies_gate_only_inside_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("g.mp4");
+    let v = run_json(&[
+        "gate",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn mix_window_gates_second_track() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "mix",
+        src.to_str().unwrap(),
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn waveform_window_crops_slice() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("w.png");
+    let v = run_json(&[
+        "waveform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--dur",
+        "0.3",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.is_file());
+}
+
+#[test]
+fn spectrogram_window_trims_slice() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("s.png");
+    let v = run_json(&[
+        "spectrogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--dur",
+        "0.3",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.is_file());
+}

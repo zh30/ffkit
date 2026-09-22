@@ -156,12 +156,12 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`、`--dur`） |
 | `vdenoise` | 视频降噪（暗光噪点）：`--strength` 0.5–30（nlmeans，长片较慢） |
 | `crop` | 裁剪 `--region` 区域，或 `--aspect` 重构（`--anchor center|top|bottom|left|right` 可选锚点） |
-| `waveform` | 音频波形 → PNG（`--size`、`--color`, `--scale`），播客封面/缩略图用 |
-| `spectrogram` | 音频频谱图 → PNG（`--size`），清理前先看嗡鸣/噪声（`--color` magma/viridis…） |
+| `waveform` | 音频波形 → PNG（`--size`、`--color`, `--scale`），播客封面/缩略图用（`--at/--dur` 只画片段） |
+| `spectrogram` | 音频频谱图 → PNG（`--size`），清理前先看嗡鸣/噪声（`--color` magma/viridis…）（`--at/--dur` 只画片段） |
 | `dehum` | 市电嗡鸣陷波（`--mains 50|60`、`--harmonics`、`--at/--dur`） |
 | `tempo` | 音频变速 `--factor` 0.5–8，不变调（`atempo` 链；视频请用 `speed`） |
 | `leveler` | 动态压平（`--preset`、`--at/--dur` 窗口） |
-| `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`）（`--preset voice|podcast|studio`） |
+| `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`）（`--preset voice|podcast|studio`，`--at/--dur` 局部生效） |
 | `silence` | 在 `--at` 处插入 `--dur` 秒静音，或 `--end` 追加片尾静音 |
 | `vocal` | 消/留中置人声（`--mode`、`--at/--dur` 窗口） |
 | `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart） |
@@ -173,7 +173,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `frames` | 每 `--every`、`--at` 秒抽一帧 → `stem_001.png…`（`--width` 缩放） |
 | `countdown` | 片头 3-2-1(-GO) 倒数遮罩（`--from`、`--each`、`--go`、`--at`）（`--beep` 滴答声） |
 | `invert` | 全帧或定时反色（`--at`、`--dur`） |
-| `mix` | 两段音频等权叠加（`--vol-a`/`--vol-b` 线性电平，`--longest` 按长者收尾） |
+| `mix` | 两段音频等权叠加（`--vol-a`/`--vol-b` 线性电平，`--longest` 按长者收尾，`--at/--dur` 副轨只在窗口内混入） |
 | `mute` | 去掉音轨（其余流直接封装，不重编码） |
 | `timer` | 画面计时器（`--position`、`--format ms`、`--box-color` 底板） |
 | `hls` | HLS 网页播放封装（`--seg` 时长、`--single` 单文件、`--copy` 流直拷） |
