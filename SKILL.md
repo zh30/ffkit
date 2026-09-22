@@ -60,7 +60,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | pitch-shift voice/music | `pitch` (`--semitones N`, duration preserved) |
 | film grain | `grade --grain N` |
 | auto cut on scene changes | `split --scenes 0.3` |
-| strip dead air head+tail (audio) | `cutsil --thresh -45` |
+| strip dead air head+tail (audio) | `cutsil` (`--thresh -45`) |
 | grid with one input's audio | `grid --audio N` |
 | B-roll cutaway | `broll` (`--insert --at --duration`; A-roll audio stays) |
 | extract | `extract` |
