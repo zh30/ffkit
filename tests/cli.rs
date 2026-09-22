@@ -11511,3 +11511,139 @@ fn loudnorm_dynamic_normalizes_per_frame() {
     assert_eq!(j["status"], "ok");
     assert_eq!(j["extra"]["dynamic"], true);
 }
+
+#[test]
+fn subs_all_extracts_every_stream() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let srt = tmp.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,500\nHI\n").unwrap();
+    // mkv with two subtitle streams
+    let multi = tmp.path().join("multi.mkv");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            src.to_str().unwrap(),
+            "-i",
+            srt.to_str().unwrap(),
+            "-i",
+            srt.to_str().unwrap(),
+            "-map",
+            "0:v",
+            "-map",
+            "0:a",
+            "-map",
+            "1:s",
+            "-map",
+            "2:s",
+            "-c:v",
+            "copy",
+            "-c:a",
+            "copy",
+            "-c:s",
+            "srt",
+        ])
+        .arg(&multi)
+        .status()
+        .expect("ffmpeg");
+    assert!(st.success());
+    let out = tmp.path().join("o.srt");
+    let j = run_json(&[
+        "subs",
+        multi.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--all",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["streams"], 2);
+    for f in j["extra"]["files"].as_array().unwrap() {
+        let s = f.as_str().unwrap();
+        assert!(std::path::Path::new(s).is_file(), "{s}");
+        assert!(std::fs::read_to_string(s).unwrap().contains("HI"));
+    }
+}
+
+#[test]
+fn mix_normalize_halves_the_sum() {
+    let tmp = tempfile::tempdir().unwrap();
+    let a = fixture(tmp.path());
+    let b = tmp.path().join("b.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&b)
+        .status()
+        .expect("ffmpeg");
+    assert!(st.success());
+    let out = tmp.path().join("m.mp4");
+    let j = run_json(&[
+        "mix",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--normalize",
+    ]);
+    assert_eq!(j["status"], "ok");
+}
+
+#[test]
+fn fit_strength_dials_the_blur() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("fitted.mp4");
+    let j = run_json(&[
+        "fit",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--aspect",
+        "9:16",
+        "--fit",
+        "blur",
+        "--strength",
+        "10",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+}
+
+#[test]
+fn compress_crf_skips_the_size_math() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("c.mp4");
+    let j = run_json(&[
+        "compress",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--crf",
+        "20",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["passes"], 1);
+}

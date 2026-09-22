@@ -32,6 +32,12 @@ pub struct Probe {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>,
     pub variable_frame_rate_suspected: bool,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub subtitle_streams: u32,
+}
+
+fn is_zero(v: &u32) -> bool {
+    *v == 0
 }
 
 impl Probe {
@@ -167,6 +173,11 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
             .and_then(|s| s.parse().ok()),
         format: parsed.format.and_then(|f| f.format_name),
         variable_frame_rate_suspected: vfr,
+        subtitle_streams: parsed
+            .streams
+            .iter()
+            .filter(|s| s.codec_type == "subtitle")
+            .count() as u32,
     })
 }
 

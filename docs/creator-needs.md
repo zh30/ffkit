@@ -232,6 +232,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 81)
+
+- `subs --all` — extract every subtitle stream in one ffmpeg call (`stem_0.srt`…); `probe` now reports `subtitle_streams`.
+- `mix --normalize` — amix `normalize=1` halves the sum when both tracks are hot.
+- `fit --strength` — gblur sigma for `--fit blur` (default 30).
+- `compress --crf` — quality mode: single-pass libx264 crf instead of the two-pass size budget (clap requirement relaxed to size|target|crf).
+
 ## Shipped this run (round 80)
 
 - `silence --detect [--threshold --min]` — report-only silence ranges as JSON extras (no `-o`) so agents can plan cuts before `split --silence`/`jumpcut`.

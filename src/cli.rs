@@ -352,6 +352,9 @@ pub struct FitArgs {
     /// Pad bar color (RRGGBB hex, default black)
     #[arg(long)]
     pub color: Option<String>,
+    /// Blur sigma for --fit blur (default 30; lower keeps edges readable)
+    #[arg(long)]
+    pub strength: Option<f64>,
     /// Where the picture sits in the padded frame: center (default), top,
     /// bottom, left, right, or a corner (top-left…bottom-right)
     #[arg(long)]
@@ -595,14 +598,17 @@ pub struct CompressArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Target size, e.g. 10MB (Discord), 16MB (WhatsApp), 25MB (email); KB/MB/GB
-    #[arg(long, required_unless_present = "target")]
+    #[arg(long, required_unless_present_any = ["target", "crf"])]
     pub size: Option<String>,
     /// Size preset by platform: discord(8MB) whatsapp(16MB) gmail(25MB)
-    #[arg(long, value_enum)]
+    #[arg(long, value_enum, required_unless_present_any = ["size", "crf"])]
     pub target: Option<CompressTarget>,
     /// Audio bitrate budget in kbps
     #[arg(long, default_value_t = 96.0)]
     pub audio_kbps: f64,
+    /// Quality mode instead of a size target: single-pass libx264 crf (0–51)
+    #[arg(long)]
+    pub crf: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -851,6 +857,9 @@ pub struct SubsArgs {
     /// Merge another .srt into the input .srt (dual-language; cues sorted by start)
     #[arg(long)]
     pub merge: Option<PathBuf>,
+    /// Extract EVERY subtitle stream to stem_0.srt, stem_1.srt … (batch)
+    #[arg(long)]
+    pub all: bool,
     /// Rescale every cue time by this factor — 25→23.976 fps drift ≈ 0.959
     #[arg(long)]
     pub rate: Option<f64>,
@@ -1730,6 +1739,9 @@ pub struct MixArgs {
     /// Sidechain-duck B under A's voice (podcast music bed)
     #[arg(long)]
     pub duck: bool,
+    /// Let amix normalize the sum (halves level for two hot tracks)
+    #[arg(long)]
+    pub normalize: bool,
     /// Bring B in only from this time (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,

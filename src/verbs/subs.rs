@@ -6,6 +6,9 @@ use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
 pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
+    if args.all {
+        return extract_all(&args, g);
+    }
     if args.convert {
         return convert(&args, g);
     }
@@ -51,6 +54,63 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c.with_extra(json!({
         "stream": args.stream,
         "codec": codec,
+    })))
+}
+
+/// Extract every subtitle stream in one ffmpeg call: `stem_0.ext`,
+/// `stem_1.ext` … in the `-o` extension's codec.
+fn extract_all(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if probe.subtitle_streams == 0 {
+        return Err(Error::input("subs --all: input has no subtitle streams"));
+    }
+    let codec = match args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+    {
+        "srt" => "srt",
+        "vtt" => "webvtt",
+        "ass" | "ssa" => "ass",
+        ext => {
+            return Err(Error::input(format!(
+                "subs output must be .srt/.vtt/.ass, got .{ext}"
+            )))
+        }
+    };
+    let stem = args
+        .output
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("subs");
+    let ext = args.output.extension().and_then(|e| e.to_str()).unwrap();
+    let parent = args.output.parent().filter(|p| !p.as_os_str().is_empty());
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    // Per-stream option groups: -map/-c:s/output interleaved so each -o
+    // holds exactly one subtitle (srt muxer rejects >1 sub stream).
+    let mut files = Vec::new();
+    for k in 0..probe.subtitle_streams {
+        let name = format!("{stem}_{k}.{ext}");
+        let path = match parent {
+            Some(d) => d.join(name).display().to_string(),
+            None => name,
+        };
+        argv.extend(["-map", &format!("0:s:{k}"), "-c:s", codec, &path]);
+        files.push(path);
+    }
+    let c = engine::write_job(
+        "subs",
+        &[&args.input],
+        std::path::Path::new(&files[0]),
+        vec![argv],
+        g,
+    )?;
+    Ok(c.with_extra(json!({
+        "streams": probe.subtitle_streams,
+        "files": files,
     })))
 }
 

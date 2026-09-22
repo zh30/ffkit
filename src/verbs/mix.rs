@@ -52,10 +52,11 @@ pub fn run(args: MixArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         ("[a0]", "[a1]", "")
     };
+    let norm = if args.normalize { 1 } else { 0 };
     let fc = format!(
         "[0:a]aresample=48000,volume={:.4}{split};\
          [1:a]aresample=48000,volume={:.4}{gate}{b1}{bed};\
-         [a0][a1]amix=inputs=2:duration={dur}:normalize=0[aout]",
+         [a0][a1]amix=inputs=2:duration={dur}:normalize={norm}[aout]",
         args.vol_a, args.vol_b
     );
 

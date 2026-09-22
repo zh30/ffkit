@@ -13,6 +13,40 @@ const MUX_RESERVE: f64 = 0.98;
 const PCM_EXTS: &[&str] = &["wav", "aif", "aiff", "caf", "flac"];
 
 pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if let Some(crf) = args.crf {
+        if crf > 51 {
+            return Err(Error::input("--crf must be 0..=51"));
+        }
+        if !probe.has_video {
+            return Err(Error::input("compress --crf is video-only"));
+        }
+        let mut argv = ffmpeg_base(g.progress);
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend([
+            "-vf",
+            "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p",
+            "-c:v",
+            "libx264",
+            "-crf",
+            &crf.to_string(),
+        ]);
+        if probe.has_audio {
+            argv.extend([
+                "-c:a",
+                "aac",
+                "-b:a",
+                &format!("{:.0}", args.audio_kbps * 1_000.0),
+            ]);
+        } else {
+            argv.push("-an");
+        }
+        argv.extend(["-movflags", "+faststart"]);
+        argv.push(&args.output);
+        let c = engine::write_job("compress", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(json!({ "crf": crf, "passes": 1 })));
+    }
     let size_str = match &args.size {
         Some(s) => s.clone(),
         None => match args.target {
@@ -28,7 +62,6 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
     if !(8.0..=512.0).contains(&args.audio_kbps) {
         return Err(Error::input("--audio-kbps must be 8–512"));
     }
-    let probe = engine::probe_or_err(&args.input, g)?;
     if probe.duration <= 0.0 || !probe.duration.is_finite() {
         return Err(Error::input(format!(
             "compress: cannot budget bitrate without a duration ({})",

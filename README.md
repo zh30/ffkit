@@ -99,7 +99,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `look` | Contact sheet (`--tiles`) or timestamps (`--at`, repeatable) |
 | `cut` | Trim; lossless copy by default, `--accurate`, `--ranges`, `--drop` for frame-exact |
 | `concat` | Join N clips (any xfade `--transition`, `--audio-fade`); `--level -14` loudnorms each clip first |
-| `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop , `--position` anchors the picture in the bars |
+| `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop , `--position` anchors the picture in the bars , `--strength` sigma |
 | `extract` | Still frame or `--gif` clip (`--bounce` palindrome) | `--at`, `--dur`, `--width`, `--fps` , `--loop` GIF repeat count |
 | `overlay` | Image/video overlay; position/scale/`--tile`, `--fade`, `--angle`, `--at`/`--dur`, `--mode`, `--opacity` blend composite | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture |
 | `broll` | Cutaway insert (`--insert` video, `--still` image, `--motion kenburns`) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay , `--audio` hear the insert (`--volume` its level) , `--position` PiP corner + `--scale` |
@@ -107,7 +107,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loudnorm` | EBU R128 two-pass normalization (`--target spotify|podcast|broadcast`, `-I/--tp/--lra`); `--measure` reports loudness without writing; `--dynamic` per-frame gain |
 | `denoise` | Audio cleanup (`--strength`, `--highpass`, `--at/--dur` window) |
 | `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`) | Presets `h264` / `webm` / `gif` / `hevc`; `--fps` retimes video too , `--preset prores` FCP delivery |
-| `compress` | Fit a size budget (`--size 10MB` two-pass, `--target discord|whatsapp|gmail`) |
+| `compress` | Fit a size budget (`--size 10MB` two-pass, `--target discord|whatsapp|gmail`); `--crf` quality one-pass |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 
 | `audiogram` | Waveform video | `--mode`, `--text`, `--bg`, `--progress` bar , `--subs` burn an .srt on it |
@@ -135,7 +135,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip` |
 | `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window (`--soft` removelogo) |
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
-| `subs` | Extract/burn/mux subtitles (`--shift/--merge/--rate`, burn style + `--outline`, `--safe`); `--convert` .srt↔.vtt |
+| `subs` | Extract (`--stream`, `--all`)/burn/mux subtitles (`--shift/--merge/--rate`, burn style + `--outline`, `--safe`); `--convert` .srt↔.vtt |
 | `thumb` | One-frame cover grab (`--at` / `--frame`, `--count` N stills, `--width`) → jpg/png/webp |
 | `solid` | Solid-color clip card (`--color`, `--size`, `--dur`; silent stereo optional) (`--gradient` animated) , `--text` end-card text |
 | `replace` | Swap the audio track (`--mix`, `--duck`, `--fade`, `--loop` short beds) |
@@ -173,7 +173,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `frames` | Still dump every `--every`, `--at` seconds → `stem_001.png…` (`--width`) |
 | `countdown` | Overlay a counting leader (`--from`, `--beep`, `--text`, `--position`) |
 | `invert` | Full-frame or windowed color inversion (`--at`, `--dur`) |
-| `mix` | Blend two sources (`--vol-a/--vol-b`, `--at/--dur`, `--loop`, `--duck` sidechain bed under voice) |
+| `mix` | Blend two sources (`--vol-a/--vol-b`, `--at/--dur`, `--loop`, `--duck` sidechain bed under voice) , `--normalize` |
 | `mute` | Drop the audio track, stream-copy the rest , `--at/--dur` silences only that window |
 | `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown) |
 | `hls` | Web-ready HLS (`--seg`, `--single`, `--copy`, `--ladder` ABR, `--audio-only` podcast streams) |

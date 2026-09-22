@@ -72,9 +72,10 @@ pub fn run(args: FitArgs, g: &Globals) -> Result<Contract, Error> {
         } else {
             format!("{},", vf.join(","))
         };
+        let sigma = args.strength.unwrap_or(30.0).clamp(1.0, 300.0);
         let fc = format!(
             "[0:v]{pre}split[bg0][fg0];\
-             [bg0]scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th},gblur=sigma=30[bg];\
+             [bg0]scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th},gblur=sigma={sigma}[bg];\
              [fg0]scale={tw}:{th}:force_original_aspect_ratio=decrease[fg];\
              [bg][fg]overlay={ox}:{oy},{}[vout]",
             tail.join(","),

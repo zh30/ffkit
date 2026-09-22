@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.108.0] — 2026-09-22
+
+### Added
+- `subs --all` — extract every subtitle stream in one ffmpeg call (`stem_0.srt`, `stem_1.srt`, …); `probe` gains `subtitle_streams`.
+- `mix --normalize` — amix `normalize=1` halves the summed level for two hot tracks.
+- `fit --strength` — gblur sigma knob for `--fit blur` (default 30).
+- `compress --crf N` — quality mode: single-pass libx264 crf (0–51) instead of the two-pass size budget; `--size`/`--target`/`--crf` is now an any-of requirement.
+
 ## [0.107.0] — 2026-09-22
 
 ### Added
