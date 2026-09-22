@@ -1,6 +1,6 @@
 # Creator multimedia needs → remaining ffkit gaps
 
-Researched 2026-09-22 against **ffkit 0.26.0** (`main`). Same-day research base as the 0.26.0 round below — refreshed priorities only, no new sources needed. This note is not a restatement of landed work — the tail lists what not to redo.
+Researched 2026-09-22 against **ffkit 0.27.0** (`main` + round-2 branch). Same-day research base as the 0.26.0/0.27.0 rounds below — refreshed priorities only, no new sources needed. This note is not a restatement of landed work — the tail lists what not to redo.
 
 ## What 2026 creators still trip on
 
@@ -21,24 +21,26 @@ Researched 2026-09-22 against **ffkit 0.26.0** (`main`). Same-day research base 
 
 **HDR iPhone footage washed out in SDR feeds** needs `zscale`+`tonemap`; Homebrew ffmpeg here has `tonemap` but **no `zscale`** (needs `--with-libzimg`). Gate behind `doctor` before promising it.
 
-## Gaps vs ffkit 0.26.0
+## Gaps vs ffkit 0.27.0
 
 || Creator request | Today | Gap |
 ||-----------------|-------|-----|
 || Swap camera audio for lav mic / new voice / new music | `music` mixes a bed under; nothing replaces | Raw `ffmpeg -map` only — landed this run as `replace` |
 || Photo dump → montage video ("把照片做成视频") | nothing builds video from stills | Landed this run as `slideshow` |
 || "套我的 LUT / film look" | `grade` sliders only | Landed this run as `grade --lut` (`lut3d`) |
-|| Word-highlight karaoke captions | whole-cue raster burn | Needs per-word timing source; still deferred |
+|| Word-group "karaoke" captions (chunked, no ASR) | whole-cue raster burn | Landed this run as `caption --chunk N` (approximation — true word highlight still needs a timing source) |
+|| Transition variety on montage | `slideshow`/`concat` fade only | Landed this run as `slideshow --transition` + `--motion kenburns` |
+|| "Keep room tone under the lav" | `replace` drops the original | Landed this run as `replace --mix G` |
 || HDR→SDR for iPhone clips | — | needs libzimg (`zscale` absent on Homebrew/apt) |
 
 ## Ordered directions (this run)
 
-1. **`replace`** — `ffkit replace IN --audio NEW -o OUT [--audio-offset S]`: video stream-copy + new aac track padded/trimmed to video length (`apad,atrim` — duration follows the picture). Maps to "换音轨 / 用领夹麦替换相机收音".
-2. **`slideshow`** — `ffkit slideshow IMG... -o OUT [--per S] [--fade S] [--audio bed] [--size WxH]`: normalize stills to canvas → xfade chain (offset `k*(per-fade)`) → bed faded at end or silent track. Maps to "照片做成视频 / photo dump Reel".
-3. **`grade --lut`** — append `lut3d=file=...` after the `eq` sliders. Kept as a flag on `grade` (not a new verb) per the "no verb per look" rule. Maps to "套 LUT / film look".
+1. **`caption --chunk N`** — split each burn cue into ≤N-word sub-cues that share its span (`start + i*span/k`). Chunked captions are the dominant 2026 social look; honest approximation of karaoke without an ASR/timing source. `--chunk 1` is word-by-word.
+2. **`slideshow --transition` + `--motion kenburns`** — the static fade-only montage reads flat vs CapCut/etc: wire the xfade flavors (`wipe*`, `slide*`, `dissolve`, `radial`, `circleopen`) and per-still zoompan drift (even push-in, odd pull-out) on a filled canvas (`scale=increase,crop` — no bars inside the zoom window).
+3. **`replace --mix G`** — "keep a little room tone under the lav": `[0:a]volume=G × [1:a]amix` instead of full replacement.
 
-Next (not this run): word-chunk caption highlight (needs word-timed source — whisper export or `align`; no timing data in repo), HDR→SDR (needs libzimg — absent on Homebrew/apt), xfade transition variety on `slideshow`/`concat` (only `fade` wired today), `--mix` mode on `replace` (blend original under new track), slideshow Ken Burns (`zoompan`) if static stills read flat.
+Next (not this run): true word-highlight karaoke (needs a word-timed source — whisper export or `align`; none in repo), HDR→SDR (needs libzimg — absent on Homebrew/apt), `concat --transition` variety (same xfade list), Ken Burns on `concat`/`broll` inserts.
 
 ## Already landed (do not redo)
 
-Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bottom-20%; broll cutaway keeps A-roll audio/duration and plays B from its first frame; rough-cut speech islands (list, then encode only keeps); music duck (aformat dbl pin for sidechaincompress on apt ffmpeg); speed; jumpcut; cover; fade; title; loop; stabilize; reverse; grade/zoom/sharpen/vignette/bw/volume/blur; pipeline `$src`/`$in`/`expect`; GitHub Release zips; English + Chinese README; **0.26.0**: `denoise` (afwtdn/afftdn fallback), `compress --size` two-pass budget, `fit`/`broll --fit blur`, `audiogram`.
+Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bottom-20%; broll cutaway keeps A-roll audio/duration and plays B from its first frame; rough-cut speech islands (list, then encode only keeps); music duck (aformat dbl pin for sidechaincompress on apt ffmpeg); speed; jumpcut; cover; fade; title; loop; stabilize; reverse; grade/zoom/sharpen/vignette/bw/volume/blur; pipeline `$src`/`$in`/`expect`; GitHub Release zips; English + Chinese README; **0.26.0**: `denoise` (afwtdn/afftdn fallback), `compress --size` two-pass budget, `fit`/`broll --fit blur`, `audiogram`. **0.27.0**: `replace`, `slideshow`, `grade --lut`. **0.28.0**: `caption --chunk`, `slideshow --transition`/`--motion kenburns`, `replace --mix`.

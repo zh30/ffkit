@@ -49,6 +49,8 @@ const KEY_FILTERS: &[&str] = &[
     "gblur",
     "showwaves",
     "colorkey",
+    "zoompan",
+    "amix",
 ];
 
 #[derive(Serialize, Clone)]

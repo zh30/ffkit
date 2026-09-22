@@ -103,17 +103,17 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `extract` | 按输出扩展名抽音频、帧、字幕 |
 | `overlay` | logo、水印、画中画 |
 | `broll` | 切走 B-roll（`--insert --at --duration`）；口播声音和时长不变 |
-| `caption` | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass）；`--safe social` 避开底部 20% |
+| `caption` | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass）；`--safe social` 避开底部 20%；`--chunk N` 按 ≤N 词切分字幕 |
 | `loudnorm` | EBU R128 两遍（`-I -14` 社交，`-I -16` 播客） |
 | `denoise` | 人声降噪（风扇/轰隆/嘶嘶声）；`--video` 顺带画面去噪点 |
 | `transcode` | 预设 `h264` / `webm` / `gif` |
 | `compress` | 两遍编码压到 `--size 10MB`（Discord、WhatsApp 16MB、邮箱约 25MB） |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 | `audiogram` | 播客音频 → 9:16 波形视频（封面图用 `--image`） |
-| `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数、`--fade` 转场、`--audio` 配乐、`--size` 画布） |
+| `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐、`--size` 画布） |
 | `speed` | 变速（`--factor 2` 加速一倍，口播保持音调） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
-| `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐 |
+| `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐、`--mix` 保留原音轨 |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |
 | `cover` | 导出 9:16 封面图（1080×1920） |

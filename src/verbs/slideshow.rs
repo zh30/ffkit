@@ -2,7 +2,7 @@ use std::path::Path;
 
 use serde_json::json;
 
-use crate::cli::{Globals, SlideshowArgs};
+use crate::cli::{Globals, SlideMotion, SlideshowArgs};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -46,10 +46,16 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut argv = ffmpeg_base(g.progress);
     for p in &args.inputs {
-        argv.extend(["-loop", "1", "-t"]);
-        argv.push(format!("{:.3}", args.per));
-        argv.extend(["-i"]);
-        argv.push(p);
+        if args.motion == SlideMotion::Kenburns {
+            // One input frame each; zoompan expands it into `per` seconds.
+            argv.extend(["-i"]);
+            argv.push(p);
+        } else {
+            argv.extend(["-loop", "1", "-t"]);
+            argv.push(format!("{:.3}", args.per));
+            argv.extend(["-i"]);
+            argv.push(p);
+        }
     }
     let bed_idx = if let Some(bed) = &args.audio {
         argv.extend(["-i"]);
@@ -62,14 +68,32 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
 
     // Normalize every still to the canvas first.
     let mut fc = String::new();
+    let zoom_frames = (args.per * fps).round() as u32;
     for i in 0..n {
-        fc.push_str(&format!(
-            "[{i}:v]scale={w}:{h}:force_original_aspect_ratio=decrease,\
-             pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={fps:.3},format=yuv420p[s{i}];"
-        ));
+        if args.motion == SlideMotion::Kenburns {
+            // Fill the canvas so the zoom window never catches bars, then
+            // drift: even stills push in, odd stills pull out.
+            let z = if i % 2 == 0 {
+                "min(max(zoom,pzoom)+0.001,1.25)"
+            } else {
+                "max(1.25-0.001*on,1.0)"
+            };
+            fc.push_str(&format!(
+                "[{i}:v]scale={w}:{h}:force_original_aspect_ratio=increase,\
+                 crop={w}:{h},setsar=1,\
+                 zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={zoom_frames}:s={w}x{h}:fps={fps:.3},\
+                 format=yuv420p[s{i}];"
+            ));
+        } else {
+            fc.push_str(&format!(
+                "[{i}:v]scale={w}:{h}:force_original_aspect_ratio=decrease,\
+                 pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={fps:.3},format=yuv420p[s{i}];"
+            ));
+        }
     }
     if args.fade > 0.0 {
         // xfade chain; transition k starts at k*(per - fade).
+        let t_name = args.transition.xfade_name();
         let mut prev = "s0".to_string();
         for i in 1..n {
             let out = if i == n - 1 {
@@ -79,7 +103,7 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
             };
             let off = i as f64 * (args.per - args.fade);
             fc.push_str(&format!(
-                "[{prev}][s{i}]xfade=transition=fade:duration={:.3}:offset={off:.3}[{out}];",
+                "[{prev}][s{i}]xfade=transition={t_name}:duration={:.3}:offset={off:.3}[{out}];",
                 args.fade
             ));
             prev = out;
@@ -133,6 +157,11 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         "frames": n,
         "per": args.per,
         "fade": args.fade,
+        "transition": args.transition.xfade_name(),
+        "motion": match args.motion {
+            SlideMotion::None => "none",
+            SlideMotion::Kenburns => "kenburns",
+        },
         "canvas": format!("{w}x{h}"),
         "music_bed": args.audio.is_some(),
         "expected_duration": total,

@@ -33,15 +33,31 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
     argv.extend(["-i"]);
     argv.push(&args.audio);
 
+    if args.mix != 0.0 && !(0.0..=1.0).contains(&args.mix) {
+        return Err(Error::input("--mix must be a linear gain 0..=1"));
+    }
+    if args.mix > 0.0 && !probe.has_audio {
+        return Err(Error::input(
+            "replace --mix needs an audio stream on the input",
+        ));
+    }
+
     let mut chain = String::new();
     if args.audio_offset > 0.0 {
         chain = format!("adelay={:.0}:all=1,", args.audio_offset * 1000.0);
     }
     // apad then atrim: short beds get silence to the credits, long beds are cut.
-    let fc = format!(
-        "[1:a]{chain}apad,atrim=duration={:.3},aresample=48000,aformat=channel_layouts=stereo[aout]",
-        probe.duration
-    );
+    let fc = if args.mix > 0.0 {
+        format!(
+            "[1:a]{chain}apad,atrim=duration={:.3},aresample=48000,aformat=channel_layouts=stereo[new];[0:a]aresample=48000,aformat=channel_layouts=stereo,volume={:.3},atrim=duration={:.3}[old];[old][new]amix=inputs=2:normalize=0[aout]",
+            probe.duration, args.mix, probe.duration
+        )
+    } else {
+        format!(
+            "[1:a]{chain}apad,atrim=duration={:.3},aresample=48000,aformat=channel_layouts=stereo[aout]",
+            probe.duration
+        )
+    };
     argv.extend([
         "-filter_complex",
         &fc,
@@ -61,6 +77,7 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
     c = c.with_extra(json!({
         "audio": args.audio,
         "audio_offset": args.audio_offset,
+        "mix": args.mix,
         "video_copy": true,
     }));
     Ok(c)

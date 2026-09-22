@@ -51,7 +51,13 @@ fn burn_overlay(
     probe: &crate::probe::Probe,
 ) -> Result<Contract, Error> {
     let raw = std::fs::read_to_string(&args.srt)?;
-    let cues = srt::parse_srt(&raw)?;
+    let mut cues = srt::parse_srt(&raw)?;
+    if let Some(n) = args.chunk {
+        if !(1..=10).contains(&n) {
+            return Err(Error::input("--chunk must be 1..=10 words"));
+        }
+        cues = chunk_cues(cues, n as usize);
+    }
     if cues.len() > 80 {
         return Err(Error::input(
             "caption burn supports at most 80 cues; split the srt or use graph",
@@ -115,6 +121,7 @@ fn burn_overlay(
     c = c.with_extra(serde_json::json!({
         "renderer": "overlay",
         "cues": cues.len(),
+        "chunk": args.chunk,
         "font": font_path.display().to_string(),
         "safe": match args.safe {
             CaptionSafe::Social => "social",
@@ -126,6 +133,29 @@ fn burn_overlay(
         },
     }));
     Ok(c)
+}
+
+// Split each cue into ≤n-word chunks shown one at a time, sharing the cue's
+// span evenly — the chunked "karaoke-ish" look without needing word timing.
+fn chunk_cues(cues: Vec<srt::Cue>, n: usize) -> Vec<srt::Cue> {
+    let mut out = Vec::new();
+    for cue in cues {
+        let words: Vec<&str> = cue.text.split_whitespace().collect();
+        if words.len() <= n {
+            out.push(cue);
+            continue;
+        }
+        let span = cue.end - cue.start;
+        let k = words.len().div_ceil(n);
+        for (i, group) in words.chunks(n).enumerate() {
+            out.push(srt::Cue {
+                start: cue.start + span * i as f64 / k as f64,
+                end: cue.start + span * (i + 1) as f64 / k as f64,
+                text: group.join(" "),
+            });
+        }
+    }
+    out
 }
 
 fn overlay_y(safe: CaptionSafe) -> &'static str {

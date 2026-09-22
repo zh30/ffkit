@@ -103,17 +103,17 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `extract` | Audio, a frame, or subtitles from the output extension |
 | `overlay` | Logo, watermark, picture-in-picture |
 | `broll` | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay |
-| `caption` | `--mode mux` soft subs; `burn` overlay raster (no libass); `--safe social` clears the bottom 20% |
+| `caption` | `--mode mux` soft subs; `burn` overlay raster (no libass); `--safe social` clears the bottom 20%; `--chunk N` splits cues into ≤N-word groups |
 | `loudnorm` | EBU R128 two-pass (`-I -14` social, `-I -16` podcast) |
 | `denoise` | Voice cleanup (fan / rumble / hiss); `--video` also degrains the picture |
 | `transcode` | Presets `h264` / `webm` / `gif` |
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 | `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`) |
-| `slideshow` | Still images → video montage (`--per`, `--fade`, `--audio` bed, `--size` canvas) |
+| `slideshow` | Still images → video montage (`--per`, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed, `--size` canvas) |
 | `speed` | `--factor 2` is 2×; talking-head keeps pitch |
 | `music` | Bed under speech with ducking (`--track`) |
-| `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync |
+| `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
 | `cover` | 9:16 cover still (1080×1920) |

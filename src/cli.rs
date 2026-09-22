@@ -305,6 +305,9 @@ pub struct CaptionArgs {
     /// Burn-in placement: `social` clears bottom 20% / top 15% (TikTok/Reels chrome); `off` is the old 15% bottom margin
     #[arg(long, value_enum, default_value_t = CaptionSafe::Social)]
     pub safe: CaptionSafe,
+    /// Split each cue into ≤N-word chunks spread evenly over its time (burn only)
+    #[arg(long, value_name = "N")]
+    pub chunk: Option<u32>,
     #[arg(long)]
     pub font: Option<String>,
 }
@@ -449,6 +452,9 @@ pub struct ReplaceArgs {
     /// Shift the new audio in seconds: positive delays, negative trims its start
     #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
     pub audio_offset: f64,
+    /// Keep the original track under the new one at this linear gain (0–1)
+    #[arg(long, default_value_t = 0.0)]
+    pub mix: f64,
 }
 
 #[derive(clap::Args, Debug)]
@@ -469,9 +475,56 @@ pub struct SlideshowArgs {
     /// Music bed under the slideshow (faded out at the end)
     #[arg(long)]
     pub audio: Option<PathBuf>,
+    /// Transition between stills (needs --fade > 0)
+    #[arg(long, value_enum, default_value_t = SlideTransition::Fade)]
+    pub transition: SlideTransition,
+    /// Per-still motion (kenburns = slow push-in / pull-out via zoompan)
+    #[arg(long, value_enum, default_value_t = SlideMotion::None)]
+    pub motion: SlideMotion,
     /// Output frame rate
     #[arg(long, default_value_t = 30.0)]
     pub fps: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum SlideTransition {
+    Fade,
+    Wipeleft,
+    Wiperight,
+    Wipeup,
+    Wipedown,
+    Slideleft,
+    Slideright,
+    Slideup,
+    Slidedown,
+    Dissolve,
+    Radial,
+    Circleopen,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum SlideMotion {
+    None,
+    Kenburns,
+}
+
+impl SlideTransition {
+    pub fn xfade_name(self) -> &'static str {
+        match self {
+            Self::Fade => "fade",
+            Self::Wipeleft => "wipeleft",
+            Self::Wiperight => "wiperight",
+            Self::Wipeup => "wipeup",
+            Self::Wipedown => "wipedown",
+            Self::Slideleft => "slideleft",
+            Self::Slideright => "slideright",
+            Self::Slideup => "slideup",
+            Self::Slidedown => "slidedown",
+            Self::Dissolve => "dissolve",
+            Self::Radial => "radial",
+            Self::Circleopen => "circleopen",
+        }
+    }
 }
 
 #[derive(clap::Args, Debug)]

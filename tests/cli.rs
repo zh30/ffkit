@@ -2198,3 +2198,194 @@ fn slideshow_refuses_fade_longer_than_per() {
     ]);
     assert_eq!(v["status"], "failed", "{v}");
 }
+
+#[test]
+fn caption_chunk_splits_long_cues() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:01,000\nHELLO THERE BRAVE NEW WORLD\n\n\
+         2\n00:00:01,000 --> 00:00:01,800\nBYE NOW\n",
+    )
+    .unwrap();
+    let out = dir.path().join("cap.mp4");
+    let v = run_json(&[
+        "caption",
+        f.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--chunk",
+        "2",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    // 5 words -> 3 chunks of <=2; the short cue passes through: 4 total.
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["cues"], 4, "{v}");
+    assert_eq!(v["extra"]["chunk"], 2, "{v}");
+}
+
+#[test]
+fn caption_chunk_rejects_out_of_range() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:01,000\nHELLO WORLD\n").unwrap();
+    let v = run_json(&[
+        "caption",
+        f.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--chunk",
+        "0",
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn replace_mix_blends_original_under_new_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let bed = dir.path().join("bed.m4a");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&bed)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let out = dir.path().join("mix.mp4");
+    let v = run_json(&[
+        "replace",
+        f.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        bed.to_str().unwrap(),
+        "--mix",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["mix"], 0.3, "{v}");
+    assert!(out.exists());
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        (d - 1.0).abs() < 0.3,
+        "mix keeps video duration, got {d}; {v}"
+    );
+
+    // --mix on an input with no audio must be refused.
+    let silent = dir.path().join("silent.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=64x64:rate=10",
+            "-an",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&silent)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let v = run_json(&[
+        "replace",
+        silent.to_str().unwrap(),
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+        "--audio",
+        bed.to_str().unwrap(),
+        "--mix",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn slideshow_kenburns_and_wipe_transition() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mut imgs = vec![];
+    for (i, c) in ["red", "green", "blue"].iter().enumerate() {
+        let p = dir.path().join(format!("k{i}.png"));
+        let status = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color=c={c}:s=320x240:d=0.5"),
+                "-frames:v",
+                "1",
+            ])
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        imgs.push(p);
+    }
+    let out = dir.path().join("kb.mp4");
+    let v = run_json(&[
+        "slideshow",
+        imgs[0].to_str().unwrap(),
+        imgs[1].to_str().unwrap(),
+        imgs[2].to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--per",
+        "1",
+        "--fade",
+        "0.2",
+        "--motion",
+        "kenburns",
+        "--transition",
+        "wipeleft",
+        "--size",
+        "640x360",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["motion"], "kenburns", "{v}");
+    assert_eq!(v["extra"]["transition"], "wipeleft", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        (d - 2.6).abs() < 0.4,
+        "kenburns slideshow ≈2.6s, got {d}; {v}"
+    );
+    assert_eq!(v["probe"]["width"], 640, "{v}");
+}
