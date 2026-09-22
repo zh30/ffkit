@@ -7781,3 +7781,98 @@ fn audiogram_size_sets_canvas() {
     assert_eq!(v["probe"]["width"].as_u64(), Some(1280));
     assert_eq!(v["probe"]["height"].as_u64(), Some(720));
 }
+
+#[test]
+fn audiogram_text_overlays_top_title() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let aud = dir.path().join("a.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=440:duration=0.5")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        aud.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "EP 12",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn replace_fade_keeps_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let aud = dir.path().join("a.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=440:duration=1.5")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("rep.mp4");
+    let v = run_json(&[
+        "replace",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        aud.to_str().unwrap(),
+        "--fade",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 1.0).abs() < 0.15, "video length pinned: {d}");
+}
+
+#[test]
+fn thumb_width_scales_still() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.png");
+    let v = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--width",
+        "160",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"].as_u64(), Some(160));
+}

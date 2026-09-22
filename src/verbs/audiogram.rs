@@ -52,11 +52,32 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         WaveMode::P2p => "p2p",
         WaveMode::Cline => "cline",
     };
+    // --text: rasterize a small title into a PNG and overlay it near the top.
+    let mut title_png = None;
+    if let Some(text) = &args.text {
+        let font_path = crate::font::resolve(None)?;
+        let font_bytes =
+            std::fs::read(&font_path).map_err(|e| Error::input(format!("read font: {e}")))?;
+        let img = crate::raster::render_caption(text, &font_bytes, w)?;
+        let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
+        let png = tmp.path().join("ag_text.png");
+        img.save(&png)
+            .map_err(|e| Error::output(format!("write text png: {e}")))?;
+        argv.extend(["-loop", "1", "-i"]);
+        argv.push(&png);
+        title_png = Some(tmp);
+    }
+    let tail = if title_png.is_some() {
+        // text sits near the top, above the waveform band
+        "[mid];[mid][2:v]overlay=(W-w)/2:(H-h)*0.16:shortest=1[vout]"
+    } else {
+        "[vout]"
+    };
     let fc = format!(
         "[1:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1[bg];\
               [0:a]showwaves=s={ww}x{wh}:mode={mode}:rate=30:colors={}:draw=full[wv];\
               [wv]colorkey=0x000000:0.12:0.1[wvk];\
-              [bg][wvk]overlay=(W-w)/2:(H-h)*0.62:shortest=1[vout]",
+              [bg][wvk]overlay=(W-w)/2:(H-h)*0.62:shortest=1{tail}",
         args.color,
         ww = (w as f64 * 0.87).round() as u32 & !1,
         wh = ((h as f64) / 6.0).round().max(40.0) as u32 & !1,

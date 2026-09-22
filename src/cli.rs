@@ -544,6 +544,9 @@ pub struct AudiogramArgs {
     /// Canvas WxH (default 1080x1920; use 1920x1080 for YouTube)
     #[arg(long, default_value = "1080x1920")]
     pub size: String,
+    /// Show this text near the top (podcast name / episode title)
+    #[arg(long)]
+    pub text: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -705,6 +708,9 @@ pub struct ThumbArgs {
     /// Exact frame index instead of a timestamp
     #[arg(long)]
     pub frame: Option<u64>,
+    /// Scale the still to this width (height follows aspect)
+    #[arg(long)]
+    pub width: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -768,6 +774,9 @@ pub struct ReplaceArgs {
     /// Shift the new audio in seconds: positive delays, negative trims its start
     #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
     pub audio_offset: f64,
+    /// Fade the new audio in/out over N seconds (0 = hard start/end)
+    #[arg(long, default_value_t = 0.0)]
+    pub fade: f64,
     /// Keep the original track under the new one at this linear gain (0–1)
     #[arg(long, default_value_t = 0.0)]
     pub mix: f64,

@@ -48,6 +48,9 @@ pub fn run(args: ThumbArgs, g: &Globals) -> Result<Contract, Error> {
         }
         _ => unreachable!(),
     }
+    if let Some(w) = args.width {
+        argv.extend(["-vf", &format!("scale={w}:-2")]);
+    }
     argv.extend(["-frames:v", "1"]);
     if matches!(ext.as_str(), "jpg" | "jpeg") {
         argv.extend(["-q:v", "2"]);

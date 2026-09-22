@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.65.0] - 2026-09-22
+
+- `replace --fade N` — `afade` in/out on the swapped audio (fade-out pinned to the video's end; all three mix/duck/plain paths).
+- `audiogram --text` — raster title composited near the top (`render_caption` PNG → second `overlay` stage, `shortest=1` on the looped input).
+- `thumb --width` — scale the grabbed still (`scale=W:-2`).
+
 ## [0.64.0] — 2026-09-22
 
 - `broll --fade N` — alpha fade in/out on the insert (`format=rgba` + `fade alpha=1` on the shifted B chain; stays rgba through `overlay`).

@@ -110,7 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 
-| `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`, `--mode`/`--color`, `--bg`, `--size`) |
+| `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`, `--mode`/`--color`, `--bg`, `--size`, `--text`) |
 
 | `split` | `--every` regular parts, `--at` explicit, `--scenes` shot-detection, `--size` target-MB, `--parts N` equal | Chop into parts (`--every 30` even chunks, or `--at 30,90` chapter points) → `stem_00..` |
 | `slideshow` | Still images → video montage (`--per`, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed, `--size` canvas) |
@@ -135,7 +135,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window |
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, stream-copy |
 | `subs` | Extract embedded subtitles (`--stream`), `--burn` hardsubs, `--shift ±N` retime an .srt |
-| `thumb` | One-frame cover grab (`--at` / `--frame`) → jpg/png/webp |
+| `thumb` | One-frame cover grab (`--at` / `--frame`, `--width`) → jpg/png/webp |
 | `solid` | Solid-color clip card (`--color`, `--size`, `--dur`; silent stereo optional) |
 | `replace` | Swap the video's audio track for `--audio` (lav mic, clean voice, new music); `--audio-offset` for sync, `--mix` to keep the original under it |
 | `jumpcut` | Cut silence inside a talking-head take |
