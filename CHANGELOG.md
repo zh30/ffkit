@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.77.0] - 2026-09-22
+
+- `subs --mux file.srt --lang spa` — muxes a subtitle file in as a selectable stream (mov_text in mp4, srt in mkv) with a language tag; videos stay stream-copied.
+- `caption --outline RRGGBB` — strokes each glyph (`render_caption_outlined` in raster) for readability on busy frames.
+- `audiogram --font` — custom ttf/otf for the `--text` title card.
+
 ## [0.76.0] - 2026-09-22
 
 - `reverb --at/--dur`, `eq --at/--dur` — windowed audio FX via the new shared `engine::audio_window` (dry-duck + wet-delay + amix), extracted from `fx`.

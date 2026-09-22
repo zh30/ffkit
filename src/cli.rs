@@ -488,6 +488,9 @@ pub struct CaptionArgs {
     /// Text size multiplier (default 1.0)
     #[arg(long, default_value_t = 1.0)]
     pub size: f64,
+    /// Stroke color around each glyph as RRGGBB (burn only)
+    #[arg(long)]
+    pub outline: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -564,6 +567,9 @@ pub struct AudiogramArgs {
     /// Wave band vertical placement: top / center / bottom (default bottom)
     #[arg(long)]
     pub position: Option<String>,
+    /// Font file for --text (ttf/otf)
+    #[arg(long)]
+    pub font: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -717,6 +723,12 @@ pub struct SubsArgs {
     /// Burned subtitle font family name (default Sans)
     #[arg(long)]
     pub font: Option<String>,
+    /// Mux this subtitle file into the video as selectable soft subs (.mp4/.mkv)
+    #[arg(long)]
+    pub mux: Option<PathBuf>,
+    /// Language tag on the muxed subtitle stream (eng|spa|zho|…)
+    #[arg(long)]
+    pub lang: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

@@ -16,6 +16,18 @@ pub fn render_caption_styled(
     render_text(text, font_bytes, video_w, 14.0, fg, size)
 }
 
+/// Caption text stroked for readability on busy frames.
+pub fn render_caption_outlined(
+    text: &str,
+    font_bytes: &[u8],
+    video_w: u32,
+    fg: [u8; 3],
+    size: f32,
+    outline: ([u8; 3], u32),
+) -> Result<RgbaImage, Error> {
+    render_text_inner(text, font_bytes, video_w, 14.0, fg, size, Some(outline))
+}
+
 pub fn render_title_styled(
     text: &str,
     font_bytes: &[u8],

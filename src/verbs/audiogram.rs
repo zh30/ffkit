@@ -55,7 +55,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     // --text: rasterize a small title into a PNG and overlay it near the top.
     let mut title_png = None;
     if let Some(text) = &args.text {
-        let font_path = crate::font::resolve(None)?;
+        let font_path = crate::font::resolve(args.font.as_deref().map(std::path::Path::new))?;
         let font_bytes =
             std::fs::read(&font_path).map_err(|e| Error::input(format!("read font: {e}")))?;
         let img = crate::raster::render_caption(text, &font_bytes, w)?;

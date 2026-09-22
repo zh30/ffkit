@@ -13,6 +13,9 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(subs) = &args.burn {
         return burn(&args, subs, g);
     }
+    if let Some(subs) = &args.mux {
+        return mux(&args, subs, g);
+    }
     let codec = match args
         .output
         .extension()
@@ -39,6 +42,44 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c.with_extra(json!({
         "stream": args.stream,
         "codec": codec,
+    })))
+}
+
+/// Mux an .srt/.vtt/.ass into the container as a selectable subtitle stream
+/// (mov_text for mp4, srt for mkv) with an optional `language=` tag.
+fn mux(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract, Error> {
+    if !subs.is_file() {
+        return Err(Error::input(format!(
+            "no such subtitle file: {}",
+            subs.display()
+        )));
+    }
+    let codec = match args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+    {
+        "mkv" | "webm" => "srt",
+        _ => "mov_text",
+    };
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.push("-i");
+    argv.push(subs);
+    argv.extend([
+        "-map", "0:v?", "-map", "0:a?", "-map", "1", "-c:v", "copy", "-c:a", "copy", "-c:s", codec,
+    ]);
+    if let Some(lang) = &args.lang {
+        argv.extend(["-metadata:s:s:0", &format!("language={lang}")]);
+    }
+    argv.push(&args.output);
+    let c = engine::write_job("subs", &[&args.input], &args.output, vec![argv], g)?;
+    Ok(c.with_extra(json!({
+        "mode": "mux",
+        "codec": codec,
+        "lang": args.lang,
     })))
 }
 

@@ -8722,3 +8722,67 @@ fn loop_section_repeats_only_the_middle() {
     // 0.2 head + 0.4x3 section + 0.4 tail = 1.8s from the 1s fixture
     assert!(dur > 1.5, "looped section should make ~1.8s, got {dur}");
 }
+
+#[test]
+fn subs_mux_soft_subtitles() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,800\nhello\n").unwrap();
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mux",
+        srt.to_str().unwrap(),
+        "--lang",
+        "spa",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["codec"], "mov_text");
+}
+
+#[test]
+fn audiogram_custom_font() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("ag.mp4");
+    let mut cmd = vec![
+        "audiogram".to_string(),
+        tone.to_string_lossy().to_string(),
+        "-o".to_string(),
+        out.to_string_lossy().to_string(),
+        "--text".to_string(),
+        "EP 1".to_string(),
+    ];
+    if std::path::Path::new("/System/Library/Fonts/Helvetica.ttc").exists() {
+        cmd.push("--font".to_string());
+        cmd.push("/System/Library/Fonts/Helvetica.ttc".to_string());
+    }
+    let refs: Vec<&str> = cmd.iter().map(String::as_str).collect();
+    let v = run_json(&refs);
+    assert_eq!(v["status"], "ok", "{v}");
+}

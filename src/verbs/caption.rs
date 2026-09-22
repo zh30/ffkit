@@ -93,14 +93,28 @@ fn burn_overlay(
 
     let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
     let mut pngs = Vec::new();
+    let outline = match &args.outline {
+        Some(c) => Some((caption_hex(c)?, 3u32)),
+        None => None,
+    };
     for (i, cue) in cues.iter().enumerate() {
-        let img = crate::raster::render_caption_styled(
-            &cue.text,
-            &font_bytes,
-            vw,
-            cap_fg,
-            args.size as f32,
-        )?;
+        let img = match outline {
+            Some(oc) => crate::raster::render_caption_outlined(
+                &cue.text,
+                &font_bytes,
+                vw,
+                cap_fg,
+                args.size as f32,
+                oc,
+            )?,
+            None => crate::raster::render_caption_styled(
+                &cue.text,
+                &font_bytes,
+                vw,
+                cap_fg,
+                args.size as f32,
+            )?,
+        };
         let png = tmp.path().join(format!("c{i}.png"));
         img.save(&png)
             .map_err(|e| Error::output(format!("write caption png: {e}")))?;
