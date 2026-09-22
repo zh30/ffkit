@@ -440,6 +440,9 @@ pub struct BrollArgs {
     /// Animate a --still insert (kenburns = slow push over the window)
     #[arg(long, value_enum)]
     pub motion: Option<SlideMotion>,
+    /// Fade the cutaway in/out over N seconds (0 = hard cut)
+    #[arg(long, default_value_t = 0.0)]
+    pub fade: f64,
 }
 
 #[derive(clap::Args, Debug)]
@@ -538,6 +541,9 @@ pub struct AudiogramArgs {
     /// Background colour when no --image (name or 0xRRGGBB, default 101418)
     #[arg(long)]
     pub bg: Option<String>,
+    /// Canvas WxH (default 1080x1920; use 1920x1080 for YouTube)
+    #[arg(long, default_value = "1080x1920")]
+    pub size: String,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -1304,6 +1310,9 @@ pub struct FramesArgs {
     /// Optional width to scale stills to
     #[arg(long)]
     pub width: Option<u32>,
+    /// Grab stills at these timestamps instead of an --every grid
+    #[arg(long, value_delimiter = ',')]
+    pub at: Vec<String>,
 }
 
 #[derive(clap::Args, Debug)]

@@ -110,7 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 
-| `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`, `--mode`/`--color`, `--bg`) |
+| `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`, `--mode`/`--color`, `--bg`, `--size`) |
 
 | `split` | `--every` regular parts, `--at` explicit, `--scenes` shot-detection, `--size` target-MB, `--parts N` equal | Chop into parts (`--every 30` even chunks, or `--at 30,90` chapter points) → `stem_00..` |
 | `slideshow` | Still images → video montage (`--per`, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed, `--size` canvas) |
@@ -169,7 +169,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `deinterlace` | `yadif` for DV/interlaced sources (`--mode frame`/`field`) |
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
-| `frames` | Still dump every `--every` seconds → `stem_001.png…` (`--width`) |
+| `frames` | Still dump every `--every`, `--at` seconds → `stem_001.png…` (`--width`) |
 | `countdown` | 3-2-1(-GO) intro overlay (`--from`, `--each`, `--go`, `--at`) |
 | `invert` | Negative colors (`negate`) |
 | `mix` | Sum two audio sources (`--vol-a`/`--vol-b` linear, `--longest`) |

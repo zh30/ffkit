@@ -39,6 +39,68 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
     };
 
     let mut vf = format!("fps=1/{}", args.every);
+    if !args.at.is_empty() {
+        // --at: N seek+grab jobs, each its own output file
+        let probe = engine::probe_or_err(&args.input, g)?;
+        let ext = args
+            .output
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("png");
+        let stem = args
+            .output
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "shot".into());
+        let mut cmds = Vec::new();
+        let mut outs = Vec::new();
+        for (i, s) in args.at.iter().enumerate() {
+            let t = crate::time::parse_time(s)?;
+            if !(0.0..probe.duration).contains(&t) {
+                return Err(Error::input(format!(
+                    "frames --at {s} is outside the {:.2}s source",
+                    probe.duration
+                )));
+            }
+            let out = args
+                .output
+                .parent()
+                .filter(|p| !p.as_os_str().is_empty())
+                .unwrap_or_else(|| Path::new("."))
+                .join(format!("{stem}_{:03}.{ext}", i + 1));
+            let mut av = ffmpeg_base(g.progress);
+            av.extend(["-ss", &format!("{t:.3}")]);
+            av.push("-i");
+            av.push(&args.input);
+            if let Some(w) = args.width {
+                av.extend(["-vf", &format!("scale={w}:-1")]);
+            }
+            av.extend(["-frames:v", "1"]);
+            av.push(&out);
+            cmds.push(av);
+            outs.push(out);
+        }
+        let commands = engine::commands_of(&cmds);
+        if g.dry_run {
+            return Ok(Contract::dry_run(
+                "frames",
+                Some(paths::display(&args.output)),
+                Some(probe),
+            )
+            .with_commands(commands));
+        }
+        if let Err(e) = engine::run_argvs(&cmds, g) {
+            return Ok(Contract::failed("frames", &e).with_commands(commands));
+        }
+        let first = crate::probe::probe(&outs[0], Duration::from_secs(60))?;
+        return Ok(
+            Contract::ok("frames", Some(paths::display(&args.output)), Some(first))
+                .with_commands(commands)
+                .with_extra(serde_json::json!({
+                    "stills": outs.iter().map(|p| paths::display(p)).collect::<Vec<_>>()
+                })),
+        );
+    }
     if let Some(w) = args.width {
         vf.push_str(&format!(",scale={w}:-2"));
     }

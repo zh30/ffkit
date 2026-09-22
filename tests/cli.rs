@@ -7679,3 +7679,105 @@ fn eq_preset_fills_zero_bands() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn broll_fade_softens_cutaway_edges() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let ins = dir.path().join("ins.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=0x00ff00:s=320x240:d=1")
+        .arg(&ins)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("br.mp4");
+    let v = run_json(&[
+        "broll",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--insert",
+        ins.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--duration",
+        "0.6",
+        "--fade",
+        "0.15",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 1.0).abs() < 0.15, "A-roll length pinned: {d}");
+}
+
+#[test]
+fn frames_at_grabs_listed_timestamps() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("shot.png");
+    let v = run_json(&[
+        "frames",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2,0.7",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(dir.path().join("shot_001.png").exists());
+    assert!(dir.path().join("shot_002.png").exists());
+}
+
+#[test]
+fn audiogram_size_sets_canvas() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let aud = dir.path().join("a.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=440:duration=0.5")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        aud.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "1280x720",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"].as_u64(), Some(1280));
+    assert_eq!(v["probe"]["height"].as_u64(), Some(720));
+}

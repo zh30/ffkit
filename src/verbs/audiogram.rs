@@ -11,6 +11,12 @@ use crate::paths;
 /// Podcast clip → 1080x1920 video: cover still (or flat colour) with a
 /// showwaves strip keyed over it. Audio is re-encoded to aac.
 pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
+    let (w, h) = args
+        .size
+        .split_once('x')
+        .and_then(|(a, b)| Some((a.parse::<u32>().ok()?, b.parse::<u32>().ok()?)))
+        .filter(|(w, h)| *w >= 64 && *h >= 64)
+        .ok_or_else(|| Error::input("--size must be WxH (min 64x64)"))?;
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_audio {
         return Err(Error::input("audiogram: input has no audio stream"));
@@ -32,12 +38,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         } else {
             format!("0x{}", bg.trim_start_matches('#'))
         };
-        argv.extend([
-            "-f",
-            "lavfi",
-            "-i",
-            &format!("color=c={bg}:s=1080x1920:r=30"),
-        ]);
+        argv.extend(["-f", "lavfi", "-i", &format!("color=c={bg}:s={w}x{h}:r=30")]);
     }
 
     // Waveform sits in the lower-middle band — clear of Reels/TikTok top and
@@ -52,11 +53,13 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         WaveMode::Cline => "cline",
     };
     let fc = format!(
-        "[1:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg];\
-              [0:a]showwaves=s=940x320:mode={mode}:rate=30:colors={}:draw=full[wv];\
+        "[1:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1[bg];\
+              [0:a]showwaves=s={ww}x{wh}:mode={mode}:rate=30:colors={}:draw=full[wv];\
               [wv]colorkey=0x000000:0.12:0.1[wvk];\
               [bg][wvk]overlay=(W-w)/2:(H-h)*0.62:shortest=1[vout]",
-        args.color
+        args.color,
+        ww = (w as f64 * 0.87).round() as u32 & !1,
+        wh = ((h as f64) / 6.0).round().max(40.0) as u32 & !1,
     );
     argv.extend(["-filter_complex", &fc, "-map", "[vout]", "-map", "0:a"]);
     argv.extend([

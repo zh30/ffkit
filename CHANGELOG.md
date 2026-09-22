@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.64.0] — 2026-09-22
+
+- `broll --fade N` — alpha fade in/out on the insert (`format=rgba` + `fade alpha=1` on the shifted B chain; stays rgba through `overlay`).
+- `frames --at t1,t2,...` — grab stills at listed timestamps (N `-ss` seek jobs → `stem_NNN.ext`).
+- `audiogram --size WxH` — canvas for YouTube (1920x1080) or square (1080x1080); waveform band scales with it.
+
 ## [0.63.0] - 2026-09-22
 
 - `split --silence dB` — cuts at silence midpoints (`silencedetect` → `-f segment`; podcast → episode segments).

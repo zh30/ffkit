@@ -55,8 +55,21 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         String::new()
     };
+    let win = end - at;
+    let (pix, fade_chain) = if args.fade > 0.0 {
+        let f = args.fade.min(win / 2.0).max(0.02);
+        (
+            "rgba",
+            format!(
+                ",fade=t=in:st={at:.3}:d={f:.3}:alpha=1,fade=t=out:st={:.3}:d={f:.3}:alpha=1",
+                end - f
+            ),
+        )
+    } else {
+        ("yuv420p", String::new())
+    };
     let fc = format!(
-        "[1:v]{still_pre}{prep},setsar=1,format=yuv420p,setpts=PTS-STARTPTS+{at:.3}/TB[br];[0:v][br]overlay=0:0:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
+        "[1:v]{still_pre}{prep},setsar=1,format={pix},setpts=PTS-STARTPTS+{at:.3}/TB{fade_chain}[br];[0:v][br]overlay=0:0:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
     );
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if a.has_audio {
