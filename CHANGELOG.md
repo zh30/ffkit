@@ -4,6 +4,7 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+
 ## [0.34.0] — 2026-09-22
 
 - `ffkit autocrop`: cropdetect scan → crop out letterbox/pillarbox (refuses when nothing detected)
@@ -56,6 +57,7 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 - `fit --fit blur`: blurred-pillarbox fill for repurpose; `broll --fit blur` gets the same mode
 - `ffkit audiogram`: podcast audio → 1080×1920 `showwaves` video over a cover still (`--image`) or flat colour
 - Creator-gap research refreshed in `docs/creator-needs.md` (size caps, podcast→clips, denoise, blur fill)
+
 
 ## [0.25.1] — 2026-09-16
 
