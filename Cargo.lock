@@ -222,7 +222,7 @@ dependencies = [
 
 [[package]]
 name = "ffkit"
-version = "0.48.0"
+version = "0.49.0"
 dependencies = [
  "clap",
  "fontdue",

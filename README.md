@@ -139,7 +139,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
 | `cover` | 9:16 cover still (1080×1920) |
-| `fade` | Video and audio fade (`--in` / `--out`) |
+| `fade` | Video and audio fade (`--in` / `--out`, `--color` e.g. white) |
 | `title` | Burned-in hook text; `--at`, `--tile`, `--size`, `--color`, `--position top|center|bottom` | First-second hook card (`--text`, no libass) |
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) |
 | `stabilize` | Handheld deshake |
@@ -163,6 +163,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `vocal` | `--mode karaoke` drops centered vocals; `isolate` keeps the center (stereo) |
 | `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov) |
 | `meme` | `--top`/`--bottom` caption text burned in (`--color`, `--size`) |
+| `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`) |
+| `deinterlace` | `yadif` for DV/interlaced sources (`--mode frame`/`field`) |
 | `batch` | One verb on every media file in a directory |
 | `pipeline` | Run a JSON scheme in order (`$src` / `$in` / `expect`) |
 | `graph` | JSON filter graph, see [`references/graph.md`](references/graph.md) |

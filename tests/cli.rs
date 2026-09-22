@@ -5909,3 +5909,153 @@ fn meme_top_text_stays_in_band() {
         "meme edits the top band (top diff {top_band} vs bottom {bot_band}); {v}"
     );
 }
+
+#[test]
+fn voice_chain_levels_and_loudness() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("v.wav");
+    // Loud burst, a hiss-quiet stretch, then speech-level tone again.
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=300:duration=0.4,volume=6dB",
+            "-f",
+            "lavfi",
+            "-i",
+            "anoisesrc=color=pink:duration=0.4:amplitude=0.02",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=300:duration=0.4,volume=-6dB",
+            "-filter_complex",
+            "[0:a][1:a][2:a]concat=n=3:v=0:a=1[a]",
+            "-map",
+            "[a]",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "voice fixture");
+    let out = dir.path().join("v.m4a");
+    let v = run_json(&["voice", wav.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stderr);
+    let mean = s
+        .lines()
+        .find_map(|l| {
+            l.split("mean_volume:")
+                .nth(1)
+                .and_then(|r| r.split_whitespace().next())
+                .and_then(|x| x.parse::<f64>().ok())
+        })
+        .unwrap_or(0.0);
+    assert!(
+        (-30.0..-5.0).contains(&mean),
+        "leveled voice lands near broadcast mean ({mean} dB); {v}"
+    );
+}
+
+#[test]
+fn deinterlace_field_doubles_rate() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("d.mp4");
+    let v = run_json(&[
+        "deinterlace",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "field",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-count_frames",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=nb_read_frames",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let frames: u32 = String::from_utf8_lossy(&o.stdout)
+        .trim()
+        .parse()
+        .unwrap_or(0);
+    assert!(
+        (55..=62).contains(&frames),
+        "field mode doubles 30 frames to ~60, got {frames}; {v}"
+    );
+}
+
+#[test]
+fn fade_color_white_fades_to_white() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("w.mp4");
+    let v = run_json(&[
+        "fade",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--out",
+        "0.4",
+        "--color",
+        "white",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let png = dir.path().join("last.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-sseof",
+            "-0.1",
+            "-i",
+        ])
+        .arg(&out)
+        .args(["-frames:v", "1"])
+        .arg(&png)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "last frame");
+    let (r, g, b) = mean_rgb(&png);
+    let m = (r + g + b) / 3.0;
+    assert!(
+        m > 200.0,
+        "fade --color white ends near white ({m:.0}); {v}"
+    );
+}

@@ -167,6 +167,8 @@ pub enum Cmd {
     Vocal(VocalArgs),
     Remux(RemuxArgs),
     Meme(MemeArgs),
+    Voice(VoiceArgs),
+    Deinterlace(DeinterlaceArgs),
     /// Even out voice dynamic range (compressor)
     Leveler(LevelerArgs),
     /// Noise gate — silence below a threshold
@@ -808,6 +810,9 @@ pub struct FadeArgs {
     /// Fade-out seconds (0 = none)
     #[arg(long = "out", default_value_t = 0.25)]
     pub fade_out: f64,
+    /// Fade to this color (default black; e.g. white)
+    #[arg(long)]
+    pub color: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1092,6 +1097,35 @@ pub struct MemeArgs {
     /// Text color as RRGGBB hex (default ffffff)
     #[arg(long)]
     pub color: Option<String>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct VoiceArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Gate threshold dB — quieter than this gets muted (default -45)
+    #[arg(long, default_value_t = -45.0, allow_hyphen_values = true)]
+    pub threshold: f64,
+    /// Target integrated loudness LUFS (default -16 podcast)
+    #[arg(long, default_value_t = -16.0, allow_hyphen_values = true)]
+    pub lufs: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DeinterlaceArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// frame = same rate progressive (default); field = double rate smoothest
+    #[arg(long, value_enum, default_value_t = DeinterlaceMode::Frame)]
+    pub mode: DeinterlaceMode,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum DeinterlaceMode {
+    Frame,
+    Field,
 }
 
 #[derive(clap::Args, Debug)]

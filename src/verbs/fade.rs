@@ -25,17 +25,19 @@ pub fn run(args: FadeArgs, g: &Globals) -> Result<Contract, Error> {
         )));
     }
 
+    let color = args.color.as_deref().unwrap_or("black");
+
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
     if probe.has_video {
         let mut vf = Vec::new();
         if fade_in > 0.0 {
-            vf.push(format!("fade=t=in:st=0:d={fade_in}"));
+            vf.push(format!("fade=t=in:st=0:d={fade_in}:color={color}"));
         }
         if fade_out > 0.0 {
             let st = (probe.duration - fade_out).max(0.0);
-            vf.push(format!("fade=t=out:st={st}:d={fade_out}"));
+            vf.push(format!("fade=t=out:st={st}:d={fade_out}:color={color}"));
         }
         argv.extend(["-vf", &vf.join(",")]);
         argv.extend([

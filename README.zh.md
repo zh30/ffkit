@@ -139,7 +139,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |
 | `cover` | 导出 9:16 封面图（1080×1920） |
-| `fade` | 画面和声音淡入淡出（`--in` / `--out`） |
+| `fade` | 画面和声音淡入淡出（`--in` / `--out`，`--color` 淡出到白等） |
 | `title` | 片头/hook 大字（`--text`，不依赖 libass；`--position top|center|bottom` 选位置） |
 | `loop` | 把成片重复 N 遍（Shorts 循环加长） |
 | `stabilize` | 手持防抖（deshake） |
@@ -163,6 +163,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `vocal` | `--mode karaoke` 消中置人声、`isolate` 只留中置（需立体声源） |
 | `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart） |
 | `meme` | 顶部/底部说明文字烧入（`--top`/`--bottom`，`--color`，`--size`） |
+| `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`） |
+| `deinterlace` | 老录像/DV 隔行转逐行（`--mode frame`/`field`） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `pipeline` | 按 JSON 方案顺序执行多步（`$src` / `$in` / `expect`） |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |

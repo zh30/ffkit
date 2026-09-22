@@ -54,6 +54,8 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Vocal(args) => verbs::vocal::run(args, &g),
         Cmd::Remux(args) => verbs::remux::run(args, &g),
         Cmd::Meme(args) => verbs::meme::run(args, &g),
+        Cmd::Voice(args) => verbs::voice::run(args, &g),
+        Cmd::Deinterlace(args) => verbs::deinterlace::run(args, &g),
         Cmd::Leveler(args) => verbs::leveler::run(args, &g),
         Cmd::Gate(args) => verbs::gate::run(args, &g),
         Cmd::Boomerang(args) => verbs::boomerang::run(args, &g),
