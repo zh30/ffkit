@@ -37,6 +37,13 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let (cw, ch) = parse_wxh(&args.size, "--size")?;
     let (tw, th) = (cw / cols, ch / rows);
+    let gap = args.gap.unwrap_or(0);
+    if gap >= tw.min(th) / 2 {
+        return Err(Error::input("--gap is too big for the tile size"));
+    }
+    // Shrink each tile inside its cell, then pad back to the full cell in
+    // black — a uniform border around every tile without touching the stack.
+    let (itw, ith) = (tw - gap, th - gap);
     if tw < 16 || th < 16 {
         return Err(Error::input(
             "--size too small for that --layout (tiles < 16px)",
@@ -69,7 +76,7 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
         let col = i as u32 % cols;
         let row = i as u32 / cols;
         seg.push(format!(
-            "[{i}:v]scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v{i}]"
+            "[{i}:v]scale={itw}:{ith}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v{i}]"
         ));
         if !layout_str.is_empty() {
             layout_str.push('|');

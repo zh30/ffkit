@@ -117,13 +117,13 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `speed` | 变速（`--factor`、`--at/--dur` 窗口、`--ramp` FROM,TO 渐变） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
 | `key` | 绿幕合成：`--color` 抠掉后叠到 `--bg` 图片/视频上（`--similarity`、`--blend`、`--despill` 去边缘绿色） |
-| `grid` | N 路素材拼 `--layout CxR` 宫格（`--size 1920x1080`）；都有音轨时混音输出（`--labels` 瓦片标注） |
+| `grid` | Side-by-side collage 2x2, `NxM`; `--size`, `--audio`, `--labels`, `--gap` |
 | `progress` | 底/顶部进度条，整段或定时窗口（`--color`、`--height`、`--edge`、`--at`、`--dur`） |
 | `freeze` | 定格画面（`--at`、`--dur`、`--end`、`--ease` 减速、`--reverse` 倒放） |
 | `censor` | 区域打码（`--mode`、`--strength` 强度、`--at`） |
 | `bleep` | 消音哔声：`--at`/`--dur` 选段，`--freq`/`--level` 调音 |
 | `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法）（`--times` 循环次数） ，`--at/--dur` 局部往返 |
-| `chapter` | 章节标记（`--at TIME|TITLE`、`--auto` 按静音自动分段） ，`--export` 导出章节标记 |
+| `chapter` | Embed chapter marks at `TIME|TITLE` or `--import` a marks file; `--auto` / `--export` |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`；`--buffer N` 向外扩 N 像素） |
 | `sheet` | 宫格预览图（`--cols`x`--rows`、`--time` 每格时间戳） |
 | `pitch` | ±12 半音变调不变速（`--at/--dur` 窗口） |
@@ -178,7 +178,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `timer` | 画面计时器（`--position`、`--format ms`、`--box-color` 底板） （`--format`、`--box-color`、`--down` 倒计时） |
 | `hls` | HLS 网页播放封装（`--seg` 时长、`--single` 单文件、`--copy` 流直拷） |
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM，`--metric`） |
-| `conform` | 统一素材规格便于拼接（`--size`、`--fps`、`--lufs`） |
+| `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf` |
 | `sync` | 修复音画同步（`--ms ±N` 垫音/裁音头） |
 | `art` | 内嵌封面图（`--image`）→ mp3/m4a/mp4/mkv |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |

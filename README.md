@@ -117,13 +117,13 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `speed` | Change playback speed (`--factor`, `--at/--dur`, `--ramp` FROM,TO) |
 | `music` | Bed under speech with ducking (`--track`) |
 | `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`) |
-| `grid` | N-input mosaic; `--audio N` keeps one input's track | N inputs into a `--layout CxR` tile wall (`--size 1920x1080`); audios mix when all inputs have one (`--labels` tile labels) |
+| `grid` | Side-by-side collage 2x2, `NxM`; `--size`, `--audio`, `--labels`, `--gap` |
 | `progress` | Bottom/top progress bar, whole clip or a window (`--color`, `--height`, `--edge`, `--at`, `--dur`) |
 | `freeze` | Hold a frame (`--at`, `--dur`, `--end`, `--ease`, `--reverse`) |
 | `censor` | Blur/mosaic a region (`--mode`, `--strength`, `--at`) |
 | `bleep` | Tone over a word/segment: `--at`/`--dur`, `--freq`, `--level` |
 | `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) , `--at/--dur` bounces just that window |
-| `chapter` | Chapter marks (`--at TIME|TITLE`, `--auto` after silences) , `--export` write ffmetadata file |
+| `chapter` | Embed chapter marks at `TIME|TITLE` or `--import` a marks file; `--auto` / `--export` |
 | `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`; `--buffer N` keeps N px edge context) |
 | `sheet` | Contact sheet grid (`--cols`x`--rows`, `--time` stamps) |
 | `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window) |
@@ -178,7 +178,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown) |
 | `hls` | HTTP Live Streaming package (`--seg`, `--single` one-file, `--copy` stream-copy) |
 | `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
-| `conform` | Normalize mixed footage for concat (`--size`, `--fps`, `--lufs`) |
+| `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf` |
 | `sync` | Shift audio ±ms to fix A/V sync (`--ms`) |
 | `art` | Attach a cover image (`--image`) → mp3/m4a/mp4/mkv |
 | `batch` | One verb on every media file in a directory |

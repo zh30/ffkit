@@ -10638,3 +10638,90 @@ fn chapter_export_writes_ffmetadata() {
     assert!(text.contains("title=End"), "{text}");
     assert!(!out.with_extension("mp4").exists());
 }
+
+#[test]
+fn conform_crf_transcodes() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "conform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--crf",
+        "30",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.exists());
+}
+
+#[test]
+fn grid_gap_leaves_black_borders() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("g.mp4");
+    let v = run_json(&[
+        "grid",
+        src.to_str().unwrap(),
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--layout",
+        "2x1",
+        "--gap",
+        "20",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = dir.path().join("f.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let (w, h) = img.dimensions();
+    let dark = |x: u32, y: u32| -> bool {
+        let p = img.get_pixel(x, y);
+        p[0] < 40 && p[1] < 40 && p[2] < 40
+    };
+    assert!(
+        dark(w / 2, h / 2) && dark(2, 2),
+        "gap band + outer edge should be black"
+    );
+}
+
+#[test]
+fn chapter_import_reads_marks_file() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let marks = dir.path().join("marks.txt");
+    std::fs::write(&marks, "# chapters\n0|Intro\n0.4|End\n").unwrap();
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "--import",
+        marks.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["chapters"].as_array().unwrap().len(), 2);
+}

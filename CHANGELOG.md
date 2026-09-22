@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.98.0] - 2026-09-23
+
+### Added
+- `conform --crf` — x264 quality knob (0–51, default 18) for delivery exports.
+- `grid --gap` — uniform pixel border around every tile.
+- `chapter --import` — read chapter marks from a text file (`TIME|TITLE` or `TIME,TITLE` lines, `#` comments skipped).
+
+
+## [0.98.0] — 2026-09-22
+
+
 ## [0.96.0] — 2026-09-22
 
 ### Added

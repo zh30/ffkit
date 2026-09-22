@@ -1764,6 +1764,9 @@ pub struct ConformArgs {
     /// One-pass loudnorm to this I target (e.g. -14)
     #[arg(long, allow_hyphen_values = true)]
     pub lufs: Option<f64>,
+    /// x264 quality for the video transcode (0..=51, default 18)
+    #[arg(long)]
+    pub crf: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2117,7 +2120,7 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required_unless_present = "auto")]
+    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export"])]
     pub at: Vec<String>,
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
@@ -2126,6 +2129,10 @@ pub struct ChapterArgs {
     /// embedding them (hand the marks to an editor/DAW)
     #[arg(long)]
     pub export: bool,
+    /// Import marks from a text file: lines "TIME|TITLE" or "TIME,TITLE"
+    /// ('#' comments and blank lines skipped)
+    #[arg(long)]
+    pub import: Option<PathBuf>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2196,6 +2203,9 @@ pub struct GridArgs {
     /// Per-tile labels (comma-separated, one per input)
     #[arg(long)]
     pub labels: Option<String>,
+    /// Pixel gap around each tile (default 0 = flush)
+    #[arg(long)]
+    pub gap: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]

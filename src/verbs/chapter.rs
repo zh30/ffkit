@@ -21,6 +21,35 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             marks.insert(0, (0.0, "Part 1".to_string()));
         }
     }
+    if let Some(path) = &args.import {
+        let text = std::fs::read_to_string(path)
+            .map_err(|e| Error::input(format!("--import: {}: {e}", path.display())))?;
+        for (ln, line) in text.lines().enumerate() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let (t, title) = line
+                .split_once('|')
+                .or_else(|| line.split_once(','))
+                .ok_or_else(|| {
+                    Error::input(format!(
+                        "--import line {}: want TIME|TITLE or TIME,TITLE, got '{line}'",
+                        ln + 1
+                    ))
+                })?;
+            let secs = crate::time::parse_time(t.trim())
+                .map_err(|_| Error::input(format!("--import line {}: bad time '{t}'", ln + 1)))?;
+            let title = title.trim().to_string();
+            if title.is_empty() {
+                return Err(Error::input(format!(
+                    "--import line {}: empty title",
+                    ln + 1
+                )));
+            }
+            marks.push((secs, title));
+        }
+    }
     for raw in &args.at {
         let (t, title) = raw
             .split_once('|')

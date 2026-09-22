@@ -231,3 +231,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `gate --at/--dur`, `mix --at/--dur` (same window family)
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
+
+## Shipped this run (round 72)
+
+- `conform --crf` — x264 quality knob (0–51, default 18) for delivery exports.
+- `grid --gap` — uniform pixel border around every tile.
+- `chapter --import` — read chapter marks from a text file (`TIME|TITLE` or `TIME,TITLE`).
+

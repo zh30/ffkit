@@ -9,7 +9,7 @@ use crate::error::Error;
 
 pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
-    if args.size.is_none() && args.fps.is_none() && args.lufs.is_none() {
+    if args.size.is_none() && args.fps.is_none() && args.lufs.is_none() && args.crf.is_none() {
         return Err(Error::input(
             "nothing to conform — pass --size WxH, --fps N, and/or --lufs L",
         ));
@@ -46,8 +46,13 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
             "-preset".to_string(),
             "fast".to_string(),
             "-crf".to_string(),
-            "18".to_string(),
+            args.crf.unwrap_or(18).to_string(),
         ]);
+    }
+    if let Some(c) = args.crf {
+        if c > 51 {
+            return Err(Error::input("--crf must be 0..=51"));
+        }
     }
     if probe.has_audio {
         // loudnorm upsamples internally — resample back AFTER it.
