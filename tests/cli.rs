@@ -2397,7 +2397,7 @@ fn concat_transition_chains_three_clips() {
     }
     let dir = tempfile::tempdir().unwrap();
     let mut clips = vec![];
-    for (i, c) in ["red", "green", "blue"].iter().enumerate() {
+    for i in 0..3 {
         let p = dir.path().join(format!("c{i}.mp4"));
         let status = Command::new("ffmpeg")
             .args([
@@ -2408,7 +2408,7 @@ fn concat_transition_chains_three_clips() {
                 "-f",
                 "lavfi",
                 "-i",
-                &format!("testsrc=duration=2:size=320x240:rate=30"),
+                "testsrc=duration=2:size=320x240:rate=30",
                 "-f",
                 "lavfi",
                 "-i",
