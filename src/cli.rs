@@ -609,6 +609,9 @@ pub struct CompressArgs {
     /// Quality mode instead of a size target: single-pass libx264 crf (0–51)
     #[arg(long)]
     pub crf: Option<u32>,
+    /// Downscale to this height first (frees bitrate at small sizes)
+    #[arg(long)]
+    pub res: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1221,6 +1224,10 @@ pub struct LoopArgs {
     /// Section end (needs --from)
     #[arg(long)]
     pub to: Option<String>,
+    /// Crossfade seconds at every loop joint (seamless GIF-style loops;
+    /// re-encodes instead of stream-copying)
+    #[arg(long)]
+    pub fade: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1536,6 +1543,9 @@ pub struct RemuxArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
+    /// Keep only audio streams — rip the track to m4a/mp3/ogg/wav
+    #[arg(long)]
+    pub audio: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1829,6 +1839,9 @@ pub struct HlsArgs {
     /// Audio-only stream package (-vn; podcasts, voice-over HLS)
     #[arg(long)]
     pub audio_only: bool,
+    /// Fragmented MP4 segments (CMAF; plays on Safari/AirPlay, .m4s files)
+    #[arg(long)]
+    pub fmp4: bool,
 }
 
 #[derive(clap::Args, Debug)]

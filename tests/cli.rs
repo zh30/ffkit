@@ -11647,3 +11647,98 @@ fn compress_crf_skips_the_size_math() {
     assert_eq!(j["status"], "ok");
     assert_eq!(j["extra"]["passes"], 1);
 }
+
+#[test]
+fn remux_audio_rips_the_track() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.m4a");
+    let j = run_json(&[
+        "remux",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert!(out.exists());
+}
+
+#[test]
+fn hls_fmp4_writes_m4s_segments() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("hls_fmp4");
+    let j = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--fmp4",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let segs = std::fs::read_dir(&out)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().is_some_and(|x| x == "m4s"))
+        .count();
+    assert!(segs > 0, "no .m4s segments written");
+    assert!(out.join("index.m3u8").exists());
+}
+
+#[test]
+fn loop_fade_crossfades_the_joints() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("looped.mp4");
+    let j = run_json(&[
+        "loop",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--times",
+        "3",
+        "--fade",
+        "0.2",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let d = j["probe"]["duration"].as_f64().unwrap();
+    // 3 x 1.0s minus two 0.2s joints
+    assert!((d - 2.6).abs() < 0.25, "duration {d}");
+}
+
+#[test]
+fn compress_res_downscales_to_free_bitrate() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("resed.mp4");
+    let j = run_json(&[
+        "compress",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "1MB",
+        "--res",
+        "240",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["probe"]["height"], 240);
+    assert_eq!(j["extra"]["res"], 240);
+}

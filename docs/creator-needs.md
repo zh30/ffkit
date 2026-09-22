@@ -232,6 +232,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 82)
+
+- `remux --audio` — rip just the audio track (`-map 0:a`, `-c:a copy` when the container holds the codec, else re-encode mp3/ogg/wav/aac to fit). Pulling a podcast track out of a recorded video needs no re-encode now.
+- `hls --fmp4` — `-hls_segment_type fmp4` CMAF segments (`seg_*.m4s` + `init.mp4`) on the flat and ABR-ladder paths; one package plays on Safari/AirPlay where `.ts` is legacy.
+- `loop --fade SECS` — seamless loops: N copies joined by `xfade=duration=F:offset=k*(len-F)` + `acrossfade` joints (re-encodes instead of the default concat copy). The loop point stops being a visible jump — GIF-style replay texture.
+- `compress --res HEIGHT` — `scale=-2:H:force_original_aspect_ratio=decrease` folded into both the `--size` two-pass chain and the `--crf` one-pass chain. At small budgets (Discord 8MB on a long clip) downscaling beats starving the bitrate.
+
 ## Shipped this run (round 81)
 
 - `subs --all` — extract every subtitle stream in one ffmpeg call (`stem_0.srt`…); `probe` now reports `subtitle_streams`.

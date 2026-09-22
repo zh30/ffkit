@@ -107,7 +107,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loudnorm` | EBU R128 two-pass normalization (`--target spotify|podcast|broadcast`, `-I/--tp/--lra`); `--measure` reports loudness without writing; `--dynamic` per-frame gain |
 | `denoise` | Audio cleanup (`--strength`, `--highpass`, `--at/--dur` window) |
 | `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`) | Presets `h264` / `webm` / `gif` / `hevc`; `--fps` retimes video too , `--preset prores` FCP delivery |
-| `compress` | Fit a size budget (`--size 10MB` two-pass, `--target discord|whatsapp|gmail`); `--crf` quality one-pass |
+| `compress` | Fit a size budget (`--size 10MB` two-pass, `--target discord|whatsapp|gmail`); `--crf` quality one-pass, `--res` downscale to free bitrate |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 
 | `audiogram` | Waveform video | `--mode`, `--text`, `--bg`, `--progress` bar , `--subs` burn an .srt on it |
@@ -144,7 +144,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cover` | 9:16 cover still (`--at`, `--blur` ambient pad) |
 | `fade` | Video and audio fade (`--in` / `--out`, `--color` e.g. white) |
 | `title` | Hook/title card (`--at`, `--fade`, `--outline`, `--box` backplate) |
-| `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section) |
+| `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section, `--fade` seamless joints) |
 | `stabilize` | Handheld deshake — `--rx`/`--ry` radius, `--edge` fill (blank|original|clamped|mirror) |
 | `reverse` | Play picture and sound backwards |
 | `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm` | Presets `cinematic`/`vivid`/`vintage`/`soft` stack under the sliders; `--lut look.cube` applies a 3D LUT | `--at`/`--dur`
@@ -164,7 +164,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `gate` | Noise gate — silence below `--threshold` dB (`agate`) (`--preset voice|podcast|studio`, `--at/--dur` window) |
 | `silence` | Insert `--dur` secs of silence at `--at` or `--end`; `--detect` reports silence ranges as JSON |
 | `vocal` | Remove/isolate center vocals (`--mode`, `--at/--dur` window, `--amount` strength) |
-| `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov) |
+| `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov); `--audio` rips the track only |
 | `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window) , `--position` text block top/center/bottom |
 | `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`) |
 | `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order, `--engine` yadif/bwdif) |
@@ -176,7 +176,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `mix` | Blend two sources (`--vol-a/--vol-b`, `--at/--dur`, `--loop`, `--duck` sidechain bed under voice) , `--normalize` |
 | `mute` | Drop the audio track, stream-copy the rest , `--at/--dur` silences only that window |
 | `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown) |
-| `hls` | Web-ready HLS (`--seg`, `--single`, `--copy`, `--ladder` ABR, `--audio-only` podcast streams) |
+| `hls` | Web-ready HLS (`--seg`, `--single`, `--copy`, `--ladder` ABR, `--audio-only` podcast streams, `--fmp4` CMAF) |
 | `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
 | `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf` |
 | `sync` | Shift audio ±ms to fix A/V sync (`--ms`) |

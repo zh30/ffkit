@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.109.0] — 2026-09-22
+
+### Added
+
+- `remux --audio` — audio-only stream copy (`-map 0:a`); re-encodes to mp3/ogg/wav/aac when the container can't hold the source codec
+- `hls --fmp4` — CMAF fragmented-MP4 segments (`seg_*.m4s` + `init.mp4`) for flat and `--ladder` HLS packages; Safari/AirPlay-ready
+- `loop --fade SECS` — seamless loop: copies joined by `xfade`/`acrossfade` joints so the loop point is invisible (re-encode path)
+- `compress --res HEIGHT` — downscale before encoding (folded into both `--size` two-pass and `--crf` one-pass chains) to free bitrate at small size budgets
+
 ## [0.108.0] — 2026-09-22
 
 ### Added

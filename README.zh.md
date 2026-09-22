@@ -107,7 +107,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loudnorm` | EBU R128 两遍响度归一（`--target spotify|podcast|broadcast`）；`--measure` 只测不写；`--dynamic` 逐帧动态增益 |
 | `denoise` | 音频降噪（`--strength`、`--highpass`、`--at/--dur` 窗口） |
 | `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`） | 预设 `h264`/`webm`/`gif`/`hevc`；`--fps` 也可给视频变速帧率 ，`--preset prores` 剪辑交付 |
-| `compress` | 压到目标体积（`--size 10MB` 两遍、`--target discord|whatsapp|gmail` 平台预设）；`--crf` 画质单遍 |
+| `compress` | 压到目标体积（`--size 10MB` 两遍、`--target discord|whatsapp|gmail` 平台预设）；`--crf` 画质单遍、`--res` 缩分辨率腾码率 |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 
 | `audiogram` | 波形视频 | `--mode`、`--text`、`--bg`、`--progress` 进度条 ，`--subs` 烧字幕 |
@@ -144,7 +144,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cover` | 9:16 封面静帧（`--at`、`--blur` 模糊底填充） |
 | `fade` | 画面和声音淡入淡出（`--in` / `--out`，`--color` 淡出到白等） |
 | `title` | 标题卡烧录（`--at`、`--fade`、`--outline`、`--box` 底板） |
-| `loop` | 把成片重复 N 遍（Shorts 循环加长）（`--from`/`--to` 只循环片段） |
+| `loop` | 把成片重复 N 遍（Shorts 循环加长）（`--from`/`--to` 只循环片段，`--fade` 无缝衔接） |
 | `stabilize` | 手持防抖（deshake）——`--rx`/`--ry` 搜索半径，`--edge` 边缘填充 blank|original|clamped|mirror |
 | `reverse` | 倒放画面和声音 |
 | `grade` | `--preset` 一键风格 + 对比/饱和/亮度/`--gamma`/`--hue`, `--at`/`--dur`/`--warm`；`--lut look.cube` 套 3D LUT | 预设 `cinematic`/`vivid`/`vintage`/`soft` 叠在滑杆之下 |
@@ -164,7 +164,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`）（`--preset voice|podcast|studio`，`--at/--dur` 局部生效） |
 | `silence` | 在 `--at`/`--end` 插入 `--dur` 秒静音；`--detect` 以 JSON 报告静音区间 |
 | `vocal` | 消/留中置人声（`--mode`、`--amount` 强度、`--at/--dur` 窗口） |
-| `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart） |
+| `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart）；`--audio` 只提取音轨 |
 | `meme` | 上下说明文字梗图（`--outline`、`--at/--dur` 时间窗） ，`--position` 文字块上/中/下 |
 | `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`） |
 | `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序、`--engine` yadif/bwdif） |
@@ -176,7 +176,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `mix` | 双音轨叠加（`--vol-a/--vol-b`、`--at/--dur`、`--loop`、`--duck` 人声闪避音乐） ，`--normalize` 归一求和 |
 | `mute` | 去掉音轨（其余流直接封装，不重编码） ，`--at/--dur` 局部静音 |
 | `timer` | 画面计时器（`--position`、`--format ms`、`--box-color` 底板） （`--format`、`--box-color`、`--down` 倒计时） |
-| `hls` | 网页 HLS 封装（`--seg`、`--single`、`--copy`、`--ladder` 多码率、`--audio-only` 纯音频） |
+| `hls` | 网页 HLS 封装（`--seg`、`--single`、`--copy`、`--ladder` 多码率、`--audio-only` 纯音频、`--fmp4` CMAF） |
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM，`--metric`） |
 | `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf` |
 | `sync` | 修复音画同步（`--ms ±N` 垫音/裁音头） |

@@ -32,10 +32,11 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     };
     std::fs::create_dir_all(&dir)
         .map_err(|e| Error::output(format!("create {}: {e}", paths::display(&dir))))?;
+    let seg_ext = if args.fmp4 { "m4s" } else { "ts" };
     let seg_tpl = if args.single {
-        dir.join("seg.ts")
+        dir.join(format!("seg.{seg_ext}"))
     } else {
-        dir.join("seg_%03d.ts")
+        dir.join(format!("seg_%03d.{seg_ext}"))
     };
 
     let mut argv = ffmpeg_base(g.progress);
@@ -142,7 +143,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "-hls_playlist_type".to_string(),
             "vod".to_string(),
             "-hls_segment_filename".to_string(),
-            dir.join("seg_%v_%03d.ts").display().to_string(),
+            dir.join(format!("seg_%v_%03d.{seg_ext}"))
+                .display()
+                .to_string(),
             "-master_pl_name".to_string(),
             "master.m3u8".to_string(),
             "-var_stream_map".to_string(),
@@ -236,6 +239,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.single {
         argv.extend(["-hls_flags".to_string(), "single_file".to_string()]);
     }
+    if args.fmp4 {
+        argv.extend(["-hls_segment_type".to_string(), "fmp4".to_string()]);
+    }
     argv.push(playlist.display().to_string());
 
     // Outputs are a dir of segments + a playlist — manual contract like split.
@@ -254,8 +260,10 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             rd.filter_map(|e| e.ok())
                 .filter(|e| {
                     let n = e.file_name().to_string_lossy().into_owned();
-                    (n.starts_with("seg_") || n == "seg.ts")
-                        && e.path().extension().is_some_and(|x| x == "ts")
+                    (n.starts_with("seg_") || n == "seg.ts" || n == "seg.m4s")
+                        && e.path()
+                            .extension()
+                            .is_some_and(|x| x == "ts" || x == "m4s")
                 })
                 .count()
         })

@@ -21,17 +21,16 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         if !probe.has_video {
             return Err(Error::input("compress --crf is video-only"));
         }
+        let vf = match args.res {
+            Some(h) => format!(
+                "scale=-2:{h}:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p"
+            ),
+            None => "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p".to_string(),
+        };
         let mut argv = ffmpeg_base(g.progress);
         argv.push("-i");
         argv.push(&args.input);
-        argv.extend([
-            "-vf",
-            "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p",
-            "-c:v",
-            "libx264",
-            "-crf",
-            &crf.to_string(),
-        ]);
+        argv.extend(["-vf", &vf, "-c:v", "libx264", "-crf", &crf.to_string()]);
         if probe.has_audio {
             argv.extend([
                 "-c:a",
@@ -100,6 +99,12 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         )));
     }
 
+    let scale_vf = match args.res {
+        Some(h) => format!(
+            "scale=-2:{h}:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p"
+        ),
+        None => "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p".to_string(),
+    };
     let mut argvs = Vec::new();
     let mut video_kbps = 0.0;
     // Two-pass stats live in a tempdir that must outlive write_job's ffmpeg run.
@@ -133,7 +138,7 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         pass2.push(&args.input);
         pass2.extend([
             "-vf",
-            "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p",
+            &scale_vf,
             "-c:v",
             "libx264",
             "-b:v",
@@ -169,6 +174,7 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         "video_kbps": video_kbps,
         "audio_kbps": audio_bps / 1_000.0,
         "passes": if probe.has_video { 2 } else { 1 },
+        "res": args.res,
     }));
     Ok(c)
 }
