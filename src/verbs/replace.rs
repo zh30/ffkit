@@ -44,6 +44,30 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
             "replace --mix needs an audio stream on the input",
         ));
     }
+    if args.dur.is_some() && args.at.is_none() {
+        return Err(Error::input("replace --dur needs --at"));
+    }
+    if let Some(at) = args.at {
+        if !probe.has_audio {
+            return Err(Error::input(
+                "replace --at needs an audio stream on the input",
+            ));
+        }
+        if args.mix > 0.0 || args.duck {
+            return Err(Error::input(
+                "replace --at replaces wholesale — drop --mix/--duck",
+            ));
+        }
+        let end = match args.dur {
+            Some(d) => (at + d).min(probe.duration),
+            None => (at + (audio_probe.duration - args.audio_offset.max(0.0))).min(probe.duration),
+        };
+        if at < 0.0 || end <= at || end > probe.duration + 0.01 {
+            return Err(Error::input(
+                "replace --at/--dur window is empty or outside the source",
+            ));
+        }
+    }
 
     let mut chain = String::new();
     if args.audio_offset > 0.0 {
@@ -72,6 +96,39 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
             "[1:a]{chain}apad,atrim=duration={:.3}{fade},aresample=48000,aformat=channel_layouts=stereo[new];[0:a]aresample=48000,aformat=channel_layouts=stereo,volume={:.3},atrim=duration={:.3}[old];[old][new]amix=inputs=2:normalize=0[aout]",
             probe.duration, args.mix, probe.duration
         )
+    } else if let Some(at) = args.at {
+        // Windowed replacement: original track outside [at, end), new audio inside.
+        let end = match args.dur {
+            Some(d) => (at + d).min(probe.duration),
+            None => (at + (audio_probe.duration - args.audio_offset.max(0.0))).min(probe.duration),
+        };
+        let len = end - at;
+        let wf = if args.fade > 0.0 {
+            let f = args.fade.min(len / 2.0).max(0.02);
+            format!(
+                ",afade=t=in:st=0:d={f:.3},afade=t=out:st={:.3}:d={f:.3}",
+                len - f
+            )
+        } else {
+            String::new()
+        };
+        let mut segs = String::new();
+        let mut pads: Vec<&str> = Vec::new();
+        if at > 0.001 {
+            segs.push_str(&format!("[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[a0];"));
+            pads.push("a0");
+        }
+        segs.push_str(&format!(
+            "[1:a]{chain}atrim=0:{len:.3},asetpts=PTS-STARTPTS{wf},aresample=48000,aformat=channel_layouts=stereo[a1];"
+        ));
+        pads.push("a1");
+        if end < probe.duration - 0.001 {
+            segs.push_str(&format!("[0:a]atrim={end:.3},asetpts=PTS-STARTPTS[a2];"));
+            pads.push("a2");
+        }
+        let n = pads.len();
+        let ins: String = pads.iter().map(|p| format!("[{p}]")).collect();
+        format!("{segs}{ins}concat=n={n}:v=0:a=1[aout]")
     } else {
         format!(
             "[1:a]{chain}apad,atrim=duration={:.3}{fade},aresample=48000,aformat=channel_layouts=stereo[aout]",
@@ -97,6 +154,14 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
     c = c.with_extra(json!({
         "audio": args.audio,
         "audio_offset": args.audio_offset,
+        "window": args.at.map(|at| {
+            let end = match args.dur {
+                Some(d) => (at + d).min(probe.duration),
+                None => (at + (audio_probe.duration - args.audio_offset.max(0.0)))
+                    .min(probe.duration),
+            };
+            json!({"at": at, "end": end})
+        }),
         "mix": args.mix,
         "duck": args.duck,
         "video_copy": true,

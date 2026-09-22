@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.112.0
+version: 0.113.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -36,7 +36,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 |-----------|-------|
 | inspect | `doctor`, `probe`, `look` (`--tiles` / `--at`) |
 
-| trim / join | `cut`, `concat` (`--transition` any xfade, N clips, `--level -14` loudnorms each), `split` (`--every` story chunks, `--at` chapter points), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps) |
+| trim / join | `cut`, `concat` (`--transition` any xfade, N clips, `--level -14` loudnorms each), `split` (`--every` story chunks, `--at` chapter points, `--chapters` embedded marks), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps) |
 | platform loudness | `loudnorm` (`--target`, `-I/--tp/--lra`; `--measure` report-only, `--dynamic` per-frame) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur --strength`), `zoom`, `--position` top/bottom/corners |
 
@@ -45,7 +45,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | hook text | `title` |
 | cover still | `cover` |
 
-| speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--mix` keep the original under it), `loudnorm` (`--target` platform preset), `volume` |
+| speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--at`/`--dur` windowed swap, `--mix` keep the original under it), `loudnorm` (`--target` platform preset), `volume` |
 | grainy low-light footage | `vdenoise` (`--strength`, nlmeans — slow on long clips) |
 | waveform PNG of audio | `waveform` (`--size`, `--color`, `--scale`, `--at/--dur`) — podcast art, thumbnails |
 | audio spectrogram PNG | `spectrogram` (`--size`, `--color`, `--at/--dur`) — inspect hum/noise before cleanup |
@@ -84,7 +84,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | reframe 9:16 keeping faces | `crop` (`--aspect 9:16 --anchor top` keeps the face) |
 | attach album cover art | `art` (`--image cover.png`) → mp3/m4a/mp4/mkv, `--extract` pull cover out |
 | grab a cover/thumbnail frame | `thumb` (`--at` / `--frame`, `--count N` even spreads) → jpg/png |
-| burn an .srt/.ass into pixels | `subs` (`--burn subs.srt` — libass), `--rate` drift fix, `--safe` social zone; `--convert` srt↔vtt |
+| burn an .srt/.ass into pixels | `subs` (`--burn subs.srt` — libass), `--box` plate behind lines, `--rate` drift fix, `--safe` social zone; `--convert` srt↔vtt |
 | split into exactly N parts | `split` (`--parts N` — equal-length grid) |
 | title that fades in/out | `title` (`--fade` secs — soft entry/exit, `--box` card) |
 | fix white balance / color cast | `grade` (`--hue` deg — rotates the hue) |
@@ -132,6 +132,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | fix an out-of-phase mic | `channel` (`--mode invert --side`) |
 | contact-sheet breathing room | `sheet` (`--pad`/`--margin`) |
 | diagonal watermark | `overlay` (`--angle`) |
+| short overlay clip repeats | `overlay` (`--loop` — covers the base) |
 | waveform showing quiet detail | `waveform` (`--scale log`) |
 | split on longer pauses | `split` (`--silence --min-silence`) |
 | wobble/sci-fi/echo/lofi/telephone voice | `fx` (`--kind` 8 effects) |

@@ -12093,3 +12093,200 @@ fn solid_fade_wraps_the_card() {
         .join(" ");
     assert!(cmd.contains("fade=t=in"), "{cmd}");
 }
+
+#[test]
+fn split_chapters_cuts_at_embedded_marks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // 1s clip with chapters at 0.4s and 0.7s → 3 parts.
+    let src = dir.path().join("chap.mp4");
+    let meta = dir.path().join("meta.txt");
+    std::fs::write(
+        &meta,
+        ";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=400\ntitle=a\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=400\nEND=700\ntitle=b\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=700\nEND=1000\ntitle=c\n",
+    )
+    .unwrap();
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-i",
+        ])
+        .arg(&meta)
+        .args([
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map_metadata",
+            "2",
+            "-map_chapters",
+            "2",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let tpl = dir.path().join("ch_%02d.mp4");
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        tpl.to_str().unwrap(),
+        "--chapters",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let parts = std::fs::read_dir(dir.path())
+        .unwrap()
+        .filter(|e| {
+            e.as_ref()
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with("ch_")
+        })
+        .count();
+    assert_eq!(parts, 3, "expected one part per chapter, got {parts}");
+}
+
+#[test]
+fn replace_at_swaps_only_the_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let newa = dir.path().join("new.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&newa)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("w.mp4");
+    let v = run_json(&[
+        "replace",
+        src.to_str().unwrap(),
+        "--audio",
+        newa.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("concat=n="), "{cmds}");
+    assert!(cmds.contains("atrim"), "{cmds}");
+    assert_eq!(v["extra"]["window"]["at"].as_f64().unwrap(), 0.3);
+    assert!((v["probe"]["duration"].as_f64().unwrap() - 1.0).abs() < 0.1);
+}
+
+#[test]
+fn overlay_loop_repeats_short_video() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // 0.3s overlay clip on a ~1s base → loops to cover.
+    let ov = lavfi_fixture(dir.path(), "short.mp4", "880", 0.3);
+    let out = dir.path().join("lv.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "--video",
+        ov.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--loop",
+        "--scale",
+        "80",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("loop=loop=-1:size="), "{cmds}");
+    assert!(cmds.contains("shortest=1"), "{cmds}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        (d - 1.0).abs() < 0.2,
+        "overlay --loop must end with the base, got {d}"
+    );
+}
+
+#[test]
+fn subs_burn_box_plates_the_lines() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("t.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,900\nBOXED\n").unwrap();
+    let out = dir.path().join("boxed.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--box",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("BorderStyle=3"), "{cmds}");
+    assert!(cmds.contains("BackColour"), "{cmds}");
+}

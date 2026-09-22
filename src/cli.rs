@@ -333,6 +333,9 @@ pub struct SplitArgs {
     /// Also write a per-part .srt next to each split file (cues re-timed)
     #[arg(long)]
     pub subs: Option<PathBuf>,
+    /// Cut at the input's embedded chapter marks (lectures, courses, books)
+    #[arg(long)]
+    pub chapters: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -466,6 +469,9 @@ pub struct OverlayArgs {
     /// Rotate the overlay N degrees (diagonal watermarks)
     #[arg(long)]
     pub angle: Option<f64>,
+    /// Loop the overlay video when it is shorter than the input
+    #[arg(long = "loop")]
+    pub loop_track: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -840,6 +846,9 @@ pub struct SubsArgs {
     /// Burn this subtitle file into the video instead of extracting (--file subs.srt)
     #[arg(long)]
     pub burn: Option<PathBuf>,
+    /// With --burn: opaque plate behind each line (semi-black box style)
+    #[arg(long = "box")]
+    pub burn_box: bool,
     /// Shift every cue of an .srt by ±N seconds (input = .srt, output = .srt)
     #[arg(long, allow_hyphen_values = true)]
     pub shift: Option<f64>,
@@ -985,6 +994,12 @@ pub struct ReplaceArgs {
     /// Loop the replacement audio if it is shorter than the video
     #[arg(long = "loop")]
     pub loop_track: bool,
+    /// Replace only inside this window: original audio keeps playing outside
+    #[arg(long)]
+    pub at: Option<f64>,
+    /// Window length (default: to the end of the new audio)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

@@ -124,6 +124,32 @@ pub fn probe(path: &Path, timeout: Duration) -> Result<Probe, Error> {
     parse_ffprobe(raw)
 }
 
+#[derive(Deserialize)]
+struct ChaptersOut {
+    #[serde(default)]
+    chapters: Vec<ChapterTime>,
+}
+#[derive(Deserialize)]
+struct ChapterTime {
+    start_time: Option<String>,
+}
+
+/// Chapter boundaries (seconds) embedded in the container — lectures, courses.
+pub fn chapters(path: &Path, timeout: Duration) -> Result<Vec<f64>, Error> {
+    let mut argv = Argv::ffprobe();
+    argv.extend(["-print_format", "json", "-show_chapters", "-v", "error"]);
+    argv.push(path);
+    let spawned = spawn::require_ok(&argv, spawn::run(&argv, timeout, false)?)?;
+    let raw = spawn::stdout_str(&spawned)?;
+    let out: ChaptersOut = serde_json::from_str(raw)
+        .map_err(|e| Error::ffmpeg(format!("ffprobe chapters json: {e}")))?;
+    Ok(out
+        .chapters
+        .iter()
+        .filter_map(|c| c.start_time.as_deref()?.parse::<f64>().ok())
+        .collect())
+}
+
 pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
     let parsed: FfprobeOut =
         serde_json::from_str(raw).map_err(|e| Error::ffmpeg(format!("ffprobe json: {e}")))?;

@@ -232,6 +232,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 86)
+
+- `split --chapters` — cuts at the input's embedded chapter marks (`ffprobe -show_chapters`); lectures/courses/books split into one file per chapter.
+- `replace --at T --dur N` — windowed audio swap: original track keeps playing outside `[at, at+dur)`, the new audio owns it inside (with `--fade` on the joints).
+- `overlay --loop` — loops a short `--video` overlay to cover the whole base (`loop=loop=-1` + `shortest=1` on the composite, so output still ends with the base).
+- `subs --burn --box` — `BorderStyle=3,BackColour` plate behind each burned line so captions read on busy frames.
+
 ## Shipped this run (round 85)
 
 - `progress --bg COLOR` — a static full-width track bar behind the sliding fill (elapsed-vs-total readability on busy frames).

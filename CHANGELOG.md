@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.113.0] — 2026-09-22
+
+### Added
+
+- `split --chapters` — cut at the input's embedded chapter marks
+- `replace --at T --dur N` — windowed audio swap; original track plays outside the window, `--fade` on the joints
+- `overlay --loop` — repeat a short `--video` overlay to cover the base (`shortest=1` bounds the composite)
+- `subs --burn --box` — opaque plate behind each burned line (`BorderStyle=3`)
+
 ## [0.112.0] — 2026-09-22
 
 ### Added

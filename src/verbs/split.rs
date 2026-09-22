@@ -62,6 +62,25 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
     };
 
     let mut cuts: Vec<f64> = Vec::new();
+    if args.chapters {
+        if every.is_some() || !args.at.is_empty() || args.scenes.is_some() || args.silence.is_some()
+        {
+            return Err(Error::input(
+                "split --chapters stands alone (no --every/--at/--scenes/--size/--parts/--silence)",
+            ));
+        }
+        cuts = crate::probe::chapters(&args.input, g.timeout)?
+            .into_iter()
+            .filter(|t| (0.05..probe.duration - 0.05).contains(t))
+            .collect();
+        cuts.sort_by(|a, b| a.total_cmp(b));
+        cuts.dedup();
+        if cuts.is_empty() {
+            return Err(Error::input(
+                "split --chapters: input has no embedded chapter marks",
+            ));
+        }
+    }
     if args.min_silence.is_some() && args.silence.is_none() {
         return Err(Error::input("--min-silence needs --silence"));
     }
@@ -127,9 +146,9 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("split takes --every or --at, not both"));
         }
         (None, true, None) => {
-            if args.silence.is_none() {
+            if args.silence.is_none() && !args.chapters {
                 return Err(Error::input(
-                    "split needs --every S, --at t1,t2,..., --scenes T or --silence dB",
+                    "split needs --every S, --at t1,t2,..., --scenes T, --silence dB or --chapters",
                 ));
             }
         }

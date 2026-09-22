@@ -66,15 +66,37 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push("-i");
     argv.push(overlay);
+    let (loop_pre, src0) = if args.loop_track {
+        let ov = args
+            .video
+            .as_ref()
+            .ok_or_else(|| Error::input("overlay --loop needs --video"))?;
+        if args.tile > 0 {
+            return Err(Error::input("overlay --loop is not supported with --tile"));
+        }
+        let ovp = engine::probe_or_err(ov, g)?;
+        let of = ovp.fps.unwrap_or(30.0);
+        (
+            format!(
+                "[1:v]loop=loop=-1:size={},setpts=N/({}*TB),fps={}[lv];",
+                (probe.duration * of).ceil() as u64,
+                of,
+                of
+            ),
+            "lv",
+        )
+    } else {
+        (String::new(), "1:v")
+    };
     let (rot_pre, src) = match args.angle {
         Some(deg) => (
             format!(
-                "[1:v]format=rgba,rotate=a={:.6}:c=none[rotraw];",
+                "[{src0}]format=rgba,rotate=a={:.6}:c=none[rotraw];",
                 deg.to_radians()
             ),
             "rotraw",
         ),
-        None => (String::new(), "1:v"),
+        None => (String::new(), src0),
     };
     let (pre, ovl) = if fade > 0.0 {
         (
@@ -98,8 +120,8 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         (String::new(), src)
     };
-    // Infinite looped still secondary: end each composite on the main stream.
-    let shortest = if fade > 0.0 && args.image.is_some() {
+    // Infinite looped still/--loop secondary: end each composite on the main stream.
+    let shortest = if (fade > 0.0 && args.image.is_some()) || args.loop_track {
         ":shortest=1"
     } else {
         ""
@@ -137,7 +159,7 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         format!("[0:v][{ovl}]overlay=x={x}:y={y}{enable}{shortest}[vout]")
     };
-    let fc = format!("{rot_pre}{pre}{fc}");
+    let fc = format!("{loop_pre}{rot_pre}{pre}{fc}");
     let _ = x;
     let _ = y;
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
