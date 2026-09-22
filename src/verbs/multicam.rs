@@ -82,7 +82,7 @@ pub fn run(args: MulticamArgs, g: &Globals) -> Result<Contract, Error> {
             "[{vsrc}]trim=start={s:.3}:end={e:.3},setpts=PTS-STARTPTS[vs{k}]"
         ));
         ins.push_str(&format!("[vs{k}]"));
-        if has_audio {
+        if has_audio && !args.keep_audio {
             fc.push(format!(
                 "[{src}:a]atrim=start={s:.3}:end={e:.3},asetpts=PTS-STARTPTS[as{k}]"
             ));
@@ -90,11 +90,14 @@ pub fn run(args: MulticamArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     let n = segs.len();
-    if has_audio {
+    if has_audio && !args.keep_audio {
         fc.push(format!("{ins}concat=n={n}:v=1:a=1[vout][aout]"));
     } else {
         fc.push(format!("{ins}concat=n={n}:v=1:a=0[vout]"));
     }
+    // --keep-audio: camera A runs the whole interview; concat leaves no aout
+    // so map the A track straight through.
+    let map_a_direct = has_audio && args.keep_audio;
 
     let mut argv = ffmpeg_base(g.progress);
     for c in cams {
@@ -103,7 +106,14 @@ pub fn run(args: MulticamArgs, g: &Globals) -> Result<Contract, Error> {
     argv.extend(["-filter_complex".to_string(), fc.join(";")]);
     argv.extend(["-map".to_string(), "[vout]".to_string()]);
     if has_audio {
-        argv.extend(["-map".to_string(), "[aout]".to_string()]);
+        argv.extend([
+            "-map".to_string(),
+            if map_a_direct {
+                "0:a".to_string()
+            } else {
+                "[aout]".to_string()
+            },
+        ]);
     }
     argv.extend([
         "-c:v".to_string(),
@@ -122,6 +132,6 @@ pub fn run(args: MulticamArgs, g: &Globals) -> Result<Contract, Error> {
 
     let inputs: Vec<&Path> = vec![&args.cam_a, &args.cam_b];
     let mut c = engine::write_job("multicam", &inputs, &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "cuts": cuts, "angles": n }));
+    c = c.with_extra(json!({ "cuts": cuts, "angles": n, "keep_audio": args.keep_audio }));
     Ok(c)
 }

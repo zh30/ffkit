@@ -732,6 +732,9 @@ pub struct TranscodeArgs {
     /// Keep the original audio bitstream (no re-encode) while transcoding video
     #[arg(long)]
     pub copy_audio: bool,
+    /// GIF-only: palette size 2–256 (smaller = tinier file, banding)
+    #[arg(long)]
+    pub colors: Option<u32>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1455,6 +1458,8 @@ pub enum ChannelMode {
     Mono,
     Swap,
     Invert,
+    /// 5.1 surround → stereo fold-down (dialogue keeps center gain)
+    Mix51,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1882,6 +1887,9 @@ pub struct ConformArgs {
     /// x264 quality for the video transcode (0..=51, default 18)
     #[arg(long)]
     pub crf: Option<u32>,
+    /// Pad color for the letterbox: name or RRGGBB/0xRRGGBB (needs --size)
+    #[arg(long)]
+    pub pad: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1970,6 +1978,10 @@ pub struct MulticamArgs {
     /// Switch to the other camera at each of these times (comma list)
     #[arg(long, value_delimiter = ',')]
     pub at: Vec<String>,
+    /// Keep camera A's audio for the whole edit instead of cutting
+    /// audio with the angle (interview standard)
+    #[arg(long)]
+    pub keep_audio: bool,
     #[arg(short, long)]
     pub output: PathBuf,
 }

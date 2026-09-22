@@ -15,6 +15,10 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
         ChannelMode::Dualmono => "pan=stereo|FL<c0|FR<c0".to_string(),
         ChannelMode::Mono => "aformat=channel_layouts=mono".to_string(),
         ChannelMode::Swap => "channelmap=map=FR-FL|FL-FR:channel_layout=stereo".to_string(),
+        // ITU fold-down: dialogue keeps center, surrounds fold at 0.707
+        ChannelMode::Mix51 => {
+            "pan=stereo|FL<FL+0.707*FC+0.707*BL+0.5*LFE|FR<FR+0.707*FC+0.707*BR+0.5*LFE".to_string()
+        }
         ChannelMode::Invert => match args.side.as_deref().unwrap_or("both") {
             "left" => "aeval='-val(0)|val(1)':c=stereo,aformat=channel_layouts=stereo".to_string(),
             "right" => "aeval='val(0)|-val(1)':c=stereo,aformat=channel_layouts=stereo".to_string(),

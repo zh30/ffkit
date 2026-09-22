@@ -232,6 +232,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 84)
+
+- `multicam --keep-audio` — video still flips angles at `--at` cuts but the audio map stays on camera A's track end-to-end (the interview standard; previously audio cut with the video).
+- `conform --pad COLOR` — `pad=W:H:(ow-iw)/2:(oh-ih)/2:c` after the decrease-scale so `--size` output is exactly WxH with a chosen letterbox color (was silently smaller than spec).
+- `channel --mode mix51` — ITU fold-down `pan=stereo|FL<FL+0.707*FC+0.707*BL+0.5*LFE|...` pulls dialogue-forward stereo out of 5.1 takes.
+- `transcode --colors N` — same `palettegen max_colors=` knob as `extract --colors`, on the `transcode --preset gif` path.
+
 ## Shipped this run (round 83)
 
 - `meta --copy SRC` — `-map_metadata 1 -map_chapters 1` pulls every tag + chapter mark out of a sibling export (re-renders stop losing titles and chapters).

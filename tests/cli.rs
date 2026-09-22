@@ -11846,3 +11846,123 @@ fn align_window_bounds_the_decode() {
     assert_eq!(j["status"], "ok");
     assert_eq!(j["extra"]["window"], 0.8);
 }
+
+#[test]
+fn multicam_keep_audio_stays_on_cam_a() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    let b = dir.path().join("b.mp4");
+    std::fs::copy(&a, &b).unwrap();
+    let out = dir.path().join("mc.mp4");
+    let j = run_json(&[
+        "multicam",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "-o",
+        out.to_str().unwrap(),
+        "--keep-audio",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["keep_audio"], true);
+    assert!(out.exists());
+}
+
+#[test]
+fn conform_pad_fills_to_exact_size() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("cf.mp4");
+    let j = run_json(&[
+        "conform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "320x240",
+        "--pad",
+        "white",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["probe"]["width"], 320);
+    assert_eq!(j["probe"]["height"], 240);
+}
+
+#[test]
+fn channel_mix51_folds_surround_to_stereo() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("ch51.aac");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=channel_layout=5.1:sample_rate=44100",
+            "-t",
+            "0.5",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let out = dir.path().join("st.m4a");
+    let j = run_json(&[
+        "channel",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "mix51",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["mode"], "Mix51");
+}
+
+#[test]
+fn transcode_gif_colors_shrinks_the_palette() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("tiny.gif");
+    let j = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "gif",
+        "--colors",
+        "8",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("max_colors=8"), "{cmd}");
+}

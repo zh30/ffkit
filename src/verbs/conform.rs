@@ -27,6 +27,10 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         vf.push(format!(
             "scale=w={w}:h={h}:force_original_aspect_ratio=decrease:force_divisible_by=2"
         ));
+        if let Some(raw) = &args.pad {
+            let c = crate::color::lavfi(raw);
+            vf.push(format!("pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:{c}"));
+        }
     }
     if let Some(fps) = args.fps {
         if !(1.0..=240.0).contains(&fps) {

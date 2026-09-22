@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.110.0
+version: 0.111.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -74,13 +74,13 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | elapsed-time corner counter | `timer` (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds), `--down` countdown |
 | web-embed HLS package | `hls` (`--seg` seconds, `--single` one-file, `--copy` repack) → dir/`index.m3u8` + `seg_*.ts`; `--ladder 1080,720,480` → ABR variant playlists + `master.m3u8`; `--audio-only` podcast HLS; `--fmp4` CMAF `.m4s` segments |
 | check encode quality loss | `qa` `ref.mp4 test.mp4` → psnr/ssim numbers |
-| normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`) |
+| normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`, `--pad` letterbox color) |
 | light-leak / screen-blend overlay | `overlay --video leak.mp4 --mode screen` |
 | fix audio/video sync drift | `sync` (`--ms ±N` — pad or trim audio start) |
 | sync a second take to the camera master | `align` (`ref target -o out` — auto-detects offset by audio cross-correlation; multi-cam, external recorder; `--window` bounds long takes) |
 | rolling end credits | `scroll` (`--text`/`--file`, `--at`, `--dur` — text rolls bottom→top) |
 | splice a clip into the middle | `insert` (`--clip x.mp4 --at T` — b-roll/ad read without manual split+concat; `--dur N` first N sec only), `--transition` xfade both joints |
-| two-camera angle switching | `multicam` (`A B --at t1,t2,...` — run `align` first if the takes aren't synced) |
+| two-camera angle switching | `multicam` (`A B --at t1,t2,...` — run `align` first if the takes aren't synced; `--keep-audio` stays on cam A) |
 | reframe 9:16 keeping faces | `crop` (`--aspect 9:16 --anchor top` keeps the face) |
 | attach album cover art | `art` (`--image cover.png`) → mp3/m4a/mp4/mkv, `--extract` pull cover out |
 | grab a cover/thumbnail frame | `thumb` (`--at` / `--frame`, `--count N` even spreads) → jpg/png |
@@ -173,7 +173,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | draft/tiled watermark | `overlay --tile N` (diagonal watermark pass) |
 | shift subtitle timing | `caption --shift SEC` |
 | gif tuning | `transcode --preset gif --fps --width`, `extract --gif --bounce` (palindrome loop), `extract --colors` palette size |
-| one-ear voice fix | `channel` (`--mode dualmono`/`mono`/`swap`) |
+| one-ear voice fix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo) |
 | loop to a length | `loop --until SEC` |
 | text draft watermark | `title --tile N` |
 | audio EQ polish | `eq` (`--bass`/`--treble`/`--presence` dB) |

@@ -145,7 +145,11 @@ fn gif(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let mut gen = ffmpeg_base(g.progress);
     gen.push("-i");
     gen.push(&args.input);
-    gen.extend(["-vf", &format!("{scale},palettegen=stats_mode=full")]);
+    let max_colors = args.colors.unwrap_or(256).clamp(2, 256);
+    gen.extend([
+        "-vf",
+        &format!("{scale},palettegen=stats_mode=full:max_colors={max_colors}"),
+    ]);
     gen.push(&palette_path);
 
     let mut use_p = ffmpeg_base(g.progress);

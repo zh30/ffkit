@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.111.0] — 2026-09-22
+
+### Added
+
+- `multicam --keep-audio` — video switches angles at `--at` cuts while audio stays on camera A end-to-end (interview workflow)
+- `conform --pad COLOR` — `pad=W:H:(ow-iw)/2:(oh-ih)/2:c` after the decrease-scale so `--size` output is exactly WxH with a chosen letterbox color
+- `channel --mode mix51` — ITU 5.1→stereo fold-down (`FL<FL+0.707*FC+0.707*BL+0.5*LFE`)
+- `transcode --colors N` — `palettegen max_colors=` knob on `transcode --preset gif` (same as `extract --colors`)
+
 ## [0.110.0] — 2026-09-22
 
 ### Added
