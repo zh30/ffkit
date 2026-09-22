@@ -112,7 +112,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 
 | `audiogram` | 播客音频 → 9:16 波形视频（`--image` 封面，`--mode`/`--color` 波形样式） |
 
-| `split` | 切成分段（`--every` 等长、`--at` 章节点、`--scenes` 镜头、`--size 9MB` 按大小）→ `stem_00..` |
+| `split` | 切成分段（`--every` 等长、`--at` 章节点、`--scenes` 镜头、`--size` 大小、`--parts N` 等分）→ `stem_00..` |
 | `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐、`--size` 画布） |
 | `speed` | 变速（`--factor 2` 加速一倍，口播保持音调） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
@@ -134,7 +134,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip` |
 | `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h`；`--at`/`--dur` 只处理窗口 |
 | `meta` | 写入容器标签（`--title`/`--artist`/`--comment`）+ `--rotate` 显示旋转标记，无损拷贝 |
-| `subs` | 导出内嵌字幕为 `.srt`/`.vtt`（`--stream N`） |
+| `subs` | 导出内嵌字幕（`--stream N`），或 `--burn subs.srt` 把字幕压进画面 |
+| `thumb` | 抓封面单帧（`--at`/`--frame`）→ jpg/png/webp |
 | `replace` | 换掉视频音轨为 `--audio`（领夹麦/干净人声/新配乐）；`--audio-offset` 对齐、`--mix` 保留原音轨 |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（默认只编码要留下的段；`--copy` 无损但按关键帧） |

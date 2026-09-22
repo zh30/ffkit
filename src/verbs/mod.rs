@@ -67,6 +67,7 @@ pub mod strip;
 pub mod subs;
 pub mod sync;
 pub mod tempo;
+pub mod thumb;
 pub mod timer;
 pub mod title;
 pub mod transcode;

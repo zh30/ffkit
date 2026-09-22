@@ -45,7 +45,20 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             }
             Some(probe.duration / n as f64)
         }
-        None => args.every,
+        None => match args.parts {
+            Some(n) => {
+                if n < 2 {
+                    return Err(Error::input("--parts must be ≥2"));
+                }
+                if args.every.is_some() || !args.at.is_empty() || args.scenes.is_some() {
+                    return Err(Error::input(
+                        "split --parts stands alone (no --every/--at/--scenes)",
+                    ));
+                }
+                Some(probe.duration / n as f64)
+            }
+            None => args.every,
+        },
     };
 
     let mut cuts: Vec<f64> = Vec::new();

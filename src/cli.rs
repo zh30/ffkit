@@ -139,6 +139,7 @@ pub enum Cmd {
     Meta(MetaArgs),
     /// Extract an embedded subtitle track to .srt/.vtt
     Subs(SubsArgs),
+    Thumb(ThumbArgs),
     /// Still images (+ optional music bed) into a video
     Slideshow(SlideshowArgs),
     /// Cut internal silence (talking-head jump cuts)
@@ -299,6 +300,9 @@ pub struct SplitArgs {
     /// Aim each part under this size (e.g. 9MB for Discord) — computes --every
     #[arg(long)]
     pub size: Option<String>,
+    /// Split into N equal-length parts
+    #[arg(long)]
+    pub parts: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -636,6 +640,22 @@ pub struct SubsArgs {
     /// Subtitle stream index (0 = first)
     #[arg(long, default_value_t = 0)]
     pub stream: u32,
+    /// Burn this subtitle file into the video instead of extracting (--file subs.srt)
+    #[arg(long)]
+    pub burn: Option<PathBuf>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ThumbArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Frame timestamp (default: 10% into the clip)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Exact frame index instead of a timestamp
+    #[arg(long)]
+    pub frame: Option<u64>,
 }
 
 #[derive(clap::Args, Debug)]

@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.57.0] - 2026-09-22
+
+- `thumb` — single-frame cover grab: `--at 2.5` (fast `-ss` seek) or `--frame N` (exact `select`); writes jpg/png/webp.
+- `subs --burn <file.srt|ass>` — libass `subtitles` burn-in with a creator-safe force_style (white text, outline, bottom margin). Extract mode unchanged.
+- `split --parts N` — equal-length N-way split (derives `--every` from duration).
+
 ## [0.56.0] - 2026-09-22
 
 - `sync` — fix constant A/V offset: `--ms +N` pads the audio start (`adelay`), `--ms -N` trims it (`atrim`); video stream-copied.

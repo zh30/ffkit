@@ -15,6 +15,14 @@ fn has_ffmpeg() -> bool {
         .unwrap_or(false)
 }
 
+fn has_filter(name: &str) -> bool {
+    Command::new("ffmpeg")
+        .args(["-hide_banner", "-filters"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).contains(name))
+        .unwrap_or(false)
+}
+
 fn fixture(dir: &Path) -> PathBuf {
     let out = dir.join("f.mp4");
     let status = Command::new("ffmpeg")
@@ -6909,4 +6917,111 @@ fn art_attaches_cover_stream() {
         kinds.contains(&"audio") && kinds.contains(&"video"),
         "{kinds:?}"
     );
+}
+
+#[test]
+fn thumb_grabs_single_frame() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("cover.png");
+    let v = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.is_file());
+    let (r, g, b) = mean_rgb(&out);
+    assert!(
+        r > 1.0 || g > 1.0 || b > 1.0,
+        "cover not black: {r},{g},{b}"
+    );
+}
+
+#[test]
+fn subs_burn_renders_caption() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("t.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,900\nHELLO SUB\n").unwrap();
+    let out = dir.path().join("burned.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let png = dir.path().join("f.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-ss",
+            "0.4",
+            "-i",
+        ])
+        .arg(&out)
+        .args(["-frames:v", "1"])
+        .arg(&png)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&png)
+        .args([
+            "-vf",
+            "crop=w=iw:h=ih/4:x=0:y=3*ih/4,signalstats,metadata=print",
+            "-f",
+            "null",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stderr);
+    let ymax: f64 = s
+        .lines()
+        .find_map(|l| l.split("YMAX=").nth(1)?.trim().parse().ok())
+        .unwrap_or(0.0);
+    assert!(
+        ymax > 200.0,
+        "burned caption should add white pixels: YMAX={ymax}"
+    );
+}
+
+#[test]
+fn split_parts_n_equal_chunks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out_tpl = dir.path().join("p_%d.mp4");
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        out_tpl.to_str().unwrap(),
+        "--parts",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let p0 = dir.path().join("p_0.mp4");
+    let p1 = dir.path().join("p_1.mp4");
+    assert!(p0.is_file() && p1.is_file(), "expected p_0 + p_1");
 }
