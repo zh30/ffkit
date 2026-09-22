@@ -1,0 +1,99 @@
+use serde_json::json;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+
+use crate::cli::{FramesArgs, Globals};
+use crate::contract::Contract;
+use crate::engine::{self, ffmpeg_base};
+use crate::error::Error;
+use crate::paths;
+
+/// Dump stills every `--every` seconds to `-o` with a `%03d` suffix
+/// (same `stem_%02d.ext` convention as `split`).
+pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
+    if args.every <= 0.0 {
+        return Err(Error::input("--every must be > 0"));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    engine::need_video(&probe, "frames")?;
+    paths::ensure_input(&args.input)?;
+
+    let out_s = args.output.to_string_lossy().into_owned();
+    let template: PathBuf = if out_s.contains('%') {
+        PathBuf::from(out_s)
+    } else {
+        let ext = args
+            .output
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("png");
+        let stem = args
+            .output
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "frame".into());
+        args.output
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(format!("{stem}_%03d.{ext}"))
+    };
+
+    let mut vf = format!("fps=1/{}", args.every);
+    if let Some(w) = args.width {
+        vf.push_str(&format!(",scale={w}:-2"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-vf", &vf]);
+    argv.push(&template);
+
+    let commands = engine::commands_of(std::slice::from_ref(&argv));
+    if g.dry_run {
+        return Ok(
+            Contract::dry_run("frames", Some(paths::display(&template)), Some(probe))
+                .with_commands(commands),
+        );
+    }
+    if let Err(e) = engine::run_argvs(&[argv], g) {
+        return Ok(Contract::failed("frames", &e).with_commands(commands));
+    }
+
+    let dir = template.parent().unwrap_or_else(|| Path::new("."));
+    let name = template
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let (pre, post) = match name.split_once('%') {
+        Some((a, b)) => match b.find('.') {
+            Some(d) => (a.to_string(), b[d..].to_string()),
+            None => (a.to_string(), String::new()),
+        },
+        None => (name.clone(), String::new()),
+    };
+    let mut parts = Vec::new();
+    for e in std::fs::read_dir(dir)? {
+        let e = e?;
+        let fname = e.file_name().to_string_lossy().into_owned();
+        if fname.starts_with(&pre) && fname.ends_with(&post) {
+            parts.push(e.path());
+        }
+    }
+    parts.sort();
+    if parts.is_empty() {
+        return Err(Error::verification(format!(
+            "frames wrote no files matching {}",
+            template.display()
+        )));
+    }
+    let first = crate::probe::probe(&parts[0], Duration::from_secs(60))?;
+    let names: Vec<String> = parts.iter().map(|p| paths::display(p)).collect();
+    let c = Contract::ok("frames", Some(paths::display(&template)), Some(first))
+        .with_commands(commands)
+        .with_extra(json!({
+            "every": args.every,
+            "count": parts.len(),
+            "files": names,
+        }));
+    Ok(c)
+}

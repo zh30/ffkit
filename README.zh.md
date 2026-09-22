@@ -165,6 +165,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `meme` | 顶部/底部说明文字烧入（`--top`/`--bottom`，`--color`，`--size`） |
 | `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`） |
 | `deinterlace` | 老录像/DV 隔行转逐行（`--mode frame`/`field`） |
+| `crossfade` | 两段音频淡接，`--dur` 秒重叠（`acrossfade`） |
+| `strip` | 去掉全部元数据/章节（发片前隐私清理），无损 `-c copy` |
+| `frames` | 每 `--every` 秒抽一帧 → `stem_001.png…`（`--width` 缩放） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `pipeline` | 按 JSON 方案顺序执行多步（`$src` / `$in` / `expect`） |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |

@@ -6059,3 +6059,134 @@ fn fade_color_white_fades_to_white() {
         "fade --color white ends near white ({m:.0}); {v}"
     );
 }
+
+#[test]
+fn crossfade_overlaps_two_audio_files() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mk = |name: &str, hz: u32| -> PathBuf {
+        let f = dir.path().join(name);
+        let ok = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("sine=frequency={hz}:duration=1"),
+                "-c:a",
+                "pcm_s16le",
+            ])
+            .arg(&f)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok, "tone {hz}");
+        f
+    };
+    let a = mk("a.wav", 440);
+    let b = mk("b.wav", 880);
+    let out = dir.path().join("x.m4a");
+    let v = run_json(&[
+        "crossfade",
+        a.to_str().unwrap(),
+        "--second",
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        (d - 1.7).abs() < 0.25,
+        "1+1-0.3 overlap = ~1.7s, got {d}; {v}"
+    );
+    // The overlap window should carry both tones (mixed), not silence.
+    let o = Command::new("ffmpeg")
+        .args(["-ss", "0.7", "-t", "0.25", "-i"])
+        .arg(&out)
+        .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stderr);
+    let mean = s
+        .lines()
+        .find_map(|l| {
+            l.split("mean_volume:")
+                .nth(1)
+                .and_then(|r| r.split_whitespace().next())
+                .and_then(|x| x.parse::<f64>().ok())
+        })
+        .unwrap_or(0.0);
+    assert!(mean > -60.0, "overlap keeps signal ({mean} dB); {v}");
+}
+
+#[test]
+fn strip_drops_metadata_tags() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let tagged = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "meta",
+        src.to_str().unwrap(),
+        "-o",
+        tagged.to_str().unwrap(),
+        "--title",
+        "Secret Title",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let out = dir.path().join("clean.mp4");
+    let v = run_json(&[
+        "strip",
+        tagged.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args(["-v", "error", "-show_entries", "format_tags", "-of", "json"])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    assert!(!s.contains("Secret Title"), "title stripped: {s}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 1.0).abs() < 0.3, "copy keeps duration; {v}");
+}
+
+#[test]
+fn frames_dumps_stills_on_a_grid() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let base = dir.path().join("shot.png");
+    let v = run_json(&[
+        "frames",
+        src.to_str().unwrap(),
+        "-o",
+        base.to_str().unwrap(),
+        "--every",
+        "0.34",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let count = v["extra"]["count"].as_u64().unwrap_or(0);
+    assert!(
+        (2..=4).contains(&count),
+        "1s at 0.34s grid ≈ 3 stills, got {count}; {v}"
+    );
+    assert!(
+        dir.path().join("shot_001.png").exists(),
+        "stem_%03d.png naming; {v}"
+    );
+}

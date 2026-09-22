@@ -165,6 +165,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `meme` | `--top`/`--bottom` caption text burned in (`--color`, `--size`) |
 | `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`) |
 | `deinterlace` | `yadif` for DV/interlaced sources (`--mode frame`/`field`) |
+| `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
+| `strip` | Remove all metadata + chapters, lossless `-c copy` |
+| `frames` | Still dump every `--every` seconds → `stem_001.png…` (`--width`) |
 | `batch` | One verb on every media file in a directory |
 | `pipeline` | Run a JSON scheme in order (`$src` / `$in` / `expect`) |
 | `graph` | JSON filter graph, see [`references/graph.md`](references/graph.md) |

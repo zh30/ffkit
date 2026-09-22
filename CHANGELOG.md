@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.51.0] — 2026-09-22
+
+- `ffkit crossfade`: `acrossfade` blend of two audio files (`--second`, `--dur`)
+- `ffkit strip`: drop all metadata + chapters, lossless stream copy
+- `ffkit frames`: still dump every `--every` seconds (`stem_%03d.png`, `--width`)
+
 ## [0.50.0] — 2026-09-22
 
 ## [0.49.0] — 2026-09-22

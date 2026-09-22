@@ -169,6 +169,9 @@ pub enum Cmd {
     Meme(MemeArgs),
     Voice(VoiceArgs),
     Deinterlace(DeinterlaceArgs),
+    Crossfade(CrossfadeArgs),
+    Strip(StripArgs),
+    Frames(FramesArgs),
     /// Even out voice dynamic range (compressor)
     Leveler(LevelerArgs),
     /// Noise gate — silence below a threshold
@@ -1126,6 +1129,41 @@ pub struct DeinterlaceArgs {
 pub enum DeinterlaceMode {
     Frame,
     Field,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct CrossfadeArgs {
+    /// First audio file (its tail fades out)
+    pub input: PathBuf,
+    /// Second audio file (fades in under the tail)
+    #[arg(long)]
+    pub second: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Overlap seconds (default 2)
+    #[arg(long, default_value_t = 2.0)]
+    pub dur: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct StripArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct FramesArgs {
+    pub input: PathBuf,
+    /// Output path or template — `shots.png` writes `shots_001.png`…
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Seconds between stills (default 5)
+    #[arg(long, default_value_t = 5.0)]
+    pub every: f64,
+    /// Optional width to scale stills to
+    #[arg(long)]
+    pub width: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
