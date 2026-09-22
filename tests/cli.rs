@@ -1818,7 +1818,6 @@ fn pack_release_zip_runs() {
     assert_eq!(v["extra"]["ffkit"], ver, "{v}");
 }
 
-
 #[test]
 fn denoise_keeps_streams() {
     if !has_ffmpeg() {
@@ -2199,7 +2198,6 @@ fn slideshow_refuses_fade_longer_than_per() {
     ]);
     assert_eq!(v["status"], "failed", "{v}");
 }
-
 
 #[test]
 fn caption_chunk_splits_long_cues() {
