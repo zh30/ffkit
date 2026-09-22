@@ -99,14 +99,17 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `look` | 联系表（`--tiles`）或指定时间点（`--at`，可重复） |
 | `cut` | 剪切；默认无损 copy，`--accurate` 才帧精确 |
 | `concat` | 拼接；两条且 `--transition fade` 为交叉淡化 |
-| `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…） |
+| `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 |
 | `extract` | 按输出扩展名抽音频、帧、字幕 |
 | `overlay` | logo、水印、画中画 |
 | `broll` | 切走 B-roll（`--insert --at --duration`）；口播声音和时长不变 |
 | `caption` | `--mode mux` 软字幕；`burn` 烧入（overlay 栅格化，不依赖 libass）；`--safe social` 避开底部 20% |
 | `loudnorm` | EBU R128 两遍（`-I -14` 社交，`-I -16` 播客） |
+| `denoise` | 人声降噪（风扇/轰隆/嘶嘶声）；`--video` 顺带画面去噪点 |
 | `transcode` | 预设 `h264` / `webm` / `gif` |
+| `compress` | 两遍编码压到 `--size 10MB`（Discord、WhatsApp 16MB、邮箱约 25MB） |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
+| `audiogram` | 播客音频 → 9:16 波形视频（封面图用 `--image`） |
 | `speed` | 变速（`--factor 2` 加速一倍，口播保持音调） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
 | `jumpcut` | 剪掉口播里的静音停顿 |

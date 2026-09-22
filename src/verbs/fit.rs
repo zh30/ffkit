@@ -34,28 +34,56 @@ pub fn run(args: FitArgs, g: &Globals) -> Result<Contract, Error> {
         None => {}
     }
 
-    let scale_pad = match args.fit {
-        FitMode::Pad => format!(
-            "scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2:black"
-        ),
-        FitMode::Crop => format!(
-            "scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}"
-        ),
-    };
-    vf.push(scale_pad);
-    vf.push("setsar=1".into());
-    vf.push("format=yuv420p".into());
     if let Some(fps) = args.fps {
         if fps <= 0.0 {
             return Err(Error::input("--fps must be positive"));
         }
-        vf.push(format!("fps={fps}"));
     }
 
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    argv.extend(["-vf", &vf.join(",")]);
+    if args.fit == FitMode::Blur {
+        // Repurpose look: a zoomed, blurred copy fills the frame and the scaled
+        // foreground sits centered on it. Needs split + overlay → filter_complex.
+        let mut tail = vec!["setsar=1".to_string(), "format=yuv420p".to_string()];
+        if let Some(fps) = args.fps {
+            tail.push(format!("fps={fps}"));
+        }
+        let pre = if vf.is_empty() {
+            String::new()
+        } else {
+            format!("{},", vf.join(","))
+        };
+        let fc = format!(
+            "[0:v]{pre}split[bg0][fg0];\
+             [bg0]scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th},gblur=sigma=30[bg];\
+             [fg0]scale={tw}:{th}:force_original_aspect_ratio=decrease[fg];\
+             [bg][fg]overlay=(W-w)/2:(H-h)/2,{}[vout]",
+            tail.join(","),
+        );
+        argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
+        if probe.has_audio {
+            argv.extend(["-map", "0:a?"]);
+        }
+    } else {
+        let scale_pad = match args.fit {
+            FitMode::Pad => format!(
+                "scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2:black"
+            ),
+            FitMode::Crop => format!(
+                "scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}"
+            ),
+            FitMode::Blur => unreachable!(),
+        };
+        vf.push(scale_pad);
+        vf.push("setsar=1".into());
+        vf.push("format=yuv420p".into());
+        if let Some(fps) = args.fps {
+            vf.push(format!("fps={fps}"));
+        }
+        argv.extend(["-vf", &vf.join(",")]);
+    }
     argv.extend(["-c:v", "libx264", "-preset", "fast", "-crf", "18"]);
     if probe.has_audio {
         argv.extend(["-c:a", "aac"]);

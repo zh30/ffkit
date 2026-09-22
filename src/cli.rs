@@ -83,10 +83,16 @@ pub enum Cmd {
     Caption(CaptionArgs),
     /// EBU R128 loudness normalisation (two-pass)
     Loudnorm(LoudnormArgs),
+    /// Denoise voice (fan / rumble / hiss); --video also degrains
+    Denoise(DenoiseArgs),
     /// Transcode to a delivery preset (h264, webm, gif)
     Transcode(TranscodeArgs),
+    /// Shrink to a target file size (two-pass bitrate budget)
+    Compress(CompressArgs),
     /// One-shot 9:16 social export (Reels / TikTok / Shorts)
     Deliver(DeliverArgs),
+    /// Audio + cover still into a 9:16 waveform video (podcast audiogram)
+    Audiogram(AudiogramArgs),
     /// Change playback speed (talking-head 1.1–2×, slow-mo)
     Speed(SpeedArgs),
     /// Mix a music bed under speech, with ducking
@@ -218,10 +224,12 @@ pub struct FitArgs {
     pub fps: Option<f64>,
 }
 
-#[derive(Clone, Copy, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 pub enum FitMode {
     Pad,
     Crop,
+    /// Letter/pillarbox filled with a blurred copy of the frame (repurpose look)
+    Blur,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -307,6 +315,46 @@ pub enum CaptionMode {
 pub enum CaptionSafe {
     Social,
     Off,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DenoiseArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Denoise strength 0–1 (0.5 ≈ afftdn nr=12)
+    #[arg(long, default_value_t = 0.5)]
+    pub strength: f64,
+    /// High-pass frequency in Hz for rumble (0 = off)
+    #[arg(long, default_value_t = 90.0)]
+    pub highpass: f64,
+    /// Also run hqdn3d on the picture (grainy footage)
+    #[arg(long)]
+    pub video: bool,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct CompressArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Target size, e.g. 10MB (Discord), 16MB (WhatsApp), 25MB (email); KB/MB/GB
+    #[arg(long)]
+    pub size: String,
+    /// Audio bitrate budget in kbps
+    #[arg(long, default_value_t = 96.0)]
+    pub audio_kbps: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct AudiogramArgs {
+    /// Audio file (podcast clip, wav/mp3/m4a)
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Cover still behind the waveform; flat colour when omitted
+    #[arg(long)]
+    pub image: Option<PathBuf>,
 }
 
 #[derive(clap::Args, Debug)]

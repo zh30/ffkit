@@ -1,43 +1,44 @@
 # Creator multimedia needs → remaining ffkit gaps
 
-Researched 2026-09-15 against **ffkit 0.22.1** (`main`). This note is not a restatement of landed work (deliver, caption-without-libass, jumpcut, pipeline, Release zips). Those already cover “做成 Reel / 静音也能看 / 剪停顿 / 方案一次跑完”.
+Researched 2026-09-22 against **ffkit 0.25.1** (`main`). Previous pass 2026-09-15 (vs 0.22.1). This note is not a restatement of landed work — the tail lists what not to redo.
 
 ## What 2026 creators still trip on
 
-**Burned captions that sit under the app chrome are wasted work.** Mute viewing is still the default, but placement now has a measured safe rectangle:
+**Platform size limits are the recurring hard wall.** Agents can edit and export, but "fit under N" is still hand-math:
 
-- [CuteDyno, Apr 2026](https://cutedyno.com/blog/short-form-video-safe-zones-reels-shorts-2026) — top 10–15% (status / nav), **bottom 15–20%** (captions, audio chip, CTAs), right rail for like/share. Cross-post: keep critical text off those edges.
-- [Blitzcut, Jun 2026](https://blitzcutai.com/blog/best-caption-placement-short-form-video) — TikTok bottom dead zone **320–350 px** on 1080×1920; Reels bottom **310–450 px**. Union advice: keep all burn-in inside a **~900×1400 centered** block. Lower-middle captions (about Y=1200–1550) clear a typical talking-head face.
-- [ShortSync, Feb 2026](https://www.shortsync.app/resources/add-captions-short-form-videos) — ~80% of short-form views start muted; place captions in the **middle 60%** vertically, not the very bottom.
-- [HeyGen tool test, Aug 2026](https://www.heygen.com/blog/best-ai-video-generator-tiktok-reels) — caption quality scoring includes whether burn-in **clears TikTok username and Reels caption bar**.
-- [Shortzly, Jun 2026](https://shortzly.com/blog/animated-captions-style-guide-short-form-video) — CapCut-style 2–4 word chunks + current-word highlight is the feed default; **middle-third** is the safest band.
+- Discord free tier is **10 MB** now (nitro 500 MB); WhatsApp video caps ~**16 MB**; email attachments ~**20–25 MB**. Creators keep hitting "file too large" *after* finishing an edit.
+- ffmpeg has no `--size` flag: the fix is bitrate math — `video_kbps = (target_bits × 0.98 − audio_bits) / duration` — then **two-pass** to actually land the size ([ffmpeg-cookbook, Apr 2026](https://ffmpeg-cookbook.com/en/articles/two-pass-encoding/); [bitrate math walkthrough, Jul 2026](https://dev.to/alexpua/how-i-make-ffmpeg-hit-an-exact-file-size-the-bitrate-math-nobody-explains-3o7o)). Agents reinvent this per job and overshoot.
 
-**Talking-head edits insert B-roll while the voice keeps going:**
+**Podcast→clips is the #1 scaled workflow.** [Loopdesk, Jul 2026](https://loopdesk.ai/blog/video-workflows-for-creators): the four workflows that cover almost every creator are podcast-to-clips, weekly YouTube, archive mining, multi-platform publishing. Audio-only episodes need a **picture** before they can be a Reel/Short — the standard artifact is a cover still with an animated waveform (**audiogram**). ffmpeg `showwaves` renders it without any extra dependency.
 
-- [Captions (Mirage) review, Sep 2026](https://aidemos.com/tools/captions) — the winning talking-head first pass is: trim dead air, **add captions, insert B-roll**, style titles. B-roll is a first-class step, not a logo PiP.
-- CuteDyno’s [repurpose playbook, Jun 2026](https://cutedyno.com/blog/repurpose-short-form-video-multi-platform-2026) — shoot B-roll with the A-roll so the same 9:16 master can cut away.
-- Comparable agent tool: ffmpeg-skill `broll.py` — cut away to an insert for `--at`/`--duration`, **A’s length and audio untouched**.
+**Audio cleanup comes before loudness.** [MSY Editor, Mar 2026](https://msyeditor.com/ai-video-editing-workflow-2026/): in every AI edit pipeline, noise reduction is applied *first*, before levels and B-roll — room rumble, laptop fan, hiss. Homebrew/apt ffmpeg ships `afwtdn`, `highpass`, `afftdn`; no model files needed.
 
-**Voice denoise** (room rumble, laptop fan) is the other frequent “make this usable” ask. Homebrew ffmpeg here has `afftdn` / `highpass` / `hqdn3d`. Deferred this run (see ordered list).
+**Landscape→vertical repurpose wants a blurred fill, not black bars.** The repurpose playbooks (CuteDyno Jun 2026, loopdesk multi-platform) assume a blurred pillarbox when the source is 16:9 — black `pad` bars read as unedited. `split + scale=increase,crop + gblur + overlay=centered fg` is a known-graph but error-prone raw.
 
-Word-by-word karaoke highlight, Whisper/TTS, stock B-roll search, multicam, HDR/LUT, beat-sync, and publish APIs stay out of scope.
+**HDR iPhone footage washed out in SDR feeds** needs `zscale`+`tonemap`; Homebrew ffmpeg here has `tonemap` but **no `zscale`** (needs `--with-libzimg`). Gate behind `doctor` before promising it.
 
-## Gaps vs ffkit 0.22.1
+## Gaps vs ffkit 0.25.1
 
-| Creator request | Today | Gap |
-|-----------------|-------|-----|
-| “Burn captions so mute viewers can read them in-feed” | `caption --mode burn` overlays at `y=H-h-15%H` | **15% of 1920 = 288 px**, under TikTok’s ~320–350 px bottom chrome. `gotchas.md` still says “~15% from the bottom”. Cross-post needs ~**20% bottom** (and clear the top 15%). |
-| “Cut to this clip while I keep talking” | `overlay --video` is a **PiP** for the whole timeline | No timed **full-frame cutaway** that keeps A-roll audio and duration. Agent would invent `enable='between(t,…)'` graphs. |
-| “Clean up the room noise” | `loudnorm` / `volume` only | No `afftdn` / highpass voice denoise verb. |
-| Karaoke / current-word highlight | Raster burn is whole-cue | Needs word-timed SRT or libass; deferred. |
+|| Creator request | Today | Gap |
+||-----------------|-------|-----|
+|| "压到 10MB 发 Discord / shrink for email" | `transcode` presets pick a codec/CRF, not a size | No size target; bitrate math + two-pass must be hand-built |
+|| "把这段播客做成能发的视频" | audio-only input has no video verbs at all | No waveform/cover audiogram path to 9:16 |
+|| "房间底噪 / fan noise / 降噪" | `loudnorm` / `volume` only | No voice denoise (queued last run) (queued last run) |
+|| "竖屏但背景要模糊" | `fit --fit pad` = black bars; `crop` cuts the subject | No blurred-fill mode |
+|| Swap camera audio for lav mic | `music` mixes a bed under; nothing replaces | Raw `ffmpeg -map` only; queue next |
+|| Word-highlight karaoke captions | whole-cue raster burn | Needs per-word timing source; still deferred |
+|| LUT / film look | `grade` sliders only | `lut3d` exists; queue if asked |
+|| HDR→SDR for iPhone clips | — | needs libzimg (`zscale` absent on Homebrew/apt) |
 
 ## Ordered directions (this run)
 
-1. **Social caption safe-zone** — `caption --mode burn` default `--safe social`: place burn-in above the bottom **20%** (and not into the top 15%). `--safe none` keeps the old 15% bottom margin. Maps to “烧字幕 / 静音也能看 / 不要挡住 TikTok 底栏”. Not a new look verb; the existing caption hand was placing text in the dead zone.
-2. **B-roll cutaway** — `ffkit broll A --insert B --at T --duration D`: replace the picture for a window, **keep A’s audio and duration**. Maps to “口播切 B-roll / 画面切走声音继续”. Justified as a verb: the enable+scale+crop graph is repeatedly error-prone as raw ffmpeg.
+1. **`denoise`** — `ffkit denoise IN -o OUT`: `highpass` + `afwtdn` voice cleanup, `--video` adds `hqdn3d` on the picture. Maps to "降噪 / 底噪 / room tone". Already queued by the previous run's ordered list.
+2. **`compress`** — `ffkit compress IN -o OUT --size 10MB`: probe duration → bitrate budget (2% mux reserve, audio paid first at 96 kbps) → libx264 **two-pass**. Audio-only input single-passes `-b:a`. Fails fast when the math is impossible (<64 kbps video). Maps to "发不出去，太大了".
+3. **`fit --fit blur`** — blurred-pillarbox fill behind the scaled foreground. Maps to "竖屏化不要黑边".
+4. **`audiogram`** — `ffkit audiogram IN [-o reel.mp4 --image cover.png]`: `showwaves` over a cover still (or flat colour) → 1080×1920, audio kept. Maps to "播客做成 Reel".
 
-Next (not this run): `denoise` via `afftdn` (+ optional `hqdn3d`), then word-chunk caption highlight without libass if a plan step keeps failing.
+Next (not this run): replace-audio mux (`--audio`), word-chunk caption highlight (needs word-timed source), `lut3d`, `audiogram` needs none — but HDR needs libzimg; slideshow (zoompan over N stills + bed) if agents keep hand-rolling it.
 
 ## Already landed (do not redo)
 
-Deliver 1080×1920 −14 LUFS; caption burn without libass; speed; music duck; jumpcut; cover; fade; title; loop; stabilize; reverse; grade/zoom/sharpen/vignette/bw/volume/blur; pipeline `$src`/`$in`/`expect`; GitHub Release zips; English + Chinese README.
+Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bottom-20%; broll cutaway keeps A-roll audio/duration and plays B from its first frame; rough-cut speech islands (list, then encode only keeps); music duck (aformat dbl pin for sidechaincompress on apt ffmpeg); speed; jumpcut; cover; fade; title; loop; stabilize; reverse; grade/zoom/sharpen/vignette/bw/volume/blur; pipeline `$src`/`$in`/`expect`; GitHub Release zips; English + Chinese README.
