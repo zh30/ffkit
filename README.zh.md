@@ -156,6 +156,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `waveform` | 音频波形 → PNG（`--size`、`--color`），播客封面/缩略图用 |
 | `spectrogram` | 音频频谱图 → PNG（`--size`），清理前先看嗡鸣/噪声 |
 | `dehum` | 消除市电嗡鸣 `--mains 50|60` + `--harmonics`（Q=12 `equalizer` 陷波链） |
+| `tempo` | 音频变速 `--factor` 0.5–8，不变调（`atempo` 链；视频请用 `speed`） |
+| `leveler` | 人声动态压缩（忽大忽小）：`--threshold`/`--ratio`/`--makeup` |
+| `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`） |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |
 | `pipeline` | 按 JSON 方案顺序执行多步（`$src` / `$in` / `expect`） |
 | `graph` | JSON 滤镜图，见 [`references/graph.md`](references/graph.md) |

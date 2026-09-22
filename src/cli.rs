@@ -161,6 +161,12 @@ pub enum Cmd {
     Grade(GradeArgs),
     /// Punch-in / Ken Burns-style center zoom
     Zoom(ZoomArgs),
+    /// Speed audio up/down without changing pitch
+    Tempo(TempoArgs),
+    /// Even out voice dynamic range (compressor)
+    Leveler(LevelerArgs),
+    /// Noise gate — silence below a threshold
+    Gate(GateArgs),
     /// Render the audio waveform to a PNG
     Waveform(WaveformArgs),
     /// Render the audio spectrogram to a PNG
@@ -1017,6 +1023,57 @@ pub struct SheetArgs {
     /// Tile width px (height follows aspect, forced even)
     #[arg(long, default_value_t = 320)]
     pub tile: u32,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct TempoArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Speed factor 0.5..=8 (pitch preserved)
+    #[arg(long, default_value_t = 1.5)]
+    pub factor: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct LevelerArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Compression threshold dB (default -18)
+    #[arg(long, default_value_t = -18.0, allow_hyphen_values = true)]
+    pub threshold: f64,
+    /// Ratio N:1 (default 4)
+    #[arg(long, default_value_t = 4.0)]
+    pub ratio: f64,
+    /// Attack ms (default 20)
+    #[arg(long, default_value_t = 20.0)]
+    pub attack: f64,
+    /// Release ms (default 250)
+    #[arg(long, default_value_t = 250.0)]
+    pub release: f64,
+    /// Makeup gain dB (default 6)
+    #[arg(long, default_value_t = 6.0)]
+    pub makeup: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct GateArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Silence below this dB (default -40)
+    #[arg(long, default_value_t = -40.0, allow_hyphen_values = true)]
+    pub threshold: f64,
+    /// Reduction ratio (default 8)
+    #[arg(long, default_value_t = 8.0)]
+    pub ratio: f64,
+    /// Attack ms (default 10)
+    #[arg(long, default_value_t = 10.0)]
+    pub attack: f64,
+    /// Release ms (default 100)
+    #[arg(long, default_value_t = 100.0)]
+    pub release: f64,
 }
 
 #[derive(clap::Args, Debug)]

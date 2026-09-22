@@ -5396,3 +5396,212 @@ fn dehum_notches_the_mains_tone() {
         "440 voice survives ({voice_out} dB); {v}"
     );
 }
+
+#[test]
+fn tempo_doubles_speed_without_pitch_loss() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("t.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "tone fixture");
+    let out = dir.path().join("f.m4a");
+    let v = run_json(&[
+        "tempo",
+        wav.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--factor",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let p = run_json(&["probe", out.to_str().unwrap()]);
+    let d = p["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 0.5).abs() < 0.12, "2x halves duration ({d}); {v}");
+    // A 440 Hz sine stays at 440 Hz — atempo shifts time, not pitch.
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args(["-af", "bandpass=f=440:w=60,volumedetect", "-f", "null", "-"])
+        .output()
+        .unwrap();
+    let mean = String::from_utf8_lossy(&o.stderr)
+        .lines()
+        .find_map(|l| {
+            l.split("mean_volume:")
+                .nth(1)
+                .and_then(|r| r.split_whitespace().next())
+                .and_then(|x| x.parse::<f64>().ok())
+        })
+        .unwrap_or(-99.0);
+    assert!(mean > -40.0, "440 Hz pitch preserved ({mean} dB); {v}");
+    // Video inputs are refused — speed retimes those.
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "tempo",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("v.m4a").to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "failed", "video refused for tempo; {v}");
+}
+
+#[test]
+fn leveler_tames_loud_peaks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // Alternating loud/quiet 0.1s tones — compression narrows the gap.
+    let wav = dir.path().join("dyn.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.4",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.4",
+            "-filter_complex",
+            "[0:a]volume=0.9[a];[1:a]volume=0.05[b];[a][b]concat=n=2:v=0:a=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "dyn fixture");
+    let out = dir.path().join("l.m4a");
+    let v = run_json(&[
+        "leveler",
+        wav.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--threshold",
+        "-30",
+        "--ratio",
+        "10",
+        "--makeup",
+        "12",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let seg = |f: &Path, win: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-af",
+                &format!("atrim={win},volumedetect"),
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(-99.0)
+    };
+    let (loud0, quiet0) = (seg(&wav, "0:0.3"), seg(&wav, "0.5:0.8"));
+    let (loud1, quiet1) = (seg(&out, "0:0.3"), seg(&out, "0.5:0.8"));
+    assert!(
+        (loud1 - quiet1) < (loud0 - quiet0) - 8.0,
+        "range narrows: {loud0}-{quiet0}dB gap -> {loud1}-{quiet1}dB; {v}"
+    );
+}
+
+#[test]
+fn gate_silences_the_quiet_parts() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("t.wav");
+    // Loud tone then a quiet hiss — the gate should kill the hiss.
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.5",
+            "-f",
+            "lavfi",
+            "-i",
+            "anoisesrc=color=white:duration=0.5:amplitude=0.05",
+            "-filter_complex",
+            "[0:a][1:a]concat=n=2:v=0:a=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "gate fixture");
+    let out = dir.path().join("g.m4a");
+    let v = run_json(&[
+        "gate",
+        wav.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--threshold",
+        "-20",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let tail = |f: &Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args(["-af", "atrim=0.5:1,volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(0.0)
+    };
+    let (before, after) = (tail(&wav), tail(&out));
+    assert!(
+        after < before - 10.0,
+        "gate drops the quiet tail: {before} -> {after} dB; {v}"
+    );
+}

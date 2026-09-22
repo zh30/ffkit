@@ -165,3 +165,11 @@ The first pass prints measured values on stderr. ffkit parses them for the secon
 ## Denoiser strength varies wildly
 
 `hqdn3d` barely dents strong synthetic noise (variance −5% at strength 8); `nlmeans=s=8` cuts ~87% on the same clip and is the usable engine for `vdenoise`. Keep `--strength` modest: nlmeans is per-frame non-local-means — slow on long clips and softens texture at high values.
+
+## Audio-only retiming vs video inputs
+
+Any `-af` chain that changes duration (`atempo`, `atrim` crops) leaves `-c:v copy` video at its original length — the container ends up at the LONGER stream and the two desync. `tempo` refuses video inputs for exactly this; `speed` retimes both.
+
+## Negative values as clap args
+
+`--threshold -30` fails clap parsing ("unexpected argument '-3'") unless the arg carries `allow_hyphen_values = true` — required on every dB-style flag (`--db`, `--threshold`, `--warm`).

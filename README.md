@@ -156,6 +156,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `waveform` | Audio waveform → PNG (`--size`, `--color`) for podcast art/thumbnails |
 | `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup |
 | `dehum` | Notch mains hum `--mains 50|60` + `--harmonics` (Q=12 `equalizer` chain) |
+| `tempo` | Speed audio `--factor` 0.5–8, pitch held (`atempo` chain; use `speed` for video) |
+| `leveler` | Voice dynamic-range compressor (`--threshold`/`--ratio`/`--makeup`) |
+| `gate` | Noise gate — silence below `--threshold` dB (`agate`) |
 | `batch` | One verb on every media file in a directory |
 | `pipeline` | Run a JSON scheme in order (`$src` / `$in` / `expect`) |
 | `graph` | JSON filter graph, see [`references/graph.md`](references/graph.md) |

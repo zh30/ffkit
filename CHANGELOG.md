@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.47.0] — 2026-09-22
+
+- `ffkit tempo`: audio speed `--factor` 0.5–8, pitch preserved (`atempo` chain; refuses video — use `speed`)
+- `ffkit leveler`: voice dynamic-range compressor (`acompressor`)
+- `ffkit gate`: noise gate below `--threshold` dB (`agate`)
+
 ## [0.46.0] — 2026-09-22
 
 - `ffkit waveform`: audio waveform → PNG (`--size`, `--color`) via `showwavespic`
