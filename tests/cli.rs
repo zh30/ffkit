@@ -8395,3 +8395,74 @@ fn sheet_pad_margin() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn overlay_angle_rotates_watermark() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let logo = dir.path().join("logo.png");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:s=80x80:d=1",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&logo)
+        .output()
+        .unwrap();
+    let out = dir.path().join("ang.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "--image",
+        logo.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--angle",
+        "25",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn waveform_scale_log() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("wf.png");
+    let v = run_json(&[
+        "waveform",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--scale",
+        "log",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

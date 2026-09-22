@@ -66,11 +66,22 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push("-i");
     argv.push(overlay);
+    let (rot_pre, src) = match args.angle {
+        Some(deg) => (
+            format!(
+                "[1:v]format=rgba,rotate=a={:.6}:c=none[rotraw];",
+                deg.to_radians()
+            ),
+            "rotraw",
+        ),
+        None => (String::new(), "1:v"),
+    };
     let (pre, ovl) = if fade > 0.0 {
         (
             format!(
-                "[1:v]format=rgba,fade=t=in:st={at_secs:.3}:d={fade:.3}:alpha=1,fade=t=out:st={:.3}:d={fade:.3}:alpha=1[ovl];",
-                end_secs - fade
+                "[{src}]format=rgba,fade=t=in:st={at_secs:.3}:d={fade:.3}:alpha=1,fade=t=out:st={:.3}:d={fade:.3}:alpha=1[ovl];",
+                end_secs - fade,
+                src = src
             ),
             "ovl",
         )
@@ -78,11 +89,14 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
         // subtle watermark: scale + alpha on the still itself
         let op = args.opacity.clamp(0.0, 1.0);
         (
-            format!("[1:v]format=rgba,colorchannelmixer=aa={op:.3}[ovl];"),
+            format!(
+                "[{src}]format=rgba,colorchannelmixer=aa={op:.3}[ovl];",
+                src = src
+            ),
             "ovl",
         )
     } else {
-        (String::new(), "1:v")
+        (String::new(), src)
     };
     // Infinite looped still secondary: end each composite on the main stream.
     let shortest = if fade > 0.0 && args.image.is_some() {
@@ -123,7 +137,7 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         format!("[0:v][{ovl}]overlay=x={x}:y={y}{enable}{shortest}[vout]")
     };
-    let fc = format!("{pre}{fc}");
+    let fc = format!("{rot_pre}{pre}{fc}");
     let _ = x;
     let _ = y;
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);

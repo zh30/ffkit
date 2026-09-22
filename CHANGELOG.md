@@ -4,6 +4,12 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 
 ## [Unreleased]
 
+## [0.73.0] - 2026-09-22
+
+- `overlay --angle DEG` — `format=rgba,rotate=a=rad:c=none` pre-chain ahead of any fade/opacity chain (diagonal watermarks).
+- `waveform --scale lin|log|sqrt|cbrt` — showwavespic amplitude scale.
+- `split --min-silence N` — silence-gap minimum for `--silence` mode (default 0.4s); standalone refuses.
+
 ## [0.72.0] - 2026-09-22
 
 - `music --at/--dur` — delayed/trimmed bed window: `atrim` + `adelay=at*1000` before the ducking mix; fades stay relative to the bed.

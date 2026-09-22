@@ -313,6 +313,9 @@ pub struct SplitArgs {
     /// Cut at silence midpoints under this dB threshold (e.g. --silence=-35)
     #[arg(long, allow_hyphen_values = true)]
     pub silence: Option<f64>,
+    /// With --silence: minimum gap length in seconds (default 0.4)
+    #[arg(long)]
+    pub min_silence: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -418,6 +421,9 @@ pub struct OverlayArgs {
     /// ..until this many seconds after --at (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Rotate the overlay N degrees (diagonal watermarks)
+    #[arg(long)]
+    pub angle: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1599,6 +1605,9 @@ pub struct WaveformArgs {
     /// Waveform colour RRGGBB hex or ffmpeg name (default ffffff)
     #[arg(long)]
     pub color: Option<String>,
+    /// Amplitude scale: lin (default), log, sqrt, cbrt — log shows quiet detail
+    #[arg(long)]
+    pub scale: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

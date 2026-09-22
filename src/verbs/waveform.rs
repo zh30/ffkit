@@ -20,12 +20,21 @@ pub fn run(args: WaveformArgs, g: &Globals) -> Result<Contract, Error> {
         raw.to_string()
     };
     let color = color.as_str();
+    let sc = match &args.scale {
+        Some(s) => {
+            if !["lin", "log", "sqrt", "cbrt"].contains(&s.as_str()) {
+                return Err(Error::input("--scale must be lin|log|sqrt|cbrt"));
+            }
+            format!(":scale={s}")
+        }
+        None => String::new(),
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
     argv.extend([
         "-filter_complex",
-        &format!("[0:a]showwavespic=s={w}x{h}:colors={color}[v]"),
+        &format!("[0:a]showwavespic=s={w}x{h}:colors={color}{sc}[v]"),
         "-map",
         "[v]",
         "-frames:v",

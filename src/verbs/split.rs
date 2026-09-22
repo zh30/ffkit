@@ -62,6 +62,9 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
     };
 
     let mut cuts: Vec<f64> = Vec::new();
+    if args.min_silence.is_some() && args.silence.is_none() {
+        return Err(Error::input("--min-silence needs --silence"));
+    }
     if let Some(thr) = args.silence {
         if every.is_some() || !args.at.is_empty() || args.scenes.is_some() {
             return Err(Error::input(
@@ -74,7 +77,12 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         if !probe.has_audio {
             return Err(Error::input("split --silence needs an audio stream"));
         }
-        let silences = crate::silence::detect(&args.input, thr, 0.4, g.timeout, true)?;
+        let min_gap = match args.min_silence {
+            Some(m) if m > 0.0 => m,
+            Some(_) => return Err(Error::input("--min-silence must be > 0")),
+            None => 0.4,
+        };
+        let silences = crate::silence::detect(&args.input, thr, min_gap, g.timeout, true)?;
         for (a, b) in silences {
             let mid = (a + b) / 2.0;
             if (0.05..probe.duration - 0.05).contains(&mid) {
