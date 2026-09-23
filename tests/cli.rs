@@ -24181,6 +24181,7 @@ fn grade_lut1d_deflicker_tmide_gen_audio_glitch_swapuv() {
         "8",
     ]);
     assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["engine"], "tmidequalizer", "{v}");
 
     // audio beds: noise (pink) + tone (sine) — file exists, has audio stream
     for (pat, extra) in [("noise", vec![]), ("tone", vec!["--freq", "880"])] {

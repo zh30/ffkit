@@ -14,7 +14,13 @@ pub fn run(args: DeflickerArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "deflicker")?;
 
-    let vf = format!("deflicker=size={}:mode=am", args.size);
+    let vf = match args.engine.unwrap_or(crate::cli::DeflickerEngine::Am) {
+        crate::cli::DeflickerEngine::Am => format!("deflicker=size={}:mode=am", args.size),
+        // tmidequalizer: radius counts frames either side → size/2, capped at 60
+        crate::cli::DeflickerEngine::Tmide => {
+            format!("tmidequalizer=radius={}", (args.size / 2).clamp(1, 60))
+        }
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
@@ -28,5 +34,11 @@ pub fn run(args: DeflickerArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
 
     let c2 = engine::write_job("deflicker", &[&args.input], &args.output, vec![argv], g)?;
-    Ok(c2.with_extra(json!({ "size": args.size })))
+    Ok(c2.with_extra(json!({
+        "size": args.size,
+        "engine": match args.engine.unwrap_or(crate::cli::DeflickerEngine::Am) {
+            crate::cli::DeflickerEngine::Am => "deflicker",
+            crate::cli::DeflickerEngine::Tmide => "tmidequalizer",
+        },
+    })))
 }
