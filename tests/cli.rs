@@ -17086,3 +17086,68 @@ fn scroll_speed_paces_roll_and_countdown_formats() {
     ]);
     assert_eq!(badfmt["status"], "failed", "{badfmt}");
 }
+
+#[test]
+fn subs_encoding_gbk_and_deliver_subs() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // A GBK-encoded .srt is not valid UTF-8 — conversion needs --encoding
+    let gbk = dir.path().join("gbk.srt");
+    let cues = b"1\r\n00:00:00,000 --> 00:00:01,500\r\nHELLO \xc4\xe3\xba\xc3\r\n";
+    std::fs::write(&gbk, cues).unwrap();
+    let out = dir.path().join("out.srt");
+    let v = run_json(&[
+        "subs",
+        gbk.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--convert",
+        "--encoding",
+        "gbk",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.contains("HELLO"), "{text}");
+    let bad = run_json(&[
+        "subs",
+        gbk.to_str().unwrap(),
+        "-o",
+        dir.path().join("bad.srt").to_str().unwrap(),
+        "--convert",
+    ]);
+    assert_eq!(bad["status"], "failed", "{bad}");
+
+    // deliver burns the .srt straight onto the platform canvas
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:01,500\nHELLO\n").unwrap();
+    let d = dir.path().join("d.mp4");
+    let v = run_json(&[
+        "deliver",
+        src.to_str().unwrap(),
+        "-o",
+        d.to_str().unwrap(),
+        "--platform",
+        "square",
+        "--subs",
+        srt.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let vf = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|a| a.as_str().unwrap_or(""))
+        })
+        .find(|a| a.contains("subtitles="))
+        .unwrap_or("")
+        .to_string();
+    assert!(vf.contains("subtitles=filename="), "{vf}");
+    assert_eq!(v["probe"]["width"].as_u64(), Some(1080));
+}

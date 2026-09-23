@@ -20,10 +20,21 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         DeliverPlatform::Square => (1080, 1080),
         _ => (1080, 1920),
     };
-    let vf = format!(
-        "scale={fw}:{fh}:force_original_aspect_ratio=decrease,pad={fw}:{fh}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps={fps},format=yuv420p",
+    let mut vf = format!(
+        "scale={fw}:{fh}:force_original_aspect_ratio=decrease,pad={fw}:{fh}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps={fps}",
         fps = args.fps.unwrap_or(30)
     );
+    if let Some(subs) = &args.subs {
+        // The subtitles filter parses `:` `'` `,` in filenames — escape them.
+        let path = subs
+            .canonicalize()
+            .map_err(|e| Error::input(format!("{subs:?}: {e}")))?
+            .to_string_lossy()
+            .replace('\\', "\\\\")
+            .replace('\'', "\\'");
+        vf.push_str(&format!(",subtitles=filename='{path}'"));
+    }
+    vf.push_str(",format=yuv420p");
     let platform = platform_name(args.platform);
 
     let mut apply = ffmpeg_base(g.progress);

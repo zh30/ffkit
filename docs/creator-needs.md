@@ -245,6 +245,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 
 - `scroll --speed N` — px/s pacing for end-credit rolls and tickers (sets each window's duration from travel distance; conflicts `--dur`). `countdown --format` — `s`/`mm:ss`/`h:mm:ss` digit formats + `--from` cap raised to 600 for livestream "starting soon" counters.
 
+## Shipped this run (round 158)
+
+- `subs --encoding LABEL` — decode a subtitle file in a legacy charset (gbk/big5/sjis/latin1 via encoding_rs) for convert/shift/rate/merge/case paths; phone-era and fan-sub files stop garbling. `deliver --subs file.srt` — burns captions onto the platform canvas in the same pass (captioned Reels in one command).
+
 
 ## Shipped this run (round 155)
 
