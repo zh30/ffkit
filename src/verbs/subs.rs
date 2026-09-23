@@ -5,6 +5,25 @@ use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
+/// Read a subtitle file as text. `--encoding` decodes legacy charsets
+/// (gbk/big5/sjis/latin1) via encoding_rs; without it the file must be UTF-8.
+fn read_sub_file(p: &std::path::Path, enc: Option<&str>) -> Result<String, Error> {
+    match enc {
+        None => std::fs::read_to_string(p)
+            .map_err(|e| Error::input(format!("read {}: {e}", p.display()))),
+        Some(label) => {
+            let bytes =
+                std::fs::read(p).map_err(|e| Error::input(format!("read {}: {e}", p.display())))?;
+            let codec = encoding_rs::Encoding::for_label(label.as_bytes()).ok_or_else(|| {
+                Error::input(format!(
+                    "unknown --encoding '{label}' (try utf-8, gbk, big5, sjis, latin1)"
+                ))
+            })?;
+            Ok(codec.decode(&bytes).0.into_owned())
+        }
+    }
+}
+
 pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.all {
         return extract_all(&args, g);
@@ -150,9 +169,9 @@ fn merge(args: &SubsArgs, other: &std::path::Path, g: &Globals) -> Result<Contra
             other.display()
         )));
     }
+    let enc = args.encoding.as_deref();
     let read = |p: &std::path::Path| -> Result<Vec<crate::srt::Cue>, Error> {
-        let raw = std::fs::read_to_string(p)
-            .map_err(|e| Error::input(format!("read {}: {e}", p.display())))?;
+        let raw = read_sub_file(p, enc)?;
         crate::srt::parse_srt(&raw)
     };
     let mut cues = read(&args.input)?;
@@ -266,8 +285,7 @@ fn burn(
         if args.case.is_some() && !is_srt {
             subs.to_path_buf()
         } else {
-            let raw = std::fs::read_to_string(subs)
-                .map_err(|e| Error::input(format!("{}: {e}", subs.display())))?;
+            let raw = read_sub_file(subs, args.encoding.as_deref())?;
             let mut cues = crate::srt::parse_srt(&raw)?;
             if let Some(case) = args.case {
                 apply_case(&mut cues, case);
@@ -397,8 +415,7 @@ fn shift(args: &SubsArgs, offset: f64, g: &Globals) -> Result<Contract, Error> {
     {
         return Err(Error::input("subs --shift takes an .srt file as input"));
     }
-    let raw = std::fs::read_to_string(&args.input)
-        .map_err(|e| Error::input(format!("{}: {e}", args.input.display())))?;
+    let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
     let mut cues = crate::srt::parse_srt(&raw)?;
     // --from/--to bounds the retiming to the cues overlapping that window
     // (only part of the track is late, e.g. after an inserted segment).
@@ -470,8 +487,7 @@ fn rescale(args: &SubsArgs, factor: f64, g: &Globals) -> Result<Contract, Error>
     {
         return Err(Error::input("subs --rate takes an .srt file as input"));
     }
-    let raw = std::fs::read_to_string(&args.input)
-        .map_err(|e| Error::input(format!("{}: {e}", args.input.display())))?;
+    let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
     let mut cues = crate::srt::parse_srt(&raw)?;
     for c in cues.iter_mut() {
         c.start *= factor;
@@ -509,8 +525,7 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             ));
         }
     }
-    let raw = std::fs::read_to_string(&args.input)
-        .map_err(|e| Error::input(format!("{}: {e}", args.input.display())))?;
+    let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
     // vtt → srt-shaped blocks: drop WEBVTT/NOTE/STYLE blocks and cue settings.
     let body = if in_ext == "vtt" {
         raw.replace("\r\n", "\n")

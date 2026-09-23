@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.186.0] — 2026-09-22
+
+### Added
+- `subs --encoding LABEL` — decode .srt/.vtt in legacy charsets (gbk/big5/sjis/latin1) instead of UTF-8.
+- `deliver --subs FILE` — burn captions during the platform packaging pass.
+
 ## [0.184.0] — 2026-09-22
 
 ### Added
@@ -700,8 +706,6 @@
 - `vocal --at/--dur` — windowed karaoke/isolate.
 
 
-## [Unreleased]
-
 ## [0.87.0] — 2026-09-22
 
 ### Added
@@ -710,8 +714,6 @@
 - `replace --loop` — loop a short replacement track to fill the video.
 - Fix: `--format ms` position math now counts the centisecond field.
 
-
-## [Unreleased]
 
 ## [0.86.0] — 2026-09-22
 
@@ -722,8 +724,6 @@
 - `leveler --at/--dur` — windowed compression.
 
 
-## [Unreleased]
-
 ## [0.85.0] — 2026-09-22
 
 ### Added
@@ -732,8 +732,6 @@
 - `speed --ramp FROM,TO` — linear speed ramp (whole clip or --at/--dur window).
 - `subs --merge FILE` — merge two .srt files into one, cues sorted by start.
 
-
-## [Unreleased]
 
 ## [0.84.0] — 2026-09-22
 
@@ -744,8 +742,6 @@
 - `meme --at/--dur` — time-windowed meme captions.
 
 
-## [Unreleased]
-
 ## [0.83.0] — 2026-09-22
 
 ### Added
@@ -754,8 +750,6 @@
 - `cover --blur` — ambient blurred pad behind the 9:16 cover still.
 - `audiogram --progress` — moving progress bar along the bottom edge.
 
-
-## [Unreleased]
 
 ## [0.82.0] — 2026-09-22
 
@@ -766,8 +760,6 @@
 - `chapter --auto MIN_GAP` — auto chapter marks after silences (podcast segments).
 
 
-## [Unreleased]
-
 ## [0.81.0] — 2026-09-22
 
 ### Added
@@ -777,8 +769,6 @@
 - `meme --outline N` — classic white-on-black-outline meme text.
 
 
-## [Unreleased]
-
 ## [0.80.0] — 2026-09-22
 
 ### Added
@@ -787,8 +777,6 @@
 - `hls --single` — byte-range single-`.ts` package (one file to upload).
 - `hls --copy` — stream-copy repack (instant when input is already h264/aac).
 
-
-## [Unreleased]
 
 ## [0.79.0] — 2026-09-22
 
@@ -800,8 +788,6 @@
 
 
 Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）。格式遵循 [Keep a Changelog](https://keepachangelog.com/)。
-
-## [Unreleased]
 
 ## [0.78.0] - 2026-09-22
 
