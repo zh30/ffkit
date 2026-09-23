@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::cli::{Globals, V360Args};
+use crate::cli::{Globals, V360Args, V360Projection};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -28,8 +28,17 @@ pub fn run(args: V360Args, g: &Globals) -> Result<Contract, Error> {
             (w, (w * 9 / 16) & !1)
         }
     };
+    let proj = match args.projection {
+        V360Projection::Equirect => "equirect",
+        V360Projection::Fisheye => "fisheye",
+        V360Projection::Dfisheye => "dfisheye",
+        V360Projection::C3x2 => "c3x2",
+        V360Projection::Eac => "eac",
+        V360Projection::Barrel => "barrel",
+        V360Projection::Hequirect => "hequirect",
+    };
     let vf = format!(
-        "v360=equirect:flat:yaw={:.2}:pitch={:.2}:h_fov={:.2}:w={w}:h={h}",
+        "v360={proj}:flat:yaw={:.2}:pitch={:.2}:h_fov={:.2}:w={w}:h={h}",
         args.yaw, args.pitch, args.fov
     );
 
@@ -50,6 +59,7 @@ pub fn run(args: V360Args, g: &Globals) -> Result<Contract, Error> {
         "yaw": args.yaw,
         "pitch": args.pitch,
         "fov": args.fov,
+        "projection": proj,
         "filter": "v360",
     })))
 }

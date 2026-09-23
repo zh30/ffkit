@@ -20407,3 +20407,120 @@ fn v360_reframe_crossprocess_excite() {
         "exciter should lift the >6kHz band: {v}"
     );
 }
+
+#[test]
+fn v360_projections_and_tone_fx() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+
+    // every input projection reframes to the asked flat canvas
+    for proj in ["fisheye", "dfisheye", "c3x2", "eac", "barrel", "hequirect"] {
+        let out = dir.path().join(format!("p-{proj}.mp4"));
+        let v = run_json(&[
+            "v360",
+            src.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--in",
+            proj,
+            "--size",
+            "320x240",
+        ]);
+        assert_eq!(v["status"], "ok", "{proj}: {v}");
+        assert_eq!(v["probe"]["width"], 320, "{proj}: {v}");
+    }
+
+    let level = |p: &std::path::Path, af: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-af", af, "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find(|l| l.contains("mean_volume"))
+            .and_then(|l| l.split("mean_volume:").nth(1))
+            .and_then(|s| s.trim().trim_end_matches(" dB").parse().ok())
+            .unwrap_or(-91.0)
+    };
+    let tone = |freq: u32, name: &str| -> std::path::PathBuf {
+        let p = dir.path().join(name);
+        let st = Command::new("ffmpeg")
+            .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+            .arg(format!("sine=frequency={freq}:duration=1"))
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(st.success());
+        p
+    };
+
+    // bass: the 110Hz band of a thin tone gains weight
+    let low = tone(110, "low.m4a");
+    let b = dir.path().join("bass.m4a");
+    let v = run_json(&[
+        "fx",
+        low.to_str().unwrap(),
+        "-o",
+        b.to_str().unwrap(),
+        "--kind",
+        "bass",
+        "--strength",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        level(&b, "lowpass=f=200,volumedetect") > level(&low, "lowpass=f=200,volumedetect") + 2.0,
+        "bass boost should lift the low band: {v}"
+    );
+
+    // muffled: a 3kHz tone drops hard through the lowpass sweep
+    let hi = tone(3000, "hi.m4a");
+    let m = dir.path().join("muff.m4a");
+    let v = run_json(&[
+        "fx",
+        hi.to_str().unwrap(),
+        "-o",
+        m.to_str().unwrap(),
+        "--kind",
+        "muffled",
+        "--strength",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        level(&m, "volumedetect") < level(&hi, "volumedetect") - 10.0,
+        "muffled should cut the tone: {v}"
+    );
+
+    // crystal: the >8kHz band of dull pink noise gains presence
+    let noise = dir.path().join("noise.m4a");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("anoisesrc=color=pink:duration=1")
+        .arg(&noise)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let c = dir.path().join("crys.m4a");
+    let v = run_json(&[
+        "fx",
+        noise.to_str().unwrap(),
+        "-o",
+        c.to_str().unwrap(),
+        "--kind",
+        "crystal",
+        "--strength",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        level(&c, "highpass=f=8000,volumedetect")
+            > level(&noise, "highpass=f=8000,volumedetect") + 3.0,
+        "crystalizer should sharpen the top end: {v}"
+    );
+}

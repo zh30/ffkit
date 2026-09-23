@@ -3600,9 +3600,32 @@ pub struct V360Args {
     /// Output horizontal field of view in degrees (default 90)
     #[arg(long, default_value_t = 90.0)]
     pub fov: f64,
+    /// Input projection (default equirect; use for GoPro/Insta360 dual-fisheye,
+    /// single fisheye, cubemap, YouTube EAC, half-equirect)
+    #[arg(long = "in", value_enum, default_value_t = V360Projection::Equirect)]
+    pub projection: V360Projection,
     /// Output canvas WxH (default: input width x 16:9 height)
     #[arg(long)]
     pub size: Option<String>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug, Default)]
+pub enum V360Projection {
+    /// Equirectangular 360 video (default — most exports)
+    #[default]
+    Equirect,
+    /// Single fisheye capture
+    Fisheye,
+    /// Dual fisheye (GoPro Max / Insta360 / Ricoh Theta raw)
+    Dfisheye,
+    /// Cubemap 3x2
+    C3x2,
+    /// Equi-angular cubemap (YouTube EAC)
+    Eac,
+    /// Facebook barrel format
+    Barrel,
+    /// Half equirectangular (180-degree VR)
+    Hequirect,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug, Default)]
@@ -3828,6 +3851,12 @@ pub enum FxKind {
     Saturate,
     /// Harmonic exciter — adds airy presence above ~7.5kHz (aexciter)
     Excite,
+    /// One-knob bass boost around 110Hz (bass) — thin audio gets weight
+    Bass,
+    /// Next-room / underwater muffle (lowpass sweep)
+    Muffled,
+    /// Transient sharpening for dull recordings (crystalizer)
+    Crystal,
 }
 
 #[derive(clap::Args, Debug)]

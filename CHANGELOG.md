@@ -1,6 +1,13 @@
 # Changelog
 
 ## [Unreleased]
+## [0.213.0] — RSI round 186
+
+- `v360 --in` — input projection for non-equirect 360 sources: `fisheye`, `dfisheye` (GoPro Max / Insta360 / Ricoh Theta dual-fisheye), `c3x2`/`eac` cubemaps, `barrel`, `hequirect` (180 VR).
+- `fx --kind bass` — one-knob low-end weight (`bass=g:110Hz`, strength 2..12dB).
+- `fx --kind muffled` — next-room/underwater voice (strength sweeps the lowpass 2400→500Hz).
+- `fx --kind crystal` — transient sharpening for dull recordings (crystalizer, verified +12dB >8kHz on noise).
+
 ## [0.212.0] — RSI round 185
 
 - `v360` — reframe equirect/360 footage to a flat viewport

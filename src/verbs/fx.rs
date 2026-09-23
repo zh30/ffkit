@@ -47,6 +47,9 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
         }
         // harmonic exciter — harmonics generated above `freq` add air/presence
         FxKind::Excite => format!("aexciter=amount={:.2}:freq=7500", 1.0 + 3.0 * s),
+        FxKind::Bass => format!("bass=g={:.1}:f=110", 2.0 + 10.0 * s),
+        FxKind::Muffled => format!("lowpass=f={:.0}", 2400.0 - 1900.0 * s),
+        FxKind::Crystal => format!("crystalizer=i={:.1}:c=false", 1.0 + 4.0 * s),
     };
     // --at/--dur: duck the dry feed to 0 inside the window, add the FX in its place.
     // (on ffmpeg 4.4 none of these filters accept a timeline `enable` option)

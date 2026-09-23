@@ -780,3 +780,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `waveform --vertical` — `transpose=1` on the final output stage (wave runs top→bottom for reels/vertical art; PNG comes out h×w). Works with `--bg` (transpose lands on the composited card) and comma `--at` (each window transposed).
 - `broll --opacity` — `format=rgba,colorchannelmixer=aa=N` on the insert branch before the overlay (ghost b-roll; works in PiP and full-frame modes).
 - `title --margin N` — pixel corner insets replacing the 6%/10% defaults (`W-w-N`/`H-h-N`); handy for platform safe-zone margins.
+
+## Shipped this run (round 186)
+- `v360 --in` — 6 more input projections beyond equirect: fisheye/dfisheye (GoPro Max, Insta360, Ricoh Theta), c3x2/eac cubemap, barrel, hequirect (180 VR).
+- `fx --kind bass` — low-shelf weight around 110Hz (thin lav/phone audio fix, +5dB low band measured).
+- `fx --kind muffled` — next-room/underwater muffle via lowpass sweep (2400→500Hz).
+- `fx --kind crystal` — transient sharpening (crystalizer, +12dB >8kHz on pink noise).
+- Dropped mid-round (verified): none.
