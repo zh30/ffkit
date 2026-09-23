@@ -41,13 +41,12 @@ pub fn run(args: DenoiseArgs, g: &Globals) -> Result<Contract, Error> {
 
     // --at/--dur: windowed denoise via the shared dry/wet splitter
     let fc = match &args.at {
-        Some(raw) => {
-            let at = crate::time::resolve_at(raw, args.dur, probe.duration)?;
-            if !(0.0..probe.duration).contains(&at) {
-                return Err(Error::input("--at is outside the input"));
-            }
-            Some(engine::audio_window(&af, at, args.dur))
-        }
+        Some(raw) => Some(engine::audio_window_for(
+            &af,
+            raw,
+            args.dur,
+            probe.duration,
+        )?),
         None => {
             if args.dur.is_some() {
                 return Err(Error::input("--dur needs --at"));

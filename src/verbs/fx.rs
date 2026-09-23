@@ -42,13 +42,12 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
     // --at/--dur: duck the dry feed to 0 inside the window, add the FX in its place.
     // (on ffmpeg 4.4 none of these filters accept a timeline `enable` option)
     let fc = match &args.at {
-        Some(raw) => {
-            let at = crate::time::resolve_at(raw, args.dur, probe.duration)?;
-            if !(0.0..probe.duration).contains(&at) {
-                return Err(Error::input("--at is outside the input"));
-            }
-            Some(engine::audio_window(&af, at, args.dur))
-        }
+        Some(raw) => Some(engine::audio_window_for(
+            &af,
+            raw,
+            args.dur,
+            probe.duration,
+        )?),
         None => {
             if args.dur.is_some() {
                 return Err(Error::input("--dur needs --at"));

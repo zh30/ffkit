@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.156.0] — 2026-09-22
+
+### Added
+- Comma-list `--at` on every windowed audio-FX verb — `reverb`, `eq`, `dehum`, `denoise`, `leveler`, `gate`, `vocal`, `pitch`, `voice`, `fx`: the effect hits at several marks in one pass (requires `--dur`).
+
+### Changed
+- `engine::audio_window_for` resolves `--at` (single or comma list) and builds one `atrim`+`adelay` wet branch per window with AND'd `1-between` dry gates; replaces per-verb `resolve_at`+`audio_window` plumbing.
+
 ## [0.155.0] — 2026-09-22
 
 ### Added

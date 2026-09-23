@@ -631,7 +631,7 @@ pub struct DenoiseArgs {
     /// Also run hqdn3d on the picture (grainy footage)
     #[arg(long)]
     pub video: bool,
-    /// Denoise only inside this window (h:mm:ss or seconds)
+    /// Denoise only inside this window — comma list for several (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)
@@ -1531,7 +1531,7 @@ pub struct PitchArgs {
     /// Semitones: +4 chipmunk-ish, -3 deeper (duration preserved)
     #[arg(long, allow_hyphen_values = true)]
     pub semitones: f64,
-    /// Shift pitch only inside this window (h:mm:ss or seconds)
+    /// Shift pitch only inside this window — comma list for several (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)
@@ -1754,7 +1754,7 @@ pub struct VocalArgs {
     /// Effect amount 0..1 (default 1.0 = full cancel / full center)
     #[arg(long)]
     pub amount: Option<f64>,
-    /// Apply only inside this window (h:mm:ss or seconds)
+    /// Apply only inside this window — comma list for several (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)
@@ -2325,7 +2325,7 @@ pub struct LevelerArgs {
     /// One-click compression curve: voice|podcast|master — fills the knobs
     #[arg(long, value_enum)]
     pub preset: Option<LevelerPreset>,
-    /// Level only inside this window (h:mm:ss or seconds)
+    /// Level only inside this window — comma list for several (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)
@@ -2360,7 +2360,7 @@ pub struct GateArgs {
     /// Tuned settings instead of manual ones
     #[arg(long, value_enum)]
     pub preset: Option<GatePreset>,
-    /// Gate only inside this window (h:mm:ss or seconds)
+    /// Gate only inside this window — comma list for several (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)
@@ -2479,7 +2479,7 @@ pub struct DehumArgs {
     /// Harmonics to notch beyond the fundamental (1..8)
     #[arg(long, default_value_t = 4)]
     pub harmonics: u32,
-    /// Notch only inside this window (h:mm:ss or seconds)
+    /// Notch only inside this window — comma list for several (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)
@@ -2649,7 +2649,7 @@ pub struct FxArgs {
     /// Effect depth 0..1 (default 0.5)
     #[arg(long, default_value_t = 0.5)]
     pub strength: f64,
-    /// Effect only from this time (h:mm:ss or seconds)
+    /// Effect only from this time — comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// ..for this many seconds (default: to the end)

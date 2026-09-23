@@ -15444,6 +15444,49 @@ fn bleep_comma_list_censors_every_window() {
 }
 
 #[test]
+fn audio_fx_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    for (verb, extra) in [
+        ("reverb", vec![]),
+        ("fx", vec!["--kind", "echo"]),
+        ("pitch", vec!["--semitones", "2"]),
+        ("denoise", vec![]),
+    ] {
+        let out = dir.path().join(format!("{verb}.mp4"));
+        let mut cmd = vec![
+            verb,
+            src.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--at",
+            "0.1,0.6",
+            "--dur",
+            "0.2",
+        ];
+        cmd.extend(extra);
+        let v = run_json(&cmd);
+        assert_eq!(v["status"], "ok", "{verb}: {v}");
+        let cmds = v["commands"][0]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c.as_str().unwrap())
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(cmds.contains("adelay=600"), "{verb}: {cmds}");
+        assert!(cmds.contains("amix=inputs=3"), "{verb}: {cmds}");
+        assert!(
+            cmds.contains("1-between(t,0.100,0.300)*1-between(t,0.600,0.800)"),
+            "{verb}: {cmds}"
+        );
+    }
+}
+
+#[test]
 fn look_verbs_comma_windows() {
     if !has_ffmpeg() {
         return;

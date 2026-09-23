@@ -118,3 +118,45 @@ pub fn audio_window(fx: &str, at: f64, dur: Option<f64>) -> String {
         at * 1000.0
     )
 }
+
+/// `--at` may be a comma list: resolve it to windows and emit one wet branch
+/// per window — the dry gate ANDs `1-between(t,..)` terms so the original
+/// audio dips under every FX window. Comma lists need `--dur`.
+pub fn audio_window_for(
+    fx: &str,
+    at: &str,
+    dur: Option<f64>,
+    duration: f64,
+) -> Result<String, crate::error::Error> {
+    let windows = crate::time::enable_windows(at, dur, duration)?;
+    if windows.len() == 1 {
+        return Ok(audio_window(fx, windows[0].0, dur));
+    }
+    let n = windows.len();
+    let gate = windows
+        .iter()
+        .map(|(s, e)| format!("1-between(t,{s:.3},{e:.3})"))
+        .collect::<Vec<_>>()
+        .join("*");
+    let mut fc = format!("[0:a]asplit={}[d]", n + 1);
+    for i in 0..n {
+        fc.push_str(&format!("[w{i}]"));
+    }
+    fc.push_str(&format!(";[d]volume='{gate}':eval=frame[dout];"));
+    for (i, (s, e)) in windows.iter().enumerate() {
+        fc.push_str(&format!(
+            "[w{i}]{fx},atrim=start={s:.3}:duration={:.3},asetpts=PTS-STARTPTS,adelay={:.0}:all=1[wx{i}];",
+            e - s,
+            s * 1000.0
+        ));
+    }
+    fc.push_str("[dout]");
+    for i in 0..n {
+        fc.push_str(&format!("[wx{i}]"));
+    }
+    fc.push_str(&format!(
+        "amix=inputs={}:duration=first:normalize=0[aout]",
+        n + 1
+    ));
+    Ok(fc)
+}

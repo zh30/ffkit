@@ -237,6 +237,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 129)
+- Comma-list `--at` on every windowed audio-FX verb — `reverb`, `eq`, `dehum`, `denoise`, `leveler`, `gate`, `vocal`, `pitch`, `voice`, `fx` (needs `--dur`). New `engine::audio_window_for` emits a per-window wet branch (`atrim`+`adelay`) and ANDs `1-between` dry gates.
+
 ## Shipped this run (round 128)
 - Comma-list `--at` on every windowed look verb — `invert`, `blur`, `bw`, `sharpen`, `vignette`, `delogo`, `grade`, `progress`, `overlay` (needs `--dur`). Shared `time::enable_expr`/`enable_windows` helpers replace per-verb `between`/`gte` blocks.
 
