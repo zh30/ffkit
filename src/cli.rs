@@ -3578,7 +3578,6 @@ pub struct SmoothArgs {
     pub dur: Option<f64>,
 }
 
-
 #[derive(clap::ValueEnum, Clone, Copy, Debug, Default)]
 pub enum VDenoiseEngine {
     /// nlmeans — best quality, slowest (per-pixel patch search)
