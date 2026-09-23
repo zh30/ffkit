@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ### Added
+- `stereo` — stereo3d packed-format conversion: side-by-side/above-below/interleaved ↔ anaglyph (red-cyan, green-magenta) for 3D creators; `--in`/`--out` take stereo3d format names (anaglyphs are output-only)
+- `scan --scenes` — same QC pass also reports `scene_cuts`: hard-cut timestamps from scdet (edit-point map)
+- `fx --kind ringmod` — fast-AM tremolo robot voice (Dalek / sci-fi comm channel)
+- `smooth --engine yaep` — yaepblur edge-preserving smoothing (bilateral-class)
+- `deinterlace --engine w3fdif` — Martin Weston three-field deinterlacer (sharp diagonals on SD archives)
+
+### Added
 - `vdenoise --engine dotcrawl` — dedot removes composite/analog dot-crawl and rainbow edges (VHS rips, capture cards)
 - `scope --mode data --x/--y` — datascope hex pixel-value readout centered on a point (full-frame; verify clipped values, find a pixel's exact luma)
 - `glitch --engine planes` — shuffleplanes RGB rotation: clean false-color acid look without noise grain

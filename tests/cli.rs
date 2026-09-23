@@ -24054,6 +24054,90 @@ fn dotcrawl_scope_data_glitch_planes_delogo_image() {
 }
 
 #[test]
+fn scan_scenes_stereo_fx_ringmod_smooth_yaep_w3fdif() {
+    if !has_ffmpeg()
+        || !has_filter("scdet")
+        || !has_filter("stereo3d")
+        || !has_filter("yaepblur")
+        || !has_filter("w3fdif")
+    {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // two-tone fixture: 1s red + 1s blue = one hard cut at t=1.0
+    let cuts = dir.path().join("cuts.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error"])
+        .args(["-f", "lavfi", "-i"])
+        .arg("color=red:size=320x240:rate=25:d=1")
+        .args(["-f", "lavfi", "-i"])
+        .arg("color=blue:size=320x240:rate=25:d=1")
+        .args([
+            "-filter_complex",
+            "[0:v][1:v]concat=n=2:v=1[v]",
+            "-map",
+            "[v]",
+        ])
+        .arg(&cuts)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let v = run_json(&["scan", cuts.to_str().unwrap(), "--scenes"]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let sc = v["extra"]["scene_cuts"].as_array().unwrap();
+    assert_eq!(sc.len(), 1, "{v}");
+    assert!((sc[0].as_f64().unwrap() - 1.0).abs() < 0.15, "{v}");
+
+    let o = dir.path().join("st.mp4");
+    let v = run_json(&[
+        "stereo",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--in",
+        "sbsl",
+        "--out",
+        "arcd",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["out"], "arcd", "{v}");
+
+    let o = dir.path().join("rm.m4a");
+    let v = run_json(&[
+        "fx",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--kind",
+        "ringmod",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+
+    let o = dir.path().join("sy.mp4");
+    let v = run_json(&[
+        "smooth",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--engine",
+        "yaep",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+
+    let o = dir.path().join("w3.mp4");
+    let v = run_json(&[
+        "deinterlace",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--engine",
+        "w3fdif",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
 fn legalize_levels_aberrate() {
     if !has_ffmpeg() || !has_filter("limiter") || !has_filter("colorlevels") {
         return;

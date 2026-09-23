@@ -350,6 +350,9 @@ pub enum Cmd {
     /// Median-stack 3+ locked-off videos of the same scene — removes objects
     /// present in <half the inputs (tourists, noise)
     Stack(StackArgs),
+    /// Convert stereoscopic 3D packed formats — SBS to anaglyph for preview,
+    /// anaglyph to interleaved for 3D displays
+    Stereo(StereoArgs),
     /// Mirror half the frame across the center axis (dance/symmetry look)
     Mirror(MirrorArgs),
     /// Chunky retro pixelation over the whole frame
@@ -1747,6 +1750,21 @@ pub struct TmedianArgs {
     /// Window length in seconds (required with --at)
     #[arg(long)]
     pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct StereoArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Packed 3D input format (default sbsl — side-by-side left first):
+    /// sbsl/sbsr/sbs2l/sbs2r/abl/abr/ab2l/ab2r/tbl/tbr/tb2l/tb2r/al/ar/irl/irr/icl/icr
+    #[arg(long = "in", default_value = "sbsl")]
+    pub in_format: String,
+    /// Output format (default arcd — anaglyph red/cyan dubois):
+    /// all of the above + anaglyphs arcg/arch/arcc/arcd/arbg/agmg/agmh/agmc/agmd
+    #[arg(long = "out", default_value = "arcd")]
+    pub out_format: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3361,6 +3379,8 @@ pub enum SmoothEngine {
     Uspp,
     /// pp7 — lighter/faster postproc deblock (spp sibling): when uspp is too slow
     Pp7,
+    /// yaepblur — edge-preserving smoothing (bilateral-class, keeps contours)
+    Yaep,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -3377,6 +3397,8 @@ pub enum DeintEngine {
     Detelecine,
     /// mcdeint — motion-compensated deinterlacer (archive-quality, slow)
     Mcdeint,
+    /// w3fdif — Martin Weston three-field filter (sharp diagonal edges, SD archives)
+    W3fdif,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -4480,6 +4502,9 @@ pub struct ScanArgs {
     /// (default 0.45 — out-of-focus shots sit well under it)
     #[arg(long)]
     pub blur: Option<f64>,
+    /// Also report hard scene-cut timestamps (scdet) — edit-point map for QC
+    #[arg(long)]
+    pub scenes: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4752,6 +4777,8 @@ pub enum FxKind {
     Crossfeed,
     /// Left-right autopan sweep (apulsator)
     Autopan,
+    /// Robot/Dalek ring-modulation-ish voice (fast tremolo as AM synthesis)
+    Ringmod,
 }
 
 #[derive(clap::Args, Debug)]

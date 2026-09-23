@@ -38,6 +38,11 @@ pub fn run(args: SmoothArgs, g: &Globals) -> Result<Contract, Error> {
             let qp = (1.0 + args.strength * 5.0).round() as u32;
             format!("pp7=qp={qp}:mode=medium")
         }
+        SmoothEngine::Yaep => format!(
+            "yaepblur=radius={:.0}:sigma={:.0}",
+            (s * 3.0).clamp(1.0, 20.0),
+            (s * 40.0).clamp(8.0, 300.0)
+        ),
         SmoothEngine::Uspp => {
             // postproc quality 0..8; strength scales the deblock strength
             let q = (args.strength * 8.0).round() as u32;

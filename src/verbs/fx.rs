@@ -60,6 +60,9 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
         FxKind::Crossfeed => format!("crossfeed=strength={:.2}:range=0.5", 0.2 + 0.6 * s),
         // left-right autopan — a slow sweep makes loops/ambient beds feel alive
         FxKind::Autopan => format!("apulsator=hz={:.2}:mode=sine", 0.4 + 2.6 * s),
+        // ring-mod robot voice: a fast tremolo carrier (~30-70Hz) reads as AM
+        // synthesis — Dalek / sci-fi comm channel
+        FxKind::Ringmod => format!("tremolo=f={:.1}:d=0.9", 25.0 + 45.0 * s),
     };
     // --at/--dur: duck the dry feed to 0 inside the window, add the FX in its place.
     // (on ffmpeg 4.4 none of these filters accept a timeline `enable` option)

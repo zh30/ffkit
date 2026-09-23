@@ -18,8 +18,9 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     // photosensitivity rides the same pass: bypass=1 keeps frames intact and
     // emits lavfi.photosensitivity.* metadata; metadata=print mirrors it to the
     // log where we count flash-flagged frames (badness > 0)
+    let scdet_leg = if args.scenes { ",scdet=t=8" } else { "" };
     let vf = format!(
-        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,idet,entropy=mode=diff,metadata=print:file=-"
+        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,idet,entropy=mode=diff{scdet_leg},metadata=print:file=-"
     );
     let mut argv = Argv::ffmpeg();
     argv.push("-i");
@@ -42,6 +43,7 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     let mut idet_counts = (0usize, 0usize, 0usize, 0usize); // tff, bff, prog, undet
     let mut flash_max = 0.0f64;
     let mut entropy_vals: Vec<f64> = Vec::new();
+    let mut scene_cuts: Vec<f64> = Vec::new();
     for line in log.lines() {
         if let Some(rest) = line.split("black_start:").nth(1) {
             let s = rest
@@ -66,6 +68,11 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(rest) = line.split("freeze_end:").nth(1) {
             if let Ok(v) = rest.trim().parse::<f64>() {
                 freeze_ends.push(v);
+            }
+        }
+        if let Some(rest) = line.split("lavfi.scd.time:").nth(1) {
+            if let Ok(t) = rest.trim().split(' ').next().unwrap_or("").parse::<f64>() {
+                scene_cuts.push(t);
             }
         }
         if let Some(rest) = line.split("normalized_entropy.diff.Y=").nth(1) {
@@ -218,6 +225,7 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         // photosensitive-epilepsy QC: frames where luminance oscillates enough
         // to flag (Harding-style heuristic; ship with a warning card if >0)
         "flash_frames": flash_frames,
+        "scene_cuts": scene_cuts,
         "flash_max_badness": flash_max,
         // interlace verdict from idet single-frame detection
         "interlaced": idet_counts.0 + idet_counts.1 > idet_counts.2,

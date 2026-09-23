@@ -129,6 +129,7 @@ pub mod split;
 pub mod sprite;
 pub mod stabilize;
 pub mod stack;
+pub mod stereo;
 pub mod strip;
 pub mod strobe;
 pub mod subs;
