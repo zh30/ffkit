@@ -353,6 +353,8 @@ pub enum Cmd {
     /// Convert stereoscopic 3D packed formats — SBS to anaglyph for preview,
     /// anaglyph to interleaved for 3D displays
     Stereo(StereoArgs),
+    /// Play an image as audio — spectrumsynth scans the picture like a spectrogram
+    Sonify(SonifyArgs),
     /// Mirror half the frame across the center axis (dance/symmetry look)
     Mirror(MirrorArgs),
     /// Chunky retro pixelation over the whole frame
@@ -1170,6 +1172,8 @@ pub enum GlitchEngine {
     Swapuv,
     /// stutter — shuffleframes: repeats every 4th frame → VHS-style stutter
     Stutter,
+    /// pixels — shufflepixels block scatter (digital corruption bursts)
+    Pixels,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2134,7 +2138,7 @@ pub struct GenArgs {
     /// -o target (e.g. bg.mp4) — generative sources take no input file
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Pattern: mandelbrot | gradients | life (cellular automaton) | noise | tone (audio beds)
+    /// Pattern: mandelbrot | gradients | life (cellular automaton) | sierpinski | noise | tone (audio beds)
     #[arg(long, default_value = "gradients")]
     pub pattern: String,
     /// Frame size WxH
@@ -4808,6 +4812,8 @@ pub enum FxKind {
     Autopan,
     /// Robot/Dalek ring-modulation-ish voice (fast tremolo as AM synthesis)
     Ringmod,
+    /// crush — acrusher bitcrusher (bit depth + sample-rate destruction, lo-fi digital)
+    Crush,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4986,4 +4992,21 @@ pub struct BatchArgs {
     /// Verb and its flags; input and -o are injected
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     pub rest: Vec<String>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SonifyArgs {
+    /// Image or video to play as sound (spectrogram scan)
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Duration seconds for still images (ignored for video input)
+    #[arg(long, default_value_t = 5.0)]
+    pub dur: f64,
+    /// Scan speed multiplier (1 = sweep the width once per --dur)
+    #[arg(long, default_value_t = 1.0)]
+    pub speed: f64,
+    /// Sample rate Hz
+    #[arg(long, default_value_t = 44100)]
+    pub sample_rate: u32,
 }

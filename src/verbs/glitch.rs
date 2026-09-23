@@ -26,6 +26,11 @@ pub fn run(args: GlitchArgs, g: &Globals) -> Result<Contract, Error> {
         }
         crate::cli::GlitchEngine::Swapuv => "swapuv".to_string(),
         crate::cli::GlitchEngine::Stutter => "shuffleframes=0 1 1 2".to_string(),
+        crate::cli::GlitchEngine::Pixels => {
+            // block-scatter shuffle: strength 0.5..20 → block width 64..8 px
+            let bw = (64.0 - (args.strength - 0.5) / 19.5 * 56.0).round() as i32;
+            format!("shufflepixels=mode=block:width={bw}")
+        }
     };
 
     let mut argv = ffmpeg_base(g.progress);
@@ -47,6 +52,7 @@ pub fn run(args: GlitchArgs, g: &Globals) -> Result<Contract, Error> {
             crate::cli::GlitchEngine::Planes => "shuffleplanes",
             crate::cli::GlitchEngine::Swapuv => "swapuv",
             crate::cli::GlitchEngine::Stutter => "shuffleframes",
+            crate::cli::GlitchEngine::Pixels => "shufflepixels",
         },
     })))
 }

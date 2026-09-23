@@ -24425,3 +24425,139 @@ fn legalize_levels_aberrate() {
     ]);
     assert!(ab.exists());
 }
+
+#[test]
+fn sonify_fx_crush_gen_sierpinski_glitch_pixels() {
+    if !has_ffmpeg() || !has_filter("spectrumsynth") || !has_filter("shufflepixels") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // still image → audio bed via spectrumsynth scan
+    let img = dir.path().join("img.png");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "gradients=size=256x128:rate=10:duration=1",
+            "-frames:v",
+            "1",
+            "-y",
+        ])
+        .arg(&img)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let wav = dir.path().join("son.wav");
+    let v = run_json(&[
+        "sonify",
+        img.to_str().unwrap(),
+        "-o",
+        wav.to_str().unwrap(),
+        "--dur",
+        "2",
+        "--speed",
+        "1",
+    ]);
+    assert!(wav.exists());
+    assert_eq!(v["extra"]["sample_rate"], 44100);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&wav)
+        .output()
+        .unwrap();
+    let d: f64 = String::from_utf8_lossy(&o.stdout)
+        .trim()
+        .parse()
+        .unwrap_or(0.0);
+    assert!((d - 2.0).abs() < 0.35, "sonify dur {d}");
+
+    // fx crush attenuates the sine through acrusher
+    let tone = dir.path().join("tone.wav");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=800:duration=1:sample_rate=44100",
+            "-y",
+        ])
+        .arg(&tone)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let cr = dir.path().join("crush.m4a");
+    let v = run_json(&[
+        "fx",
+        tone.to_str().unwrap(),
+        "-o",
+        cr.to_str().unwrap(),
+        "--kind",
+        "crush",
+        "--strength",
+        "0.7",
+    ]);
+    assert!(cr.exists());
+    assert_eq!(v["extra"]["effect"], "crush");
+
+    // gen sierpinski → fractal background
+    let si = dir.path().join("sier.mp4");
+    run_json(&[
+        "gen",
+        "-o",
+        si.to_str().unwrap(),
+        "--pattern",
+        "sierpinski",
+        "--size",
+        "320x240",
+        "--dur",
+        "1",
+    ]);
+    assert!(si.exists());
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&si)
+        .output()
+        .unwrap();
+    let wd: i64 = String::from_utf8_lossy(&o.stdout)
+        .trim()
+        .parse()
+        .unwrap_or(0);
+    assert_eq!(wd, 320);
+
+    // glitch pixels → shufflepixels block scatter
+    let px = dir.path().join("px.mp4");
+    let v = run_json(&[
+        "glitch",
+        src.to_str().unwrap(),
+        "-o",
+        px.to_str().unwrap(),
+        "--engine",
+        "pixels",
+    ]);
+    assert!(px.exists());
+    assert_eq!(v["extra"]["filter"], "shufflepixels");
+}

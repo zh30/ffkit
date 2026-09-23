@@ -63,6 +63,12 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
         // ring-mod robot voice: a fast tremolo carrier (~30-70Hz) reads as AM
         // synthesis — Dalek / sci-fi comm channel
         FxKind::Ringmod => format!("tremolo=f={:.1}:d=0.9", 25.0 + 45.0 * s),
+        // acrusher: bit-depth + sample-rate destruction — digital lo-fi dirt
+        FxKind::Crush => format!(
+            "acrusher=bits={:.0}:samples={:.0}:mode=log:mix=0.9",
+            16.0 - 12.0 * s,
+            1.0 + 8.0 * s
+        ),
     };
     // --at/--dur: duck the dry feed to 0 inside the window, add the FX in its place.
     // (on ffmpeg 4.4 none of these filters accept a timeline `enable` option)

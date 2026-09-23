@@ -122,6 +122,7 @@ pub mod smooth;
 pub mod snow;
 pub mod solarize;
 pub mod solid;
+pub mod sonify;
 pub mod spectrogram;
 pub mod speed;
 pub mod spin;

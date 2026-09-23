@@ -2,17 +2,31 @@
 
 ## [Unreleased]
 
+## [0.245.0] — 2026-09-23
+
+### Added
+- `sonify` — play a picture as sound: spectrumsynth scans the image like a spectrogram (bright pixels = loud harmonics); `--dur`/`--speed`/`--sample-rate`
+- `fx --kind crush` — acrusher bitcrusher: bit-depth + sample-rate destruction for digital lo-fi dirt
+- `gen --pattern sierpinski` — fractal animated background (type=triangle, `--speed` scales jump, `--seed`)
+- `glitch --engine pixels` — shufflepixels block-scatter corruption bursts (`--strength` scales block size)
+
+## [0.244.0] — 2026-09-23
+
 ### Added
 - `grade --color-from ref.mp4` — mergeplanes chroma borrow: keep your luma, take the reference's U/V colour grade (scale2ref-sized, SAR-normalized; no --at support)
 - `vdenoise --engine fftdnoiz` — FFT-domain denoise for film grain (temporal prev/next context)
 - `smooth --engine spp|fspp` — simple/fast postproc deblock for the blockiest sources
 - `glitch --engine stutter` — shuffleframes frame-drop stutter (VHS skip/jitter)
 
+## [0.243.0] — 2026-09-23
+
 ### Added
 - `grade --lut` now auto-routes 1D `.cube` files (LUT_1D_SIZE) to `lut1d` — lut3d rejects them outright, so tonal 1D LUTs previously failed
 - `deflicker --engine tmide` — tmidequalizer temporal histogram midpoint for stubborn timelapse/strobe flicker
 - `gen --pattern noise|tone` — audio beds without input files: pink-noise roomtone/dither bed, `--freq` sine reference tone
 - `glitch --engine swapuv` — U/V chroma swap (magenta↔green weird-color look)
+
+## [0.242.0] — 2026-09-23
 
 ### Added
 - `stereo` — stereo3d packed-format conversion: side-by-side/above-below/interleaved ↔ anaglyph (red-cyan, green-magenta) for 3D creators; `--in`/`--out` take stereo3d format names (anaglyphs are output-only)
@@ -21,17 +35,23 @@
 - `smooth --engine yaep` — yaepblur edge-preserving smoothing (bilateral-class)
 - `deinterlace --engine w3fdif` — Martin Weston three-field deinterlacer (sharp diagonals on SD archives)
 
+## [0.241.0] — 2026-09-23
+
 ### Added
 - `vdenoise --engine dotcrawl` — dedot removes composite/analog dot-crawl and rainbow edges (VHS rips, capture cards)
 - `scope --mode data --x/--y` — datascope hex pixel-value readout centered on a point (full-frame; verify clipped values, find a pixel's exact luma)
 - `glitch --engine planes` — shuffleplanes RGB rotation: clean false-color acid look without noise grain
 - `delogo --image mask.png` — removelogo from a drawn bitmap mask (white = inpaint): precise non-rectangular logos, watermarks with irregular shapes
 
+## [0.240.0] — 2026-09-23
+
 ### Added
 - `grade --match ref.mp4` — midequalizer histogram matching: pull your footage's colour distribution toward a reference clip (camera matching, "grade it like that film"); the reference is scaled to fit via scale2ref
 - `blur --engine directional --angle` — dblur directed streaks (speed-line / fake-motion look)
 - `smooth --engine pp7` — lighter/faster postproc deblock for when uspp is too slow
 - `scope --mode mvs` — codecview motion-vector overlay (compression QC: coherent arrows on pans, jittery arrows on noisy blocks); runs on the full frame since MV side-data doesn't survive scaling
+
+## [0.239.0] — 2026-09-23
 
 ### Added
 - `edge --engine link` — hysteresis edge linking: blurred strong edges grow into the weak map so connected contours survive and specks drop
@@ -40,51 +60,71 @@
 - `audiogram --mode monitor` — agraphmonitor filtergraph-stats visualization
 - `grade --wash COLOR` (+ `--wash-amount`) — colorize mood veil that keeps luma
 
+## [0.238.0] — 2026-09-23
+
 ### Added
 - `audiogram --mode spatial` — showspatial stereo-field spectrogram (the field drawn as a moving image over time)
 - `audiogram --mode volume` — showvolume per-channel VU bars (broadcast meter-bridge look)
 - `audiogram --mode bitscope` — abitscope bit-pattern scope (audio bit-depth visualiser)
 - `scan` blur QC — `blur_frames`/`blur_mean`/`blur_min` from diff-mode frame entropy: out-of-focus stretches read well under `blur_threshold` (default 0.45, tunable with `--blur`)
 
+## [0.237.0] — 2026-09-23
+
 ### Added
 - `denoise --ref noise.wav` — anlms adaptive noise cancellation with a reference recording (room-tone mic, second recorder): learns ref→mix then subtracts the estimate; ~9dB broadband cut while the voice survives (the naive single-graph reading cancels the voice too — documented in gotchas)
 - `interp --engine framerate` — scene-aware frame blending for high-fps delivery: ~10x faster than minterpolate's motion estimation at the cost of slight ghosting on fast motion
 - `thumb --best` — let ffmpeg pick the most representative frame (`thumbnail` scores each 100-frame batch by average similarity): a clean typical still from shaky footage, no manual timestamp needed
+
+## [0.236.0] — 2026-09-23
 
 ### Added
 - `upscale --engine xbr|two-xsai` — integer-scale pixel-art upscalers (retro game captures, sprite sheets): xbr snaps `--factor` to 2/3/4, super2xsai is fixed 2x
 - `grade --vibrance -1..1` — smarter saturation that boosts muted colors while protecting saturated skin tones (mandelbrot pastel chroma +84% at 0.8 vs flat response on saturated testsrc)
 - `edge --engine sobel|kirsch|roberts|prewitt` — classic convolution edge kernels (bright edges on black, no thresholds — cruder, crunchier look than edgedetect's Canny pass)
 
+## [0.235.0] — 2026-09-23
+
 ### Added
 - `displace` — warp the picture by a second clip's luma displacement map (displace + scale2ref; `--edge` wrap/mirror/smear/blank, timeline `--at`/`--dur`): heat ripple, liquid glitch, water reflections
 - `sharpen --engine halo` — unsharp clamped to a blurred base via maskedclamp: strongest sharpening available, zero overshoot halos
 - `eqviz` — apply EQ bands (anequalizer params) and render the frequency-response curve as the video: `--bands "f=200 w=100 g=10 t=h"` low-shelf, " | "-separated per-channel; mix QC card
+
+## [0.234.0] — 2026-09-23
 
 ### Added
 - `grade --curve "x/y x/y …"` — freeform master tone curve (curves master): matte fade `0/0.08 1/1`, S-curve `0/0 0.25/0.18 0.75/0.82 1/1`
 - `bw --cut 0-1` — hard luma threshold instead of grayscale (lutyuv: xerox / high-contrast graphic B&W)
 - `scan` — new extras `audio_max_db`/`audio_mean_db` (volumedetect pass: clip check + cheap loudness read on any audio-bearing input)
 
+## [0.233.0] — 2026-09-23
+
 ### Added
 - `legalize` — clamp luma to broadcast-safe levels (limiter, planes=1 luma-only; `--min`/`--max`, timeline `--at`/`--dur`)
 - `levels` — Photoshop-style levels (colorlevels): `--in-min/--in-max` input points, `--out-min/--out-max` output range — crush rescue, matte film fade
 - `aberrate` — chromatic aberration fringe (rgbashift): `--amount` px splits red left / blue right (VHS, cheap-lens, glitch edge)
+
+## [0.232.0] — 2026-09-23
 
 ### Added
 - `matrix` — convert between color matrices (colormatrix): `--from bt601 --to bt709` fixes SD-601 footage gone green in a 709 timeline; `--from auto` reads the stream tag; timeline `--at`/`--dur`
 - `bw --weights r,g,b` — film-photographer channel weights for B&W (1.5,0.3,0.1 darkens blue skies like a red filter); replaces the 601 luma mix
 - `grade --split -1..1` — split-tone: teal shadows + orange highlights (blockbuster grade); negative flips to warm shadows / cool highlights
 
+## [0.231.0] — 2026-09-23
+
 ### Added
 - `interp` — motion-compensated frame interpolation (minterpolate): `--fps 60` upres for high-refresh delivery, `--slow 0.5` smooth slow-mo from normal-rate footage (`--mode mci|blend|dup`)
 - `deinterlace --engine mcdeint` — motion-compensated deinterlacer (archive quality, slow)
 - `grade --kelvin 1000-40000` — direct white-balance dial in Kelvin (tungsten 2700 / daylight 5500 / cool 9000); exclusive with `--warm`
 
+## [0.230.0] — 2026-09-23
+
 ### Added
 - `despill` — remove green/blue screen spill from a keyed edge without keying (`--type`, `--mix`, `--expand`; timeline `--at`/`--dur`)
 - `deinterlace --engine detelecine` — deterministic inverse telecine for a known 3:2 cadence (pattern=23; frame-exact when the cadence is clean, vs fieldmatch's per-frame comb analysis)
 - `audiogram --mode phase` — aphasemeter mono-compat scope (thin line = mono, wide cloud = decorrelated); output video carries the audio track
+
+## [0.229.0] — 2026-09-23
 
 ### Added
 - `stack --mode max|min` — maskedmax composites every input's brightest pixels (star trails, light painting); maskedmin = darkest composite. median keeps the object-removal default
@@ -92,16 +132,22 @@
 - `smooth --engine deflate|inflate` — morphological texture smoothing (pore/grain), zero blur halo; `--strength` maps to pass count
 - `scan` — stereo mono-compat QC: `phase_corr` extra (Pearson L/R); ~-1 means the mix cancels on mono speakers (phone/podcast playback)
 
+## [0.228.0] — 2026-09-23
+
 ### Added
 - `tonemap` — HDR → SDR: zscale to linear light, tonemap curve (`--algo hable|reinhard|gamma|clip|linear`, `--peak` nits), back to bt709. PQ/HLG phone footage for SDR platforms
 - `telecine` — pull 24p film up to interlaced NTSC fields (`--pattern 23` 3:2 pulldown, `--field`) — inverse of `deinterlace --engine fieldmatch`
 - `premult` — straight ↔ premultiplied alpha in place (`--mode premultiply|unpremultiply`); alpha-safe prores4444 output for AE/Motion handoffs
+
+## [0.227.0] — 2026-09-23
 
 ### Added
 - `dedust` — remove dust specks / hot pixels by morphology (luma erosion/dilation); `--size` 1-4, `--dark` for dark specks, `--at`/`--dur` window
 - `deinterlace --engine fieldmatch` — inverse telecine: fieldmatch+decimate reconstructs 23.976p film frames from 29.97i transfers
 - `vdenoise --engine edge` — nlmeans masked to flat areas via edgedetect+negate+maskedmerge; denoise without melting detail
 - `extend` — stretch edge pixels into border strips (fillborders: `--left/--right/--top/--bottom`, `--mode smear|mirror|...`) for chroma-key rims and leftover letterbox slivers
+
+## [0.226.0] — 2026-09-23
 
 ### Added
 - `grade --lut look.png` — HALD image LUTs via `haldclut` (PNG/JPG; Darktable/RawTherapee exports); `.cube` keeps `lut3d`. `lut_engine` extra reports which path ran
@@ -165,15 +211,21 @@
 - `fx --kind autopan` — `apulsator` L/R autopan sweep (hz 0.4-3 by strength); measured R-channel swing ~10dB over a cycle.
 
 
+## [0.217.0] — RSI round 190
+
 - `upscale` — up-res old/phone footage: `zscale` spline36 kernel (reconstructs detail better than bilinear/lanczos) + light `unsharp` for edge acuity. `--factor` 1.05-4 (2 doubles width AND height), `--strength` 0-1.
 - `fx --kind sub` — synthesized sub-bass octave under the mix (`asubboost`, wet scaled by strength) — drop/trap low-end weight.
 - `fx --kind crossfeed` — headphone crossfeed: bleeds each ear slightly into the other so long listening feels speaker-like, not hard-panned (L−R difference −11dB measured).
 
 
+## [0.216.0] — RSI round 189
+
 - `declip` — clipped/blown-out audio repair via `adeclip`: interpolates flattened peaks back into waveforms (`--window` ms analysis slice, `--threshold` 1-100 clip fraction, `--overlap-save`, `--at`/`--dur` windowed).
 - `reverb --ir` — convolution reverb: convolve against an impulse-response WAV from any IR pack (cathedral/plate/room — real spaces, not synthetic echo taps). `--tail` pads the dry side so the tail rings past the source end (default: the IR's own length).
 - `channel --mode surround` — stereo→5.1 upmix (`surround` soundfield transform + derived LFE) for TV / cinema-side delivery.
 
+
+## [0.215.0] — RSI round 188
 
 - `replace --video` — the converse swap: keep this video's audio, show another file's frames (retake/音乐换画面). The audio is the master clock; a shorter picture needs `--loop`, a longer one is trimmed.
 - `channel --mode haas` — Haas-effect stereo widening (micro L/R delays + polarity flip, mono-safe); `--amount` scales side gain 0.5..3.0.
@@ -374,7 +426,6 @@
 - `glitch --strength` — datamosh-style look (RGB channel shift + temporal noise)
 - `fade --curve` — audio fade curve shape (tri/qsin/esin/hsin/log/qua/cub/exp)
 
-## [0.188.0] — 2026-09-22
 
 ## [0.188.0] — 2026-09-22
 
@@ -1208,7 +1259,6 @@ Skill 与 CLI 共用一个 SemVer（`Cargo.toml` + `SKILL.md` 的 `version:`）�
 - `transcode --preset hevc` — libx265 at crf 28 with the `hvc1` tag so QuickTime/Safari play it.
 - `gate --preset voice|podcast|studio` — tuned threshold/ratio/attack/release curves.
 
-## [0.74.0] — 2026-09-22
 
 ## [0.74.0] - 2026-09-22
 

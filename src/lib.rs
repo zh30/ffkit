@@ -189,6 +189,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Tmedian(args) => verbs::tmedian::run(args, &g),
         Cmd::Stack(args) => verbs::stack::run(args, &g),
         Cmd::Stereo(args) => verbs::stereo::run(args, &g),
+        Cmd::Sonify(args) => verbs::sonify::run(args, &g),
         Cmd::Mirror(args) => verbs::mirror::run(args, &g),
         Cmd::Pix(args) => verbs::pix::run(args, &g),
         Cmd::Flip(args) => verbs::flip::run(args, &g),

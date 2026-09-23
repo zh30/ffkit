@@ -56,10 +56,23 @@ pub fn run(args: GenArgs, g: &Globals) -> Result<Contract, Error> {
             "cellauto=size={}x{}:rate={}:rule={}",
             w, h, args.fps, args.rule
         ),
+        "sierpinski" => {
+            let mut s = format!(
+                "sierpinski=size={}x{}:rate={}:type=triangle:jump={}",
+                w,
+                h,
+                args.fps,
+                (args.speed * 100.0).clamp(1.0, 10000.0) as i32
+            );
+            if let Some(seed) = args.seed {
+                s.push_str(&format!(":seed={seed}"));
+            }
+            s
+        }
         "noise" | "tone" => String::new(),
         _ => {
             return Err(Error::input(
-                "--pattern: mandelbrot | gradients | life | noise | tone",
+                "--pattern: mandelbrot | gradients | life | sierpinski | noise | tone",
             ))
         }
     };

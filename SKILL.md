@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.244.0
+version: 0.245.0
 
 
 
@@ -138,7 +138,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | inverted flash/accent | `invert` (`--at`/`--dur`) |
 | blur just a moment | `blur` (`--at`/`--dur`) |
 | motion trails / ghost smears | `trail` (`--mode echo` tmix smear, `--frames`, `--at`/`--dur`; `--mode light` bright-pixel persistence via lagfun, `--decay`) |
-| datamosh glitch | `glitch` (`--strength` channel-shift + noise) |
+| datamosh glitch | `glitch` (`--strength` channel-shift + noise; `--engine planes|swapuv|stutter|pixels` variants) |
 | partial invert | `solarize` (`--threshold`, `--at` window) |
 | breathing zoom | `pulse` (`--rate`/`--depth`, `--at` window) |
 | timelapse flicker fix | `deflicker` (`--size` frames) |
@@ -224,6 +224,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | chroma-swap look | `glitch --engine swapuv` (U/V flip — magenta↔green) |
 | edit-point map | `scan --scenes` (scene_cuts timestamps via scdet — QC pass doubles as a cut list) |
 | 3D format convert | `stereo` `--in sbsl --out arcd` (stereo3d: SBS→anaglyph preview, interleaved for 3D displays) |
+| play an image as sound | `sonify` (spectrumsynth — paint/draw a picture → hear it; `--dur`/`--speed`/`--sample-rate`) |
 | robot voice | `fx --kind ringmod` (fast-AM tremolo — Dalek/sci-fi comm channel) |
 | edge-preserving smooth | `smooth --engine yaep` (yaepblur, bilateral-class) |
 | archive deinterlace | `deinterlace --engine w3fdif` (Martin Weston 3-field, sharp diagonals) |
@@ -284,7 +285,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | short overlay clip repeats | `overlay` (`--loop` — covers the base) |
 | waveform showing quiet detail | `waveform` (`--scale log`) |
 | split on longer pauses | `split` (`--silence --min-silence`) |
-| wobble/sci-fi/echo/lofi/telephone voice | `fx` (`--kind` 13 effects, incl. `saturate` warmth, `excite` air, `bass`/`muffled`/`crystal` tone) |
+| wobble/sci-fi/echo/lofi/telephone voice | `fx` (`--kind` 19 effects, incl. `saturate` warmth, `excite` air, `crush` bitcrusher) |
 | effect only in the drop | `fx` (`--at`/`--dur`) |
 | boomerang that loops 3x | `boomerang` (`--times`), `--at/--dur` window |
 | H.265 for Apple / smaller archive | `transcode` (`--preset hevc`) |
@@ -326,7 +327,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | gif tuning | `transcode --preset gif --fps --width`, `extract --gif --bounce` (palindrome loop), `extract --colors` palette size |
 | headphone fatigue on long audio | `fx --kind crossfeed` (`--strength` 0..1 ear bleed); `fx --kind sub` adds a synthesized low octave; `fx --kind autopan` sweeps L-R |
 | draw a freehand EQ curve | `eq --curve "80,0;3000,-6;8000,4"` (freq,gain dB points, interpolated) or `eq --graphic` 18-band classic EQ |
-| animated backdrop for a music/text card | `gen` `--pattern mandelbrot\|gradients\|life` (no input file; `--size`/`--dur`/`--colors`/`--seed`) |
+| animated backdrop for a music/text card | `gen` `--pattern mandelbrot\|gradients\|life\|sierpinski` (no input file; `--size`/`--dur`/`--colors`/`--seed`) |
 | italic-style slant / dynamic tilt | `shear` `--x`/`--y` (-2..2; `--fill` edge color, `--interp`) — `--at`/`--dur` windows |
 | fix a color cast / white balance | `wb` (auto per-channel normalization; `--strength`, `--independence 0` keeps grade, `--smooth` frames) |
 | QC a clip for strobes before posting | `scan` — also reports `flash_frames`/`flash_max_badness` (photosensitive-epilepsy check) |
@@ -345,7 +346,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | container metadata tags | `meta` (`--title`/`--artist`/`--comment`, `--copy` pulls tags+chapters from another file) |
 | fix display rotation flag | `meta --rotate 90` (lossless; clears with `--rotate 0`) |
 | room tone on a voice | `reverb` (`--size room|hall|cave`, `--wet 0..0.9`, `--ir file.wav` convolution reverb from IR packs, `--tail`) |
-| wobble/sci-fi/echo/lofi/telephone/saturate/excite/bass/muffled/crystal audio | `fx` (`--kind`, `--strength`, `--at`/`--dur`) |
+| wobble/sci-fi/echo/lofi/telephone/saturate/excite/crush audio | `fx` (`--kind`, `--strength`, `--at`/`--dur`) |
 | Ken Burns on a photo cutaway | `broll --insert img.png --still --motion kenburns` |
 | styled captions | `caption --color ff0000 --size 1.5` |
 | logo only for part of the clip | `overlay --at 2 --dur 5` |

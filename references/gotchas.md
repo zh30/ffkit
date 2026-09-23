@@ -247,3 +247,7 @@ an atempo'd whole-file render would shift the window.
 - `showcwt` is missing on ffmpeg 4.4 (audiogram wavelet mode deferred); `scharr` also missing.
 - `signalstats` reports nothing on stderr — pair it with `metadata=print` (or `file=-`) to read YAVG/SATAVG etc.
 - Leaf labels in a filter_complex DO count as consumed when `-map`ped; but a label consumed only inside the graph and never mapped OR fed onward is "unconnected" — every output pad must reach either a filter input or a `-map`.
+
+- `spectrumsynth` needs TWO video inputs (magnitude + phase); feed a `nullsrc` of matching WxH/fps as the phase leg, `slide=scroll` + a `scroll`-animated magnitude = continuous left→right scan. For still images `-loop 1` before `-i`.
+- `shufflepixels` block width must stay positive — scale it off the strength range (glitch uses 0.5..20, not 0..1).
+- When resolving merge conflicts in CHANGELOG.md, taking "ours" on `## [Unreleased]` drops the just-bumped version heading — entries stay under Unreleased forever. Always keep the `## [x.y.z]` heading line.
