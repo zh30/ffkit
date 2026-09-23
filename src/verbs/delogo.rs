@@ -22,9 +22,8 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
                 let nums: Vec<u32> = part
                     .split(':')
                     .map(|n| {
-                        n.parse().map_err(|_| {
-                            Error::input(format!("--region '{part}' wants x:y:w:h"))
-                        })
+                        n.parse()
+                            .map_err(|_| Error::input(format!("--region '{part}' wants x:y:w:h")))
                     })
                     .collect::<Result<_, _>>()?;
                 if nums.len() != 4 {
@@ -85,7 +84,10 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
             .replace('\\', "\\\\")
             .replace(':', "\\:")
             .replace('\'', "\\'");
-        format!("removelogo=filename='{m}'{}", enable.as_deref().unwrap_or(""))
+        format!(
+            "removelogo=filename='{m}'{}",
+            enable.as_deref().unwrap_or("")
+        )
     } else {
         regions
             .iter()

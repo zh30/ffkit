@@ -16753,3 +16753,59 @@ fn mute_and_volume_comma_windows() {
         "{cmds}"
     );
 }
+
+#[test]
+fn delogo_regions_multi_box() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = lavfi_fixture(dir.path(), "v.mp4", "440", 2.0);
+    let marked = dir.path().join("marked.mp4");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&src)
+        .args([
+            "-vf",
+            "drawbox=x=10:y=10:w=60:h=40:color=white:t=fill,drawbox=x=200:y=150:w=60:h=40:color=white:t=fill",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-c:a", "copy",
+        ])
+        .arg(&marked)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("d.mp4");
+    let v = run_json(&[
+        "delogo",
+        marked.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--regions",
+        "10:10:60:40,200:150:60:40",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["regions"].as_array().unwrap().len(), 2, "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 2.0).abs() < 0.4, "duration {d}");
+    let bad = run_json(&[
+        "delogo",
+        marked.to_str().unwrap(),
+        "-o",
+        dir.path().join("bad.mp4").to_str().unwrap(),
+        "--regions",
+        "10:10:60:40",
+        "--x",
+        "5",
+    ]);
+    assert_eq!(bad["status"], "failed", "{bad}");
+    let bad2 = run_json(&[
+        "delogo",
+        marked.to_str().unwrap(),
+        "-o",
+        dir.path().join("bad2.mp4").to_str().unwrap(),
+        "--regions",
+        "10:10:60",
+    ]);
+    assert_eq!(bad2["status"], "failed", "{bad2}");
+}
