@@ -22,10 +22,7 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
         let mut argv = ffmpeg_base(g.progress);
         argv.push("-i");
         argv.push(&args.input);
-        let (pw, ph) = (
-            probe.width.unwrap_or(1280),
-            probe.height.unwrap_or(720),
-        );
+        let (pw, ph) = (probe.width.unwrap_or(1280), probe.height.unwrap_or(720));
         let sx = args.x.unwrap_or(pw / 2);
         let sy = args.y.unwrap_or(ph / 2);
         let en = match &args.at {
