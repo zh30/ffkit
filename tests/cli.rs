@@ -17682,6 +17682,319 @@ fn censor_circle_mask_and_progress_opacity() {
 }
 
 #[test]
+fn mirror_pix_sepia() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("src.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=320x240:duration=2:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    // mirror x: right half mirrors the left (frame is x-symmetric)
+    let mir = dir.path().join("mir.mp4");
+    let v = run_json(&[
+        "mirror",
+        src.to_str().unwrap(),
+        "-o",
+        mir.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(fc.contains("hstack") && fc.contains("hflip"), "{fc}");
+    let out = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-ss", "0.5", "-i"])
+        .arg(&mir)
+        .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+        .output()
+        .unwrap();
+    // left pixel at x must equal right pixel at W-1-x (center mirror)
+    let w = 320usize;
+    let row = 120;
+    let base = row * w * 3;
+    let mut sym = 0u32;
+    for x in 0..w / 2 {
+        let a = &out.stdout[base + x * 3..base + x * 3 + 3];
+        let b = &out.stdout[base + (w - 1 - x) * 3..base + (w - 1 - x) * 3 + 3];
+        if a.iter().zip(b.iter()).all(|(p, q)| p.abs_diff(*q) < 24) {
+            sym += 1;
+        }
+    }
+    assert!(sym > 120, "mirror symmetry {sym}");
+    // windowed mirror uses blend with the T variable
+    let mirw = dir.path().join("mirw.mp4");
+    let v = run_json(&[
+        "mirror",
+        src.to_str().unwrap(),
+        "-o",
+        mirw.to_str().unwrap(),
+        "--axis",
+        "y",
+        "--at",
+        "0.5",
+        "--dur",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        fc.contains("vstack") && fc.contains("blend=all_expr") && fc.contains("between(T,"),
+        "{fc}"
+    );
+    // pix: neighbor downscale + probed upscale, blocky frame
+    let px = dir.path().join("px.mp4");
+    let v = run_json(&[
+        "pix",
+        src.to_str().unwrap(),
+        "-o",
+        px.to_str().unwrap(),
+        "--strength",
+        "16",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        fc.contains("scale=w=iw/16") && fc.contains("scale=w=320:h=240"),
+        "{fc}"
+    );
+    let out = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-ss", "0.5", "-i"])
+        .arg(&px)
+        .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+        .output()
+        .unwrap();
+    let base = 120 * w * 3;
+    let runs = (1..w)
+        .filter(|x| {
+            out.stdout[base + x * 3..base + x * 3 + 3]
+                != out.stdout[base + (x - 1) * 3..base + (x - 1) * 3 + 3]
+        })
+        .count();
+    assert!(runs < 60, "pixelated row should be blocky, runs {runs}");
+    // grade --preset sepia: classic sepia matrix
+    let sep = dir.path().join("sep.mp4");
+    let v = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        sep.to_str().unwrap(),
+        "--preset",
+        "sepia",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(fc.contains("colorchannelmixer=.393:.769:.189"), "{fc}");
+}
+
+#[test]
+fn flip_poster_duotone() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("src.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=320x240:duration=2:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    // flip x: output is left-right symmetric vs source
+    let fl = dir.path().join("fl.mp4");
+    let v = run_json(&[
+        "flip",
+        src.to_str().unwrap(),
+        "-o",
+        fl.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(fc.contains("hflip"), "{fc}");
+    let (w, h) = (320usize, 240usize);
+    let grab = |f: &std::path::Path| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-y", "-loglevel", "error", "-ss", "0.5", "-i"])
+            .arg(f)
+            .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let flf = grab(&fl);
+    let srcf = grab(&src);
+    let mut sym = 0u32;
+    for x in 0..w / 2 {
+        for y in (0..h).step_by(20) {
+            let a = &srcf[(y * w + x) * 3..(y * w + x) * 3 + 3];
+            let b = &flf[(y * w + (w - 1 - x)) * 3..(y * w + (w - 1 - x)) * 3 + 3];
+            if a.iter().zip(b.iter()).all(|(p, q)| p.abs_diff(*q) < 24) {
+                sym += 1;
+            }
+        }
+    }
+    assert!(sym > 1000, "flip symmetry {sym}");
+    // windowed flip uses enable
+    let flw = dir.path().join("flw.mp4");
+    let v = run_json(&[
+        "flip",
+        src.to_str().unwrap(),
+        "-o",
+        flw.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "--dur",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(fc.contains("hflip=enable="), "{fc}");
+    // poster: elbg quantization
+    let po = dir.path().join("po.mp4");
+    let v = run_json(&[
+        "poster",
+        src.to_str().unwrap(),
+        "-o",
+        po.to_str().unwrap(),
+        "--levels",
+        "6",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(fc.contains("elbg=l=6"), "{fc}");
+    // windowed poster goes through the blend branch
+    let pow = dir.path().join("pow.mp4");
+    let v = run_json(&[
+        "poster",
+        src.to_str().unwrap(),
+        "-o",
+        pow.to_str().unwrap(),
+        "--at",
+        "1",
+        "--dur",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        fc.contains("blend=all_expr") && fc.contains("between(T,"),
+        "{fc}"
+    );
+    // duotone: dark -> shadow color, bright -> highlight color
+    let du = dir.path().join("du.mp4");
+    let v = run_json(&[
+        "duotone",
+        src.to_str().unwrap(),
+        "-o",
+        du.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(fc.contains("format=gray") && fc.contains("lutrgb"), "{fc}");
+    let duf = grab(&du);
+    let mut bluish = 0u32;
+    let mut cream = 0u32;
+    for x in (0..w).step_by(16) {
+        for y in (0..h).step_by(16) {
+            let i = (y * w + x) * 3;
+            let (r, g, b) = (duf[i], duf[i + 1], duf[i + 2]);
+            if b > r {
+                bluish += 1;
+            }
+            if r >= g && g >= b {
+                cream += 1;
+            }
+        }
+    }
+    assert!(bluish > 40 && cream > 40, "duotone {bluish}/{cream}");
+}
+
+#[test]
 fn censor_solid_caption_margin_grade_presets() {
     if !has_ffmpeg() {
         return;
@@ -18043,4 +18356,137 @@ fn strobe_edge_lens() {
         })
         .collect();
     assert!(joined.contains("lenscorrection=k1=-0.3"));
+}
+
+#[test]
+fn glow_vhs_motionblur() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("src.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=320x240:duration=2:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let argv_join = |v: &serde_json::Value| -> String {
+        v["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|c| c.as_array().unwrap().iter())
+            .filter_map(|a| a.as_str())
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    // glow: split + gblur + screen blend
+    let gl = dir.path().join("gl.mp4");
+    let v = run_json(&[
+        "glow",
+        src.to_str().unwrap(),
+        "-o",
+        gl.to_str().unwrap(),
+        "--strength",
+        "8",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = argv_join(&v);
+    assert!(
+        fc.contains("gblur=sigma=8") && fc.contains("all_mode=screen"),
+        "{fc}"
+    );
+    // bloomed frame is brighter than source
+    let grab = |f: &std::path::Path| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-y", "-loglevel", "error", "-ss", "0.5", "-i"])
+            .arg(f)
+            .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let glf = grab(&gl);
+    let srcf = grab(&src);
+    let gm: u64 = glf.iter().map(|b| *b as u64).sum();
+    let sm: u64 = srcf.iter().map(|b| *b as u64).sum();
+    assert!(gm > sm, "bloom should brighten: {gm} vs {sm}");
+    // vhs: noise + rgbashift + drawgrid
+    let vh = dir.path().join("vh.mp4");
+    let v = run_json(&[
+        "vhs",
+        src.to_str().unwrap(),
+        "-o",
+        vh.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = argv_join(&v);
+    assert!(
+        fc.contains("noise=alls=8") && fc.contains("rgbashift") && fc.contains("drawgrid"),
+        "{fc}"
+    );
+    // vhs windowed uses the blend branch
+    let vhw = dir.path().join("vhw.mp4");
+    let v = run_json(&[
+        "vhs",
+        src.to_str().unwrap(),
+        "-o",
+        vhw.to_str().unwrap(),
+        "--at",
+        "1",
+        "--dur",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = argv_join(&v);
+    assert!(
+        fc.contains("blend=all_expr") && fc.contains("between(T,"),
+        "{fc}"
+    );
+    // motionblur: tblend default, tmix for --frames > 2
+    let mb = dir.path().join("mb.mp4");
+    let v = run_json(&[
+        "motionblur",
+        src.to_str().unwrap(),
+        "-o",
+        mb.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = argv_join(&v);
+    assert!(fc.contains("tblend=all_mode=average"), "{fc}");
+    let mb4 = dir.path().join("mb4.mp4");
+    let v = run_json(&[
+        "motionblur",
+        src.to_str().unwrap(),
+        "-o",
+        mb4.to_str().unwrap(),
+        "--frames",
+        "4",
+        "--at",
+        "0.5",
+        "--dur",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = argv_join(&v);
+    assert!(
+        fc.contains("tmix=frames=4") && fc.contains("blend=all_expr"),
+        "{fc}"
+    );
 }

@@ -10,6 +10,22 @@
 - `edge` — neon edge-detect outlines (`--mode wires|colormix`, `--low`/`--high`), `--at`/`--dur` windows.
 - `lens` — lens distortion (`--k1`/`--k2`): negative values produce a fisheye look, positive values defish action-cam footage; `--at`/`--dur` windows.
 
+## [0.194.0] — 2026-09-23
+
+### Added
+
+- `mirror` — half-frame mirror across the center axis (`--axis x`/`y`, `--at`/`--dur` windowed via blend T-expr)
+- `pix` — full-frame retro pixelation (`--strength` 2-64 block divisor, `--at`/`--dur` window)
+- `grade --preset sepia` — classic sepia `colorchannelmixer` matrix
+
+## [0.195.0] — 2026-09-23
+
+### Added
+
+- `flip` — horizontal/vertical flip (`--axis x` unmirror selfie footage, `--at`/`--dur` windowed)
+- `poster` — pop-art posterization (`elbg=l=N`, `--levels` 2-64, `--at`/`--dur` via blend branch)
+- `duotone` — two-color luminance ramp (`--shadow`/`--highlight`, `format=gray` + per-channel `lutrgb`)
+
 ## [0.193.0] — 2026-09-23
 
 ### Added
@@ -17,6 +33,14 @@
 - `censor --mode solid` — black-bar redact (drawbox=t=fill; combines with --shape circle)
 - `caption --margin N` — pixel offset from the caption edge
 - `grade --preset teal` / `noir` — orange-and-teal look; true B&W (tail desaturation)
+
+## [0.196.0] — 2026-09-23
+
+### Added
+
+- `glow` — dreamy bloom (gblur + screen blend, `--at`/`--dur` window)
+- `vhs` — retro tape look (`--strength` 0-3: noise + rgbashift + scanlines, `--at`/`--dur` via blend branch)
+- `motionblur` — shutter smear (`tblend`/`tmix` temporal average, `--frames` 2-8, `--at`/`--dur` window)
 
 ## [0.192.0] — 2026-09-23
 

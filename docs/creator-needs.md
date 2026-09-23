@@ -670,11 +670,23 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `glitch --strength` — datamosh-style look (`format=rgba,rgbashift=±N,noise=alls=N*4:allf=t+u`).
 - `fade --curve` — afade curve shape for the audio side (tri/qsin/esin/hsin/log/qua/cub/exp); video stays linear.
 
+## Shipped this run (round 168)
+
+- `flip` — hflip/vflip with `--at`/`--dur` (unmirror front-camera footage; timeline flag makes `enable=` work directly).
+- `poster` — `elbg=l=N` palette quantization (2-64 colors). elbg has NO timeline flag — windowed runs through the split+blend T-expr branch like mirror/pix.
+- `duotone` — true two-color ramp: `format=gray` then per-channel `lutrgb=r='Sr+val*(Hr-Sr)/255'`. Windowed needs the blend trick too (gating only lutrgb would still gray the off-window frames).
+
 ## Shipped this run (round 164)
 
 - `caption --karaoke --highlight RRGGBB` — sung words painted in the highlight color over the dim full cue (two-layer render: base cue + prefix overlay at tight-crop origin).
 - `audiogram --mode scope` — lissajous vectorscope via `avectorscope=r={fps}:draw=line:zoom=2:rc/gc/bc` (verified on ffmpeg 4.4).
 - `delogo --shape circle` — elliptical logo mask painted into the `--soft` removelogo PNG (circle forces the mask path even without --soft).
+
+## Shipped this run (round 167)
+
+- `mirror` — half-frame mirror across the center axis (`--axis x` crop+hflip+hstack / `--axis y` vflip+vstack); `--at`/`--dur` swaps the mirrored branch in via `blend=all_expr='if(between(T,...),B,A)'` (blend's clock var is uppercase T — not the enable-expr lowercase t).
+- `pix` — full-frame retro pixelation (downscale + `flags=neighbor` upscale). Gotcha: inside a filter chain `iw`/`ih` are the PREVIOUS filter's output dims — the restore scale must target the probed width/height, or the encode gets the downscaled size (odd dims → x264 rejects).
+- `grade --preset sepia` — classic `colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131` matrix.
 
 ## Shipped this run (round 163)
 
@@ -686,6 +698,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `censor --mode solid` — black-bar redact look (drawbox=t=fill per region; combines with --shape circle for black ellipses).
 - `caption --margin N` — pixel offset from the chosen edge (overrides the safe-zone percent placement).
 - `grade --preset teal` — orange-and-teal (colorbalance bs/bm only; 4.4 lacks ms). `grade --preset noir` — true B&W (hue=s=0 appended at chain tail so default eq sliders can't re-add saturation).
+
+## Shipped this run (round 169)
+
+- `glow` — bloom: `split[a][b] → gblur → blend=all_mode=screen` (screen lightens; enable= sits on the blend for `--at`/`--dur` windows).
+- `vhs` — tape look: `noise + rgbashift + drawgrid=w=iw:h=3:c=black@0.30` scanlines. drawgrid has no timeline flag — windowed uses the split+blend T-expr branch.
+- `motionblur` — `tblend=all_mode=average` (2 frames = true shutter smear) or `tmix=frames=N` for longer ghost trails. Note `tmix` mixes FORWARD — the smear lags, which reads naturally for speed.
 
 ## Shipped this run (round 165)
 
