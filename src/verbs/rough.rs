@@ -43,6 +43,10 @@ pub fn run(args: RoughArgs, g: &Globals) -> Result<Contract, Error> {
         }
         keeps = merged;
     }
+    if args.by_scene && probe.has_video {
+        let cuts = crate::scene::cut_times(&args.input, 0.4, g.timeout)?;
+        keeps = crate::scene::split_at(&keeps, &cuts);
+    }
     let keeps = keeps;
     if keeps.is_empty() {
         return Err(Error::input("rough: clip is all silence at this threshold"));

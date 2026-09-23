@@ -140,7 +140,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `solid` | Solid-color clip card (`--color`, `--size`, `--dur`, `--fps` rate; silent stereo optional) (`--gradient` animated, `--noise` grain) , `--text` end-card text (`--wrap` folds, `--align` lines) |
 | `replace` | Swap the audio track (`--mix`, `--duck`, `--fade`, `--loop` short beds, `--at`/`--dur` window) |
 | `jumpcut` | Cut silence inside a talking-head take |
-| `rough` | Map speech islands in a long take (`--json`); `-o` assembles (`--merge N` merges keeps closer than N s) (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
+| `rough` | Map speech islands in a long take (`--json`); `-o` assembles (`--merge N` merges keeps closer than N s, `--by-scene` splits keeps at scene changes) (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
 | `cover` | 9:16 cover still (`--at`, `--blur` ambient pad) |
 | `fade` | Video and audio fade (`--in` / `--out`, `--color` e.g. white, `--dip T` scene-change dip) |
 | `title` | Hook/title card (`--at`, `--fade`, `--outline`, `--box` backplate, `--wrap` long hooks, `--align` lines, `--opacity` ghost) |
@@ -158,7 +158,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `crop` | Crop `--region x:y:w:h`, or `--aspect` reframe with `--anchor center|top|bottom|left|right` |
 | `waveform` | Audio waveform → PNG (`--size`, `--color`, `--scale`, `--peak` transients, `--split` per-channel rows, `--full` dense draw) for podcast art/thumbnails (`--at/--dur` slice) |
 | `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup (`--color` magma/viridis…, `--scale` lin/sqrt…, `--no-legend`) (`--at/--dur` slice) |
-| `meter` | Live EBU R128 loudness meter video (`--size`, `--meter 9\|18`) — watch I/TP/LRA while audio plays |
+| `meter` | Live EBU R128 loudness meter video (`--size`, `--meter 9\|18`, `--at/--dur` slice) — watch I/TP/LRA while audio plays |
 | `dehum` | Notch out mains hum (`--mains 50|60` or `--freq HZ` custom, `--harmonics`, `--at/--dur`) |
 | `tempo` | Speed audio `--factor` 0.5–8, pitch held (`atempo` chain; use `speed` for video) , `--at/--dur` retempo just a window |
 | `leveler` | Compress dynamics (`--preset`, `--at/--dur` window) |

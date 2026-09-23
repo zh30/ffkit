@@ -234,6 +234,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 97)
+
+- `rough --by-scene` — scene-change cuts inside speech islands: `select=gt(scene,0.4)`+`metadata=print` pts_times split each keep so jump cuts never span a shot boundary (new `src/scene.rs` helper).
+- `meter --at/--dur` — windowed EBU meter for QC-ing one slice.
+
 ## Shipped this run (round 96)
 
 - `audiogram --fscale lin|log|rlog` — showfreqs frequency axis (spectrum mode; log-freq bars for music).

@@ -1181,6 +1181,9 @@ pub struct RoughArgs {
     /// Merge keeps whose gap is smaller than N seconds (less jarring jump cuts)
     #[arg(long, default_value_t = 0.0)]
     pub merge: f64,
+    /// Also split keeps at scene changes (cut detection, threshold 0.4)
+    #[arg(long)]
+    pub by_scene: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2281,6 +2284,12 @@ pub struct MeterArgs {
     /// EBU meter scale 9..=18 (default 9 = -18..+9 LUFS window)
     #[arg(long, default_value_t = 9)]
     pub meter: u32,
+    /// Meter only from this time (QC one slice)
+    #[arg(long)]
+    pub at: Option<f64>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

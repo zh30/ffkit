@@ -15,6 +15,7 @@ pub mod paths;
 pub mod pipeline;
 pub mod probe;
 pub mod raster;
+pub mod scene;
 pub mod silence;
 pub mod spawn;
 pub mod srt;

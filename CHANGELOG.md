@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.124.0] — 2026-09-22
+
+### Added
+
+- `rough --by-scene` — split speech keeps at scene changes (`src/scene.rs`: `select=gt(scene,0.4)`+`metadata=print` detection)
+- `meter --at/--dur` — meter one slice for QC
+
 ## [0.123.0] — 2026-09-22
 
 ### Added

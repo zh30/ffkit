@@ -19,8 +19,17 @@ pub fn run(args: MeterArgs, g: &Globals) -> Result<Contract, Error> {
     }
 
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(at) = args.at {
+        argv.extend(["-ss", &crate::time::fmt_time(at.max(0.0))]);
+    }
     argv.push("-i");
     argv.push(&args.input);
+    if let Some(d) = args.dur {
+        if d <= 0.0 {
+            return Err(Error::input("--dur must be > 0"));
+        }
+        argv.extend(["-t", &crate::time::fmt_time(d)]);
+    }
     argv.extend([
         "-filter_complex",
         &format!(

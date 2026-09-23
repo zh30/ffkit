@@ -13442,3 +13442,89 @@ fn scroll_wrap_folds_credits() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+fn scene_fixture(dir: &Path) -> PathBuf {
+    let f = dir.join("scenecut.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:s=320x240:d=0.6:r=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=blue:s=320x240:d=0.6:r=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1.2",
+            "-filter_complex",
+            "[0:v][1:v]concat=n=2:v=1[v]",
+            "-map",
+            "[v]",
+            "-map",
+            "2:a",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            f.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    f
+}
+
+#[test]
+fn rough_by_scene_splits_keeps_at_cuts() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = scene_fixture(dir.path());
+    let plain = run_json(&["rough", f.to_str().unwrap()]);
+    assert_eq!(plain["status"], "ok", "{plain}");
+    assert_eq!(plain["extra"]["kept"], 1, "{plain}");
+    let v = run_json(&["rough", f.to_str().unwrap(), "--by-scene"]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let kept = v["extra"]["kept"].as_u64().unwrap();
+    assert_eq!(kept, 2, "scene cut at 0.6 should split the keep; {v}");
+}
+
+#[test]
+fn meter_window_seeks_and_caps() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = scene_fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "meter",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-ss"), "{cmds}");
+    assert!(cmds.contains("-t"), "{cmds}");
+}
