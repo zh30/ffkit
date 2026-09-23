@@ -182,6 +182,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `thump` | `--at` 时刻低音冲击：55Hz 正弦带快速衰减混入音轨，`--freq`/`--gain`/`--dur` |
 | `riser` | 上行音调扫频（200→2000Hz）在 `--at` 时刻落地，`--dur` 上升时长，`--gain` |
 | `whoosh` | 棕色噪声气声渐强在 `--at` 落地（转场音效），`--dur`/`--gain` |
+| `deesser` | 人声去齿音：压制 4-8kHz 齿音频段，`--amount`/`--freq`/`--at` 窗口 |
+| `deband` | `gradfun` 平滑天空/背景色带，`--strength`/`--radius`/`--at` 窗口 |
+| `dedup` | `mpdecimate` 丢弃近似重复帧——压缩静态片段，`--frac` 灵敏度 |
 | `pick` | 主色提取：某时刻均色 + 3x2 分区色板（仅 JSON 报告） |
 | `diff` | 双片视觉差异：放大差值混合，`--side` 并排参考 |
 | `selective` | 单色保留：仅留 `--color` 其余去饱和，`--similarity` 容差，`--at` 窗口 |

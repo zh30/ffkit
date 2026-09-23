@@ -182,6 +182,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `thump` | Sub-bass drop at `--at`: 55Hz sine with fast decay mixed under the track, `--freq`/`--gain`/`--dur` |
 | `riser` | Tonal chirp sweep (200→2000Hz) that lands on `--at`, `--dur` rise length, `--gain` |
 | `whoosh` | Airy brown-noise swell that lands on `--at` (transition accent), `--dur`/`--gain` |
+| `deesser` | Voice de-essing: tames the 4-8kHz sibilance band, `--amount`/`--freq`/`--at` window |
+| `deband` | Smooths gradient banding (sky/backdrop steps) via `gradfun`, `--strength`/`--radius`/`--at` window |
+| `dedup` | Drops near-duplicate frames via `mpdecimate` — shrinks static stretches, `--frac` sensitivity |
 | `pick` | Dominant-color report at a timestamp: mean hex + 3x2 zone swatches (JSON only) |
 | `diff` | Visual diff between two clips: amplified difference blend, `--side` shows reference |
 | `selective` | Keep one color, desaturate the rest: `--color` + `--similarity`, `--at` windows |
