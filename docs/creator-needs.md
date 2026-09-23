@@ -805,3 +805,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `declip` — `adeclip` clip repair (flattened-peak interpolation); validated saturated-sample fraction 73.6%→47.4% on a hard-clipped sine. `.wav` outputs get `pcm_s16le` (AAC-in-.wav decode trap on ffmpeg 4.x).
 - `reverb --ir` — `afir` convolution reverb with user IR WAVs. Trap: afir cuts output at the dry input length — we `apad=pad_dur=<IR len>` so the tail rings past EOF (`--tail` overrides). `--at`/`--dur` unsupported in IR mode (dry/wet split needs per-window convolution — queued).
 - `channel --mode surround` — stereo→5.1 `surround` upmix (6-channel AAC out).
+
+## Shipped — RSI round 190 (0.217.0)
+
+- `upscale` — `zscale=...:filter=spline36` + `unsharp` up-res verb (`--factor`, `--strength`). Even-dim safe (trunc(iw*F/2)*2).
+- `fx --kind sub` — `asubboost` synthesized low octave (wet 0.3..0.9 by strength); +4.2dB on a 100Hz band fixture.
+- `fx --kind crossfeed` — `crossfeed` headphone comfort (L−R diff −11dB on a dual-sine fixture).

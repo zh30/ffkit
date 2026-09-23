@@ -289,6 +289,8 @@ pub enum Cmd {
     Scan(ScanArgs),
     /// Edge-preserving beauty/skin blur (smartblur)
     Smooth(SmoothArgs),
+    /// Up-res footage: zscale spline36 + light unsharp (--factor 2 doubles dims)
+    Upscale(UpscaleArgs),
     /// Comic look: posterized base + ink outlines
     Cartoon(CartoonArgs),
     /// Thermal / false-color luma map
@@ -3639,6 +3641,19 @@ pub struct DehumArgs {
 }
 
 #[derive(clap::Args, Debug)]
+pub struct UpscaleArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Linear upscale multiplier (2 = double width AND height; 1.05-4)
+    #[arg(long, default_value_t = 2.0)]
+    pub factor: f64,
+    /// Unsharp amount 0-1 restores edge acuity after the resize
+    #[arg(long, default_value_t = 0.3)]
+    pub strength: f64,
+}
+
+#[derive(clap::Args, Debug)]
 pub struct SmoothArgs {
     pub input: PathBuf,
     #[arg(short, long)]
@@ -3925,6 +3940,10 @@ pub enum FxKind {
     Muffled,
     /// Transient sharpening for dull recordings (crystalizer)
     Crystal,
+    /// Sub-bass synthesis for drops/trap (asubboost, derived low octave)
+    Sub,
+    /// Headphone crossfeed — speakers-like imaging on cans (long-form comfort)
+    Crossfeed,
 }
 
 #[derive(clap::Args, Debug)]

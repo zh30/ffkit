@@ -50,6 +50,14 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
         FxKind::Bass => format!("bass=g={:.1}:f=110", 2.0 + 10.0 * s),
         FxKind::Muffled => format!("lowpass=f={:.0}", 2400.0 - 1900.0 * s),
         FxKind::Crystal => format!("crystalizer=i={:.1}:c=false", 1.0 + 4.0 * s),
+        // sub-bass synthesis: a generated low octave rides under the mix
+        FxKind::Sub => format!(
+            "asubboost=dry=0.8:wet={:.2}:decay=0.8:cutoff=100:slope=0.5",
+            0.3 + 0.6 * s
+        ),
+        // headphone crossfeed: bleeds each ear slightly into the other so
+        // long listening sessions feel speaker-like instead of hard-panned
+        FxKind::Crossfeed => format!("crossfeed=strength={:.2}:range=0.5", 0.2 + 0.6 * s),
     };
     // --at/--dur: duck the dry feed to 0 inside the window, add the FX in its place.
     // (on ffmpeg 4.4 none of these filters accept a timeline `enable` option)

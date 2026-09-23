@@ -2,7 +2,12 @@
 
 ## [Unreleased]
 
-## [0.216.0] — RSI round 189
+## [0.217.0] — RSI round 190
+
+- `upscale` — up-res old/phone footage: `zscale` spline36 kernel (reconstructs detail better than bilinear/lanczos) + light `unsharp` for edge acuity. `--factor` 1.05-4 (2 doubles width AND height), `--strength` 0-1.
+- `fx --kind sub` — synthesized sub-bass octave under the mix (`asubboost`, wet scaled by strength) — drop/trap low-end weight.
+- `fx --kind crossfeed` — headphone crossfeed: bleeds each ear slightly into the other so long listening feels speaker-like, not hard-panned (L−R difference −11dB measured).
+
 
 - `declip` — clipped/blown-out audio repair via `adeclip`: interpolates flattened peaks back into waveforms (`--window` ms analysis slice, `--threshold` 1-100 clip fraction, `--overlap-save`, `--at`/`--dur` windowed).
 - `reverb --ir` — convolution reverb: convolve against an impulse-response WAV from any IR pack (cathedral/plate/room — real spaces, not synthetic echo taps). `--tail` pads the dry side so the tail rings past the source end (default: the IR's own length).

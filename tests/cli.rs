@@ -20922,3 +20922,118 @@ fn declip_reverb_ir_channel_surround() {
     assert_eq!(v["status"], "ok", "{v}");
     assert_eq!(v["probe"]["channels"], 6, "{v}");
 }
+
+#[test]
+fn upscale_fx_sub_crossfeed() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+
+    // upscale: zscale spline36 doubles the frame, unsharp keeps it crisp
+    let small = dir.path().join("small.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("testsrc=size=160x90:rate=25")
+        .args(["-t", "1"])
+        .arg(&small)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let big = dir.path().join("big.mp4");
+    let v = run_json(&[
+        "upscale",
+        small.to_str().unwrap(),
+        "-o",
+        big.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"], 320, "{v}");
+    assert_eq!(v["probe"]["height"], 180, "{v}");
+
+    // fx sub: asubboost synthesizes a low octave under a 100Hz tone
+    let bass = dir.path().join("bass.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("sine=frequency=100:duration=1")
+        .arg(&bass)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let band_level = |p: &std::path::Path, af: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-af", &format!("{af},volumedetect"), "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find(|l| l.contains("mean_volume"))
+            .and_then(|l| l.split("mean_volume:").nth(1))
+            .and_then(|s| s.trim().trim_end_matches(" dB").parse().ok())
+            .unwrap_or(-91.0)
+    };
+    let sub = dir.path().join("sub.wav");
+    let v = run_json(&[
+        "fx",
+        bass.to_str().unwrap(),
+        "-o",
+        sub.to_str().unwrap(),
+        "--kind",
+        "sub",
+        "--strength",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        band_level(&sub, "lowpass=f=120") > band_level(&bass, "lowpass=f=120") + 2.0,
+        "fx sub should lift the low band: {v}"
+    );
+
+    // fx crossfeed: bleeding each ear into the other shrinks the L-R diff
+    let stereo = dir.path().join("st.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("sine=frequency=440:duration=1")
+        .args(["-f", "lavfi", "-i"])
+        .arg("sine=frequency=880:duration=1")
+        .args([
+            "-filter_complex",
+            "[0:a][1:a]join=inputs=2:channel_layout=stereo",
+        ])
+        .arg(&stereo)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let diff_level = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-af", "pan=mono|c0=c0-c1,volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find(|l| l.contains("mean_volume"))
+            .and_then(|l| l.split("mean_volume:").nth(1))
+            .and_then(|s| s.trim().trim_end_matches(" dB").parse().ok())
+            .unwrap_or(-91.0)
+    };
+    let cf = dir.path().join("cf.wav");
+    let v = run_json(&[
+        "fx",
+        stereo.to_str().unwrap(),
+        "-o",
+        cf.to_str().unwrap(),
+        "--kind",
+        "crossfeed",
+        "--strength",
+        "0.6",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        diff_level(&cf) < diff_level(&stereo) - 3.0,
+        "crossfeed should blend the ears: {v}"
+    );
+}
