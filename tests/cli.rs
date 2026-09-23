@@ -26417,6 +26417,6 @@ fn r228_chromakey_shelf_notch_brickwall_boxblur_ahist() {
             "-o",
             &o.to_string_lossy(),
         ]);
-        assert_eq!(j["status"], "ok");
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
     }
 }
