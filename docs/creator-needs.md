@@ -237,6 +237,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 141)
+- `waveform`/`spectrogram --at a,b,...` — a comma `--at` renders one PNG per window as `<stem>_N.png` (spectrogram slices the audio before each render; waveform crops each rendered strip) and lists them in `extra.outputs`.
+
 ## Shipped this run (round 140)
 - `rotate --at/--dur` — dutch tilt / flip only inside a window (comma `--at` lists several tilts; `--deg` 90° turns error out — they change the canvas mid-clip).
 

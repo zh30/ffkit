@@ -5300,6 +5300,36 @@ fn waveform_renders_a_drawn_png() {
 }
 
 #[test]
+fn waveform_spectrogram_comma_at_render_one_png_each() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    for verb in ["waveform", "spectrogram"] {
+        let png = dir.path().join(format!("{verb}.png"));
+        let v = run_json(&[
+            verb,
+            src.to_str().unwrap(),
+            "-o",
+            png.to_str().unwrap(),
+            "--at",
+            "0.1,0.4",
+            "--dur",
+            "0.2",
+        ]);
+        assert_eq!(v["status"], "ok", "{verb} comma --at: {v}");
+        let one = dir.path().join(format!("{verb}_1.png"));
+        let two = dir.path().join(format!("{verb}_2.png"));
+        assert!(
+            one.exists() && two.exists(),
+            "{verb} must write _1/_2 PNGs: {v}"
+        );
+        let outs = v["extra"]["outputs"].as_array().expect("extra.outputs");
+        assert_eq!(outs.len(), 2, "{verb} lists both PNGs: {v}");
+    }
+}
+
 fn spectrogram_renders_a_drawn_png() {
     if !has_ffmpeg() {
         return;
