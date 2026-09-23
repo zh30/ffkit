@@ -1308,7 +1308,7 @@ pub struct TitleArgs {
     /// Seconds the title stays on screen
     #[arg(long, default_value_t = 1.0)]
     pub duration: f64,
-    /// Show the title at this time instead of the start (h:mm:ss or seconds)
+    /// Show the title at this time instead of the start — comma list flashes it at several marks
     #[arg(long)]
     pub at: Option<String>,
     #[arg(long)]
@@ -1803,7 +1803,7 @@ pub struct MemeArgs {
     /// Classic meme outline thickness in px (0 = off). Black outline, white text.
     #[arg(long, default_value_t = 0)]
     pub outline: u32,
-    /// Show the text only inside this window (h:mm:ss or seconds)
+    /// Show the text only inside this window — comma list for several spots (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)

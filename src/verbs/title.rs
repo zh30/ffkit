@@ -50,14 +50,25 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "title")?;
-    let at = match &args.at {
-        Some(s) => crate::time::resolve_at(s, Some(args.duration), probe.duration)?,
-        None => 0.0,
-    };
-    if at < 0.0 || at >= probe.duration {
-        return Err(Error::input("--at must land inside the input"));
+    // --at takes a comma list: flash the card at several marks.
+    let mut windows = Vec::new();
+    match &args.at {
+        Some(s) => {
+            for part in s.split(',') {
+                let t = crate::time::resolve_at(part.trim(), Some(args.duration), probe.duration)?;
+                if t < 0.0 || t >= probe.duration {
+                    return Err(Error::input("--at must land inside the input"));
+                }
+                windows.push((t, (t + args.duration).min(probe.duration)));
+            }
+        }
+        None => windows.push((0.0, args.duration.min(probe.duration))),
     }
-    let until = (at + args.duration).min(probe.duration);
+    let enable_expr = windows
+        .iter()
+        .map(|(s, e)| format!("between(t,{s:.3},{e:.3})"))
+        .collect::<Vec<_>>()
+        .join("+");
     let font_path = crate::font::resolve(args.font.as_deref().map(Path::new))?;
     let font_bytes = std::fs::read(&font_path)?;
     let vw = probe.width.unwrap_or(1280);
@@ -154,7 +165,9 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     };
-    let fade = args.fade.clamp(0.0, ((until - at) / 2.0).max(0.0));
+    let fade = args
+        .fade
+        .clamp(0.0, ((windows[0].1 - windows[0].0) / 2.0).max(0.0));
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
@@ -166,10 +179,17 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&png);
     let (pre, ovl) = if fade > 0.0 {
         (
-            format!(
-                "[1:v]format=rgba,fade=t=in:st={at:.3}:d={fade:.3}:alpha=1,fade=t=out:st={:.3}:d={fade:.3}:alpha=1[ovl];",
-                until - fade
-            ),
+            {
+                let mut chain = String::from("[1:v]format=rgba");
+                for (s, e) in &windows {
+                    chain.push_str(&format!(
+                        ",fade=t=in:st={s:.3}:d={fade:.3}:alpha=1,fade=t=out:st={:.3}:d={fade:.3}:alpha=1",
+                        e - fade
+                    ));
+                }
+                chain.push_str("[ovl];");
+                chain
+            },
             "ovl",
         )
     } else {
@@ -190,13 +210,13 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
                 format!("t{i}")
             };
             seg.push(format!(
-                "{prev}[{ovl}]overlay=x={fx:.3}*(W-w):y={fy:.3}*(H-h):enable='between(t,{at:.3},{until:.3})'{shortest}[{lab}]"
+                "{prev}[{ovl}]overlay=x={fx:.3}*(W-w):y={fy:.3}*(H-h):enable='{enable_expr}'{shortest}[{lab}]"
             ));
             prev = format!("[{lab}]");
         }
         seg.join(";")
     } else {
-        format!("[0:v][{ovl}]overlay=x={x}:y={y}:enable='between(t,{at:.3},{until:.3})'{shortest}[vout]")
+        format!("[0:v][{ovl}]overlay=x={x}:y={y}:enable='{enable_expr}'{shortest}[vout]")
     };
     let fc = format!("{pre}{fc}");
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
@@ -212,9 +232,9 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     drop(tmp);
     Ok(c.with_extra(json!({
         "text": text,
-        "duration": until,
+        "duration": windows[0].1,
         "position": if args.tile > 0 { format!("tile-{}", args.tile) } else { args.position },
-        "at": at,
+        "at": windows[0].0,
         "font": font_path.display().to_string(),
     })))
 }

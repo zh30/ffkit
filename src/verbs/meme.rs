@@ -26,10 +26,27 @@ pub fn run(args: MemeArgs, g: &Globals) -> Result<Contract, Error> {
 
     let enable = match (&args.at, args.dur) {
         (Some(at), dur) => {
-            let start = crate::time::resolve_at(at, dur, probe.duration)?;
-            match dur {
-                Some(d) => format!(":enable='between(t,{start:.3},{:.3})'", start + d),
-                None => format!(":enable='gte(t,{start:.3})'"),
+            if at.contains(',') && dur.is_none() {
+                return Err(Error::input("a comma list of --at times needs --dur"));
+            }
+            let mut starts = Vec::new();
+            for part in at.split(',') {
+                starts.push(crate::time::resolve_at(part.trim(), dur, probe.duration)?);
+            }
+            if starts.len() == 1 {
+                let start = starts[0];
+                match dur {
+                    Some(d) => format!(":enable='between(t,{start:.3},{:.3})'", start + d),
+                    None => format!(":enable='gte(t,{start:.3})'"),
+                }
+            } else {
+                let d = dur.unwrap();
+                let expr = starts
+                    .iter()
+                    .map(|s| format!("between(t,{s:.3},{:.3})", s + d))
+                    .collect::<Vec<_>>()
+                    .join("+");
+                format!(":enable='{expr}'")
             }
         }
         (None, Some(_)) => return Err(Error::input("--dur needs --at")),

@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 127)
+- `title --at t1,t2 --duration N` — flash the hook card at several marks (per-window alpha fades).
+- `meme --at t1,t2 --dur N` — caption at several spots (needs `--dur`).
+
 ## Shipped this run (round 126)
 - `mute --at t1,t2 --dur N` — comma list silences several coughs/words (OR'd `between` enable; needs `--dur`).
 - `volume --at t1,t2 --dur N` — comma list rides several gain windows.

@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.154.0] — 2026-09-22
+
+### Added
+- `title --at` comma list — flash the same card at several marks.
+- `meme --at` comma list — show the caption at several windows (requires `--dur`).
+
+
 ## [0.153.0] — 2026-09-22
 
 ### Added

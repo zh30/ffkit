@@ -15444,6 +15444,63 @@ fn bleep_comma_list_censors_every_window() {
 }
 
 #[test]
+fn title_and_meme_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("t.mp4").to_str().unwrap(),
+        "--text",
+        "SUB",
+        "--at",
+        "0.1,0.6",
+        "--duration",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("between(t,0.100,0.300)+between(t,0.600,0.800)"),
+        "{cmds}"
+    );
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("m.mp4").to_str().unwrap(),
+        "--top",
+        "HI",
+        "--at",
+        "0.1,0.6",
+        "--dur",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("between(t,0.100,0.300)+between(t,0.600,0.800)"),
+        "{cmds}"
+    );
+}
+
+#[test]
 fn mute_and_volume_comma_windows() {
     if !has_ffmpeg() {
         return;
