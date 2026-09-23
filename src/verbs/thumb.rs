@@ -129,6 +129,57 @@ pub fn run(args: ThumbArgs, g: &Globals) -> Result<Contract, Error> {
         let c = engine::write_job("thumb", &[&args.input], Path::new(&files[0]), vec![argv], g)?;
         return Ok(c.with_extra(json!({ "count": n, "files": files })));
     }
+    // comma --at: one still per timepoint → `<stem>_N.<ext>`
+    if let Some(raw) = &args.at {
+        if raw.split(',').count() > 1 {
+            let mut argv = ffmpeg_base(g.progress);
+            let mut files = Vec::new();
+            for (i, part) in raw.split(',').enumerate() {
+                let secs = crate::time::resolve_frame_at(part.trim(), probe.duration)?;
+                let inp = args.input.display().to_string();
+                argv.extend(["-ss", &fmt_time(secs), "-i", inp.as_str()]);
+                files.push(derive_output(&args.output, i + 1));
+            }
+            for (i, f) in files.iter().enumerate() {
+                argv.extend(["-map", &format!("{i}:v"), "-frames:v", "1"]);
+                if matches!(ext.as_str(), "jpg" | "jpeg") {
+                    argv.extend(["-q:v", "2"]);
+                }
+                if let Some(w) = args.width {
+                    argv.extend(["-vf", &format!("scale={w}:-2")]);
+                }
+                argv.push(f.as_str());
+            }
+            let c = engine::write_job(
+                "thumb",
+                &[&args.input],
+                std::path::Path::new(&files[0]),
+                vec![argv],
+                g,
+            )?;
+            let missing: Vec<_> = files
+                .iter()
+                .skip(1)
+                .filter(|f| !std::path::Path::new(f).exists())
+                .collect();
+            if !missing.is_empty() {
+                return Err(Error::output(format!(
+                    "thumb: expected outputs missing: {}",
+                    missing
+                        .iter()
+                        .map(|f| f.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )));
+            }
+            return Ok(c.with_extra(json!({
+                "at": args.at.clone(),
+                "files": files,
+                "width": probe.width,
+                "height": probe.height,
+            })));
+        }
+    }
     let mut argv = ffmpeg_base(g.progress);
     match (args.at.as_deref(), args.frame) {
         (Some(at), None) => {
@@ -167,4 +218,12 @@ pub fn run(args: ThumbArgs, g: &Globals) -> Result<Contract, Error> {
         "width": probe.width,
         "height": probe.height,
     })))
+}
+
+fn derive_output(base: &std::path::Path, i: usize) -> String {
+    let stem = base.file_stem().and_then(|s| s.to_str()).unwrap_or("thumb");
+    let ext = base.extension().and_then(|e| e.to_str()).unwrap_or("jpg");
+    base.with_file_name(format!("{stem}_{i}.{ext}"))
+        .to_string_lossy()
+        .to_string()
 }

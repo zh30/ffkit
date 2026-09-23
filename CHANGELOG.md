@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.171.0] — 2026-09-22
+
+### Added
+- `thumb --at` comma lists — one still per timepoint (`<stem>_N.<ext>`); input-seeks each point, `--width` rescales all, `extra.files` lists them.
+
 ## [0.168.0] — 2026-09-22
 
 ### Added

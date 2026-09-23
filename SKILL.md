@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.168.0
+version: 0.171.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -93,7 +93,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | two-camera angle switching | `multicam` (`A B --at t1,t2,...` (`end` ok) — run `align` first if the takes aren't synced; `--keep-audio` stays on cam A, `--transition` soft cuts) |
 | reframe 9:16 keeping faces | `crop` (`--aspect 9:16 --anchor top` keeps the face) |
 | attach album cover art | `art` (`--image cover.png`) → mp3/m4a/mp4/mkv, `--extract` pull cover out |
-| grab a cover/thumbnail frame | `thumb` (`--at` / `--frame`, `--count N` even spreads, `--from end-N` tail window) → jpg/png |
+| grab a cover/thumbnail frame | `thumb` (`--at` / `--frame`, comma `--at` = one still per time, `--count N` even spreads, `--from end-N` tail window) → jpg/png |
 | burn an .srt/.ass into pixels | `subs` (`--burn subs.srt` — libass), `--box` plate, `--shadow` depth, `--margin` px, `--rate` drift fix, `--from/--to` cue window, `--safe` social zone; `--convert` srt↔vtt |
 | split into exactly N parts | `split` (`--parts N` — equal-length grid) |
 | title that fades in/out | `title` (`--fade` secs — soft entry/exit, `--box` card) |
