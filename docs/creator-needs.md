@@ -237,6 +237,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 100)
+
+- `subs --burn --from/--to` — temp-srt rewrite keeps only cues overlapping the window: burn just the translated slice of a long take.
+- `caption --from/--to` — same overlap filter on the raster caption path (burn only the hook's captions).
+
 ## Shipped this run (round 99)
 
 - `waveform --bg` — `color=c=…` underlay + overlay composite: opaque card behind the wave (thumbnails/podcast art where transparency renders black).

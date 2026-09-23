@@ -63,6 +63,16 @@ fn burn_overlay(
 ) -> Result<Contract, Error> {
     let raw = std::fs::read_to_string(&args.srt)?;
     let mut cues = srt::parse_srt(&raw)?;
+    if let Some(f) = &args.from {
+        let from = crate::time::parse_time(f)?;
+        let to = match &args.to {
+            Some(t) => crate::time::parse_time(t)?,
+            None => f64::MAX,
+        };
+        cues.retain(|c| c.end > from && c.start < to);
+    } else if args.to.is_some() {
+        return Err(Error::input("caption --to needs --from"));
+    }
     if args.shift != 0.0 {
         for c in cues.iter_mut() {
             c.start = (c.start + args.shift).max(0.0);

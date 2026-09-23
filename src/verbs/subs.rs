@@ -217,25 +217,49 @@ fn burn(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract
             subs.display()
         )));
     }
-    // --case: rewrite the cue text into a temp .srt before burning.
+    // --case/--from/--to: rewrite cues into a temp .srt before burning.
+    let is_srt = subs
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("srt"))
+        .unwrap_or(false);
+    let win_from = match &args.from {
+        Some(t) => Some(crate::time::parse_time(t)?),
+        None => None,
+    };
+    let win_to = match &args.to {
+        Some(t) => Some(crate::time::parse_time(t)?),
+        None => None,
+    };
+    if win_to.is_some() && win_from.is_none() {
+        return Err(Error::input("subs --to needs --from"));
+    }
+    if args.from.is_some() && !is_srt {
+        return Err(Error::input("subs --from/--to filter needs an .srt file"));
+    }
     let cased;
-    let subs = if let Some(case) = args.case.filter(|_| {
-        subs.extension()
-            .and_then(|e| e.to_str())
-            .map(|e| e.eq_ignore_ascii_case("srt"))
-            .unwrap_or(false)
-    }) {
-        let raw = std::fs::read_to_string(subs)
-            .map_err(|e| Error::input(format!("{}: {e}", subs.display())))?;
-        let mut cues = crate::srt::parse_srt(&raw)?;
-        apply_case(&mut cues, case);
-        cased = tempfile::Builder::new()
-            .suffix(".srt")
-            .tempfile()
-            .map_err(|e| Error::output(e.to_string()))?;
-        std::fs::write(cased.path(), crate::srt::to_srt(&cues))
-            .map_err(|e| Error::output(format!("write cased srt: {e}")))?;
-        cased.path().to_path_buf()
+    let subs = if args.case.is_some() || args.from.is_some() {
+        if args.case.is_some() && !is_srt {
+            subs.to_path_buf()
+        } else {
+            let raw = std::fs::read_to_string(subs)
+                .map_err(|e| Error::input(format!("{}: {e}", subs.display())))?;
+            let mut cues = crate::srt::parse_srt(&raw)?;
+            if let Some(case) = args.case {
+                apply_case(&mut cues, case);
+            }
+            if let Some(f) = win_from {
+                let t = win_to.unwrap_or(f64::MAX);
+                cues.retain(|c| c.end > f && c.start < t);
+            }
+            cased = tempfile::Builder::new()
+                .suffix(".srt")
+                .tempfile()
+                .map_err(|e| Error::output(e.to_string()))?;
+            std::fs::write(cased.path(), crate::srt::to_srt(&cues))
+                .map_err(|e| Error::output(format!("write cased srt: {e}")))?;
+            cased.path().to_path_buf()
+        }
     } else {
         subs.to_path_buf()
     };

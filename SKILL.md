@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.126.0
+version: 0.127.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -41,7 +41,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | frame / size | `fit` (`--fit pad` / `crop` / `blur --strength`), `zoom`, `--position` top/bottom/corners |
 
 | export | `deliver`, `transcode` (`--copy-audio`), `compress` (`--size 10MB` two-pass, `--crf` quality one-pass, `--res` downscale), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores`, `--target` platform sizes |
-| captions / mute | `caption` (`--karaoke` word reveal, `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, `--align` line alignment, or `--mode mux`), `--fade` |
+| captions / mute | `caption` (`--karaoke` word reveal, `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, `--align`, `--from/--to` window, or `--mode mux`), `--fade` |
 | hook text | `title` (`--wrap` auto line breaks, `--align` left/right lower-thirds, `--box`/`--outline`/`--shadow`) |
 | dutch-angle tilt | `rotate` (`--angle 15`) |
 | chapters already in the file | `chapter` (`--list`) or `split` (`--chapters`) |
@@ -91,7 +91,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | reframe 9:16 keeping faces | `crop` (`--aspect 9:16 --anchor top` keeps the face) |
 | attach album cover art | `art` (`--image cover.png`) → mp3/m4a/mp4/mkv, `--extract` pull cover out |
 | grab a cover/thumbnail frame | `thumb` (`--at` / `--frame`, `--count N` even spreads) → jpg/png |
-| burn an .srt/.ass into pixels | `subs` (`--burn subs.srt` — libass), `--box` plate, `--shadow` depth, `--rate` drift fix, `--safe` social zone; `--convert` srt↔vtt |
+| burn an .srt/.ass into pixels | `subs` (`--burn subs.srt` — libass), `--box` plate, `--shadow` depth, `--rate` drift fix, `--from/--to` cue window, `--safe` social zone; `--convert` srt↔vtt |
 | split into exactly N parts | `split` (`--parts N` — equal-length grid) |
 | title that fades in/out | `title` (`--fade` secs — soft entry/exit, `--box` card) |
 | dip-to-black at a cut | `fade` (`--dip T --dur N` — half out, half back) |

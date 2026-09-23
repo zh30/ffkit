@@ -103,7 +103,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `extract` | 抓静帧或 `--gif` 动图（`--bounce` 往返循环） | `--at`、`--dur`、`--width`、`--fps` ，`--loop` GIF 循环次数、`--colors` 调色板大小 |
 | `overlay` | logo/画中画；`--tile N` 全屏草稿水印 | logo、水印、画中画 | `--angle`、`--loop` 短视频循环、`--border` 画中画描边
 | `broll` | 切入镜头（`--insert` 视频、`--still` 图片、`--motion kenburns` 推镜） | 切走 B-roll（`--insert --at --duration`）；口播声音和时长不变 ，`--audio` 听插播原声（`--volume` 音量） ，`--position` 画中画角位 + `--scale`，`--border` 描边 |
-| `caption` | 烧录字幕（`--srt`、`--chunk`、`--karaoke`、`--box-color` 底板、`--wrap` 折行） ，`--fade` 淡入淡出 |
+| `caption` | 烧录字幕（`--srt`、`--chunk`、`--karaoke`、`--box-color` 底板、`--wrap` 折行、`--from/--to` 只烧窗口内字幕） ，`--fade` 淡入淡出 |
 | `loudnorm` | EBU R128 两遍响度归一（`--target spotify|podcast|broadcast`）；`--measure` 只测不写；`--dynamic` 逐帧动态增益 |
 | `denoise` | 音频降噪（`--strength`、`--highpass`、`--at/--dur` 窗口） |
 | `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`/`--colors`） | 预设 `h264`/`webm`/`gif`/`hevc`；`--fps` 也可给视频变速帧率 ，`--preset prores` 剪辑交付；`av1` 预设 |
@@ -135,7 +135,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip`、`--angle` 任意角度倾斜 |
 | `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h`；`--at`/`--dur` 只处理窗口（`--soft` 柔化去除） |
 | `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`）+ `--rotate`、`--clear` 显示旋转，无损拷贝 |
-| `subs` | 提取（`--stream`、`--all` 全部）/烧录/封装字幕（`--shift/--merge/--rate`、烧录样式 + `--outline` 描边/`--box` 衬底、`--safe`）；`--convert` .srt↔.vtt 互转；烧录 `--align` 对齐；`--case` 大小写 |
+| `subs` | 提取（`--stream`、`--all` 全部）/烧录/封装字幕（`--shift/--merge/--rate`、烧录样式 + `--outline`/`--box` 衬底/`--align`/`--from`/`--to` 窗口、`--safe`）；`--convert` .srt↔.vtt 互转；`--case` 大小写 |
 | `thumb` | 抓封面帧（`--at`/`--frame`、`--count` 均布 N 张、`--width`）→ jpg/png/webp；`--scenes` 场景切换抓帧 |
 | `solid` | 纯色视频卡（`--color`、`--size`、`--dur`、`--fps` 帧率，可选静音轨）（`--gradient` 渐变、`--noise` 颗粒） |（`--color`/`--gradient` 支持颜色名与十六进制） ，`--text` 卡片文字（`--wrap` 折行、`--align` 对齐） |
 | `replace` | 换音轨（`--mix`、`--duck`、`--fade`、`--loop` 短音源循环、`--at`/`--dur` 局部替换） |

@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.127.0] — 2026-09-22
+
+### Added
+
+- `subs --burn --from/--to` — burn only cues overlapping the time window
+- `caption --from/--to` — same cue-window filter on raster captions
+
 ## [0.126.0] — 2026-09-22
 
 ### Added

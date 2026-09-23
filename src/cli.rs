@@ -556,6 +556,12 @@ pub struct CaptionArgs {
     /// Shift every cue by SEC (negative pulls captions earlier)
     #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
     pub shift: f64,
+    /// Keep only cues overlapping [FROM,TO) — caption just a slice
+    #[arg(long)]
+    pub from: Option<String>,
+    /// Window end (h:mm:ss or seconds; needs --from)
+    #[arg(long)]
+    pub to: Option<String>,
     /// Karaoke-style word-by-word reveal inside each cue (burn only)
     #[arg(long)]
     pub karaoke: bool,
@@ -922,6 +928,12 @@ pub struct SubsArgs {
     /// Push burned captions into the social-safe zone (bigger MarginV)
     #[arg(long)]
     pub safe: bool,
+    /// With --burn: keep only cues overlapping [FROM,TO) — window start
+    #[arg(long)]
+    pub from: Option<String>,
+    /// Window end (h:mm:ss or seconds; needs --from)
+    #[arg(long)]
+    pub to: Option<String>,
     /// Burned subtitle outline width in px (default 1)
     #[arg(long)]
     pub outline: Option<f64>,

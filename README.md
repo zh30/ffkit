@@ -103,7 +103,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `extract` | Still frame or `--gif` clip (`--bounce` palindrome) | `--at`, `--dur`, `--width`, `--fps` , `--loop` GIF repeat count, `--colors` palette size |
 | `overlay` | Image/video overlay; position/scale/`--tile`, `--fade`, `--angle`, `--at`/`--dur`, `--mode`, `--opacity` blend composite, `--loop` repeat short clips | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture; `--border` PiP ring |
 | `broll` | Cutaway insert (`--insert` video, `--still` image, `--motion kenburns`) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay , `--audio` hear the insert (`--volume` its level) , `--position` PiP corner + `--scale`, `--border` ring the insert |
-| `caption` | Burn subtitles (`--srt`, `--chunk`, `--karaoke`, `--box-color` card, `--wrap` folds) , `--fade` soft in/out |
+| `caption` | Burn subtitles (`--srt`, `--chunk`, `--karaoke`, `--box-color` card, `--wrap` folds, `--from/--to` cue window) , `--fade` soft in/out |
 | `loudnorm` | EBU R128 two-pass normalization (`--target spotify|podcast|broadcast`, `-I/--tp/--lra`); `--measure` reports loudness without writing; `--dynamic` per-frame gain |
 | `denoise` | Audio cleanup (`--strength`, `--highpass`, `--at/--dur` window) |
 | `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`/`--colors`) | Presets `h264` / `webm` / `gif` / `hevc`; `--fps` retimes video too , `--preset prores` FCP delivery; `av1` preset |
@@ -135,7 +135,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip`, free `--angle` tilt |
 | `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window (`--soft` removelogo) |
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
-| `subs` | Extract (`--stream`, `--all`)/burn/mux subtitles (`--shift/--merge/--rate`, burn style + `--outline`/`--box` plate/`--align`, `--safe`); `--convert` .srt↔.vtt; `--case` cue text |
+| `subs` | Extract (`--stream`, `--all`)/burn/mux subtitles (`--shift/--merge/--rate`, burn style + `--outline`/`--box` plate/`--align`/`--from`/`--to` window, `--safe`); `--convert` .srt↔.vtt; `--case` cue text |
 | `thumb` | One-frame cover grab (`--at` / `--frame`, `--count` N stills, `--width`) → jpg/png/webp; `--scenes` stills at cuts |
 | `solid` | Solid-color clip card (`--color`, `--size`, `--dur`, `--fps` rate; silent stereo optional) (`--gradient` animated, `--noise` grain) , `--text` end-card text (`--wrap` folds, `--align` lines) |
 | `replace` | Swap the audio track (`--mix`, `--duck`, `--fade`, `--loop` short beds, `--at`/`--dur` window) |

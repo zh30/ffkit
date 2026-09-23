@@ -13689,3 +13689,97 @@ fn broll_pip_border_pads_insert() {
         .join(" ");
     assert!(cmds.contains("pad=iw+8:ih+8:4:4"), "{cmds}");
 }
+
+#[test]
+fn subs_burn_window_filters_cues() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:00,400\nearly\n\n\
+         2\n00:00:00,500 --> 00:00:00,900\nkeep\n\n\
+         3\n00:00:00,950 --> 00:00:01,200\nlate\n",
+    )
+    .unwrap();
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--from",
+        "0.45",
+        "--to",
+        "0.95",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.exists());
+}
+
+#[test]
+fn subs_to_requires_from() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,500\nx\n").unwrap();
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--to",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert!(
+        v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("--to needs --from"),
+        "{v}"
+    );
+}
+
+#[test]
+fn caption_from_to_filters_cues() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:00,400\nearly\n\n\
+         2\n00:00:00,500 --> 00:00:00,900\nkeep\n\n\
+         3\n00:00:00,950 --> 00:00:01,200\nlate\n",
+    )
+    .unwrap();
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--from",
+        "0.45",
+        "--to",
+        "0.95",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["cues"], 1, "only the overlapping cue: {v}");
+}
