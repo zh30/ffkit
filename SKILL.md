@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.161.0
+version: 0.162.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -82,7 +82,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | lift/crush mid-tones | `grade --gamma` |
 | drop the audio track entirely | `mute` (stream-copy video, no re-encode), `--at/--dur` window |
 | elapsed-time corner counter | `timer` (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds), `--down` countdown, `--start` seed the readout |
-| web-embed HLS package | `hls` (`--seg` seconds, `--single` one-file, `--copy` repack) → dir/`index.m3u8` + `seg_*.ts`; `--ladder 1080,720,480` → ABR variant playlists + `master.m3u8`; `--audio-only` podcast HLS; `--fmp4` CMAF `.m4s` segments |
+| web-embed HLS package | `hls` (`--seg` seconds, `--single` one-file, `--copy` repack, `--poster` writes poster.jpg) → dir/`index.m3u8` + `seg_*.ts`; `--ladder 1080,720,480` → ABR variant playlists + `master.m3u8`; `--audio-only` podcast HLS; `--fmp4` CMAF `.m4s` segments |
 | check encode quality loss | `qa` `ref.mp4 test.mp4` → psnr/ssim numbers |
 | normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill) |
 | light-leak / screen-blend overlay | `overlay --video leak.mp4 --mode screen` |
@@ -94,7 +94,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | reframe 9:16 keeping faces | `crop` (`--aspect 9:16 --anchor top` keeps the face) |
 | attach album cover art | `art` (`--image cover.png`) → mp3/m4a/mp4/mkv, `--extract` pull cover out |
 | grab a cover/thumbnail frame | `thumb` (`--at` / `--frame`, `--count N` even spreads, `--from end-N` tail window) → jpg/png |
-| burn an .srt/.ass into pixels | `subs` (`--burn subs.srt` — libass), `--box` plate, `--shadow` depth, `--rate` drift fix, `--from/--to` cue window, `--safe` social zone; `--convert` srt↔vtt |
+| burn an .srt/.ass into pixels | `subs` (`--burn subs.srt` — libass), `--box` plate, `--shadow` depth, `--margin` px, `--rate` drift fix, `--from/--to` cue window, `--safe` social zone; `--convert` srt↔vtt |
 | split into exactly N parts | `split` (`--parts N` — equal-length grid) |
 | title that fades in/out | `title` (`--fade` secs — soft entry/exit, `--box` card) |
 | end-card title / tail-only effect | `<verb> --at end --dur N` — every `--at/--dur` window verb anchors the tail (title, speed, tempo, mix, music, mute, boomerang, zoom, blur, grade, volume, censor, meme, overlay, delogo, eq, reverb, fx, denoise, dehum, leveler, gate, vocal, voice, vdenoise, pitch, progress, waveform/spectrogram, bw/invert/sharpen/vignette). `thumb`/`cover`/`frames --at end` = last frame |

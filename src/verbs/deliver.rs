@@ -21,7 +21,8 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         _ => (1080, 1920),
     };
     let vf = format!(
-        "scale={fw}:{fh}:force_original_aspect_ratio=decrease,pad={fw}:{fh}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30,format=yuv420p"
+        "scale={fw}:{fh}:force_original_aspect_ratio=decrease,pad={fw}:{fh}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps={fps},format=yuv420p",
+        fps = args.fps.unwrap_or(30)
     );
     let platform = platform_name(args.platform);
 
@@ -80,13 +81,25 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             let mut commands = engine::commands_of(&[m]);
             commands.extend(c.commands.clone());
             c.commands = commands;
-            return Ok(finish(c, platform, (fw, fh), measured));
+            return Ok(finish(
+                c,
+                platform,
+                (fw, fh),
+                measured,
+                args.fps.unwrap_or(30),
+            ));
         }
     }
 
     argvs.push(apply);
     let c = engine::write_job("deliver", &[&args.input], &args.output, argvs, g)?;
-    Ok(finish(c, platform, (fw, fh), measured))
+    Ok(finish(
+        c,
+        platform,
+        (fw, fh),
+        measured,
+        args.fps.unwrap_or(30),
+    ))
 }
 
 fn finish(
@@ -94,11 +107,12 @@ fn finish(
     platform: &str,
     frame: (u32, u32),
     measured: Option<serde_json::Value>,
+    fps: u32,
 ) -> Contract {
     c.with_extra(json!({
         "platform": platform,
         "frame": format!("{}x{}", frame.0, frame.1),
-        "fps": 30,
+        "fps": fps,
         "target_i": TARGET_I,
         "target_tp": TARGET_TP,
         "measured": measured,

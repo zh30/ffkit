@@ -15444,6 +15444,69 @@ fn bleep_comma_list_censors_every_window() {
 }
 
 #[test]
+fn deliver_fps_subs_margin_hls_poster() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    // deliver 60fps canvas
+    let v = run_json(&[
+        "deliver",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("d.mp4").to_str().unwrap(),
+        "--platform",
+        "square",
+        "--fps",
+        "60",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter().map(|x| x.as_str().unwrap()))
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("fps=60"), "{cmds}");
+
+    // subs --margin lifts the burned captions
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,800\nHELLO\n").unwrap();
+    let v = run_json(&[
+        "subs",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("s.mp4").to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--margin",
+        "120",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("MarginV=120"), "{cmds}");
+
+    // hls --poster writes a jpg next to the playlist
+    let v = run_json(&[
+        "hls",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("stream").to_str().unwrap(),
+        "--poster",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(dir.path().join("stream/poster.jpg").exists());
+}
+
+#[test]
 fn music_and_silence_comma_windows() {
     if !has_ffmpeg() {
         return;

@@ -841,6 +841,9 @@ pub struct DeliverArgs {
     /// Destination canvas; all map to 1080x1920 / -14 LUFS
     #[arg(long, value_enum, default_value_t = DeliverPlatform::Social)]
     pub platform: DeliverPlatform,
+    /// Output frame rate (default 30; use 60 for gameplay/sport uploads)
+    #[arg(long)]
+    pub fps: Option<u32>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -965,6 +968,9 @@ pub struct SubsArgs {
     /// Push burned captions into the social-safe zone (bigger MarginV)
     #[arg(long)]
     pub safe: bool,
+    /// With --burn: exact MarginV in px (overrides --safe's computed margin)
+    #[arg(long)]
+    pub margin: Option<u32>,
     /// With --burn: keep only cues overlapping [FROM,TO) — window start
     #[arg(long)]
     pub from: Option<String>,
@@ -2108,6 +2114,9 @@ pub struct HlsArgs {
     /// Fragmented MP4 segments (CMAF; plays on Safari/AirPlay, .m4s files)
     #[arg(long)]
     pub fmp4: bool,
+    /// Also write poster.jpg next to the playlist (mid-video frame for the player)
+    #[arg(long)]
+    pub poster: bool,
 }
 
 #[derive(clap::Args, Debug)]

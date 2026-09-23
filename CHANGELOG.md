@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.162.0] — 2026-09-22
+
+### Added
+- `deliver --fps N` — output frame-rate override (60 for gameplay/sport uploads; default stays 30).
+- `subs --burn --margin N` — exact `MarginV` in pixels; overrides `--safe`'s computed safe-zone margin.
+- `hls --poster` — also writes `poster.jpg` (a mid-video frame) next to the playlist, ready to use as the web player's poster frame.
+
 ## [0.161.0] — 2026-09-22
 
 ### Added

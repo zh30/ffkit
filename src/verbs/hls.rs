@@ -244,16 +244,36 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(playlist.display().to_string());
 
+    let poster_path = dir.join("poster.jpg");
+    let mut argvs = vec![argv];
+    if args.poster {
+        if !probe.has_video {
+            return Err(Error::input("--poster needs a video stream"));
+        }
+        let mut pargv = ffmpeg_base(g.progress);
+        pargv.extend(["-ss".to_string(), format!("{:.3}", probe.duration / 2.0)]);
+        pargv.extend(["-i".to_string(), args.input.display().to_string()]);
+        pargv.extend(["-frames:v".to_string(), "1".to_string()]);
+        pargv.extend(["-q:v".to_string(), "3".to_string()]);
+        pargv.push(poster_path.display().to_string());
+        argvs.push(pargv);
+    }
+
     // Outputs are a dir of segments + a playlist — manual contract like split.
-    let commands = engine::commands_of(std::slice::from_ref(&argv));
+    let commands = engine::commands_of(&argvs);
     if g.dry_run {
         return Ok(
             Contract::dry_run("hls", Some(paths::display(&playlist)), Some(probe))
                 .with_commands(commands),
         );
     }
-    if let Err(e) = engine::run_argvs(&[argv], g) {
+    if let Err(e) = engine::run_argvs(&argvs, g) {
         return Ok(Contract::failed("hls", &e).with_commands(commands));
+    }
+    if args.poster && !poster_path.is_file() {
+        return Err(Error::verification(
+            "hls finished but poster.jpg was not written",
+        ));
     }
     let nseg = std::fs::read_dir(&dir)
         .map(|rd| {

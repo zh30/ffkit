@@ -237,6 +237,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 135)
+- `deliver --fps N` — output frame rate override (60 for gameplay/sport uploads; default stays 30).
+- `subs --burn --margin N` — exact `MarginV` in px (overrides `--safe`'s computed zone margin).
+- `hls --poster` — writes `poster.jpg` (mid-video frame) next to the playlist for the web player's poster frame.
+
 ## Shipped this run (round 134)
 - `music --at a,b,...` — multi-entrance bed: per-window wet branches (intro sting + outro sting, `end` ok) amixed into one bed before the duck stage.
 - `silence --at a,b,...` — comma list pads quiet at several points (pause beats between scenes); alternating `atrim`+`anullsrc` concat.

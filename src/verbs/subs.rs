@@ -332,7 +332,9 @@ fn burn(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract
             )))
         }
     };
-    let margin_v = if args.safe {
+    let margin_v = if let Some(m) = args.margin {
+        m
+    } else if args.safe {
         // social-safe zone: keep burned text off the bottom 20% / top 15%
         let probe = engine::probe_or_err(&args.input, g)?;
         let frac = if args.top { 0.15 } else { 0.20 };
