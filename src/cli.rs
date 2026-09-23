@@ -874,6 +874,9 @@ pub struct DeliverArgs {
     /// H.264 quality level (default 20; lower = sharper/larger, 18 visually lossless)
     #[arg(long)]
     pub crf: Option<u32>,
+    /// Burn this .srt/.vtt onto the delivery canvas (captioned Reels in one pass)
+    #[arg(long)]
+    pub subs: Option<PathBuf>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -989,6 +992,9 @@ pub struct SubsArgs {
     /// Shift every cue of an .srt by ±N seconds (input = .srt, output = .srt)
     #[arg(long, allow_hyphen_values = true)]
     pub shift: Option<f64>,
+    /// Decode a subtitle file in this charset (gbk/big5/sjis/latin1...) instead of UTF-8
+    #[arg(long)]
+    pub encoding: Option<String>,
     /// Burned subtitle font size (default 18)
     #[arg(long)]
     pub size: Option<f64>,

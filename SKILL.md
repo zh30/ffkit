@@ -5,6 +5,7 @@ description: Help a user finish a local video or audio job. Chat about the outco
 version: 0.187.0
 
 
+
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -44,6 +45,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 
 | export | `deliver`, `transcode` (`--copy-audio`, `--vbitrate` peak cap, `--abitrate` audio bitrate, `--preset mp3`/`aac`/`wav`/`flac`/`opus` audio-only), `compress` (`--size 10MB` two-pass, `--crf` quality one-pass, `--res` downscale), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores`, `--target` platform sizes |
 | captions / mute | `caption` (`--karaoke` word reveal, `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, `--align`, `--from/--to` window, `--opacity` ghost, or `--mode mux`), `--fade` |
+
 | hook text | `title` (`--wrap` auto line breaks, `--align` left/right lower-thirds, `--box`/`--outline`/`--shadow`) |
 | dutch-angle tilt (full clip or windowed) | `rotate` (`--angle 15`, `--at`/`--dur` window — comma list for several tilts) |
 | chapters already in the file | `chapter` (`--list`) or `split` (`--chapters`) |
@@ -97,7 +99,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | reframe 9:16 keeping faces | `crop` (`--aspect 9:16 --anchor top` keeps the face) |
 | attach album cover art | `art` (`--image cover.png`) → mp3/m4a/mp4/mkv, `--extract` pull cover out |
 | grab a cover/thumbnail frame | `thumb` / `extract` / `cover` (`--at`, comma `--at` = one still per time; `thumb --frame`, `--count N` even spreads, `--from end-N` tail window) → jpg/png — comma `extract --gif --at` = one GIF per beat |
-| burn an .srt/.ass into pixels | `subs` (`--burn subs.srt` — libass), `--box` plate, `--shadow` depth, `--margin` px, `--rate` drift fix, `--from/--to` cue window, `--safe` social zone; `--convert` srt↔vtt ; `--burn-si N` burns embedded track N) |
+| burn an .srt/.ass into pixels | `subs` (`--burn subs.srt` — libass), `--box` plate, `--shadow` depth, `--margin` px, `--rate` drift fix, `--from/--to` cue window, `--safe` social zone; `--convert` srt↔vtt ; `--burn-si N` burns embedded track N; `--encoding gbk` legacy charset) |
 | split into exactly N parts | `split` (`--parts N` — equal-length grid) |
 | title that fades in/out | `title` (`--fade` secs — soft entry/exit, `--box` card) |
 | end-card title / tail-only effect | `<verb> --at end --dur N` — every `--at/--dur` window verb anchors the tail (title, speed, tempo, mix, music, mute, boomerang, zoom, blur, grade, volume, censor, meme, overlay, delogo, eq, reverb, fx, denoise, dehum, leveler, gate, vocal, voice, vdenoise, pitch, progress, waveform/spectrogram, bw/invert/sharpen/vignette). `thumb`/`cover`/`frames --at end` = last frame |
