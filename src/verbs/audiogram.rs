@@ -136,9 +136,11 @@ fn render_clip(
     // shows through. overlay shortest=1 ends [vout] with the waveform: -shortest
     // alone overshoots because the encoder queue keeps the infinite cover
     // going past audio EOF.
-    if (args.scale.is_some() || args.split) && matches!(args.mode, WaveMode::Spectrum) {
+    if (args.scale.is_some() || args.split)
+        && matches!(args.mode, WaveMode::Spectrum | WaveMode::Scope)
+    {
         return Err(Error::input(
-            "--scale/--split apply to waveform modes (not spectrum)",
+            "--scale/--split apply to waveform modes (not spectrum/scope)",
         ));
     }
     let fs = match &args.fscale {
@@ -173,13 +175,22 @@ fn render_clip(
             ),
             "spectrum",
         ),
+        WaveMode::Scope => {
+            let [r, g2, b] = crate::color::rgb(&args.color)?;
+            (
+                format!(
+                    "{awave}avectorscope=s={{ww}}x{{wh}}:r={fps}:draw=line:zoom=2:rc={r}:gc={g2}:bc={b}[wv];"
+                ),
+                "scope",
+            )
+        }
         m => {
             let name = match m {
                 WaveMode::Point => "point",
                 WaveMode::Line => "line",
                 WaveMode::P2p => "p2p",
                 WaveMode::Cline => "cline",
-                WaveMode::Spectrum => unreachable!(),
+                WaveMode::Spectrum | WaveMode::Scope => unreachable!(),
             };
             (
                 {

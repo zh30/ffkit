@@ -665,3 +665,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `trail` — motion trails: `--mode echo` composites a delayed `tmix` smear behind moving subjects (split + setpts delay + overlay; `--frames`/`--at`/`--dur`), `--mode light` holds bright pixels via `lagfun` (`--decay`). Note: `tmix` looks FORWARD — reverse sandwiches do not flip it; the split+delayed-overlay trick produces a true trailing smear.
 - `glitch --strength` — datamosh-style look (`format=rgba,rgbashift=±N,noise=alls=N*4:allf=t+u`).
 - `fade --curve` — afade curve shape for the audio side (tri/qsin/esin/hsin/log/qua/cub/exp); video stays linear.
+
+## Shipped this run (round 164)
+
+- `caption --karaoke --highlight RRGGBB` — sung words painted in the highlight color over the dim full cue (two-layer render: base cue + prefix overlay at tight-crop origin).
+- `audiogram --mode scope` — lissajous vectorscope via `avectorscope=r={fps}:draw=line:zoom=2:rc/gc/bc` (verified on ffmpeg 4.4).
+- `delogo --shape circle` — elliptical logo mask painted into the `--soft` removelogo PNG (circle forces the mask path even without --soft).
