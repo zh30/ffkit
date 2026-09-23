@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ### Added
+- `edge --engine link` — hysteresis edge linking: blurred strong edges grow into the weak map so connected contours survive and specks drop
+- `smooth --engine uspp` — MPEG post-processor deblock+dering for over-compressed rips (`--strength` scales postproc quality)
+- `trail --mode diff` — tblend frame difference: only moving pixels survive, static background fades to black
+- `audiogram --mode monitor` — agraphmonitor filtergraph-stats visualization
+- `grade --wash COLOR` (+ `--wash-amount`) — colorize mood veil that keeps luma
+
+### Added
 - `audiogram --mode spatial` — showspatial stereo-field spectrogram (the field drawn as a moving image over time)
 - `audiogram --mode volume` — showvolume per-channel VU bars (broadcast meter-bridge look)
 - `audiogram --mode bitscope` — abitscope bit-pattern scope (audio bit-depth visualiser)

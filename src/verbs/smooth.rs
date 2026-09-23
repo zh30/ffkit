@@ -34,6 +34,11 @@ pub fn run(args: SmoothArgs, g: &Globals) -> Result<Contract, Error> {
             vec!["inflate".to_string(); (args.strength * 6.0).ceil().clamp(1.0, 3.0) as usize]
                 .join(",")
         }
+        SmoothEngine::Uspp => {
+            // postproc quality 0..8; strength scales the deblock strength
+            let q = (args.strength * 8.0).round() as u32;
+            format!("uspp=quality={q}:qp=4")
+        }
         SmoothEngine::Bilateral => format!(
             "bilateral=sigmaS={:.1}:sigmaR={:.2}:planes=1",
             4.0 + 12.0 * s,

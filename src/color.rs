@@ -27,6 +27,31 @@ const NAMES: &[(&str, &str)] = &[
     ("gold", "ffd700"),
 ];
 
+/// (hue degrees, saturation 0..1) of a user color — for filters that take
+/// HSL parameters (colorize).
+pub fn hsl(input: &str) -> Result<(f64, f64), Error> {
+    let [r, g, b] = rgb(input)?;
+    let (r, g, b) = (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0);
+    let (max, min) = (r.max(g).max(b), r.min(g).min(b));
+    let d = max - min;
+    let sat = if max <= 0.0 { 0.0 } else { d / max };
+    if d <= 0.0 {
+        return Ok((0.0, sat));
+    }
+    let mut h = if max == r {
+        ((g - b) / d) % 6.0
+    } else if max == g {
+        (b - r) / d + 2.0
+    } else {
+        (r - g) / d + 4.0
+    };
+    h *= 60.0;
+    if h < 0.0 {
+        h += 360.0;
+    }
+    Ok((h, sat))
+}
+
 fn is_hex(s: &str) -> bool {
     matches!(s.len(), 3 | 6 | 8) && s.chars().all(|c| c.is_ascii_hexdigit())
 }

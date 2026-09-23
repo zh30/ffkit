@@ -207,6 +207,12 @@ fn render_clip(
             format!("{awave}showspatial=s={{ww}}x{{wh}}[wv];"),
             "spatial",
         ),
+        // inputs fan out freely — [wvin] feeds the monitor while [amap]/0:a
+        // still maps the audio (no asplit needed unlike aphasemeter's pads)
+        WaveMode::Monitor => (
+            format!("{awave}agraphmonitor=s={{ww}}x{{wh}}:m=compact[wv];"),
+            "monitor",
+        ),
         // w is per-channel; stereo needs half the strip each so the pair
         // lands on the {ww}-wide box.
         WaveMode::Volume => (
@@ -244,7 +250,8 @@ fn render_clip(
                 | WaveMode::Phase
                 | WaveMode::Spatial
                 | WaveMode::Volume
-                | WaveMode::Bitscope => unreachable!(),
+                | WaveMode::Bitscope
+                | WaveMode::Monitor => unreachable!(),
             };
             (
                 {

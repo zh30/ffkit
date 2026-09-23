@@ -47,6 +47,24 @@ pub fn run(args: TrailArgs, g: &Globals) -> Result<Contract, Error> {
                 argv.extend(["-c:a", "copy"]);
             }
         }
+        TrailMode::Diff => {
+            let enable = match &args.at {
+                Some(s) => format!(
+                    ":enable='{}'",
+                    crate::time::enable_expr(s, args.dur, probe.duration)?
+                ),
+                None => {
+                    if args.dur.is_some() {
+                        return Err(Error::input("--dur needs --at"));
+                    }
+                    String::new()
+                }
+            };
+            argv.extend(["-vf", &format!("tblend=all_mode=difference{enable}")]);
+            if probe.has_audio {
+                argv.extend(["-c:a", "copy"]);
+            }
+        }
         TrailMode::Light => {
             if args.at.is_some() || args.dur.is_some() {
                 return Err(Error::input("--at/--dur only apply to --mode echo"));
@@ -67,6 +85,7 @@ pub fn run(args: TrailArgs, g: &Globals) -> Result<Contract, Error> {
         "mode": match args.mode {
             TrailMode::Echo => "echo",
             TrailMode::Light => "light",
+            TrailMode::Diff => "diff",
         },
         "frames": args.frames,
         "decay": args.decay,

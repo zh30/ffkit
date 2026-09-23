@@ -74,6 +74,18 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
     ));
     if args.vibrance != 0.0 {
         vf.push_str(&format!(",vibrance=intensity={:.3}", args.vibrance * 2.0));
+        if let Some(wash) = &args.wash {
+            let (hue, sat) = crate::color::hsl(wash)?;
+            let amt = args.wash_amount.clamp(0.0, 1.0);
+            if !(0.0..=1.0).contains(&args.wash_amount) {
+                return Err(Error::input("--wash-amount must be 0..1"));
+            }
+            vf.push_str(&format!(
+                ",colorize=hue={hue:.1}:saturation={:.3}:lightness={:.3}",
+                (sat * amt).min(1.0),
+                amt * 0.2
+            ));
+        }
     }
     if let Some(ev) = args.exposure {
         if !(-3.0..=3.0).contains(&ev) {

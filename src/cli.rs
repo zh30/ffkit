@@ -943,6 +943,8 @@ pub enum WaveMode {
     Volume,
     /// Bit-pattern scope (abitscope) — bit-depth/gauge visualiser
     Bitscope,
+    /// Filtergraph stats monitor (agraphmonitor) — audio pipeline health viz
+    Monitor,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -1137,6 +1139,8 @@ pub struct TrailArgs {
 pub enum TrailMode {
     Echo,
     Light,
+    /// tblend difference — only the moving pixels survive (motion ghost)
+    Diff,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2062,6 +2066,9 @@ pub enum EdgeEngine {
     Kirsch,
     Roberts,
     Prewitt,
+    /// Canny-style linking: weak edges that touch strong ones survive,
+    /// isolated specks drop (hysteresis) — clean connected line art
+    Link,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2845,6 +2852,12 @@ pub struct GradeArgs {
     /// protecting already-saturated skin — safer than --saturation on faces)
     #[arg(long, default_value_t = 0.0, allow_hyphen_values = true)]
     pub vibrance: f64,
+    /// Colour wash over the frame (colorize) — mood veil that keeps luma
+    #[arg(long)]
+    pub wash: Option<String>,
+    /// Wash intensity 0..1 (default 0.5: saturation scales, lightness lifts)
+    #[arg(long, default_value_t = 0.5)]
+    pub wash_amount: f64,
     /// Grade only from this time — dream sequences, flashbacks; comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
@@ -3310,6 +3323,9 @@ pub enum SmoothEngine {
     Deflate,
     /// inflate — morphological: lifts dark valleys up
     Inflate,
+    /// uspp — MPEG post-processor deblock+dering: rescues over-compressed
+    /// rips (re-uploads, low-bitrate sources) without the soft look of blur
+    Uspp,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]

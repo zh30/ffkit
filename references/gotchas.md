@@ -245,3 +245,5 @@ an atempo'd whole-file render would shift the window.
 - `anlms` learns input0→input1 (system ID), NOT "voice in 0, noise in 1" — feed the noise reference as input 0, the noisy mix as input 1, then subtract the estimate; feeding voice/ref directly cancels the voice too (measured −37dB on the tone).
 - Multiple `-af` flags don't chain (last wins) — join filters with commas in one `-af`.
 - `showcwt` is missing on ffmpeg 4.4 (audiogram wavelet mode deferred); `scharr` also missing.
+- `signalstats` reports nothing on stderr — pair it with `metadata=print` (or `file=-`) to read YAVG/SATAVG etc.
+- Leaf labels in a filter_complex DO count as consumed when `-map`ped; but a label consumed only inside the graph and never mapped OR fed onward is "unconnected" — every output pad must reach either a filter input or a `-map`.

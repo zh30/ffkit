@@ -23723,6 +23723,126 @@ fn audiogram_meter_modes_scan_blur() {
 }
 
 #[test]
+fn edge_link_smooth_uspp_trail_diff_monitor_wash() {
+    if !has_ffmpeg()
+        || !has_filter("hysteresis")
+        || !has_filter("uspp")
+        || !has_filter("tblend")
+        || !has_filter("agraphmonitor")
+        || !has_filter("colorize")
+    {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+
+    // edge --engine link: hysteresis connects contours (still an edge map)
+    let o = dir.path().join("el.mp4");
+    let v = run_json(&[
+        "edge",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--engine",
+        "link",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["engine"], "link", "{v}");
+
+    // smooth --engine uspp: postproc deblock runs end to end
+    let o = dir.path().join("sm.mp4");
+    let v = run_json(&[
+        "smooth",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--engine",
+        "uspp",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+
+    // trail --mode diff: tblend difference — static source → near-black out
+    let o = dir.path().join("td.mp4");
+    let v = run_json(&[
+        "trail",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--mode",
+        "diff",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let luma = |p: &std::path::Path| -> f64 {
+        let out = Command::new("ffmpeg")
+            .args(["-hide_banner", "-i"])
+            .arg(p)
+            .args([
+                "-vf",
+                "signalstats,metadata=print:file=-",
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let log = format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stderr),
+            String::from_utf8_lossy(&out.stdout)
+        );
+        let mut sum = 0.0f64;
+        let mut n = 0usize;
+        for line in log.lines() {
+            if let Some(rest) = line.split("YAVG=").nth(1) {
+                if let Ok(v) = rest.trim().split(' ').next().unwrap_or("").parse::<f64>() {
+                    sum += v;
+                    n += 1;
+                }
+            }
+        }
+        if n == 0 {
+            -1.0
+        } else {
+            sum / n as f64
+        }
+    };
+    let d = luma(&o);
+    assert!(
+        (0.0..60.0).contains(&d),
+        "diff trail darkens static frames {d}"
+    );
+
+    // audiogram --mode monitor renders
+    let o = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--mode",
+        "monitor",
+        "--at",
+        "0",
+        "--dur",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["mode"], "monitor", "{v}");
+
+    // grade --wash: colorize veil shifts hue while keeping luma shape
+    let o = dir.path().join("gw.mp4");
+    let v = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--wash",
+        "teal",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
 fn legalize_levels_aberrate() {
     if !has_ffmpeg() || !has_filter("limiter") || !has_filter("colorlevels") {
         return;

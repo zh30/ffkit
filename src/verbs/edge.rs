@@ -13,6 +13,7 @@ pub fn run(args: EdgeArgs, g: &Globals) -> Result<Contract, Error> {
     };
     let kernel = args.engine.and_then(|e| match e {
         crate::cli::EdgeEngine::Edgedetect => None,
+        crate::cli::EdgeEngine::Link => Some("link"),
         crate::cli::EdgeEngine::Sobel => Some("sobel"),
         crate::cli::EdgeEngine::Kirsch => Some("kirsch"),
         crate::cli::EdgeEngine::Roberts => Some("roberts"),
@@ -36,13 +37,24 @@ pub fn run(args: EdgeArgs, g: &Globals) -> Result<Contract, Error> {
     let vf = match kernel {
         // classic convolution kernels: bright edges on black, no thresholds —
         // cruder and crunchier than the Canny-style edgedetect path
-        Some(k) => format!("{k}=planes=15{en}"),
+        Some(k) if k != "link" => format!("{k}=planes=15{en}"),
         None => format!(
             "edgedetect=mode={mode}:low={:.3}:high={:.3}{en}",
             args.low, args.high
         ),
+        _ => String::new(),
     };
-    argv.extend(["-vf", &vf]);
+    if kernel == Some("link") {
+        // hysteresis grows dilated strong edges into the weak map: connected
+        // contours survive, isolated specks die — labelled fc (vf can't split)
+        let fc = format!(
+            "[0:v]edgedetect=mode={mode}:low={:.3}:high={:.3},split[w][s];[w]gblur=sigma=2[d];[d][s]hysteresis[v]",
+            args.low, args.high
+        );
+        argv.extend(["-filter_complex", &fc, "-map", "[v]", "-map", "0:a?"]);
+    } else {
+        argv.extend(["-vf", &vf]);
+    }
     argv.extend([
         "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
     ]);
