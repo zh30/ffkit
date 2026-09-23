@@ -71,6 +71,9 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
             16.0 - 12.0 * s,
             1.0 + 8.0 * s
         ),
+        // afreqshift: slides every partial by a fixed Hz — metallic alien /
+        // robot voice (unlike pitch-shift the harmonic spacing warps)
+        FxKind::Fshift => format!("afreqshift=shift={:.0}:level=1", 50.0 + 1950.0 * s),
     };
     // --at/--dur: duck the dry feed to 0 inside the window, add the FX in its place.
     // (on ffmpeg 4.4 none of these filters accept a timeline `enable` option)

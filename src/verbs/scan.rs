@@ -20,7 +20,7 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     // log where we count flash-flagged frames (badness > 0)
     let scdet_leg = if args.scenes { ",scdet=t=8" } else { "" };
     let vf = format!(
-        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,idet,signalstats,entropy=mode=diff{scdet_leg},metadata=print:file=-"
+        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,idet,signalstats,entropy=mode=diff,bitplanenoise{scdet_leg},metadata=print:file=-"
     );
     let mut argv = Argv::ffmpeg();
     argv.push("-i");
@@ -46,6 +46,7 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     let mut luma_min = f64::MAX;
     let mut luma_max = f64::MIN;
     let mut scene_cuts: Vec<f64> = Vec::new();
+    let mut noise_vals: Vec<f64> = Vec::new();
     for line in log.lines() {
         if let Some(rest) = line.split("black_start:").nth(1) {
             let s = rest
@@ -90,6 +91,19 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(rest) = line.split("normalized_entropy.diff.Y=").nth(1) {
             if let Ok(v) = rest.trim().split(' ').next().unwrap_or("").parse::<f64>() {
                 entropy_vals.push(v);
+            }
+        }
+        // bitplanenoise LSB occupancy per plane: ~0.98+ on grainy/noisy
+        // footage, ~0.3-0.5 on clean — the compression-prep "will this
+        // devour bitrate" signal
+        if let Some(eq) = line.find("lavfi.bitplanenoise.") {
+            if let Some(v) = line[eq..]
+                .split('=')
+                .nth(1)
+                .and_then(|s| s.trim().split(' ').next())
+                .and_then(|s| s.parse::<f64>().ok())
+            {
+                noise_vals.push(v);
             }
         }
         if line.contains("pblack:") {
@@ -261,5 +275,14 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         "blur_frames": blur_frames,
         "blur_mean": blur_mean,
         "blur_min": blur_min,
+        // noise-floor QC: mean lowest-bit-plane occupancy across frames/planes
+        // — >~0.8 means real sensor noise/grain (budget bitrate accordingly)
+        "noise_floor": if noise_vals.is_empty() {
+            None
+        } else {
+            Some((noise_vals.iter().sum::<f64>() / noise_vals.len() as f64 * 1000.0).round() / 1000.0)
+        },
+        "noisy": !noise_vals.is_empty()
+            && noise_vals.iter().sum::<f64>() / noise_vals.len() as f64 > 0.8,
     })))
 }

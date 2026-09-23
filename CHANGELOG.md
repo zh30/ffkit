@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.248.0] — 2026-09-23
+
+### Added
+
+- `fx --kind fshift` — `afreqshift` frequency shifter: metallic
+  alien/robot voice; `--strength` sweeps the shift 50→2000Hz.
+- `deinterlace --engine phase` — field-order swap for captures whose
+  parity is wrong (jerky pans that no real deinterlacer fixes).
+- `gen --pattern sweep` — speaker-test chirp: linear 20Hz→`--freq`
+  sweep bed (`aevalsrc`), goes through the audio-only output path.
+- `leveler --engine limit` — `alimiter` lookahead brickwall ceiling:
+  `--threshold` is the ceiling dB, `--makeup` pushes into it.
+- `channel --mode bal --pan -1..1` — `stereotools` balance correction
+  for lopsided stereo (tape drift, mismatched mics).
+- `scan` — bitplanenoise leg adds `noise_floor`/`noisy` extras:
+  LSB-plane occupancy flags grainy sources that devour bitrate.
+
 ## [0.247.0] — 2026-09-23
 
 ### Added

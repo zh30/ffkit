@@ -69,20 +69,31 @@ pub fn run(args: GenArgs, g: &Globals) -> Result<Contract, Error> {
             }
             s
         }
-        "noise" | "tone" => String::new(),
+        "noise" | "tone" | "sweep" => String::new(),
         _ => {
             return Err(Error::input(
-                "--pattern: mandelbrot | gradients | life | sierpinski | noise | tone",
+                "--pattern: mandelbrot | gradients | life | sierpinski | noise | tone | sweep",
             ))
         }
     };
-    if matches!(args.pattern.as_str(), "noise" | "tone") {
-        // audio-only beds: pink noise (roomtone/dither bed) or a sine tone
-        let audio_src = if args.pattern == "tone" {
-            let f = args.freq.unwrap_or(440.0).clamp(20.0, 20000.0);
-            format!("sine=frequency={f}:sample_rate=44100")
-        } else {
-            "anoisesrc=color=pink:sample_rate=44100".to_string()
+    if matches!(args.pattern.as_str(), "noise" | "tone" | "sweep") {
+        // audio-only beds: pink noise (roomtone/dither bed), a sine tone,
+        // or a linear chirp sweeping 20Hz up to --freq (speaker/driver test)
+        let audio_src = match args.pattern.as_str() {
+            "tone" => {
+                let f = args.freq.unwrap_or(440.0).clamp(20.0, 20000.0);
+                format!("sine=frequency={f}:sample_rate=44100")
+            }
+            "sweep" => {
+                let f1 = args.freq.unwrap_or(16000.0).clamp(100.0, 20000.0);
+                // linear chirp: instantaneous freq f0+k*t reaches f1 at t=dur
+                let k = (f1 - 20.0) / (2.0 * args.dur);
+                format!(
+                    "aevalsrc='sin(2*PI*(20*t+{k:.4}*t*t))':s=44100:d={:.3}",
+                    args.dur
+                )
+            }
+            _ => "anoisesrc=color=pink:sample_rate=44100".to_string(),
         };
         let mut argv = ffmpeg_base(g.progress);
         argv.extend([

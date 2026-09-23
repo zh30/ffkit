@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.247.0
+version: 0.248.0
 
 
 
@@ -69,7 +69,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | watch loudness while it plays | `meter` (`--size`, `--meter 9|18`, `--at/--dur` — EBU R128 video; podcast/voice QC) |
 | mains hum / electrical buzz | `dehum` (`--at`/`--dur` window, `--mains 50|60` or `--freq HZ` custom hum, `--harmonics`) — notches the fundamental + harmonics |
 | faster/slower podcast | `tempo` (`--factor 1.5` — pitch held; video inputs: use `speed`), `--at/--dur` window |
-| voice all over the place | `leveler` (`--at`/`--dur` window, `--threshold`/`--ratio`/`--makeup` — `acompressor`; `--engine speechnorm` lifts quiet speech too) |
+| voice all over the place | `leveler` (`--at`/`--dur` window, `--threshold`/`--ratio`/`--makeup` — `acompressor`; `--engine speechnorm` lifts quiet speech too, `--engine limit` alimiter brickwall ceiling) |
 | hiss between sentences | `gate` (`--threshold`, `--preset`, `--at/--dur` — `agate` closes on quiet parts) |
 | pad in room tone / breath | `silence` (`--at`, comma list pads several points, `--dur` inserts quiet; `--detect` reports ranges; video holds: `freeze`) |
 | one-click look | `grade --preset cinematic|vivid|vintage|soft|sepia|teal|noir|bleach|neon` (stacks under the sliders) |
@@ -80,7 +80,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline`, `--at/--dur` window — `--at end` covers the tail), `--position` center/bottom, `--wrap` + `--align` multiline, `--fade` edge fades (needs --at/--dur), `--opacity` ghost text |
 | fix my podcast voice | `voice` — one-shot chain: gate hiss → compress swings → loudnorm `--lufs` (default −16); `--at`/`--dur` windows it |
 | slideshow that runs exactly N seconds | `slideshow` (`--dur` spreads the runtime across the stills, `--bg` letterbox color) |
-| old interlaced footage | `deinterlace` (`--mode field` doubles the rate, `frame` same rate, `--parity` field order, `--engine` yadif/bwdif/estdif/kerndeint/w3fdif/mcdeint/fieldmatch/detelecine/`separate`) |
+| old interlaced footage | `deinterlace` (`--mode field` doubles the rate, `frame` same rate, `--parity` field order, `--engine` yadif/bwdif/estdif/kerndeint/w3fdif/mcdeint/fieldmatch/detelecine/`separate`/`pullup`/`phase` field reorder) |
 | fade to white | `fade --color white` (`--in`/`--out` seconds as usual) |
 | blend two audio files | `crossfade` (`--second`, `--dur` overlap — acrossfade) |
 | strip location/device tags | `strip` — drops all container metadata + chapters, stream copy |
@@ -178,6 +178,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | pullup judder wobble | `dejudder` (`--cycle 4` for 3:2 telecine) |
 | texture smooth, no blur | `smooth --engine deflate|inflate` (morphological — pores/texture, zero halo) |
 | mono-collapse check | `scan` `phase_corr` extra: ~-1 = channels cancel on mono speakers |
+| grain/noise budget check | `scan` `noise_floor`/`noisy` extras (bitplanenoise LSB occupancy — noisy sources devour bitrate) |
 | keyed edge still green | `despill` (`--type green|blue`, `--mix`, `--expand` — recolour fringe, no keying) |
 | clean 3:2 cadence | `deinterlace --engine detelecine` (deterministic inverse telecine; fieldmatch still picks its own) |
 | butter-smooth 60fps | `interp` (`--fps 60`; `--slow 0.5` = smooth slow-mo from normal footage — motion-compensated in-betweens) |
@@ -220,7 +221,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | VHS stutter | `glitch --engine stutter` (shuffleframes frame-drop jitter) |
 | 1D LUT support | `grade --lut curve.cube` (1D LUTs auto-route to lut1d — lut3d rejects them) |
 | hard flicker kill | `deflicker --engine tmide` (temporal midway equalization for timelapse/strobe) |
-| audio beds | `gen --pattern noise|tone --dur 30 -o bed.m4a` (pink-noise roomtone, sine reference tone) |
+| audio beds | `gen --pattern noise|tone|sweep --dur 30 -o bed.m4a` (pink-noise roomtone, sine reference tone, 20Hz→`--freq` speaker-test chirp) |
 | chroma-swap look | `glitch --engine swapuv` (U/V flip — magenta↔green) |
 | edit-point map | `scan --scenes` (scene_cuts timestamps via scdet — QC pass doubles as a cut list) |
 | 3D format convert | `stereo` `--in sbsl --out arcd` (stereo3d: SBS→anaglyph preview, interleaved for 3D displays) |
@@ -285,7 +286,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | short overlay clip repeats | `overlay` (`--loop` — covers the base) |
 | waveform showing quiet detail | `waveform` (`--scale log`) |
 | split on longer pauses | `split` (`--silence --min-silence`) |
-| wobble/sci-fi/echo/lofi/telephone voice | `fx` (`--kind` 19 effects, incl. `saturate` warmth, `excite` air, `crush` bitcrusher, `ringmod` true AM robot) |
+| wobble/sci-fi/echo/lofi/telephone voice | `fx` (`--kind` 20 effects, incl. `saturate` warmth, `excite` air, `crush` bitcrusher, `ringmod` true AM robot, `fshift` metallic alien) |
 | effect only in the drop | `fx` (`--at`/`--dur`) |
 | boomerang that loops 3x | `boomerang` (`--times`), `--at/--dur` window |
 | H.265 for Apple / smaller archive | `transcode` (`--preset hevc`) |
@@ -332,7 +333,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | fix a color cast / white balance | `wb` (auto per-channel normalization; `--strength`, `--independence 0` keeps grade, `--smooth` frames) |
 | QC a clip for strobes before posting | `scan` — also reports `flash_frames`/`flash_max_badness` (photosensitive-epilepsy check) |
 | stereo too wide / phase issues | `channel` `--mode base --pan -1..1` (-1 folds to mono, +1 widens) |
-| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `split` → `_L/_R.wav` host/guest stems, `mid`/`side` M/S extract, `haas` stereo widening, `surround` stereo→5.1 upmix) |
+| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `bal --pan -1..1` rebalance lopsided stereo, `split` → `_L/_R.wav` host/guest stems, `mid`/`side` M/S extract, `haas` stereo widening, `surround` stereo→5.1 upmix) |
 | loop to a length | `loop --until SEC` |
 | text draft watermark | `title --tile N` |
 | audio EQ polish | `eq` (`--bass`/`--treble`/`--presence` dB) |

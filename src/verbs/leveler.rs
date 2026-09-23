@@ -45,6 +45,13 @@ pub fn run(args: LevelerArgs, g: &Globals) -> Result<Contract, Error> {
             "mcompand='0.005,0.1 6 -60/{q},-25/-18,-8/-4 300 |              0.005,0.1 6 -60/{q},-25/-18,-8/-4 3000 |              0.005,0.1 6 -60/{q},-25/-18,-8/-4 22000'",
             q = (pt - 20.0).round() as i32
         ),
+        // alimiter: lookahead brickwall — --threshold is the ceiling in dB,
+        // --makeup becomes input drive; level=false so the ceiling holds
+        crate::cli::LevelerEngine::Limit => format!(
+            "alimiter=level_in={:.3}:level_out=1:limit={:.3}:attack={pa}:release={prel}:level=false",
+            10f64.powf(pm / 20.0),
+            10f64.powf(pt / 20.0).clamp(0.05, 1.0)
+        ),
     };
     let fc = match &args.at {
         Some(raw) => Some(engine::audio_window_for(

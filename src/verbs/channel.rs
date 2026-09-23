@@ -102,6 +102,13 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
         // stereotools stereo base: -1 folds toward mono (fixes over-wide
         // recordings / stereo-phase issues), +1 exaggerates width
         ChannelMode::Ms => "stereotools=mode=ms>lr".to_string(),
+        // balance correction: stereotools balance_in attenuates the hot side —
+        // --pan -1 (fix left-heavy) .. 1 (fix right-heavy). Verified: pan +0.5
+        // drops the left channel ~6dB, swinging the image right
+        ChannelMode::Bal => {
+            let b = args.pan.unwrap_or(0.0).clamp(-1.0, 1.0);
+            format!("stereotools=balance_in={b:.3}")
+        }
         ChannelMode::Base => {
             let p = args.pan.unwrap_or(0.5);
             if !(-1.0..=1.0).contains(&p) {

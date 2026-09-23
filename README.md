@@ -134,10 +134,10 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window, comma list); `--formant` keeps the voice timbre (librubberband) |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel --mode ms` | Decode mid/side-recorded stereo back to L/R (stereotools ms>lr) |
-| `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51|pan|widen|split|ambience|mid|side|haas|surround|base` (stereo→`_L/_R.wav` stems, M/S extract, haas widening, stereo→5.1 upmix); `--pan -1..1` pan / `base` stereo base (-1 mono fold, +1 wide) |
+| `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51|pan|widen|split|ambience|mid|side|haas|surround|base|bal` (stereo→`_L/_R.wav` stems, M/S extract, haas widening, stereo→5.1 upmix); `--pan -1..1` pan / `bal` rebalance lopsided stereo / `base` stereo base (-1 mono fold, +1 wide) |
 | `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--curve` freehand F,G;F,G line (firequalizer), `--graphic` 18-band classic EQ, `--tilt` warm↔bright; `end` ok, comma list = several windows |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window); `end` ok, comma list = several windows. `--ir file.wav` = convolution reverb from impulse-response packs (cathedral/plate), `--tail` rings past the end |
-| `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio/saturate/excite/bass/muffled/crystal/sub/crossfeed/autopan (`--kind`, `--strength`, `--at`/`--dur`); `end` ok, comma list = several windows | `--kind ringmod` TRUE ring modulation (amultiply + sine carrier, `--strength` sweeps 25-500Hz) | `--kind crush` bitcrusher (bits+sample-rate destruction) |
+| `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio/saturate/excite/bass/muffled/crystal/sub/crossfeed/autopan (`--kind`, `--strength`, `--at`/`--dur`); `end` ok, comma list = several windows | `--kind ringmod` TRUE ring modulation (amultiply + sine carrier, `--strength` sweeps 25-500Hz) | `--kind crush` bitcrusher (bits+sample-rate destruction) | `--kind fshift` frequency shifter (metallic alien voice, 50→2000Hz) |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip`, free `--angle` tilt, `--at`/`--dur` windowed tilt (comma list) |
 | `delogo` | Blend out a burned-in logo box: `--x --y --w --h` or `--regions x:y:w:h,...` for several spots; `--at`/`--dur` for a window, `--at end` the tail (`--soft` removelogo, `--shape circle` elliptical mask) | `--image mask.png` drawn-mask removal |
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
@@ -196,14 +196,14 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `dedup` | Drops near-duplicate frames via `mpdecimate` — shrinks static stretches, `--frac` sensitivity |
 | `audiogram --mode cqt` | Constant-Q music spectrum (`showcqt`) — piano-roll spectrum look for music clips |
 | `audiogram --mode spectro` | Scrolling spectrogram (`showspectrum`) — colour time/frequency roll |
-| `scan` | QC report: black stretches, frozen frames, black-frame hits + strobe `flash_frames`/`flash_max_badness` + interlace verdict (idet) + stereo `phase_corr` (~-1 = mono-collapse) — JSON extras; writes no media , audio peak/mean dB (`audio_max_db`, `audio_mean_db`) | +blur QC | `--scenes` scene-cut timestamps | `luma_min/max` + `illegal_luma` (signalstats broadcast-range QC) |
+| `scan` | QC report: black stretches, frozen frames, black-frame hits + strobe `flash_frames`/`flash_max_badness` + interlace verdict (idet) + stereo `phase_corr` (~-1 = mono-collapse) — JSON extras; writes no media , audio peak/mean dB (`audio_max_db`, `audio_mean_db`) | +blur QC | `--scenes` scene-cut timestamps | `luma_min/max` + `illegal_luma` (signalstats broadcast-range QC) | `noise_floor`/`noisy` bit-plane noise budget QC |
 | `smooth` | Edge-preserving beauty/skin blur (`--engine` smartblur/bilateral; `--strength`, `--at`/`--dur`) | `--engine uspp` postproc deblock | `--engine pp7` light postproc | `--engine yaep` edge-preserving | `--engine spp/fspp` light deblock |
 | `upscale` | Up-res footage: `zscale` spline36 (better than lanczos) + light unsharp, `--factor` 1.05-4 (2 doubles dims), `--strength` edge acuity | `--engine spline|xbr|two-xsai` (pixel-art integer scalers) | `--engine hqx` hq2x/3x/4x pixel-art scaler |
 | `v360` | Reframe 360 footage to flat (`--in` equirect/fisheye/dfisheye/cubemap/EAC/barrel/half-equirect, `--yaw`/`--pitch`/`--fov`, `--size`) |
 | `perspective` | Deskew a filmed screen/whiteboard: `--points x0,y0,x1,y1,x2,y2,x3,y3` (TL,TR,BL,BR quad in source, px), `--interp linear|cubic` |
 | `wb` | Auto white balance / cast removal: `--strength` 0..1, `--independence` 0 keeps the grade (contrast only), `--smooth` temporal frames, `--at`/`--dur` window |
 | `shear` | Italic-style picture slant: `--x`/`--y` shear factors -2..2, `--fill` edge color, `--interp nearest|bilinear`, `--at`/`--dur` window |
-| `gen` | Generative animated backgrounds from lavfi sources (no input): `--pattern mandelbrot` (endless zoom) `|gradients` (drifting palette — `--colors` up to 8, `--seed`, `--speed`) `|life` (cellular automaton, `--rule`) `|sierpinski` (fractal), `--size`/`--fps`/`--dur` | `--pattern noise|tone` audio beds |
+| `gen` | Generative animated backgrounds from lavfi sources (no input): `--pattern mandelbrot` (endless zoom) `|gradients` (drifting palette — `--colors` up to 8, `--seed`, `--speed`) `|life` (cellular automaton, `--rule`) `|sierpinski` (fractal), `--size`/`--fps`/`--dur` | `--pattern noise|tone` audio beds | `--pattern sweep` 20Hz→`--freq` speaker-test chirp |
 | `sharpen --engine cas` | Contrast-adaptive sharpening — crisper edges without unsharp halos, `--amount` |
 | `equalize` | Auto-contrast via `histeq` for flat/washed footage, `--strength`/`--intensity`/`--at` window |
 | `pick` | Dominant-color report at a timestamp: mean hex + 3x2 zone swatches (JSON only) |
@@ -232,14 +232,14 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `dehum` | Notch out mains hum (`--mains 50|60` or `--freq HZ` custom, `--harmonics`, `--at/--dur`, `end` ok, comma list = several windows) |
 | `tempo` | Speed audio `--factor` 0.5–8, pitch held (`atempo` chain; use `speed` for video) , `--at/--dur` retempo just a window — comma list ok; `end` ok |
 | `leveler --engine mcompand` | Multiband compression preset — lifts quiet speech, caps peaks across rumble/body/air bands |
-| `leveler` | Compress dynamics (`--preset`, `--engine speechnorm` adaptive speech normalize, `--at/--dur` window); `end` ok, comma list = several windows |
+| `leveler` | Compress dynamics (`--preset`, `--engine speechnorm` adaptive speech normalize, `--engine limit` alimiter brickwall ceiling, `--at/--dur` window); `end` ok, comma list = several windows |
 | `gate` | Noise gate — silence below `--threshold` dB (`agate`) (`--preset voice|podcast|studio`, `--at/--dur` window); `end` ok, comma list = several windows |
 | `silence` | Insert `--dur` secs of silence at `--at` (comma list pads several points) or `--end`; `--detect` reports silence ranges as JSON |
 | `vocal` | Remove/isolate center vocals (`--mode`, `--at/--dur` window, `--amount` strength); `end` ok, comma list = several windows |
 | `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov); `--audio` rips the track, `--video` video-only repack, `--aspect 16:9` display-AR fix |
 | `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window — comma list for several spots; `--at end` tail) , `--position` text block top/center/bottom; `--wrap` folds, `--align` line alignment, `--fade` edge fades with --at/--dur, `--opacity` ghost text |
 | `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`, `--at`/`--dur` window, `end` ok, comma list = several windows) |
-| `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order, `--engine` yadif/bwdif/estdif/kerndeint) ，`--engine` 含 `detelecine`（确定节奏反电视电影）、`mcdeint`（运动补偿）| `--engine w3fdif` Weston 3-field | `--engine separate` 50i→50p field-per-frame (smooth slow-mo source) | `--engine pullup` IVTC telecine reversal |
+| `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order, `--engine` yadif/bwdif/estdif/kerndeint) ，`--engine` 含 `detelecine`（确定节奏反电视电影）、`mcdeint`（运动补偿）| `--engine w3fdif` Weston 3-field | `--engine separate` 50i→50p field-per-frame (smooth slow-mo source) | `--engine pullup` IVTC telecine reversal | `--engine phase` field-order swap (wrong-parity captures) |
 | `dedust` | Remove dust specks / hot pixels: `--size` 1-4, bright specks by default, `--dark` for dark ones; morphology (erosion/dilation), not a blur | `--at`/`--dur` |
 | `extend` | Stretch edge pixels to fill border strips: `--left/--right/--top/--bottom` px, `--mode smear|mirror|fixed|reflect|wrap|fade` | - |
 | `tonemap` | HDR → SDR: zscale → linear light → tonemap curve → bt709 (`--algo hable|reinhard|gamma|clip|linear`, `--peak` nits) | - |

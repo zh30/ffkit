@@ -55,6 +55,16 @@ pub fn run(args: DeinterlaceArgs, g: &Globals) -> Result<Contract, Error> {
             };
             format!("detelecine=pattern=23:first_field={field}")
         }
+        // phase: shift field order — fixes captures whose parity is wrong
+        // (jumpy interlaced playback) without deinterlacing
+        crate::cli::DeintEngine::Phase => {
+            let ph = match args.parity {
+                crate::cli::FieldParity::Tff => "t",
+                crate::cli::FieldParity::Bff => "b",
+                _ => "a",
+            };
+            format!("phase={ph}")
+        }
     };
     argv.extend(["-vf", &vf]);
     if probe.has_audio {

@@ -2148,7 +2148,7 @@ pub struct GenArgs {
     /// -o target (e.g. bg.mp4) — generative sources take no input file
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Pattern: mandelbrot | gradients | life (cellular automaton) | sierpinski | noise | tone (audio beds)
+    /// Pattern: mandelbrot | gradients | life (cellular automaton) | sierpinski | noise | tone | sweep (audio beds / speaker-test chirp)
     #[arg(long, default_value = "gradients")]
     pub pattern: String,
     /// Frame size WxH
@@ -3132,7 +3132,7 @@ pub struct ChannelArgs {
     /// With --mode invert: which side flips polarity: left|right|both (default both)
     #[arg(long)]
     pub side: Option<String>,
-    /// With --mode pan: stereo position -1 (full left) .. 1 (full right)
+    /// With --mode pan/bal: stereo position -1 (full left) .. 1 (full right)
     #[arg(long, allow_hyphen_values = true)]
     pub pan: Option<f64>,
     /// With --mode ambience: side-channel keep ratio 0..1 (room/reverb cut)
@@ -3170,6 +3170,9 @@ pub enum ChannelMode {
     Base,
     /// Decode mid/side-recorded stereo back to L/R (stereotools ms>lr)
     Ms,
+    /// Balance correction for lopsided stereo (tape drift, mismatched mics):
+    /// --pan -1..1 (positive pushes the image toward the right channel)
+    Bal,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3449,6 +3452,9 @@ pub enum DeintEngine {
     Separate,
     /// pullup — inverse 3:2 pulldown IVTC (telecined NTSC → progressive)
     Pullup,
+    /// phase — field-phase reorder: swaps field order when a capture has
+    /// wrong parity (jumpy interlaced playback, no real deinterlacing needed)
+    Phase,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -4245,6 +4251,9 @@ pub enum LevelerEngine {
     Speechnorm,
     /// mcompand — multiband compression preset (low/body/air bands)
     Mcompand,
+    /// alimiter — lookahead brickwall limiter: --threshold is the ceiling dB,
+    /// --makeup pushes the input into it (master-safe loudness)
+    Limit,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4836,6 +4845,10 @@ pub enum FxKind {
     Ringmod,
     /// crush — acrusher bitcrusher (bit depth + sample-rate destruction, lo-fi digital)
     Crush,
+    /// fshift — afreqshift frequency shifter: metallic alien/robot voice,
+    /// strength sweeps the shift 50→2000Hz (not pitch-shift — harmonic
+    /// relationships warp deliberately)
+    Fshift,
 }
 
 #[derive(clap::Args, Debug)]

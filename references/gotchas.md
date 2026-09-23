@@ -268,3 +268,21 @@ an atempo'd whole-file render would shift the window.
   "Undefined constant". Compute w/h/x/y from probed dims in Rust.
 - **`oscilloscope` is a VIDEO scope on 4.x** (XY plot of video input),
   not an audio viz — it belongs on `scope`, not `audiogram`.
+
+- **frei0r filters are dead on this toolchain.** ffmpeg@4's `frei0r`
+  wrapper reports "Could not find module" for every plugin under every
+  discovery path (`FREI0R_PATH`, `~/.frei0r-1/lib`, absolute
+  filter_name); ffmpeg 9 lacks the filter entirely. Do not build a vfx
+  verb on it.
+- **Verified-dead filters on ffmpeg 4.4** (tested, do not retry):
+  `anlmdn` = zero measurable effect at any `s`; `asoftclip` output pins
+  ~-21dB regardless of params (broken); `arnndn` needs a model file;
+  `colorcontrast` shows no measurable change; `aspectralstats`/`adrc`
+  absent; the flanger is named just `flanger` (no `aflanger`).
+- **`alimiter` pumps on pure sine fixtures** — `limit=0.5` drops a sine
+  to peak 0.177. The limiting is real (peak holds under ceiling), so
+  assert `peak <= ceiling`, never an exact level.
+- **`bitplanenoise` metadata keys** are `lavfi.bitplanenoise.{plane}.1`
+  (LSB); mean >0.8 flags a noisy source (grain ≈0.9, clean ≈0.3).
+- **`stereotools balance_in=+0.5` attenuates LEFT ~6dB** (image shifts
+  right) — maps `channel --mode bal --pan` directly.

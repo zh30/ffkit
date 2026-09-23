@@ -24748,3 +24748,208 @@ fn upscale_hqx_deint_pullup_glitch_swaprect_scope_osc_scan_luma() {
     assert!(j["extra"]["luma_max"].is_number());
     assert_eq!(j["extra"]["illegal_luma"], false);
 }
+
+// RSI round 221: fx fshift (afreqshift), deinterlace phase, gen sweep chirp,
+// leveler limit (alimiter), channel bal (stereotools), scan bitplanenoise QC
+#[test]
+fn fx_fshift_deint_phase_gen_sweep_leveler_limit_channel_bal_scan_noise() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let v = fixture(dir.path());
+    let tone = dir.path().join("tone.wav");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=2",
+            &tone.to_string_lossy(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    // fx fshift — afreqshift wired with a strength-derived shift
+    let o = dir.path().join("fs.wav");
+    let j = run_json(&[
+        "fx",
+        &tone.to_string_lossy(),
+        "-o",
+        &o.to_string_lossy(),
+        "--kind",
+        "fshift",
+        "--strength",
+        "0.5",
+    ]);
+    assert!(o.exists());
+    assert_eq!(j["extra"]["effect"], "fshift");
+    assert!(j["extra"]["filter"]
+        .as_str()
+        .unwrap()
+        .contains("afreqshift=shift=1025"));
+    // shifted output is spectrally different: dominant bin moved ~+1kHz —
+    // cheap check via showspectrumpic band energy is overkill; assert the
+    // output is not a passthrough (file differs from a plain remux)
+    let raw = std::process::Command::new("ffmpeg")
+        .args(["-i", &o.to_string_lossy(), "-f", "s16le", "-"])
+        .output()
+        .unwrap();
+    let orig = std::process::Command::new("ffmpeg")
+        .args(["-i", &tone.to_string_lossy(), "-f", "s16le", "-"])
+        .output()
+        .unwrap();
+    assert_ne!(raw.stdout, orig.stdout);
+    // leveler limit — alimiter brickwall: -2dB ceiling holds under drive
+    let o = dir.path().join("lm.wav");
+    let j = run_json(&[
+        "leveler",
+        &tone.to_string_lossy(),
+        "-o",
+        &o.to_string_lossy(),
+        "--engine",
+        "limit",
+        "--threshold",
+        "-2",
+        "--makeup",
+        "6",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert!(o.exists());
+    let vd = std::process::Command::new("ffmpeg")
+        .args([
+            "-i",
+            &o.to_string_lossy(),
+            "-af",
+            "volumedetect",
+            "-f",
+            "null",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let log = String::from_utf8_lossy(&vd.stderr);
+    let peak: f64 = log
+        .split("max_volume:")
+        .nth(1)
+        .and_then(|s| s.trim().split(' ').next())
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0.0);
+    assert!(peak <= -1.0, "limiter ceiling should hold, got {peak}dB");
+    // channel bal — balance_in corrects lopsided stereo toward --pan side
+    let o = dir.path().join("bal.wav");
+    let j = run_json(&[
+        "channel",
+        &tone.to_string_lossy(),
+        "-o",
+        &o.to_string_lossy(),
+        "--mode",
+        "bal",
+        "--pan",
+        "0.5",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert!(o.exists());
+    // pan +0.5 attenuates left ~6dB: L/R gap widens vs the balanced input
+    let l = std::process::Command::new("ffmpeg")
+        .args([
+            "-i",
+            &o.to_string_lossy(),
+            "-af",
+            "pan=mono|c0=c0,volumedetect",
+            "-f",
+            "null",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let r = std::process::Command::new("ffmpeg")
+        .args([
+            "-i",
+            &o.to_string_lossy(),
+            "-af",
+            "pan=mono|c0=c1,volumedetect",
+            "-f",
+            "null",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let grab = |b: &[u8]| -> f64 {
+        String::from_utf8_lossy(b)
+            .split("mean_volume:")
+            .nth(1)
+            .and_then(|s| s.trim().split(' ').next())
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.0)
+    };
+    let (lv, rv) = (grab(&l.stderr), grab(&r.stderr));
+    assert!(
+        rv - lv > 3.0,
+        "pan +0.5 should push image right: L={lv} R={rv}"
+    );
+    // gen sweep — aevalsrc chirp file lands
+    let o = dir.path().join("sweep.m4a");
+    let j = run_json(&[
+        "gen",
+        "-o",
+        &o.to_string_lossy(),
+        "--pattern",
+        "sweep",
+        "--dur",
+        "1",
+        "--freq",
+        "8000",
+    ]);
+    assert!(o.exists());
+    assert_eq!(j["extra"]["pattern"], "sweep");
+    // deinterlace phase — field reorder preserves frame count
+    let o = dir.path().join("ph.mp4");
+    let j = run_json(&[
+        "deinterlace",
+        &v.to_string_lossy(),
+        "-o",
+        &o.to_string_lossy(),
+        "--engine",
+        "phase",
+    ]);
+    assert!(o.exists());
+    assert_eq!(j["extra"]["engine"], "phase");
+    let pr = std::process::Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=nb_frames",
+            "-of",
+            "csv=p=0",
+            &o.to_string_lossy(),
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&pr.stdout).trim(), "30");
+    // scan bitplanenoise — noisy fixture reads high, clean reads low
+    let noisy = dir.path().join("gn.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:rate=10:duration=1,noise=alls=30:allf=t",
+            "-pix_fmt",
+            "yuv420p",
+            &noisy.to_string_lossy(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&["scan", &noisy.to_string_lossy()]);
+    assert!(j["extra"]["noise_floor"].as_f64().unwrap() > 0.7);
+    assert_eq!(j["extra"]["noisy"], true);
+    let j = run_json(&["scan", &v.to_string_lossy()]);
+    assert_eq!(j["extra"]["noisy"], false);
+}
