@@ -118,9 +118,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `music` | Bed under speech with ducking (`--track`, `--at`/`--dur` window, `end` ok; comma `--at` = multi-entrance bed) |
 | `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`, `--at`/`--dur` window — comma list ok) |
 | `grid` | Multi-up collage (`--layout`, `--audio` pick, `--labels`, `--gap`, `--bg` gutter color, `--fill` crop instead of letterbox, `--time` mm:ss stamp on every tile) |
-| `progress` | Progress bar on any edge, whole clip or a window (`--color`, `--height`, `--edge` bottom/top/left/right, `--at`, `--dur`, `--reverse` countdown-deplete) |
+| `progress` | Progress bar on any edge, whole clip or a window (`--color`, `--height`, `--edge` bottom/top/left/right, `--at`, `--dur`, `--reverse` countdown-deplete, `--opacity` ghost) |
 | `freeze` | Hold a frame (`--at`, comma list freezes at several points, `--dur`, `--end`, `--ease`, `--reverse`, `--zoom` push-in) |
-| `censor` | Blur/mosaic a region (`--region x:y:w:h`, comma list for several spots; `--mode`, `--strength`, `--at`/`--dur` (comma list, needs `--dur`; `end` ok)) |
+| `censor` | Blur/mosaic a region (`--region x:y:w:h`, comma list for several spots; `--mode`, `--strength`, `--at`/`--dur` (comma list, needs `--dur`; `end` ok), `--shape circle` ellipse mask) |
 | `bleep` | Tone over a word/segment: `--at`/`--dur` (comma list censors several spots; `end` ok), `--freq`, `--level` |
 | `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) , `--at/--dur` bounces just that window — comma list for several spots (`end` ok) |
 | `chapter` | Embed chapter marks at `TIME|TITLE` or `--import` a marks file (YouTube `H:MM:SS Title` lines ok); `--auto` / `--export` ffmeta / `--yt` description lines; `--list`; `--remove`; `--shift` re-times marks |

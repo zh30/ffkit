@@ -2778,6 +2778,9 @@ pub struct ProgressArgs {
     /// Count down instead: bar starts full and depletes to zero ("time left" overlays)
     #[arg(long)]
     pub reverse: bool,
+    /// Draw the bar at this % opacity (ghost progress)
+    #[arg(long)]
+    pub opacity: Option<f64>,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug, Default, PartialEq)]
@@ -2918,6 +2921,15 @@ pub struct CensorArgs {
     /// Effect intensity: mosaic block size in px (pixel) / blur sigma (blur)
     #[arg(long, default_value_t = 12.0)]
     pub strength: f64,
+    /// Mask shape: box (default) or circle (ellipse inside each region)
+    #[arg(long, value_enum, default_value_t = CensorShape::Box)]
+    pub shape: CensorShape,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum CensorShape {
+    Box,
+    Circle,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug, Default, PartialEq)]
