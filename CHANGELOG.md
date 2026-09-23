@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.168.0] — 2026-09-22
+
+### Added
+- `waveform`/`spectrogram --at` comma lists — one PNG per window (`<stem>_N.png`); spectrogram slices the audio per window, waveform crops each rendered strip. The written paths land in `extra.outputs`.
+
 ## [0.167.0] — 2026-09-22
 
 ### Added

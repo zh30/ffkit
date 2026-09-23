@@ -36,8 +36,14 @@ pub fn run(args: WaveformArgs, g: &Globals) -> Result<Contract, Error> {
         None => (String::new(), String::new()),
     };
     let sp = if args.split { ":split_channels=1" } else { "" };
-    let win = match &args.at {
-        Some(raw) => {
+    // Multi-window: comma --at renders one PNG per window (`<stem>_N.png`).
+    let multi = args
+        .at
+        .as_deref()
+        .map(|s| s.split(',').count() > 1)
+        .unwrap_or(false);
+    let (win, outs) = match &args.at {
+        Some(raw) if !multi => {
             let at = crate::time::resolve_at(raw, args.dur, probe.duration)?;
             if !(0.0..probe.duration).contains(&at) {
                 return Err(Error::input("--at is outside the input"));
@@ -47,17 +53,51 @@ pub fn run(args: WaveformArgs, g: &Globals) -> Result<Contract, Error> {
                 .map(|d| at + d)
                 .unwrap_or(probe.duration)
                 .min(probe.duration);
-            format!(
-                ";[w0]crop=w=iw*{fw:.6}:x=iw*{fx:.6}:h=ih,scale={w}:{h}[v]",
-                fw = (end - at) / probe.duration,
-                fx = at / probe.duration
+            (
+                format!(
+                    ";[w0]crop=w=iw*{fw:.6}:x=iw*{fx:.6}:h=ih,scale={w}:{h}[v]",
+                    fw = (end - at) / probe.duration,
+                    fx = at / probe.duration
+                ),
+                vec![crate::paths::display(&args.output)],
             )
+        }
+        Some(raw) => {
+            let ws = crate::time::enable_windows(raw, args.dur, probe.duration)?;
+            let n = ws.len();
+            let mut tail = String::new();
+            if args.bg.is_some() {
+                // [v] feeds bg_post's overlay, then the composited [wout] splits
+                tail.push_str(";[w0]copy[v]");
+            }
+            let head = if args.bg.is_some() {
+                format!(";[wout]split={n}")
+            } else {
+                format!(";[w0]split={n}")
+            };
+            tail.push_str(&head);
+            for i in 0..n {
+                tail.push_str(&format!("[sp{i}]"));
+            }
+            let mut files = Vec::new();
+            for (i, &(s, e)) in ws.iter().enumerate() {
+                tail.push_str(&format!(
+                    ";[sp{i}]crop=w=iw*{fw:.6}:x=iw*{fx:.6}:h=ih,scale={w}:{h}[o{i}]",
+                    fw = (e - s) / probe.duration,
+                    fx = s / probe.duration
+                ));
+                files.push(derive_output(&args.output, i + 1));
+            }
+            (tail, files)
         }
         None => {
             if args.dur.is_some() {
                 return Err(Error::input("--dur needs --at"));
             }
-            ";[w0]copy[v]".to_string()
+            (
+                ";[w0]copy[v]".to_string(),
+                vec![crate::paths::display(&args.output)],
+            )
         }
     };
     let mut argv = ffmpeg_base(g.progress);
@@ -69,19 +109,67 @@ pub fn run(args: WaveformArgs, g: &Globals) -> Result<Contract, Error> {
             "{bg_pre}[0:a]showwavespic=s={w}x{h}:colors={color}{flt}{sp}{sc}{dr}[w0]{win}{bg_post}"
         ),
         "-map",
-        if args.bg.is_some() { "[wout]" } else { "[v]" },
+        if outs.len() > 1 {
+            "[o0]"
+        } else if args.bg.is_some() {
+            "[wout]"
+        } else {
+            "[v]"
+        },
         "-frames:v",
         "1",
         "-update",
         "1",
     ]);
-    argv.push(&args.output);
+    if outs.len() > 1 {
+        // first output already mapped above; map the rest
+    }
+    argv.push(outs[0].as_str());
+    for (i, f) in outs.iter().enumerate().skip(1) {
+        argv.extend(["-map", &format!("[o{i}]"), "-frames:v", "1", "-update", "1"]);
+        argv.push(f.as_str());
+    }
 
-    let c = engine::write_job("waveform", &[&args.input], &args.output, vec![argv], g)?;
-    Ok(c.with_extra(json!({
+    let out0 = std::path::PathBuf::from(&outs[0]);
+    let mut c = engine::write_job("waveform", &[&args.input], &out0, vec![argv], g)?;
+    if outs.len() > 1 {
+        let missing: Vec<_> = outs
+            .iter()
+            .skip(1)
+            .filter(|f| !std::path::Path::new(f).exists())
+            .collect();
+        if !missing.is_empty() {
+            return Err(Error::output(format!(
+                "waveform: expected outputs missing: {}",
+                missing
+                    .iter()
+                    .map(|f| f.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )));
+        }
+    }
+    c = c.with_extra(json!({
         "size": format!("{w}x{h}"),
         "color": raw,
-    })))
+    }));
+    if outs.len() > 1 {
+        let mut m = serde_json::Map::new();
+        m.insert("outputs".to_string(), json!(outs));
+        c = c.with_extra(serde_json::Value::Object(m));
+    }
+    Ok(c)
+}
+
+fn derive_output(base: &std::path::Path, i: usize) -> String {
+    let stem = base
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("waveform");
+    let ext = base.extension().and_then(|e| e.to_str()).unwrap_or("png");
+    base.with_file_name(format!("{stem}_{i}.{ext}"))
+        .to_string_lossy()
+        .to_string()
 }
 
 fn parse_size(s: &str) -> Result<(u32, u32), Error> {
