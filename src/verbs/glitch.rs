@@ -12,11 +12,19 @@ pub fn run(args: GlitchArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "glitch")?;
 
-    // rgb channel offset + temporal noise = datamosh-style glitch
-    let s = args.strength.round() as i32;
-    let nz = (args.strength * 4.0).round() as i32;
-    let vf =
-        format!("format=rgba,rgbashift=rh={s}:bh=-{s},noise=alls={nz}:allf=t+u,format=yuv420p");
+    let vf = match args.engine.unwrap_or(crate::cli::GlitchEngine::Shift) {
+        crate::cli::GlitchEngine::Shift => {
+            // rgb channel offset + temporal noise = datamosh-style glitch
+            let s = args.strength.round() as i32;
+            let nz = (args.strength * 4.0).round() as i32;
+            format!("format=rgba,rgbashift=rh={s}:bh=-{s},noise=alls={nz}:allf=t+u,format=yuv420p")
+        }
+        crate::cli::GlitchEngine::Planes => {
+            // shuffleplanes channel rotation: RGB rotated per frame →
+            // psychedelic false color (clean, no noise grain)
+            "format=gbrp,shuffleplanes=1:2:0:3,format=yuv420p".to_string()
+        }
+    };
 
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
@@ -32,6 +40,9 @@ pub fn run(args: GlitchArgs, g: &Globals) -> Result<Contract, Error> {
     let c = engine::write_job("glitch", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({
         "strength": args.strength,
-        "filter": "rgbashift+noise",
+        "filter": match args.engine.unwrap_or(crate::cli::GlitchEngine::Shift) {
+            crate::cli::GlitchEngine::Shift => "rgbashift+noise",
+            crate::cli::GlitchEngine::Planes => "shuffleplanes",
+        },
     })))
 }

@@ -12,35 +12,63 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
         probe.width.unwrap_or(0) as i64,
         probe.height.unwrap_or(0) as i64,
     );
-    let regions = match &args.regions {
-        Some(list) => {
-            if args.x.is_some() || args.y.is_some() || args.w.is_some() || args.h.is_some() {
-                return Err(Error::input("--regions conflicts with --x/--y/--w/--h"));
-            }
-            let mut v = Vec::new();
-            for part in list.split(',') {
-                let nums: Vec<u32> = part
-                    .split(':')
-                    .map(|n| {
-                        n.parse()
-                            .map_err(|_| Error::input(format!("--region '{part}' wants x:y:w:h")))
-                    })
-                    .collect::<Result<_, _>>()?;
-                if nums.len() != 4 {
-                    return Err(Error::input(format!("--region '{part}' wants x:y:w:h")));
-                }
-                v.push((nums[0], nums[1], nums[2], nums[3]));
-            }
-            v
+    let image_mask = args.image.as_ref().map(|p| {
+        let m = p
+            .to_string_lossy()
+            .replace('\\', "\\\\")
+            .replace(':', "\\:")
+            .replace('\'', "\\'");
+        m
+    });
+    if image_mask.is_some() {
+        if args.x.is_some()
+            || args.y.is_some()
+            || args.w.is_some()
+            || args.h.is_some()
+            || args.regions.is_some()
+        {
+            return Err(Error::input(
+                "--image conflicts with --x/--y/--w/--h/--regions",
+            ));
         }
-        None => match (args.x, args.y, args.w, args.h) {
-            (Some(x), Some(y), Some(w2), Some(h2)) => vec![(x, y, w2, h2)],
-            _ => {
-                return Err(Error::input(
-                    "need --x --y --w --h or --regions x:y:w:h[,...]",
-                ))
+        if !args.image.as_ref().unwrap().exists() {
+            return Err(Error::input("--image file not found"));
+        }
+    }
+    let regions = if image_mask.is_some() {
+        Vec::new()
+    } else {
+        match &args.regions {
+            Some(list) => {
+                if args.x.is_some() || args.y.is_some() || args.w.is_some() || args.h.is_some() {
+                    return Err(Error::input("--regions conflicts with --x/--y/--w/--h"));
+                }
+                let mut v = Vec::new();
+                for part in list.split(',') {
+                    let nums: Vec<u32> = part
+                        .split(':')
+                        .map(|n| {
+                            n.parse().map_err(|_| {
+                                Error::input(format!("--region '{part}' wants x:y:w:h"))
+                            })
+                        })
+                        .collect::<Result<_, _>>()?;
+                    if nums.len() != 4 {
+                        return Err(Error::input(format!("--region '{part}' wants x:y:w:h")));
+                    }
+                    v.push((nums[0], nums[1], nums[2], nums[3]));
+                }
+                v
             }
-        },
+            None => match (args.x, args.y, args.w, args.h) {
+                (Some(x), Some(y), Some(w2), Some(h2)) => vec![(x, y, w2, h2)],
+                _ => {
+                    return Err(Error::input(
+                        "need --x --y --w --h, --regions x:y:w:h[,...], or --image mask.png",
+                    ))
+                }
+            },
+        }
     };
     for &(x, y, rw, rh) in &regions {
         if rw < 4 || rh < 4 {
@@ -65,7 +93,12 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
     // edges instead of boxing — gentler on gradients/sky.
     let mut mask_tmp = None;
     let circle = matches!(args.shape, DelogoShape::Circle);
-    let vf = if args.soft || circle {
+    let vf = if let Some(m) = &image_mask {
+        format!(
+            "removelogo=filename='{m}'{}",
+            enable.as_deref().unwrap_or("")
+        )
+    } else if args.soft || circle {
         let (fw, fh) = (w as u32, h as u32);
         let mut img = image::RgbaImage::from_pixel(fw, fh, image::Rgba([0, 0, 0, 255]));
         for &(x, y, rw, rh) in &regions {
@@ -130,10 +163,14 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
 
     let c = engine::write_job("delogo", &[&args.input], &args.output, vec![argv], g)?;
     drop(mask_tmp);
-    let mut extra = json!({
-        "box": {"x": regions[0].0, "y": regions[0].1, "w": regions[0].2, "h": regions[0].3},
-        "regions": regions,
-    });
+    let mut extra = if image_mask.is_some() {
+        json!({ "mask_image": args.image })
+    } else {
+        json!({
+            "box": {"x": regions[0].0, "y": regions[0].1, "w": regions[0].2, "h": regions[0].3},
+            "regions": regions,
+        })
+    };
     if let Some(at) = &args.at {
         extra["at"] = json!(at);
         if let Some(d) = args.dur {

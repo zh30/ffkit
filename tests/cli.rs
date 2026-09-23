@@ -23954,6 +23954,106 @@ fn grade_match_blur_dir_smooth_pp7_scope_mvs() {
 }
 
 #[test]
+fn dotcrawl_scope_data_glitch_planes_delogo_image() {
+    if !has_ffmpeg()
+        || !has_filter("dedot")
+        || !has_filter("datascope")
+        || !has_filter("shuffleplanes")
+        || !has_filter("removelogo")
+    {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+
+    let o = dir.path().join("vd.mp4");
+    let v = run_json(&[
+        "vdenoise",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--engine",
+        "dotcrawl",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+
+    // glitch --engine planes: channels rotate — blue-heavy pixel check
+    let o = dir.path().join("gp.mp4");
+    let v = run_json(&[
+        "glitch",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--engine",
+        "planes",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["filter"], "shuffleplanes", "{v}");
+    // testsrc2 with rotated channels should differ wildly from source frame
+    let px = |p: &std::path::Path| -> u32 {
+        let out = Command::new("ffmpeg")
+            .args(["-v", "error", "-i"])
+            .arg(p)
+            .args([
+                "-vf",
+                "crop=32:32:5:5,format=rgb24",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        // pixel checksum — channel rotation changes it wholesale
+        out.stdout.iter().map(|&b| b as u32).sum::<u32>()
+    };
+    assert_ne!(px(&src), px(&o));
+
+    let o = dir.path().join("sd.mp4");
+    let v = run_json(&[
+        "scope",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--mode",
+        "data",
+        "--x",
+        "100",
+        "--y",
+        "90",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["mode"], "data", "{v}");
+
+    // delogo --image: white block in mask inpaints that spot (luma drops)
+    let mask = dir.path().join("mask.png");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("color=black:size=320x240")
+        .args([
+            "-vf",
+            "drawbox=x=100:y=80:w=60:h=40:color=white:t=fill",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&mask)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let o = dir.path().join("dl.mp4");
+    let v = run_json(&[
+        "delogo",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--image",
+        mask.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
 fn legalize_levels_aberrate() {
     if !has_ffmpeg() || !has_filter("limiter") || !has_filter("colorlevels") {
         return;

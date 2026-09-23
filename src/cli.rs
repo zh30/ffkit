@@ -1151,6 +1151,18 @@ pub struct GlitchArgs {
     /// Glitch intensity 0.5-20 (channel shift px + noise)
     #[arg(long, default_value_t = 3.0)]
     pub strength: f64,
+    /// Engine: shift (default, rgb offset + noise) | planes — channel rotation
+    /// swap (psychedelic false-color, no noise)
+    #[arg(long, value_enum)]
+    pub engine: Option<GlitchEngine>,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum GlitchEngine {
+    /// rgbashift + noise — classic datamosh glitch
+    Shift,
+    /// shuffleplanes channel rotation — false-color acid look
+    Planes,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1182,11 +1194,20 @@ pub enum ScopeMode {
     /// codecview motion vectors — macroblock arrows overlay (compression QC:
     /// panning shots should show coherent arrows; noise means jittery bits)
     Mvs,
+    /// datascope — hex pixel values around --x/--y (full-frame readout: find
+    /// the exact luma at the logo edge, verify a clipped highlight value)
+    Data,
 }
 
 #[derive(clap::Args, Debug)]
 pub struct ScopeArgs {
     pub input: PathBuf,
+    /// Sample point X for --mode data (default: frame centre)
+    #[arg(long)]
+    pub x: Option<u32>,
+    /// Sample point Y for --mode data (default: frame centre)
+    #[arg(long)]
+    pub y: Option<u32>,
     #[arg(short, long)]
     pub output: PathBuf,
     #[arg(long, value_enum, default_value_t = ScopeMode::Vector)]
@@ -2210,6 +2231,11 @@ pub struct DelogoArgs {
     /// Window length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Precise removal from a drawn mask image (white = remove): removelogo
+    /// inpaints only where your bitmap says — better than box --soft when the
+    /// logo isn't rectangular. Mask must be the video's size
+    #[arg(long)]
+    pub image: Option<PathBuf>,
     /// Feathered removal via removelogo mask instead of the hard delogo box
     #[arg(long)]
     pub soft: bool,
@@ -4433,6 +4459,9 @@ pub enum VDenoiseEngine {
     /// edge — nlmeans masked to flat areas only (maskedmerge over an
     /// edgedetect+gblur+negate mask): denoise without melting detail
     Edge,
+    /// dotcrawl — dedot: removes dot-crawl + rainbow edges from composite /
+    /// analog captures (VHS rips, capture-card footage)
+    Dotcrawl,
 }
 
 #[derive(clap::Args, Debug)]

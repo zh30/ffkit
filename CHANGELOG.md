@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- `vdenoise --engine dotcrawl` — dedot removes composite/analog dot-crawl and rainbow edges (VHS rips, capture cards)
+- `scope --mode data --x/--y` — datascope hex pixel-value readout centered on a point (full-frame; verify clipped values, find a pixel's exact luma)
+- `glitch --engine planes` — shuffleplanes RGB rotation: clean false-color acid look without noise grain
+- `delogo --image mask.png` — removelogo from a drawn bitmap mask (white = inpaint): precise non-rectangular logos, watermarks with irregular shapes
+
+### Added
 - `grade --match ref.mp4` — midequalizer histogram matching: pull your footage's colour distribution toward a reference clip (camera matching, "grade it like that film"); the reference is scaled to fit via scale2ref
 - `blur --engine directional --angle` — dblur directed streaks (speed-line / fake-motion look)
 - `smooth --engine pp7` — lighter/faster postproc deblock for when uspp is too slow

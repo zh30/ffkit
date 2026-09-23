@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.240.0
+version: 0.241.0
 
 
 
@@ -211,6 +211,10 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | match a reference look | `grade --match ref.mp4` (midequalizer pulls your histogram toward the reference — camera matching) |
 | speed-line blur | `blur --engine directional --angle 30` (dblur streaks) |
 | fast rip rescue | `smooth --engine pp7` (lighter postproc when uspp is too slow) |
+| analog capture cleanup | `vdenoise --engine dotcrawl` (dedot: dot-crawl + rainbow edges on VHS / capture-card rips) |
+| hex pixel readout | `scope --mode data --x 100 --y 90` (datascope grid of raw values at a point) |
+| false-color glitch | `glitch --engine planes` (RGB channel rotation, clean acid look) |
+| precise logo mask | `delogo --image mask.png` (white pixels in your drawn bitmap = inpaint — non-rectangular logos) |
 | compression QC | `scope --mode mvs` (codecview motion-vector arrows; coherent arrows = clean pans, jitter = noisy blocks) |
 | cheap-lens fringe | `aberrate` --amount 5 (rgbashift: red left/blue right — VHS/glitch edge) |
 | mono-compat visual | `audiogram --mode phase` (aphasemeter scope — thin line = mono, cloud = decorrelated) |

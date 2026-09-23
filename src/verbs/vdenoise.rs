@@ -67,6 +67,16 @@ pub fn run(args: VdenoiseArgs, g: &Globals) -> Result<Contract, Error> {
         ),
         // edge: nlmeans strength, maskedmerge keeps original detail on edges
         crate::cli::VDenoiseEngine::Edge => (format!("nlmeans=s={s:.1}"), "edge"),
+        // dedot: composite/analog dot-crawl + rainbow edge artifact remover;
+        // thresholds scale lightly with strength
+        crate::cli::VDenoiseEngine::Dotcrawl => (
+            format!(
+                "dedot=m=dotcrawl+rainbows:lt={:.3}:ct={:.3}",
+                0.05 + s * 0.03,
+                0.01 + s * 0.01
+            ),
+            "dedot",
+        ),
     };
     let edge_merge = matches!(filter_name, "edge");
     let vf = match &args.at {

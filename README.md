@@ -139,7 +139,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window); `end` ok, comma list = several windows. `--ir file.wav` = convolution reverb from impulse-response packs (cathedral/plate), `--tail` rings past the end |
 | `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio/saturate/excite/bass/muffled/crystal/sub/crossfeed/autopan (`--kind`, `--strength`, `--at`/`--dur`); `end` ok, comma list = several windows |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip`, free `--angle` tilt, `--at`/`--dur` windowed tilt (comma list) |
-| `delogo` | Blend out a burned-in logo box: `--x --y --w --h` or `--regions x:y:w:h,...` for several spots; `--at`/`--dur` for a window, `--at end` the tail (`--soft` removelogo, `--shape circle` elliptical mask) |
+| `delogo` | Blend out a burned-in logo box: `--x --y --w --h` or `--regions x:y:w:h,...` for several spots; `--at`/`--dur` for a window, `--at end` the tail (`--soft` removelogo, `--shape circle` elliptical mask) | `--image mask.png` drawn-mask removal |
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
 | `subs` | Extract (`--stream`, `--all`)/burn/mux subtitles (`--shift` (±N; `--from`/`--to` bounds it)/`--merge`/`--rate`, burn style + `--outline`/`--box` plate/`--align`/`--margin` px/`--from`/`--to` window (`end`/`end-N` ok), `--safe`); `--convert` .srt↔.vtt; `--case` cue text; `--burn-si N` burns embedded track N; `--encoding gbk` legacy charsets |
 | `thumb` | One-frame cover grab (`--at` — `end` = last frame, comma `--at` = one still per time / `--frame`, `--count` N stills (`--from`/`--to` bounds the spread, `end`/`end-N` ok), `--width`) → jpg/png/webp; `--scenes` stills at cuts | `--best` representative still |
@@ -161,10 +161,10 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `volume` | Gain ±dB; `--at/--dur` limits it to a window — comma list covers several spots (needs `--dur`) (platform loudness is `loudnorm`) |
 | `blur` | Full-frame or windowed gaussian blur (`--sigma`, `--at`/`--dur`; `--at end` = tail) | `--engine directional --angle` streaks |
 | `trail` | Motion trails: `--mode echo` ghost smear behind movement (`--frames` 2-16, `--at`/`--dur` window), `--mode light` bright-pixel persistence (`--decay` 0.5-0.99) | `--mode diff` motion ghost |
-| `glitch` | Datamosh-style glitch: `--strength` 0.5-20 drives RGB channel shift + temporal noise |
+| `glitch` | Datamosh-style glitch: `--strength` 0.5-20 drives RGB channel shift + temporal noise | `--engine planes` channel rotation |
 | `bars` | SMPTE test card: `--size`/`--dur`/`--hd`/`--tone` (1kHz bed), for QC slates and leader |
 | `scope --mode hist` | Rolling temporal histogram of luma — color/exposure drift QC over time |
-| `scope` | QC scope overlay: `--mode vector|wave` in a corner (`--position`, `--size` fraction), `--at` windows | `--mode mvs` MV overlay |
+| `scope` | QC scope overlay: `--mode vector|wave` in a corner (`--position`, `--size` fraction), `--at` windows | `--mode mvs` MV overlay | `--mode data --x/--y` hex readout |
 | `desqueeze` | Anamorphic restore: `--factor` lens ratio (1.33/1.5/1.8/2.0), `--axis y|x` |
 | `solarize` | Psychedelic partial invert: pixels above `--threshold` luma invert, `--at` windows |
 | `pulse` | Breathing zoom bounce: `--rate` cycles/sec, `--depth` amplitude, `--at` windows |
@@ -222,7 +222,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `glow` | Dreamy bloom: blurred copy screen-blended back (`--strength`, `--at`/`--dur` window) |
 | `vhs` | Retro tape look: `--strength` 0-3 noise + chroma shift + scanlines (`--at`/`--dur` window) |
 | `motionblur` | Shutter smear: `--frames` 2-8 temporal blend (`--at`/`--dur` window) |
-| `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30, `--engine nlmeans` (quality default) `|hqdn3d|`atadenoise|`vaguedenoise|`bm3d`/`dctdnoiz`/`owdenoise` (strongest three — no `--at` on those), `median` (salt&pepper), `chroma` (color speckle), `--at`/`--dur` window — comma list ok, `end` ok |
+| `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30, `--engine nlmeans` (quality default) `|hqdn3d|`atadenoise|`vaguedenoise|`bm3d`/`dctdnoiz`/`owdenoise` (strongest three — no `--at` on those), `median` (salt&pepper), `chroma` (color speckle), `--at`/`--dur` window — comma list ok, `end` ok | `--engine dotcrawl` analog artifact removal |
 | `crop` | Crop `--region x:y:w:h`, or `--aspect` reframe with `--anchor center|top|bottom|left|right` |
 | `waveform` | Audio waveform → PNG (`--size`, `--color`, `--scale`, `--peak` transients, `--split` per-channel rows, `--full` dense draw, `--bg` opaque card) for podcast art/thumbnails (`--at/--dur` slice, `end` ok, comma `--at` renders `<stem>_N.png` per window, `--vertical` top→bottom wave) |
 | `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup (`--color` magma/viridis…, `--scale` lin/sqrt…, `--no-legend`, `--separate` per-channel bands) (`--at/--dur` slice, `end` ok, comma `--at` renders `<stem>_N.png` per window) |

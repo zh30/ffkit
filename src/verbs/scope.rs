@@ -18,6 +18,37 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
     let sw = (w * args.size) as u32 & !1;
     let sh = sw;
 
+    if matches!(args.mode, ScopeMode::Data) {
+        let mut argv = ffmpeg_base(g.progress);
+        argv.push("-i");
+        argv.push(&args.input);
+        let (pw, ph) = (
+            probe.width.unwrap_or(1280),
+            probe.height.unwrap_or(720),
+        );
+        let sx = args.x.unwrap_or(pw / 2);
+        let sy = args.y.unwrap_or(ph / 2);
+        let en = match &args.at {
+            Some(a) => format!(":enable='{}'", enable_expr(a, args.dur, probe.duration)?),
+            None => {
+                if args.dur.is_some() {
+                    return Err(Error::input("--dur needs --at"));
+                }
+                String::new()
+            }
+        };
+        let vf = format!("datascope=size={pw}x{ph}:x={sx}:y={sy}:mode=color2{en}");
+        argv.extend(["-vf", &vf, "-map", "0:v", "-map", "0:a?"]);
+        argv.extend([
+            "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+        ]);
+        if probe.has_audio {
+            argv.extend(["-c:a", "copy"]);
+        }
+        argv.push(&args.output);
+        let c2 = engine::write_job("scope", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c2.with_extra(json!({"mode": "data", "x": sx, "y": sy})));
+    }
     if matches!(args.mode, ScopeMode::Mvs) {
         let mut argv = ffmpeg_base(g.progress);
         argv.push("-i");
@@ -47,7 +78,7 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
         ScopeMode::Vector => "vectorscope=m=color2",
         ScopeMode::Wave => "waveform=mode=column:display=parade:intensity=0.5",
         ScopeMode::Hist => "thistogram=display_mode=overlay",
-        ScopeMode::Mvs => unreachable!(),
+        ScopeMode::Mvs | ScopeMode::Data => unreachable!(),
     };
     let (x, y) = match args.position.as_str() {
         "top-left" => ("8", "8"),
