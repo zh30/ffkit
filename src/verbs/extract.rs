@@ -25,6 +25,58 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut argv = ffmpeg_base(g.progress);
 
+    // comma --at on a still output: one frame per timepoint → `<stem>_N.<ext>`
+    if !args.gif {
+        if let Some(raw) = &args.at {
+            if raw.split(',').count() > 1 {
+                if !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "webp") {
+                    return Err(Error::input(
+                        "comma --at needs a still output (.png/.jpg/.webp)",
+                    ));
+                }
+                let probe = engine::probe_or_err(&args.input, g)?;
+                engine::need_video(&probe, "extract")?;
+                let mut files = Vec::new();
+                for (i, part) in raw.split(',').enumerate() {
+                    let secs = crate::time::resolve_frame_at(part.trim(), probe.duration)?;
+                    let inp = args.input.display().to_string();
+                    argv.extend(["-ss", &fmt_time(secs), "-i", inp.as_str()]);
+                    files.push(derive_output(&args.output, i + 1));
+                }
+                for (i, f) in files.iter().enumerate() {
+                    argv.extend(["-map", &format!("{i}:v"), "-frames:v", "1", "-q:v", "2"]);
+                    if let Some(w) = args.width {
+                        argv.extend(["-vf", &format!("scale={w}:-2")]);
+                    }
+                    argv.push(f.as_str());
+                }
+                let c = engine::write_job(
+                    "extract",
+                    &[&args.input],
+                    std::path::Path::new(&files[0]),
+                    vec![argv],
+                    g,
+                )?;
+                let missing: Vec<_> = files
+                    .iter()
+                    .skip(1)
+                    .filter(|f| !std::path::Path::new(f).exists())
+                    .collect();
+                if !missing.is_empty() {
+                    return Err(Error::output(format!(
+                        "extract: expected outputs missing: {}",
+                        missing
+                            .iter()
+                            .map(|f| f.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )));
+                }
+                return Ok(c.with_extra(serde_json::json!({ "files": files })));
+            }
+        }
+    }
+
     // `--at end`: last frame (stills) or the last --dur seconds (--gif).
     let at_secs = match &args.at {
         Some(a) if a.trim().eq_ignore_ascii_case("end") => {
@@ -142,4 +194,12 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     engine::write_job("extract", &[&args.input], &args.output, vec![argv], g)
+}
+
+fn derive_output(base: &std::path::Path, i: usize) -> String {
+    let stem = base.file_stem().and_then(|s| s.to_str()).unwrap_or("shot");
+    let ext = base.extension().and_then(|e| e.to_str()).unwrap_or("png");
+    base.with_file_name(format!("{stem}_{i}.{ext}"))
+        .to_string_lossy()
+        .to_string()
 }

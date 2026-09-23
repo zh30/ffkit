@@ -51,7 +51,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | AV1 delivery | `transcode` (`--preset av1`) |
 | podcast/voice → mp3/m4a/wav/flac/opus | `transcode` (`--preset mp3`/`aac`/`wav`/`flac`/`opus` — `-vn` audio-only) |
 | audiogram of just the best bit(s) | `audiogram` (`--from/--to` one segment; `--at a,b --dur 30` = one clip per point → `stem_N.mp4`) |
-| cover still | `cover` (`--blur` ambient pad, `--size` canvas) |
+| cover still | `cover` (`--blur` ambient pad, `--size` canvas, comma `--at` = one cover per time) |
 
 | speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--at`/`--dur` windowed swap (comma `--at` lays the new track across several windows), `--mix` keep the original under it), `loudnorm` (`--target` platform preset), `volume` |
 | grainy low-light footage | `vdenoise` (`--strength`, nlmeans — slow; `--at`/`--dur` windows it) |
@@ -93,7 +93,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | two-camera angle switching | `multicam` (`A B --at t1,t2,...` (`end` ok) — run `align` first if the takes aren't synced; `--keep-audio` stays on cam A, `--transition` soft cuts) |
 | reframe 9:16 keeping faces | `crop` (`--aspect 9:16 --anchor top` keeps the face) |
 | attach album cover art | `art` (`--image cover.png`) → mp3/m4a/mp4/mkv, `--extract` pull cover out |
-| grab a cover/thumbnail frame | `thumb` (`--at` / `--frame`, `--count N` even spreads, `--from end-N` tail window) → jpg/png |
+| grab a cover/thumbnail frame | `thumb` / `extract` / `cover` (`--at`, comma `--at` = one still per time; `thumb --frame`, `--count N` even spreads, `--from end-N` tail window) → jpg/png |
 | burn an .srt/.ass into pixels | `subs` (`--burn subs.srt` — libass), `--box` plate, `--shadow` depth, `--margin` px, `--rate` drift fix, `--from/--to` cue window, `--safe` social zone; `--convert` srt↔vtt |
 | split into exactly N parts | `split` (`--parts N` — equal-length grid) |
 | title that fades in/out | `title` (`--fade` secs — soft entry/exit, `--box` card) |

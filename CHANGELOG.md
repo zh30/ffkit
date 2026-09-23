@@ -7,6 +7,16 @@
 ### Added
 - `audiogram --at a,b,...` + `--dur` — one N-second waveform clip per start point (`<stem>_N.mp4`, `extra.files`); single `--at`/`--from` + `--dur` bounds one clip. Rendering refactored to `render_clip(from, to, out)` per window.
 
+## [0.172.0] — 2026-09-22
+
+### Added
+- `extract`/`cover --at` comma lists — one still/cover per timepoint (`<stem>_N.<ext>`); cover keeps the same canvas/`--blur`/`--size` per output, `extra.files` lists them.
+
+## [0.171.0] — 2026-09-22
+
+### Added
+- `thumb --at` comma lists — one still per timepoint (`<stem>_N.<ext>`); input-seeks each point, `--width` rescales all, `extra.files` lists them.
+
 ## [0.170.0] — 2026-09-22
 
 ### Added

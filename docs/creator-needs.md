@@ -240,6 +240,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 ## Shipped this run (round 146)
 - `audiogram --at a,b,... --dur N` — the podcast→clips play in one call: each point starts an N-second audiogram written as `<stem>_N.mp4` (`extra.files`); single `--at`/`--from` + `--dur` bounds one clip. Rendering refactored to `render_clip(from, to, out)` per window.
 
+## Shipped this run (round 145)
+- `extract --at a,b,...` + `cover --at a,b,...` — comma `--at` grabs one still/cover per timepoint as `<stem>_N.<ext>` (`extra.files`); `cover` applies the same canvas/`--blur`/`--size` to every output. With `thumb` (r144) and `frames`, every still-grabber now takes a beat list in one call.
+
 ## Shipped this run (round 143)
 - `grid --time` — stamps the same mm:ss readout on every tile's bottom-right (multi-cam/review grids show matching clocks); rendered from one shared digit sprite — no libass/drawtext needed.
 

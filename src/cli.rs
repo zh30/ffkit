@@ -420,7 +420,7 @@ pub struct ExtractArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Timestamp for a still frame (or `end` for the last frame / last --dur seconds)
+    /// Timestamp for a still frame — `end` = last frame / last --dur seconds; comma list = one still per time
     #[arg(long)]
     pub at: Option<String>,
     /// Scale the still to this width (height follows aspect)
@@ -1296,7 +1296,7 @@ pub struct CoverArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Timestamp to grab; default 0
+    /// Timestamp to grab; default 0 — `end` ok, comma list = one cover per time
     #[arg(long)]
     pub at: Option<String>,
     /// Ambient: fill the pad with a blurred copy of the frame instead of black
