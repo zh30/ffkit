@@ -184,7 +184,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `conform` | 一键统一规格（`--size WxH`、`--fps 30`、`--lufs -14`、`--crf`、`--pad` 黑边颜色 + `--anchor` 锚点、`--blur` 模糊填充） |
 | `sync` | 修复音画同步（`--ms ±N` 垫音/裁音头） |
 | `align` | 音频互相关自动对齐第二路录音（多机位/外接录音笔，`--max-lag`） |
-| `scroll` | 片尾滚动字幕（`--text`/`--file`、`--at`、`--dur`、`--size`、`--color`、`--font`、`--align` 对齐、`--wrap` 折行）；`--mode ticker` 底部新闻条可加 `--bg` 不透明底条 |
+| `scroll` | 片尾滚动字幕（`--text`/`--file`、`--at`、`--dur`、`--size`、`--color`、`--font`、`--align` 对齐、`--wrap` 折行）；`--mode ticker` 底部新闻条可加 `--bg` 不透明底条；`--at` 逗号列表可多次复播，`end` 亦可 |
 | `insert` | 在视频中段插入整段素材（`--at`，逗号列表多点插入，`end` 追加到片尾；`--dur` 只取前 N 秒；`--transition` 转场 + `--duration` 两端淡入淡出） |
 | `multicam` | 双机位对齐后角度切换：`--at t1,t2,...` 逐点换机位（`end` = 片尾切回）；`--keep-audio` 全程用 A 机位音轨、`--transition` 软切换 |
 | `art` | 给音频嵌入封面图；`--extract` 反向导出封面 |

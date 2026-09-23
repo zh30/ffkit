@@ -15997,7 +15997,32 @@ fn hls_poster_at_and_deliver_crf() {
 }
 
 #[test]
+fn scroll_comma_at_and_end_replays_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = lavfi_fixture(dir.path(), "scrollc.mp4", "440", 2.0);
+    let out = dir.path().join("scrollc_out.mp4");
+    let v = run_json(&[
+        "scroll",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "Crawl text",
+        "--at",
+        "0.2,end",
+        "--dur",
+        "0.6",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let w = v["extra"]["windows"].as_array().unwrap();
+    assert_eq!(w.len(), 2, "{v}");
+    assert!((w[1]["at"].as_f64().unwrap() - 1.4).abs() < 0.05, "{w}");
+    assert!(out.is_file());
+}
 
+#[test]
 fn timer_countdown_meter_at_end() {
     if !has_ffmpeg() {
         return;

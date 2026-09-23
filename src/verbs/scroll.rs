@@ -12,7 +12,7 @@ use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 use crate::raster::render_title_styled;
-use crate::time::parse_time;
+use crate::time::resolve_at;
 
 pub fn run(args: ScrollArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
@@ -35,23 +35,25 @@ pub fn run(args: ScrollArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("--size must be 0.25..4"));
     }
 
-    let at = args
-        .at
-        .as_deref()
-        .map(parse_time)
-        .transpose()
-        .map_err(|e| Error::input(format!("--at: {e}")))?
-        .unwrap_or(0.0);
-    let dur = match args.dur {
-        Some(d) => {
-            if d <= 0.5 {
-                return Err(Error::input("--dur must be > 0.5 seconds"));
-            }
-            d
+    if let Some(d) = args.dur {
+        if d <= 0.5 {
+            return Err(Error::input("--dur must be > 0.5 seconds"));
         }
-        None => probe.duration - at,
-    };
-    if dur <= 0.5 {
+    }
+    // --at takes a comma list: replay the roll at several marks (`end` ok).
+    let mut windows: Vec<(f64, f64)> = Vec::new();
+    match &args.at {
+        Some(raw) => {
+            for part in raw.split(',') {
+                let t0 = resolve_at(part.trim(), args.dur, probe.duration)
+                    .map_err(|e| Error::input(format!("--at: {e}")))?;
+                let d = args.dur.unwrap_or(probe.duration - t0);
+                windows.push((t0, d.min(probe.duration - t0)));
+            }
+        }
+        None => windows.push((0.0, args.dur.unwrap_or(probe.duration))),
+    }
+    if windows.iter().any(|(_, d)| *d <= 0.5) {
         return Err(Error::input(
             "no room for the roll — --at + --dur must stay inside the video",
         ));
@@ -93,32 +95,46 @@ pub fn run(args: ScrollArgs, g: &Globals) -> Result<Contract, Error> {
     img.save(&png)
         .map_err(|e| Error::output(format!("write credits png: {e}")))?;
 
+    if args.bg.is_some() && !ticker {
+        return Err(Error::input("--bg applies to --mode ticker"));
+    }
     // Looped still so the overlay's t-driven expression animates.
     // Up: y slides H → -h. Ticker: x slides W → -w, pinned near the bottom.
-    let bg_pre = match (&args.bg, ticker) {
-        (Some(b), true) => {
-            format!(
-                "[0:v]drawbox=x=0:y=ih-{bar}:w=iw:h={bar}:color={c}@0.85:t=fill:enable='between(t,{at:.3},{end:.3})'[bg];[bg]",
+    // One drawbox (ticker bg) + one overlay per --at window.
+    let mut fc = String::new();
+    let mut prev = "0:v".to_string();
+    if let Some(b) = &args.bg {
+        for (i, (at, dur)) in windows.iter().enumerate() {
+            fc.push_str(&format!(
+                "[{prev}]drawbox=x=0:y=ih-{bar}:w=iw:h={bar}:color={c}@0.85:t=fill:enable='between(t,{at:.3},{end:.3})'[bg{i}];",
                 bar = img.height() + 20,
                 c = crate::color::lavfi(b),
-                at = at,
                 end = at + dur,
-            )
+            ));
+            prev = format!("bg{i}");
         }
-        (Some(_), false) => return Err(Error::input("--bg applies to --mode ticker")),
-        (None, _) => String::from("[0:v]"),
-    };
-    let fc = if ticker {
-        format!(
-            "{bg_pre}[1:v]overlay=x=W-(W+w)*((t-{at:.3})/{dur:.3}):y=H-h-40:enable='between(t,{at:.3},{end:.3})'[vout]",
-            end = at + dur
-        )
-    } else {
-        format!(
-            "[0:v][1:v]overlay=x=(W-w)/2:y=H-(H+h)*((t-{at:.3})/{dur:.3}):enable='between(t,{at:.3},{end:.3})'[vout]",
-            end = at + dur
-        )
-    };
+    }
+    for (i, (at, dur)) in windows.iter().enumerate() {
+        let out = if i + 1 == windows.len() {
+            "vout".to_string()
+        } else {
+            format!("v{i}")
+        };
+        if ticker {
+            fc.push_str(&format!(
+                "[{prev}][1:v]overlay=x=W-(W+w)*((t-{at:.3})/{dur:.3}):y=H-h-40:enable='between(t,{at:.3},{end:.3})'[{out}];",
+                end = at + dur,
+            ));
+        } else {
+            fc.push_str(&format!(
+                "[{prev}][1:v]overlay=x=(W-w)/2:y=H-(H+h)*((t-{at:.3})/{dur:.3}):enable='between(t,{at:.3},{end:.3})'[{out}];",
+                end = at + dur,
+            ));
+        }
+        prev = out;
+    }
+    let fc = fc.trim_end_matches(';').to_string();
+    let max_end = windows.iter().map(|(a, d)| a + d).fold(0.0, f64::max);
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
     // -t bounds the otherwise-infinite looped PNG so the graph drains.
@@ -128,7 +144,7 @@ pub fn run(args: ScrollArgs, g: &Globals) -> Result<Contract, Error> {
         "-framerate".to_string(),
         "30".to_string(),
         "-t".to_string(),
-        format!("{:.3}", at + dur),
+        format!("{max_end:.3}"),
     ]);
     argv.push(std::ffi::OsString::from("-i"));
     argv.push(png.display().to_string());
@@ -160,6 +176,8 @@ pub fn run(args: ScrollArgs, g: &Globals) -> Result<Contract, Error> {
 
     let inputs: Vec<&Path> = vec![&args.input];
     let mut c = engine::write_job("scroll", &inputs, &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "at": at, "dur": dur }));
+    c = c.with_extra(json!({
+        "windows": windows.iter().map(|(a, d)| json!({ "at": a, "dur": d })).collect::<Vec<_>>(),
+    }));
     Ok(c)
 }
