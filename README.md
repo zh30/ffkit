@@ -113,13 +113,13 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `audiogram` | Waveform video | `--mode`, `--scale`, `--split` channels, `--fscale` freq axis (spectrum), `--fps` rate, `--text`, `--bg`, `--progress` bar , `--subs` burn an .srt on it, `--from`/`--to` clip a segment; `--mode spectrum` bars |
 
 | `split` | Split by `--every`/`--at`/`--scenes`/`--size`/`--parts`/`--silence`/`--chapters`; `--subs` writes re-timed per-part .srt |
-| `slideshow` | Still images → video montage (`--per`, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed + `--volume`, `--size` canvas) |
+| `slideshow` | Still images → video montage (`--per` or `--dur` total runtime, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed + `--volume`, `--size` canvas) |
 | `speed` | Change playback speed (`--factor`, `--at/--dur`, `--ramp` FROM,TO) |
 | `music` | Bed under speech with ducking (`--track`) |
 | `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`) |
 | `grid` | Multi-up collage (`--layout`, `--audio` pick, `--labels`, `--gap`, `--fill` crop instead of letterbox) |
 | `progress` | Progress bar on any edge, whole clip or a window (`--color`, `--height`, `--edge` bottom/top/left/right, `--at`, `--dur`) |
-| `freeze` | Hold a frame (`--at`, `--dur`, `--end`, `--ease`, `--reverse`) |
+| `freeze` | Hold a frame (`--at`, `--dur`, `--end`, `--ease`, `--reverse`, `--zoom` push-in) |
 | `censor` | Blur/mosaic a region (`--mode`, `--strength`, `--at`) |
 | `bleep` | Tone over a word/segment: `--at`/`--dur`, `--freq`, `--level` |
 | `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) , `--at/--dur` bounces just that window |
@@ -167,7 +167,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `vocal` | Remove/isolate center vocals (`--mode`, `--at/--dur` window, `--amount` strength) |
 | `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov); `--audio` rips the track, `--video` video-only repack |
 | `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window) , `--position` text block top/center/bottom; `--wrap` folds, `--align` line alignment |
-| `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`) |
+| `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`, `--at`/`--dur` window) |
 | `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order, `--engine` yadif/bwdif) |
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |

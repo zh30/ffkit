@@ -1102,6 +1102,10 @@ pub struct SlideshowArgs {
     /// Seconds each image stays on screen
     #[arg(long, default_value_t = 3.0)]
     pub per: f64,
+    /// Total montage length in seconds — overrides --per (per = the value
+    /// that lands the reel on exactly this runtime, fade included)
+    #[arg(long)]
+    pub dur: Option<f64>,
     /// Crossfade seconds between images (0 = hard cuts)
     #[arg(long, default_value_t = 0.6)]
     pub fade: f64,
@@ -1771,6 +1775,12 @@ pub struct VoiceArgs {
     /// Target integrated loudness LUFS (default -16 podcast)
     #[arg(long, default_value_t = -16.0, allow_hyphen_values = true)]
     pub lufs: f64,
+    /// Polish only from this time on (h:mm:ss or seconds)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2634,6 +2644,10 @@ pub struct FreezeArgs {
     /// Seconds before the freeze replayed backwards (rewind-into-hold)
     #[arg(long)]
     pub reverse: Option<f64>,
+    /// Slow push-in on the held frame to this end scale (1.02–2, e.g. 1.15);
+    /// mid-clip --at freezes only
+    #[arg(long)]
+    pub zoom: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

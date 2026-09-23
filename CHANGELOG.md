@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.135.0] — 2026-09-22
+
+### Added
+
+- `slideshow --dur N` — total montage runtime spread across the stills (`per = (dur + (n-1)*fade)/n`); overrides `--per`
+- `voice --at` / `--dur` — window the voice-polish chain through the shared `engine::audio_window` dry/wet graph
+- `freeze --zoom Z` — slow push-in on the held frame via `zoompan` (end scale 1.0–2; mid-clip `--at` freezes)
+
 ## [0.134.0] — 2026-09-22
 
 ### Added

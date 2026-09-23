@@ -14239,3 +14239,138 @@ fn audiogram_from_to_clips_segment() {
         .unwrap_or(0.0);
     assert!((d - 0.6).abs() < 0.15, "duration {d}");
 }
+
+#[test]
+fn slideshow_dur_spreads_across_stills() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mut imgs = vec![];
+    for (i, c) in ["red", "green", "blue"].iter().enumerate() {
+        let p = dir.path().join(format!("d{i}.png"));
+        let status = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color=c={c}:s=320x240:d=0.5"),
+                "-frames:v",
+                "1",
+            ])
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        imgs.push(p);
+    }
+    let out = dir.path().join("show.mp4");
+    let v = run_json(&[
+        "slideshow",
+        imgs[0].to_str().unwrap(),
+        imgs[1].to_str().unwrap(),
+        imgs[2].to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--dur",
+        "6",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let total = v["extra"]["expected_duration"].as_f64().unwrap();
+    assert!((total - 6.0).abs() < 0.05, "expected_duration {total}");
+    // per = (6 + 2*0.6)/3 = 2.4
+    assert_eq!(v["extra"]["per"].as_f64().unwrap().round(), 2.4_f64.round());
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 6.0).abs() < 0.4, "probe duration {d}");
+}
+
+#[test]
+fn voice_at_dur_windows_polish() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("v.mp4");
+    let v = run_json(&[
+        "voice",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("asplit") && cmds.contains("atrim=start=0.300") && cmds.contains("amix"),
+        "{cmds}"
+    );
+    let v = run_json(&[
+        "voice",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("v2.mp4").to_str().unwrap(),
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert_eq!(v["error"]["kind"], "input");
+}
+
+#[test]
+fn freeze_zoom_pushes_into_hold() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("fz.mp4");
+    let v = run_json(&[
+        "freeze",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "--dur",
+        "0.5",
+        "--zoom",
+        "1.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["zoom"], 1.2);
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("zoompan=z='1+(1.2000-1)*on/"), "{cmds}");
+    // --zoom on an outro freeze is rejected
+    let v = run_json(&[
+        "freeze",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("f2.mp4").to_str().unwrap(),
+        "--end",
+        "0.5",
+        "--zoom",
+        "1.2",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert_eq!(v["error"]["kind"], "input");
+}

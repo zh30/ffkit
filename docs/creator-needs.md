@@ -237,6 +237,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 108)
+
+- `slideshow --dur N` — total montage runtime spread across the stills (`per = (dur + (n-1)*fade)/n`): "make my 12 photos a 30-second Reel" is one flag instead of per-image math.
+- `voice --at/--dur` — window the podcast polish chain (agate→acompressor→loudnorm) via the shared `engine::audio_window` dry/wet graph, matching the rest of the audio verbs.
+- `freeze --zoom Z` — slow push-in on the held frame (zoompan, end scale 1.0–2): the editor "punch-in on the freeze" trick without a second tool; mid-clip `--at` freezes only.
+
 ## Shipped this run (round 107)
 
 - `transcode --preset wav` / `flac` / `opus` — the audio-only preset family completes: pcm_s16le lossless for DAW/edit handoff, flac for archival, libopus 128k for the smallest voice/music delivery; same `-vn` path and `--copy-audio` passthrough as mp3/aac.

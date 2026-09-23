@@ -113,13 +113,13 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `audiogram` | 波形视频 | `--mode`、`--scale` 幅度、`--split` 分声道、`--fscale` 频率轴（spectrum）、`--fps` 帧率、`--text`、`--bg`、`--progress` 进度条 ，`--subs` 烧字幕、`--from`/`--to` 只取一段；`--mode spectrum` 频谱条 |
 
 | `split` | 按 `--every`/`--at`/`--scenes`/`--size`/`--parts`/`--silence`/`--chapters` 内嵌章节切分；`--subs` 输出重定时分段 .srt |
-| `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐 + `--volume` 音量、`--size` 画布） |
+| `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数或 `--dur` 总时长、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐 + `--volume` 音量、`--size` 画布） |
 | `speed` | 变速（`--factor`、`--at/--dur` 窗口、`--ramp` FROM,TO 渐变） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
 | `key` | 绿幕合成：`--color` 抠掉后叠到 `--bg` 图片/视频上（`--similarity`、`--blend`、`--despill` 去边缘绿色） |
 | `grid` | 多画面宫格（`--layout`、`--audio` 选音轨、`--labels`、`--gap`、`--fill` 裁满代替黑边） |
 | `progress` | 任意边进度条，整段或定时窗口（`--color`、`--height`、`--edge` bottom/top/left/right、`--at`、`--dur`） |
-| `freeze` | 定格画面（`--at`、`--dur`、`--end`、`--ease` 减速、`--reverse` 倒放） |
+| `freeze` | 定格画面（`--at`、`--dur`、`--end`、`--ease` 减速、`--reverse` 倒放、`--zoom` 推近定格） |
 | `censor` | 区域打码（`--mode`、`--strength` 强度、`--at`） |
 | `bleep` | 消音哔声：`--at`/`--dur` 选段，`--freq`/`--level` 调音 |
 | `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法）（`--times` 循环次数） ，`--at/--dur` 局部往返 |
@@ -167,7 +167,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `vocal` | 消/留中置人声（`--mode`、`--amount` 强度、`--at/--dur` 窗口） |
 | `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart）；`--audio` 只提音轨，`--video` 只留视频 |
 | `meme` | 上下说明文字梗图（`--outline`、`--at/--dur` 时间窗） ，`--position` 文字块上/中/下；`--wrap` 折行、`--align` 行对齐 |
-| `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`） |
+| `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`、`--at`/`--dur` 只处理一段） |
 | `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序、`--engine` yadif/bwdif） |
 | `crossfade` | 两段音频淡接，`--dur` 秒重叠（`acrossfade`） |
 | `strip` | 去掉全部元数据/章节（发片前隐私清理），无损 `-c copy` |

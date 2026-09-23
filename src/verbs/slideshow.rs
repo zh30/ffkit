@@ -16,13 +16,32 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     if args.inputs.len() < 2 {
         return Err(Error::input("slideshow needs at least two images"));
     }
-    if !(0.5..=60.0).contains(&args.per) {
+    if args.dur.is_none() && !(0.5..=60.0).contains(&args.per) {
         return Err(Error::input("--per must be 0.5..=60 seconds"));
     }
     if !(0.0..=10.0).contains(&args.fade) {
         return Err(Error::input("--fade must be 0..=10 seconds"));
     }
-    if args.fade >= args.per {
+    let n = args.inputs.len();
+    // --dur: solve for the per-still length that lands the montage on the
+    // target runtime (total = n*per - (n-1)*fade).
+    let per = match args.dur {
+        Some(d) => {
+            if !(1.0..=600.0).contains(&d) {
+                return Err(Error::input("--dur must be 1..=600 seconds"));
+            }
+            let p = (d + (n as f64 - 1.0) * args.fade) / n as f64;
+            if p <= args.fade.max(0.2) {
+                return Err(Error::input(format!(
+                    "--dur {d}s is too short for {n} images at --fade {}",
+                    args.fade
+                )));
+            }
+            p
+        }
+        None => args.per,
+    };
+    if args.fade >= per {
         return Err(Error::input("--fade must be shorter than --per"));
     }
     if !(1.0..=120.0).contains(&args.fps) {
@@ -48,8 +67,7 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
 
-    let n = args.inputs.len();
-    let total = n as f64 * args.per - (n as f64 - 1.0) * args.fade;
+    let total = n as f64 * per - (n as f64 - 1.0) * args.fade;
     let fps = args.fps;
 
     let mut argv = ffmpeg_base(g.progress);
@@ -60,7 +78,7 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
             argv.push(p);
         } else {
             argv.extend(["-loop", "1", "-t"]);
-            argv.push(format!("{:.3}", args.per));
+            argv.push(format!("{:.3}", per));
             argv.extend(["-i"]);
             argv.push(p);
         }
@@ -76,7 +94,7 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
 
     // Normalize every still to the canvas first.
     let mut fc = String::new();
-    let zoom_frames = (args.per * fps).round() as u32;
+    let zoom_frames = (per * fps).round() as u32;
     for i in 0..n {
         if args.motion == SlideMotion::Kenburns {
             // Fill the canvas so the zoom window never catches bars, then
@@ -109,7 +127,7 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
             } else {
                 format!("x{i}")
             };
-            let off = i as f64 * (args.per - args.fade);
+            let off = i as f64 * (per - args.fade);
             fc.push_str(&format!(
                 "[{prev}][s{i}]xfade=transition={t_name}:duration={:.3}:offset={off:.3}[{out}];",
                 args.fade
@@ -163,7 +181,7 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     let mut c = engine::write_job("slideshow", &inputs, &args.output, vec![argv], g)?;
     c = c.with_extra(json!({
         "frames": n,
-        "per": args.per,
+        "per": per,
         "fade": args.fade,
         "transition": args.transition.xfade_name(),
         "motion": match args.motion {

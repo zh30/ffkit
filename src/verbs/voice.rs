@@ -26,12 +26,37 @@ pub fn run(args: VoiceArgs, g: &Globals) -> Result<Contract, Error> {
          loudnorm=I={:.1}:TP=-1.5:LRA=11",
         args.lufs
     );
+    // --at/--dur: polish only a window via the shared dry/wet splitter.
+    let fc = match &args.at {
+        Some(raw) => {
+            let at = crate::time::parse_time(raw)?;
+            if !(0.0..probe.duration).contains(&at) {
+                return Err(Error::input("--at is outside the input"));
+            }
+            Some(engine::audio_window(&af, at, args.dur))
+        }
+        None => {
+            if args.dur.is_some() {
+                return Err(Error::input("--dur needs --at"));
+            }
+            None
+        }
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    argv.extend(["-af", &af]);
-    if probe.has_video {
-        argv.extend(["-c:v", "copy"]);
+    if let Some(fc) = &fc {
+        argv.extend(["-filter_complex", fc]);
+        if probe.has_video {
+            argv.extend(["-map", "0:v", "-map", "[aout]", "-c:v", "copy"]);
+        } else {
+            argv.extend(["-map", "[aout]"]);
+        }
+    } else {
+        argv.extend(["-af", &af]);
+        if probe.has_video {
+            argv.extend(["-c:v", "copy"]);
+        }
     }
     argv.extend(["-c:a", "aac"]);
     argv.push(&args.output);
