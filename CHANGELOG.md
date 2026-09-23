@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.180.0] — 2026-09-22
+
+### Added
+- `progress --reverse` — bar starts full and depletes to zero ("time left" overlays).
+- `meme --fade` — fade each text card in/out at the `--at/--dur` window edges.
+
+
+
 ## [0.179.0] — 2026-09-22
 
 ### Added
