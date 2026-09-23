@@ -38,10 +38,13 @@ Researched 2026-09-22 against **ffkit 0.78.0** (`main` + round-34 branch). Same-
 || HDR→SDR for iPhone clips | — | needs libzimg (`zscale` absent on Homebrew/apt) |
 
 ## Ordered directions (this run)
-- [ ] `mix --gain G` — scale the bed's level on entry (final mixing knob).
-- [ ] `caption --lang XX` — lang tag on burned+muxed captions.
-- [ ] `rough --by-scene` — auto segment boundaries from scene scores.
-- [ ] `spectrogram --scale sqrt|cbrt` — amp-scale knob (match waveform's).
+- [x] `mix --gain G` — covered by `--vol-a/--vol-b` (round 66+); dropped.
+- [x] `caption --lang` — dropped: burned captions carry no lang tag; `subs --mux --lang` covers selectable subs.
+- [x] `rough --by-scene` — shipped round 97.
+- [x] `spectrogram --scale` — shipped round 92.
+- [ ] `timer --bg` — plate behind the sprite-cell readout (needs raster-plate pass, not drawtext).
+- [ ] `subs --burn --from/--to` — burn only cues inside a time window (srt filter + enable).
+- [ ] `insert --transition` already; `--transition` on `multicam` shipped r87 — `concat --level` shipped r75.
 
 1. **`grid --labels`** — "cada tile con su nombre" → raster PNG labels overlaid per cell (no drawtext needed — local ffmpeg 9 lacks it).
 2. **`delogo --soft`** — "quitar el logo suave" → generated PNG mask + removelogo interpolation.
@@ -233,6 +236,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `gate --at/--dur`, `mix --at/--dur` (same window family)
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
+
+## Shipped this run (round 99)
+
+- `waveform --bg` — `color=c=…` underlay + overlay composite: opaque card behind the wave (thumbnails/podcast art where transparency renders black).
+- `broll --border [--border-color]` — `pad=iw+2b:ih+2b` ring on the PiP insert (parity with `overlay --border`).
 
 ## Shipped this run (round 98)
 

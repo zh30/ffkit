@@ -102,8 +102,23 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         ("yuv420p", String::new())
     };
+    let border_pre = match args.border {
+        Some(b) if (1..=200).contains(&b) => format!(
+            ",pad=iw+{d}:ih+{d}:{b}:{b}:{col}",
+            d = b * 2,
+            col = match args.border_color.as_deref() {
+                Some(c) => crate::color::lavfi(c),
+                None => "white".to_string(),
+            }
+        ),
+        Some(_) => return Err(Error::input("--border must be 1..=200 px")),
+        None => String::new(),
+    };
+    if args.border.is_some() && !pip {
+        return Err(Error::input("--border needs --position (PiP mode)"));
+    }
     let mut fc = format!(
-        "[1:v]{still_pre}{prep},setsar=1,format={pix},setpts=PTS-STARTPTS+{at:.3}/TB{fade_chain}[br];[0:v][br]overlay={ox}:{oy}:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
+        "[1:v]{still_pre}{prep},setsar=1{border_pre},format={pix},setpts=PTS-STARTPTS+{at:.3}/TB{fade_chain}[br];[0:v][br]overlay={ox}:{oy}:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
     );
     if args.audio {
         if let Some(v) = args.volume {

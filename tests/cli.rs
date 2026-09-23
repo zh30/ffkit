@@ -13625,3 +13625,67 @@ fn scroll_ticker_bg_draws_bar() {
         .join(" ");
     assert!(cmds.contains("drawbox"), "{cmds}");
 }
+
+#[test]
+fn waveform_bg_composites_on_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("w.png");
+    let v = run_json(&[
+        "waveform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--bg",
+        "black",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("color=c=black"), "{cmds}");
+    assert!(cmds.contains("overlay=0:0"), "{cmds}");
+}
+
+#[test]
+fn broll_pip_border_pads_insert() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = scene_fixture(dir.path());
+    let b = lavfi_fixture(dir.path(), "ins.mp4", "520", 1.0);
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "broll",
+        a.to_str().unwrap(),
+        "--insert",
+        b.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--duration",
+        "0.4",
+        "--position",
+        "bottom-right",
+        "--border",
+        "4",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("pad=iw+8:ih+8:4:4"), "{cmds}");
+}

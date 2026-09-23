@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.125.0
+version: 0.126.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -53,7 +53,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 
 | speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--at`/`--dur` windowed swap, `--mix` keep the original under it), `loudnorm` (`--target` platform preset), `volume` |
 | grainy low-light footage | `vdenoise` (`--strength`, nlmeans — slow on long clips) |
-| waveform PNG of audio | `waveform` (`--size`, `--color`, `--scale`, `--at/--dur`) — podcast art, thumbnails |
+| waveform PNG of audio | `waveform` (`--size`, `--color`, `--scale`, `--bg` card, `--at/--dur`) — podcast art, thumbnails |
 | audio spectrogram PNG | `spectrogram` (`--size`, `--color`, `--at/--dur`) — inspect hum/noise before cleanup |
 | watch loudness while it plays | `meter` (`--size`, `--meter 9|18`, `--at/--dur` — EBU R128 video; podcast/voice QC) |
 | mains hum / electrical buzz | `dehum` (`--at`/`--dur` window, `--mains 50|60` or `--freq HZ` custom hum, `--harmonics`) — notches the fundamental + harmonics |
@@ -112,7 +112,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | split a podcast on pauses | `split` (`--silence=-35` — cuts at gap midpoints) |
 | music bed that eases in/out | `music` (`--fade` on the bed) |
 | one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass`), `--band` parametric, `--tilt` |
-| soft b-roll cutaway edges | `broll` (`--fade`), `--position` pip |
+| soft b-roll cutaway edges | `broll` (`--fade`), `--position` pip (+`--border` ring) |
 | stills at exact moments | `frames` (`--at 12,45,90`) |
 | audiogram on any canvas | `audiogram` (`--size` — 1080x1920, 1920x1080, 1080x1080) |
 | swapped audio eases in/out | `replace` (`--fade`) |

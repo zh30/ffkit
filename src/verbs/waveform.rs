@@ -28,6 +28,13 @@ pub fn run(args: WaveformArgs, g: &Globals) -> Result<Contract, Error> {
     // --at/--dur: crop the rendered wave to the window, then stretch to --size.
     let flt = if args.peak { ":filter=peak" } else { "" };
     let dr = if args.full { ":draw=full" } else { "" };
+    let (bg_pre, bg_post) = match &args.bg {
+        Some(b) => (
+            format!("color=c={c}:s={w}x{h}[bgr];", c = crate::color::lavfi(b)),
+            ";[bgr][v]overlay=0:0[wout]".to_string(),
+        ),
+        None => (String::new(), String::new()),
+    };
     let sp = if args.split { ":split_channels=1" } else { "" };
     let win = match &args.at {
         Some(raw) => {
@@ -58,9 +65,11 @@ pub fn run(args: WaveformArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.input);
     argv.extend([
         "-filter_complex",
-        &format!("[0:a]showwavespic=s={w}x{h}:colors={color}{flt}{sp}{sc}{dr}[w0]{win}"),
+        &format!(
+            "{bg_pre}[0:a]showwavespic=s={w}x{h}:colors={color}{flt}{sp}{sc}{dr}[w0]{win}{bg_post}"
+        ),
         "-map",
-        "[v]",
+        if args.bg.is_some() { "[wout]" } else { "[v]" },
         "-frames:v",
         "1",
         "-update",

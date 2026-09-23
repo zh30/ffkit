@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.126.0] — 2026-09-22
+
+### Added
+
+- `waveform --bg` — opaque background card under the wave PNG (thumbnails)
+- `broll --border [--border-color]` — pad ring around the PiP insert
+
 ## [0.125.0] — 2026-09-22
 
 ### Added

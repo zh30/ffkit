@@ -514,6 +514,12 @@ pub struct BrollArgs {
     /// Linear gain on the insert audio 0..=4 (with --audio; default 1.0)
     #[arg(long)]
     pub volume: Option<f64>,
+    /// Ring the PiP insert with an N-px border (with --position)
+    #[arg(long)]
+    pub border: Option<u32>,
+    /// Border color for --border (default white; name or RRGGBB)
+    #[arg(long)]
+    pub border_color: Option<String>,
     /// PiP mode: place the insert in a corner/edge instead of full-screen
     /// (top-left, top, top-right, left, center, right, bottom-left, bottom, bottom-right)
     #[arg(long)]
@@ -2270,6 +2276,9 @@ pub struct WaveformArgs {
     /// Draw every sample pixel (denser wave) vs the default scale draw
     #[arg(long)]
     pub full: bool,
+    /// Opaque background color under the wave (thumbnails: kills transparency)
+    #[arg(long)]
+    pub bg: Option<String>,
     /// Render only this slice (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,
