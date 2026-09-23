@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.164.0
+version: 0.165.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -53,7 +53,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | audiogram of just the best bit | `audiogram` (`--from 0:42 --to 1:12` clips the segment) |
 | cover still | `cover` (`--blur` ambient pad, `--size` canvas) |
 
-| speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--at`/`--dur` windowed swap, `--mix` keep the original under it), `loudnorm` (`--target` platform preset), `volume` |
+| speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--at`/`--dur` windowed swap (comma `--at` lays the new track across several windows), `--mix` keep the original under it), `loudnorm` (`--target` platform preset), `volume` |
 | grainy low-light footage | `vdenoise` (`--strength`, nlmeans — slow; `--at`/`--dur` windows it) |
 | waveform PNG of audio | `waveform` (`--size`, `--color`, `--scale`, `--bg` card, `--at/--dur`) — podcast art, thumbnails |
 | audio spectrogram PNG | `spectrogram` (`--size`, `--color`, `--separate` per-channel, `--at/--dur`) — inspect hum/noise before cleanup |

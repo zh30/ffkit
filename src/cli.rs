@@ -1109,9 +1109,10 @@ pub struct ReplaceArgs {
     /// Loop the replacement audio if it is shorter than the video
     #[arg(long = "loop")]
     pub loop_track: bool,
-    /// Replace only inside this window: original audio keeps playing outside
+    /// Replace only inside this window: original audio keeps playing outside —
+    /// comma list lays the new track across several windows (needs --dur)
     #[arg(long)]
-    pub at: Option<f64>,
+    pub at: Option<String>,
     /// Window length (default: to the end of the new audio)
     #[arg(long)]
     pub dur: Option<f64>,

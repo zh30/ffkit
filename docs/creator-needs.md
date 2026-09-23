@@ -237,6 +237,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 138)
+- `replace --at a,b,...` — comma list swaps the audio track inside several windows; the new track is laid across them **in order** (window i plays the slice after window i−1's), `--fade` eases each window.
+
 ## Shipped this run (round 137)
 - `key --at/--dur` — green-screen composite only inside a window (comma list for several; talent walks over the keyed section, background shows elsewhere).
 - `subs --shift --from/--to` — bound the retiming to cues overlapping a window (only the stretch after an inserted segment is late; `end` ok).

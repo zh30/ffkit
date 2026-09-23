@@ -15444,6 +15444,57 @@ fn bleep_comma_list_censors_every_window() {
 }
 
 #[test]
+fn replace_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    let voice = dir.path().join("v.wav");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=660:duration=2",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&voice)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    // new track laid across two 0.2s windows → 0..0.2 then 0.2..0.4 of it
+    let v = run_json(&[
+        "replace",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("r.mp4").to_str().unwrap(),
+        "--audio",
+        voice.to_str().unwrap(),
+        "--at",
+        "0.2,0.7",
+        "--dur",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("concat=n=5"), "{cmds}");
+    assert!(cmds.contains("atrim=0.200:0.400"), "{cmds}");
+    assert!(cmds.contains("atrim=0.400:0.700"), "{cmds}");
+}
+
+#[test]
 fn key_window_and_subs_shift_bounds() {
     if !has_ffmpeg() {
         return;

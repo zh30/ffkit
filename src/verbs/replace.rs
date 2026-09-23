@@ -47,7 +47,7 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
     if args.dur.is_some() && args.at.is_none() {
         return Err(Error::input("replace --dur needs --at"));
     }
-    if let Some(at) = args.at {
+    let windows: Vec<(f64, f64)> = if let Some(raw) = &args.at {
         if !probe.has_audio {
             return Err(Error::input(
                 "replace --at needs an audio stream on the input",
@@ -58,16 +58,32 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
                 "replace --at replaces wholesale — drop --mix/--duck",
             ));
         }
-        let end = match args.dur {
-            Some(d) => (at + d).min(probe.duration),
-            None => (at + (audio_probe.duration - args.audio_offset.max(0.0))).min(probe.duration),
-        };
-        if at < 0.0 || end <= at || end > probe.duration + 0.01 {
-            return Err(Error::input(
-                "replace --at/--dur window is empty or outside the source",
-            ));
+        let mut ws = Vec::new();
+        for part in raw.split(',') {
+            let at = crate::time::parse_time(part.trim())?;
+            let end = match args.dur {
+                Some(d) => (at + d).min(probe.duration),
+                None => {
+                    (at + (audio_probe.duration - args.audio_offset.max(0.0))).min(probe.duration)
+                }
+            };
+            if at < 0.0 || end <= at || end > probe.duration + 0.01 {
+                return Err(Error::input(
+                    "replace --at/--dur window is empty or outside the source",
+                ));
+            }
+            ws.push((at, end));
         }
-    }
+        ws.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        for w in ws.windows(2) {
+            if w[1].0 < w[0].1 - 1e-6 {
+                return Err(Error::input("replace: --at windows overlap"));
+            }
+        }
+        ws
+    } else {
+        Vec::new()
+    };
 
     let mut chain = String::new();
     if args.audio_offset > 0.0 {
@@ -96,35 +112,45 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
             "[1:a]{chain}apad,atrim=duration={:.3}{fade},aresample=48000,aformat=channel_layouts=stereo[new];[0:a]aresample=48000,aformat=channel_layouts=stereo,volume={:.3},atrim=duration={:.3}[old];[old][new]amix=inputs=2:normalize=0[aout]",
             probe.duration, args.mix, probe.duration
         )
-    } else if let Some(at) = args.at {
-        // Windowed replacement: original track outside [at, end), new audio inside.
-        let end = match args.dur {
-            Some(d) => (at + d).min(probe.duration),
-            None => (at + (audio_probe.duration - args.audio_offset.max(0.0))).min(probe.duration),
-        };
-        let len = end - at;
-        let wf = if args.fade > 0.0 {
-            let f = args.fade.min(len / 2.0).max(0.02);
-            format!(
-                ",afade=t=in:st=0:d={f:.3},afade=t=out:st={:.3}:d={f:.3}",
-                len - f
-            )
-        } else {
-            String::new()
-        };
+    } else if !windows.is_empty() {
+        // Windowed replacement: original track outside each window, the new
+        // audio laid across the windows in order (comma --at = several).
+
         let mut segs = String::new();
-        let mut pads: Vec<&str> = Vec::new();
-        if at > 0.001 {
-            segs.push_str(&format!("[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[a0];"));
-            pads.push("a0");
+        let mut pads: Vec<String> = Vec::new();
+        let mut prev = 0.0f64;
+        let mut off = 0.0f64;
+        let mut k = 0usize;
+        for &(s, e) in &windows {
+            if s > prev + 0.001 {
+                segs.push_str(&format!(
+                    "[0:a]atrim={prev:.3}:{s:.3},asetpts=PTS-STARTPTS[a{k}];"
+                ));
+                pads.push(format!("a{k}"));
+                k += 1;
+            }
+            let wlen = e - s;
+            let wf2 = if args.fade > 0.0 {
+                let f = args.fade.min(wlen / 2.0).max(0.02);
+                format!(
+                    ",afade=t=in:st=0:d={f:.3},afade=t=out:st={:.3}:d={f:.3}",
+                    wlen - f
+                )
+            } else {
+                String::new()
+            };
+            segs.push_str(&format!(
+                "[1:a]{chain}atrim={off:.3}:{oend:.3},asetpts=PTS-STARTPTS{wf2},aresample=48000,aformat=channel_layouts=stereo[a{k}];",
+                oend = off + wlen
+            ));
+            pads.push(format!("a{k}"));
+            k += 1;
+            off += wlen;
+            prev = e;
         }
-        segs.push_str(&format!(
-            "[1:a]{chain}atrim=0:{len:.3},asetpts=PTS-STARTPTS{wf},aresample=48000,aformat=channel_layouts=stereo[a1];"
-        ));
-        pads.push("a1");
-        if end < probe.duration - 0.001 {
-            segs.push_str(&format!("[0:a]atrim={end:.3},asetpts=PTS-STARTPTS[a2];"));
-            pads.push("a2");
+        if prev < probe.duration - 0.001 {
+            segs.push_str(&format!("[0:a]atrim={prev:.3},asetpts=PTS-STARTPTS[a{k}];"));
+            pads.push(format!("a{k}"));
         }
         let n = pads.len();
         let ins: String = pads.iter().map(|p| format!("[{p}]")).collect();
@@ -154,14 +180,13 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
     c = c.with_extra(json!({
         "audio": args.audio,
         "audio_offset": args.audio_offset,
-        "window": args.at.map(|at| {
-            let end = match args.dur {
-                Some(d) => (at + d).min(probe.duration),
-                None => (at + (audio_probe.duration - args.audio_offset.max(0.0)))
-                    .min(probe.duration),
-            };
-            json!({"at": at, "end": end})
-        }),
+        "window": if windows.is_empty() {
+            json!(null)
+        } else if windows.len() == 1 {
+            json!({"at": windows[0].0, "end": windows[0].1})
+        } else {
+            json!(windows.iter().map(|(s, e)| json!({"at": s, "end": e})).collect::<Vec<_>>())
+        },
         "mix": args.mix,
         "duck": args.duck,
         "video_copy": true,

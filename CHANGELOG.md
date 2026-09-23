@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.165.0] — 2026-09-22
+
+### Added
+- `replace --at a,b,...` — comma list swaps the audio track inside several windows (needs `--dur`); the replacement track is laid across the windows **in order** — window i plays the slice that continues where window i−1 left off. `--fade` eases each window edge. Overlapping windows error out.
+
 ## [0.164.0] — 2026-09-22
 
 ### Added
