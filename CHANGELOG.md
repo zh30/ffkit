@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.195.0] — 2026-09-23
+
+### Added
+
+- `flip` — horizontal/vertical flip (`--axis x` unmirror selfie footage, `--at`/`--dur` windowed)
+- `poster` — pop-art posterization (`elbg=l=N`, `--levels` 2-64, `--at`/`--dur` via blend branch)
+- `duotone` — two-color luminance ramp (`--shadow`/`--highlight`, `format=gray` + per-channel `lutrgb`)
+
 ## [0.191.0] — 2026-09-23
 
 ### Added

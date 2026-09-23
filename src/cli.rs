@@ -227,6 +227,12 @@ pub enum Cmd {
     Trail(TrailArgs),
     /// Datamosh-style RGB-shift glitch look
     Glitch(GlitchArgs),
+    /// Flip the frame horizontally or vertically (unmirror selfie footage)
+    Flip(FlipArgs),
+    /// Pop-art posterization (quantize to N palette colors)
+    Poster(PosterArgs),
+    /// Two-color duotone map (shadows -> highlight ramp)
+    Duotone(DuotoneArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -936,6 +942,65 @@ pub struct GlitchArgs {
     /// Glitch intensity 0.5-20 (channel shift px + noise)
     #[arg(long, default_value_t = 3.0)]
     pub strength: f64,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum FlipAxis {
+    /// Horizontal flip (unmirror selfie footage)
+    X,
+    /// Vertical flip
+    Y,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct FlipArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Flip axis: x = horizontal (unmirror), y = vertical
+    #[arg(long, value_enum, default_value_t = FlipAxis::X)]
+    pub axis: FlipAxis,
+    /// Timestamp(s) to start flipping — comma list allowed; `end` = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Seconds the flip lasts per --at point (default: to end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct PosterArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Palette colors to keep (2-64, lower = more posterized)
+    #[arg(long, default_value_t = 8)]
+    pub levels: u32,
+    /// Timestamp(s) to start posterizing — comma list allowed; `end` = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Seconds the poster look lasts per --at point (default: to end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DuotoneArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Color for the dark end (name or RRGGBB)
+    #[arg(long, default_value = "001a33")]
+    pub shadow: String,
+    /// Color for the bright end (name or RRGGBB)
+    #[arg(long, default_value = "ffd699")]
+    pub highlight: String,
+    /// Timestamp(s) to start the duotone — comma list allowed; `end` = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Seconds the duotone lasts per --at point (default: to end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

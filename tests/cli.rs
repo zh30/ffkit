@@ -17680,3 +17680,170 @@ fn censor_circle_mask_and_progress_opacity() {
         });
     assert!(bar_ok, "opacity missing from bar source: {}", v["commands"]);
 }
+
+#[test]
+fn flip_poster_duotone() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("src.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=320x240:duration=2:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    // flip x: output is left-right symmetric vs source
+    let fl = dir.path().join("fl.mp4");
+    let v = run_json(&[
+        "flip",
+        src.to_str().unwrap(),
+        "-o",
+        fl.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(fc.contains("hflip"), "{fc}");
+    let (w, h) = (320usize, 240usize);
+    let grab = |f: &std::path::Path| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-y", "-loglevel", "error", "-ss", "0.5", "-i"])
+            .arg(f)
+            .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let flf = grab(&fl);
+    let srcf = grab(&src);
+    let mut sym = 0u32;
+    for x in 0..w / 2 {
+        for y in (0..h).step_by(20) {
+            let a = &srcf[(y * w + x) * 3..(y * w + x) * 3 + 3];
+            let b = &flf[(y * w + (w - 1 - x)) * 3..(y * w + (w - 1 - x)) * 3 + 3];
+            if a.iter().zip(b.iter()).all(|(p, q)| p.abs_diff(*q) < 24) {
+                sym += 1;
+            }
+        }
+    }
+    assert!(sym > 1000, "flip symmetry {sym}");
+    // windowed flip uses enable
+    let flw = dir.path().join("flw.mp4");
+    let v = run_json(&[
+        "flip",
+        src.to_str().unwrap(),
+        "-o",
+        flw.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "--dur",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(fc.contains("hflip=enable="), "{fc}");
+    // poster: elbg quantization
+    let po = dir.path().join("po.mp4");
+    let v = run_json(&[
+        "poster",
+        src.to_str().unwrap(),
+        "-o",
+        po.to_str().unwrap(),
+        "--levels",
+        "6",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(fc.contains("elbg=l=6"), "{fc}");
+    // windowed poster goes through the blend branch
+    let pow = dir.path().join("pow.mp4");
+    let v = run_json(&[
+        "poster",
+        src.to_str().unwrap(),
+        "-o",
+        pow.to_str().unwrap(),
+        "--at",
+        "1",
+        "--dur",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        fc.contains("blend=all_expr") && fc.contains("between(T,"),
+        "{fc}"
+    );
+    // duotone: dark -> shadow color, bright -> highlight color
+    let du = dir.path().join("du.mp4");
+    let v = run_json(&[
+        "duotone",
+        src.to_str().unwrap(),
+        "-o",
+        du.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(fc.contains("format=gray") && fc.contains("lutrgb"), "{fc}");
+    let duf = grab(&du);
+    let mut bluish = 0u32;
+    let mut cream = 0u32;
+    for x in (0..w).step_by(16) {
+        for y in (0..h).step_by(16) {
+            let i = (y * w + x) * 3;
+            let (r, g, b) = (duf[i], duf[i + 1], duf[i + 2]);
+            if b > r {
+                bluish += 1;
+            }
+            if r >= g && g >= b {
+                cream += 1;
+            }
+        }
+    }
+    assert!(bluish > 40 && cream > 40, "duotone {bluish}/{cream}");
+}
