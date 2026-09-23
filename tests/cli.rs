@@ -16882,3 +16882,67 @@ fn delogo_regions_multi_box() {
     ]);
     assert_eq!(bad2["status"], "failed", "{bad2}");
 }
+
+#[test]
+fn scroll_speed_paces_roll_and_countdown_formats() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = lavfi_fixture(dir.path(), "v.mp4", "440", 4.0);
+    let v = run_json(&[
+        "scroll",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("s.mp4").to_str().unwrap(),
+        "--text",
+        "HELLO WORLD",
+        "--speed",
+        "400",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("overlay="), "{cmds}");
+    assert!(!cmds.contains("/4.000)"), "{cmds}");
+    let bad = run_json(&[
+        "scroll",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("s2.mp4").to_str().unwrap(),
+        "--text",
+        "X",
+        "--speed",
+        "400",
+        "--dur",
+        "2",
+    ]);
+    assert_eq!(bad["status"], "failed", "{bad}");
+    let c = run_json(&[
+        "countdown",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("c.mp4").to_str().unwrap(),
+        "--from",
+        "65",
+        "--format",
+        "mm:ss",
+    ]);
+    assert_eq!(c["status"], "ok", "{c}");
+    let badfmt = run_json(&[
+        "countdown",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("c2.mp4").to_str().unwrap(),
+        "--from",
+        "3",
+        "--format",
+        "hh",
+    ]);
+    assert_eq!(badfmt["status"], "failed", "{badfmt}");
+}

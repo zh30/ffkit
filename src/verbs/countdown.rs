@@ -20,8 +20,8 @@ fn parse_hex(c: &str) -> Result<[u8; 3], Error> {
 /// Rasterized 3-2-1(-GO) intro overlay: one PNG input per run, each shown
 /// `--each` seconds via `enable='between(t,a,b)'`.
 pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
-    if !(1..=10).contains(&args.from) {
-        return Err(Error::input("--from must be 1..=10"));
+    if !(1..=600).contains(&args.from) {
+        return Err(Error::input("--from must be 1..=600"));
     }
     if args.each <= 0.0 {
         return Err(Error::input("--each must be > 0 seconds"));
