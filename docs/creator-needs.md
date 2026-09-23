@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 172)
+
+- `bars` (SMPTE test card + 1kHz tone), `scope` (vectorscope/waveform corner overlay), `desqueeze` (anamorphic restore).
+
 ## Shipped this run (round 171)
 
 - `cartoon` (posterize + ink outlines), `heat` (pseudocolor thermal presets, `--opacity`), `kaleido` (2x2 mirrored mandala).
