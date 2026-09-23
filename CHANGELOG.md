@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.196.0] — 2026-09-23
+
+### Added
+
+- `glow` — dreamy bloom (gblur + screen blend, `--at`/`--dur` window)
+- `vhs` — retro tape look (`--strength` 0-3: noise + rgbashift + scanlines, `--at`/`--dur` via blend branch)
+- `motionblur` — shutter smear (`tblend`/`tmix` temporal average, `--frames` 2-8, `--at`/`--dur` window)
+
 ## [0.192.0] — 2026-09-23
 
 ### Added

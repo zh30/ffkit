@@ -17811,3 +17811,136 @@ fn waveform_vertical_broll_opacity_title_margin() {
         .any(|a| a.as_str().unwrap_or("").contains("W-w-12"));
     assert!(mg, "margin inset missing: {}", v["commands"]);
 }
+
+#[test]
+fn glow_vhs_motionblur() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("src.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=320x240:duration=2:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let argv_join = |v: &serde_json::Value| -> String {
+        v["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|c| c.as_array().unwrap().iter())
+            .filter_map(|a| a.as_str())
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    // glow: split + gblur + screen blend
+    let gl = dir.path().join("gl.mp4");
+    let v = run_json(&[
+        "glow",
+        src.to_str().unwrap(),
+        "-o",
+        gl.to_str().unwrap(),
+        "--strength",
+        "8",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = argv_join(&v);
+    assert!(
+        fc.contains("gblur=sigma=8") && fc.contains("all_mode=screen"),
+        "{fc}"
+    );
+    // bloomed frame is brighter than source
+    let grab = |f: &std::path::Path| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-y", "-loglevel", "error", "-ss", "0.5", "-i"])
+            .arg(f)
+            .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let glf = grab(&gl);
+    let srcf = grab(&src);
+    let gm: u64 = glf.iter().map(|b| *b as u64).sum();
+    let sm: u64 = srcf.iter().map(|b| *b as u64).sum();
+    assert!(gm > sm, "bloom should brighten: {gm} vs {sm}");
+    // vhs: noise + rgbashift + drawgrid
+    let vh = dir.path().join("vh.mp4");
+    let v = run_json(&[
+        "vhs",
+        src.to_str().unwrap(),
+        "-o",
+        vh.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = argv_join(&v);
+    assert!(
+        fc.contains("noise=alls=8") && fc.contains("rgbashift") && fc.contains("drawgrid"),
+        "{fc}"
+    );
+    // vhs windowed uses the blend branch
+    let vhw = dir.path().join("vhw.mp4");
+    let v = run_json(&[
+        "vhs",
+        src.to_str().unwrap(),
+        "-o",
+        vhw.to_str().unwrap(),
+        "--at",
+        "1",
+        "--dur",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = argv_join(&v);
+    assert!(
+        fc.contains("blend=all_expr") && fc.contains("between(T,"),
+        "{fc}"
+    );
+    // motionblur: tblend default, tmix for --frames > 2
+    let mb = dir.path().join("mb.mp4");
+    let v = run_json(&[
+        "motionblur",
+        src.to_str().unwrap(),
+        "-o",
+        mb.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = argv_join(&v);
+    assert!(fc.contains("tblend=all_mode=average"), "{fc}");
+    let mb4 = dir.path().join("mb4.mp4");
+    let v = run_json(&[
+        "motionblur",
+        src.to_str().unwrap(),
+        "-o",
+        mb4.to_str().unwrap(),
+        "--frames",
+        "4",
+        "--at",
+        "0.5",
+        "--dur",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = argv_join(&v);
+    assert!(
+        fc.contains("tmix=frames=4") && fc.contains("blend=all_expr"),
+        "{fc}"
+    );
+}
