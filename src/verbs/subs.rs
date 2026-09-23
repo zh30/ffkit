@@ -224,6 +224,13 @@ fn burn(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract
         .map(|e| e.eq_ignore_ascii_case("srt"))
         .unwrap_or(false);
     let win_from = match &args.from {
+        Some(t) if t.trim().eq_ignore_ascii_case("end") => {
+            Some(engine::probe_or_err(&args.input, g)?.duration)
+        }
+        Some(t) if t.trim().to_ascii_lowercase().starts_with("end-") => Some(
+            engine::probe_or_err(&args.input, g)?.duration
+                - crate::time::parse_time(&t.trim()[4..])?,
+        ),
         Some(t) => Some(crate::time::parse_time(t)?),
         None => None,
     };

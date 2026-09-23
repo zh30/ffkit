@@ -35,7 +35,11 @@ pub fn run(args: MulticamArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let mut cuts: Vec<f64> = Vec::new();
     for s in &args.at {
-        let t = parse_time(s)?;
+        let t = if s.trim().eq_ignore_ascii_case("end") {
+            dur - 0.06
+        } else {
+            parse_time(s)?
+        };
         if !(0.05..dur - 0.05).contains(&t) {
             return Err(Error::input(format!(
                 "--at {s} is outside the {:.2}s shared window",

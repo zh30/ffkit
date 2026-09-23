@@ -73,6 +73,10 @@ pub fn run(args: ThumbArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--count must be 1..=50"));
         }
         let t0 = match &args.from {
+            Some(s) if s.trim().eq_ignore_ascii_case("end") => probe.duration,
+            Some(s) if s.trim().to_ascii_lowercase().starts_with("end-") => {
+                probe.duration - parse_time(&s.trim()[4..])?
+            }
             Some(s) => parse_time(s)?,
             None => 0.0,
         };

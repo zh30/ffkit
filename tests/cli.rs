@@ -15295,3 +15295,50 @@ fn split_fade_and_spectrogram_separate() {
         .join(" ");
     assert!(cmds.contains("mode=separate"), "{cmds}");
 }
+
+#[test]
+fn thumb_from_end_and_multicam_at_end() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("t.jpg").to_str().unwrap(),
+        "--count",
+        "2",
+        "--from",
+        "end-0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-ss 0.500"), "{cmds}");
+    let b = lavfi_fixture(dir.path(), "b.mp4", "440", 1.0);
+    let v = run_json(&[
+        "multicam",
+        src.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        dir.path().join("mc.mp4").to_str().unwrap(),
+        "--at",
+        "end",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("0.940"), "{cmds}");
+}

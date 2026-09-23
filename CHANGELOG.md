@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.150.0] — 2026-09-22
+
+### Added
+- `thumb --from end` / `end-N` — tail-anchored `--count` spread window.
+- `multicam --at end` — switch back to the A angle at the tail.
+- `subs --from end` / `end-N` — tail-anchored cue window for `--burn`.
+
 ## [0.149.0] — 2026-09-22
 
 ### Added
