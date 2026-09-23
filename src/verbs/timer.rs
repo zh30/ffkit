@@ -77,18 +77,27 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
             0,
         );
     }
+    if let Some(op) = args.opacity {
+        crate::raster::alpha_scale(&mut sprite, op)?;
+    }
     let sprite_path = tmp.path().join("digits.png");
     sprite
         .save(&sprite_path)
         .map_err(|e| Error::output(format!("write sprite: {e}")))?;
-    let colon = crate::raster::render_title_styled(":", &font_bytes, vw, fg, args.size as f32)?;
+    let mut colon = crate::raster::render_title_styled(":", &font_bytes, vw, fg, args.size as f32)?;
     let colw = colon.width();
+    if let Some(op) = args.opacity {
+        crate::raster::alpha_scale(&mut colon, op)?;
+    }
     let colon_path = tmp.path().join("colon.png");
     colon
         .save(&colon_path)
         .map_err(|e| Error::output(format!("write colon: {e}")))?;
-    let dot = crate::raster::render_title_styled(".", &font_bytes, vw, fg, args.size as f32)?;
+    let mut dot = crate::raster::render_title_styled(".", &font_bytes, vw, fg, args.size as f32)?;
     let dotw = dot.width();
+    if let Some(op) = args.opacity {
+        crate::raster::alpha_scale(&mut dot, op)?;
+    }
     let dot_path = tmp.path().join("dot.png");
     dot.save(&dot_path)
         .map_err(|e| Error::output(format!("write dot: {e}")))?;
@@ -138,6 +147,9 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
         let mut card = image::RgbaImage::new(total_w + 2 * pad, ch + pad);
         for px in card.pixels_mut() {
             *px = image::Rgba([r, g_, b_, 200]);
+        }
+        if let Some(op) = args.opacity {
+            crate::raster::alpha_scale(&mut card, op)?;
         }
         let p = tmp.path().join("box.png");
         card.save(&p)

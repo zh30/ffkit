@@ -175,18 +175,18 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
 | `frames` | Still dump every `--every`, `--at` seconds (`end` = last frame), `--count` even-spread → `stem_001.png…` (`--width`) |
-| `countdown` | Overlay a counting leader (`--from` up to 600, `--beep` + `--tone` Hz, `--text`, `--position`, `--bg` numeral plate, `--format` mm:ss/h:mm:ss) |
+| `countdown` | Overlay a counting leader (`--from` up to 600, `--beep` + `--tone` Hz, `--text`, `--position`, `--bg` numeral plate, `--format` mm:ss/h:mm:ss, `--opacity` ghost) |
 | `invert` | Full-frame or windowed color inversion (`--at`, `--dur` — comma list ok) |
 | `mix` | Blend two sources (`--vol-a/--vol-b`, `--at/--dur` window — comma list for several entrances, `end` ok, `--loop`, `--duck` sidechain bed under voice) , `--normalize`, `--fade` bed edges |
 | `mute` | Drop the audio track, stream-copy the rest , `--at/--dur` silences only that window (comma list covers several spots, needs `--dur`; `end` ok) |
-| `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown, `--start` seed the readout) — `--at` accepts `end` |
+| `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown, `--start` seed the readout) — `--at` accepts `end`; `--opacity` ghost HUD |
 | `hls` | Web-ready HLS (`--seg`, `--single`, `--copy`, `--ladder` ABR, `--audio-only` podcast streams, `--fmp4` CMAF, `--poster` writes poster.jpg, `--poster-at T` picks the frame, `--encrypt` AES-128 + `key.bin`/`key.info` (custom `--key HEX`, `--key-uri URI`) for private/paywalled streams) |
 
 | `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
 | `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill |
 | `sync` | Shift audio ±ms to fix A/V sync (`--ms`) |
 | `align` | Auto-sync a second recording to a reference by audio cross-correlation — multi-cam/external recorder (`--max-lag`) |
-| `scroll` | Rolling end credits: text rolls bottom→top (`--text`/`--file`, `--at`, `--dur` or `--speed` px/s, `--size`, `--color`, `--font`, `--align` left/right, `--wrap` folds); `--mode ticker` news crawl with `--bg` opaque bar; `--at` comma list replays the roll, `end` ok |
+| `scroll` | Rolling end credits: text rolls bottom→top (`--text`/`--file`, `--at`, `--dur` or `--speed` px/s, `--size`, `--color`, `--font`, `--align` left/right, `--wrap` folds); `--mode ticker` news crawl with `--bg` opaque bar; `--at` comma list replays the roll, `end` ok; `--opacity` ghost credits |
 | `insert` | Splice a clip mid-video (`--at`, comma list splices at several points, `end` appends; `--dur` cap; `--transition` any xfade `--duration` S crossfades both joints) |
 | `multicam` | Two-camera angle switching across an aligned pair: `--at t1,t2,...` flips angle (`end` = tail switch); `--keep-audio` stays on cam A, `--transition` xfade switches |
 | `art` | Attach embedded cover art to audio; `--extract` pulls it out to an image |

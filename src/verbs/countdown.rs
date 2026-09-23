@@ -72,7 +72,10 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
     // Optional label shown above the digits across the whole count window.
     let mut label_png = None;
     if let Some(label) = &args.text {
-        let img = crate::raster::render_title_styled(label, &font_bytes, vw, fg, 1.0)?;
+        let mut img = crate::raster::render_title_styled(label, &font_bytes, vw, fg, 1.0)?;
+        if let Some(op) = args.opacity {
+            crate::raster::alpha_scale(&mut img, op)?;
+        }
         let png = tmp.path().join("label.png");
         img.save(&png)
             .map_err(|e| Error::output(format!("write countdown label png: {e}")))?;
@@ -104,6 +107,10 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
             }
             None => img,
         };
+        let mut img = img;
+        if let Some(op) = args.opacity {
+            crate::raster::alpha_scale(&mut img, op)?;
+        }
         img.save(&png)
             .map_err(|e| Error::output(format!("write countdown png: {e}")))?;
         argv.push("-i");
