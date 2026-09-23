@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.222.0] — RSI round 195
+
+- `amplify` — motion magnification: per-pixel diffs below `--threshold` across `--radius` frames get multiplied by `--amount`. Subtle breathing, pulses, machine shake become visible (measured stdev 66 → 80 at amount=8/threshold=30; +19% on a slow drift fixture). `--at`/`--dur` windows.
+- `deinterlace --engine estdif|kerndeint` — two more deinterlacers: estdif edge-slope tracing (diagonals stay clean) maps `--mode`/`--parity`; kerndeint adaptive kernel (sharp+twoway, the classic high-quality mplayer mode).
+- `selective` — rewritten on native `colorhold` (replaces the split/colorkey/maskedmerge chain; same pop-color result, fewer moving parts) + new `--blend` 0-1 feather so the kept color dissolves into the gray field instead of hard-cutting.
+
+
 ## [0.221.0] — RSI round 194
 
 - `wb` — auto white balance via `normalize`: per-channel histogram stretch neutralizes a cast (verified: green-cast RGB [123,190,129] → [123,127,129]). `--strength` blends, `--independence 0` keeps the grade (contrast only), `--smooth` eases frame-to-frame, `--at`/`--dur` windows.

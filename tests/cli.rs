@@ -19142,7 +19142,7 @@ fn pick_diff_selective() {
                 .map(|a| a.as_str().unwrap_or(""))
         })
         .collect();
-    assert!(joined.contains("maskedmerge"), "{joined}");
+    assert!(joined.contains("colorhold"), "{joined}");
     assert!(joined.contains("blend=all_expr"), "{joined}");
 }
 
@@ -21500,6 +21500,111 @@ fn shear_denoise_engines_channel_base() {
         lr_diff(&narrow) < base_in * 0.3,
         "base -1 should fold toward mono: {v}"
     );
+}
+
+#[test]
+
+fn amplify_selective_deint_engines() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let stdev = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-f", "rawvideo", "-pix_fmt", "gray", "-"])
+            .output()
+            .unwrap();
+        let d = o.stdout;
+        if d.is_empty() {
+            return 0.0;
+        }
+        let m = d.iter().map(|v| *v as f64).sum::<f64>() / d.len() as f64;
+        (d.iter().map(|v| (*v as f64 - m).powi(2)).sum::<f64>() / d.len() as f64).sqrt()
+    };
+
+    // amplify: subtle gradient drift gets visibly magnified
+    let amp_in = dir.path().join("amp.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("gradients=size=128x128:speed=0.1:seed=5:duration=1")
+        .arg(&amp_in)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let amp_out = dir.path().join("amp_out.mp4");
+    let v = run_json(&[
+        "amplify",
+        amp_in.to_str().unwrap(),
+        "-o",
+        amp_out.to_str().unwrap(),
+        "--amount",
+        "20",
+        "--threshold",
+        "10",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let (i, o) = (stdev(&amp_in), stdev(&amp_out));
+    assert!(
+        o > i * 1.05,
+        "amplify should boost subtle diffs: {i} -> {o}"
+    );
+
+    // selective via colorhold: red survives, blue turns gray
+    let sel_in = dir.path().join("sel.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("color=c=red:size=64x64:d=1")
+        .args(["-f", "lavfi", "-i", "color=c=blue:size=64x64:d=1"])
+        .args(["-filter_complex", "[0][1]hstack"])
+        .arg(&sel_in)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let sel_out = dir.path().join("sel_out.mp4");
+    let v = run_json(&[
+        "selective",
+        sel_in.to_str().unwrap(),
+        "-o",
+        sel_out.to_str().unwrap(),
+        "--color",
+        "red",
+        "--blend",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&sel_out)
+        .args(["-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+        .output()
+        .unwrap();
+    let d = o.stdout;
+    let px = |i: usize| [d[i * 3], d[i * 3 + 1], d[i * 3 + 2]];
+    let red_px = px(4 * 128 + 4);
+    let blue_px = px(4 * 128 + 96);
+    assert!(red_px[0] > 200 && red_px[1] < 80, "kept red: {red_px:?}");
+    assert!(
+        (blue_px[0] as i16 - blue_px[1] as i16).abs() < 12
+            && (blue_px[1] as i16 - blue_px[2] as i16).abs() < 12,
+        "blue should be gray: {blue_px:?}"
+    );
+
+    // deinterlace engines estdif + kerndeint run clean
+    for eng in ["estdif", "kerndeint"] {
+        let di = dir.path().join(format!("di_{eng}.mp4"));
+        let v = run_json(&[
+            "deinterlace",
+            amp_in.to_str().unwrap(),
+            "-o",
+            di.to_str().unwrap(),
+            "--engine",
+            eng,
+        ]);
+        assert_eq!(v["status"], "ok", "{eng}: {v}");
+        assert_eq!(v["extra"]["engine"], eng);
+    }
 }
 
 #[test]

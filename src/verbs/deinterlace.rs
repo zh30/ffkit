@@ -24,6 +24,8 @@ pub fn run(args: DeinterlaceArgs, g: &Globals) -> Result<Contract, Error> {
     let vf = match args.engine.unwrap_or(crate::cli::DeintEngine::Yadif) {
         crate::cli::DeintEngine::Yadif => format!("yadif=mode={mode}:parity={parity}"),
         crate::cli::DeintEngine::Bwdif => format!("bwdif=mode={mode}:parity={parity}"),
+        crate::cli::DeintEngine::Estdif => format!("estdif=mode={mode}:parity={parity}"),
+        crate::cli::DeintEngine::Kerndeint => "kerndeint=sharp=1:twoway=1".to_string(),
     };
     argv.extend(["-vf", &vf]);
     if probe.has_audio {

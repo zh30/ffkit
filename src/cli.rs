@@ -259,6 +259,8 @@ pub enum Cmd {
     Diff(DiffArgs),
     /// Keep one color, desaturate the rest
     Selective(SelectiveArgs),
+    /// Motion magnification: turn subtle frame-to-frame change visible
+    Amplify(AmplifyArgs),
     /// Impact punch: white flash + decaying shake at a moment
     Impact(ImpactArgs),
     /// Watery horizontal wave distortion
@@ -1572,6 +1574,31 @@ pub struct SelectiveArgs {
     /// Match tolerance 0.01-0.7
     #[arg(long, default_value_t = 0.4)]
     pub similarity: f64,
+    /// Edge softness 0-1 (feather the kept color into the gray field)
+    #[arg(long, default_value_t = 0.0)]
+    pub blend: f64,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct AmplifyArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Magnification factor 1-50 (default 8: gentle; 20+ = microscope motion)
+    #[arg(long, default_value_t = 8.0)]
+    pub amount: f64,
+    /// Frames of history the diff accumulates over (1-63; more = smoother)
+    #[arg(long, default_value_t = 3)]
+    pub radius: u32,
+    /// Pixel diffs below this get magnified (0-255; higher = bigger motion included)
+    #[arg(long, default_value_t = 30)]
+    pub threshold: u32,
     /// Only apply inside window(s); comma list, 'end' = tail
     #[arg(long)]
     pub at: Option<String>,
@@ -3053,7 +3080,8 @@ pub struct DeinterlaceArgs {
     /// Field order: auto, tff (top-first), bff (bottom-first). Wrong = judder.
     #[arg(long, value_enum, default_value_t = FieldParity::Auto)]
     pub parity: FieldParity,
-    /// Deinterlacer engine (default yadif; bwdif smoother motion)
+    /// Deinterlacer engine (default yadif; bwdif smoother motion, estdif
+    /// edge-slope tracing for diagonal lines, kerndeint adaptive kernel)
     #[arg(long, value_enum)]
     pub engine: Option<DeintEngine>,
 }
@@ -3062,6 +3090,8 @@ pub struct DeinterlaceArgs {
 pub enum DeintEngine {
     Yadif,
     Bwdif,
+    Estdif,
+    Kerndeint,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]

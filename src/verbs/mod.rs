@@ -1,5 +1,6 @@
 pub mod accent;
 pub mod align;
+pub mod amplify;
 pub mod art;
 pub mod audiogram;
 pub mod autocrop;

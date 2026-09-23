@@ -10,19 +10,21 @@ pub fn run(args: SelectiveArgs, g: &Globals) -> Result<Contract, Error> {
     if !(0.01..=0.7).contains(&args.similarity) {
         return Err(Error::input("--similarity must be 0.01..=0.7"));
     }
+    if !(0.0..=1.0).contains(&args.blend) {
+        return Err(Error::input("--blend must be 0..=1"));
+    }
+    crate::color::rgb(&args.color)?;
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "selective")?;
     let color = crate::color::lavfi(&args.color);
 
-    // keep-color: colorkey makes matching pixels transparent so the mask is
-    // bright everywhere ELSE; maskedmerge paints the desaturated copy there and
-    // leaves the base colored frame on matching pixels
+    // colorhold: native keep-color — pixels outside the similarity range turn
+    // gray, blend feathers the edge
     let chain = format!(
-        "split=3[o1][o2][g];[g]hue=s=0[gy];\
-         [o1]format=rgba,colorkey=color={c}:similarity={s:.2}[k];[k]alphaextract[mk];\
-         [o2][gy][mk]maskedmerge",
+        "colorhold=color={c}:similarity={s:.2}:blend={b:.2}",
         c = color,
-        s = args.similarity
+        s = args.similarity,
+        b = args.blend
     );
     let fc = match &args.at {
         Some(a) => {
@@ -53,5 +55,7 @@ pub fn run(args: SelectiveArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
 
     let c2 = engine::write_job("selective", &[&args.input], &args.output, vec![argv], g)?;
-    Ok(c2.with_extra(json!({ "color": args.color, "similarity": args.similarity })))
+    Ok(c2.with_extra(
+        json!({ "color": args.color, "similarity": args.similarity, "blend": args.blend }),
+    ))
 }

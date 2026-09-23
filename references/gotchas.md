@@ -217,3 +217,4 @@ edge, so a 3s jingle fills a 60s vlog.
 trim+adelay'ed into place). Skip it only for duration-changing chains —
 `speed`/`tempo` must keep their own trim/concat structure, since atrim slicing
 an atempo'd whole-file render would shift the window.
+`amplify` threshold is a CEILING: pixel diffs BELOW it get magnified (threshold=1 ≈ no-op; 30 catches real motion). `kerndeint` has no parity/mode flags — always same-rate. `selective` now uses native `colorhold` (one filter); `--blend` feathers the edge.

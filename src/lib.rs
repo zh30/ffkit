@@ -160,6 +160,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Pick(args) => verbs::pick::run(args, &g),
         Cmd::Diff(args) => verbs::diff::run(args, &g),
         Cmd::Selective(args) => verbs::selective::run(args, &g),
+        Cmd::Amplify(args) => verbs::amplify::run(args, &g),
         Cmd::Cartoon(args) => verbs::cartoon::run(args, &g),
         Cmd::Heat(args) => verbs::heat::run(args, &g),
         Cmd::Kaleido(args) => verbs::kaleido::run(args, &g),
