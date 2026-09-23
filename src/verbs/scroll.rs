@@ -95,9 +95,22 @@ pub fn run(args: ScrollArgs, g: &Globals) -> Result<Contract, Error> {
 
     // Looped still so the overlay's t-driven expression animates.
     // Up: y slides H → -h. Ticker: x slides W → -w, pinned near the bottom.
+    let bg_pre = match (&args.bg, ticker) {
+        (Some(b), true) => {
+            format!(
+                "[0:v]drawbox=x=0:y=ih-{bar}:w=iw:h={bar}:color={c}@0.85:t=fill:enable='between(t,{at:.3},{end:.3})'[bg];[bg]",
+                bar = img.height() + 20,
+                c = crate::color::lavfi(b),
+                at = at,
+                end = at + dur,
+            )
+        }
+        (Some(_), false) => return Err(Error::input("--bg applies to --mode ticker")),
+        (None, _) => String::from("[0:v]"),
+    };
     let fc = if ticker {
         format!(
-            "[0:v][1:v]overlay=x=W-(W+w)*((t-{at:.3})/{dur:.3}):y=H-h-40:enable='between(t,{at:.3},{end:.3})'[vout]",
+            "{bg_pre}[1:v]overlay=x=W-(W+w)*((t-{at:.3})/{dur:.3}):y=H-h-40:enable='between(t,{at:.3},{end:.3})'[vout]",
             end = at + dur
         )
     } else {

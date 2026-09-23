@@ -13528,3 +13528,100 @@ fn meter_window_seeks_and_caps() {
     assert!(cmds.contains("-ss"), "{cmds}");
     assert!(cmds.contains("-t"), "{cmds}");
 }
+
+#[test]
+fn remux_video_drops_audio_stream() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("v.mp4");
+    let v = run_json(&[
+        "remux",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--video",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-map 0:v"), "{cmds}");
+}
+
+#[test]
+fn chapter_remove_strips_marks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let marked = dir.path().join("marked.mp4");
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "-o",
+        marked.to_str().unwrap(),
+        "--at",
+        "0.5|Mid",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let out = dir.path().join("clean.mp4");
+    let v = run_json(&[
+        "chapter",
+        marked.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--remove",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["chapters_removed"], true, "{v}");
+    let listed = run_json(&[
+        "chapter",
+        out.to_str().unwrap(),
+        "-o",
+        dir.path().join("n.mp4").to_str().unwrap(),
+        "--list",
+    ]);
+    let n = listed["extra"]["chapters"].as_array().unwrap().len();
+    assert_eq!(n, 0, "chapters should be gone: {listed}");
+}
+
+#[test]
+fn scroll_ticker_bg_draws_bar() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "scroll",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "ticker",
+        "--text",
+        "breaking ticker",
+        "--bg",
+        "red",
+        "--dur",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("drawbox"), "{cmds}");
+}

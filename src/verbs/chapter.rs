@@ -20,6 +20,25 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         return Ok(c);
     }
 
+    if args.remove {
+        let mut argv = ffmpeg_base(g.progress);
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend([
+            "-map",
+            "0",
+            "-c",
+            "copy",
+            "-map_chapters",
+            "-1",
+            "-movflags",
+            "+faststart",
+        ]);
+        argv.push(&args.output);
+        let c = engine::write_job("chapter", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(json!({ "chapters_removed": true })));
+    }
+
     let mut marks: Vec<(f64, String)> = Vec::new();
     if let Some(min_gap) = args.auto {
         let silences = crate::silence::detect(&args.input, -35.0, min_gap, g.timeout, true)?;

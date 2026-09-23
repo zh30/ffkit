@@ -25,6 +25,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
+    if args.audio && args.video {
+        return Err(Error::input("remux: --audio and --video are exclusive"));
+    }
     if args.audio {
         if !probe.has_audio {
             return Err(Error::input("remux --audio: input has no audio"));
@@ -50,6 +53,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             };
             argv.extend(["-c:a", codec]);
         }
+    } else if args.video {
+        if !probe.has_video {
+            return Err(Error::input("remux --video: input has no video"));
+        }
+        argv.extend(["-map", "0:v", "-c:v", "copy"]);
     } else {
         argv.extend(["-map", "0", "-c", "copy"]);
     }
@@ -59,5 +67,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
 
     let c = engine::write_job("remux", &[&args.input], &args.output, vec![argv], g)?;
-    Ok(c.with_extra(json!({ "container": ext, "audio_only": args.audio })))
+    Ok(c.with_extra(
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video }),
+    ))
 }

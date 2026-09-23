@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.125.0] — 2026-09-22
+
+### Added
+
+- `remux --video` — repack keeping only the video stream (mute, no re-encode)
+- `chapter --remove` — strip all embedded chapter marks on remux (`-map_chapters -1`)
+- `scroll --bg` — opaque bar behind `--mode ticker` crawl text
+
 ## [0.124.0] — 2026-09-22
 
 ### Added

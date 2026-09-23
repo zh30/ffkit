@@ -234,6 +234,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 98)
+
+- `remux --video` — video-only repack (mute a clip without re-encoding; complement of `--audio`).
+- `chapter --remove` — `-map_chapters -1` strip on remux for platforms that mangle embedded marks.
+- `scroll --bg` — opaque drawbox bar behind `--mode ticker` (news-crawl look; drawbox uses `iw`/`ih`, not `W`/`H` — caught live on ffmpeg 9).
+
 ## Shipped this run (round 97)
 
 - `rough --by-scene` — scene-change cuts inside speech islands: `select=gt(scene,0.4)`+`metadata=print` pts_times split each keep so jump cuts never span a shot boundary (new `src/scene.rs` helper).

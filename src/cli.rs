@@ -1660,6 +1660,9 @@ pub struct RemuxArgs {
     /// Keep only audio streams — rip the track to m4a/mp3/ogg/wav
     #[arg(long)]
     pub audio: bool,
+    /// Keep only the video — repack muted (no re-encode)
+    #[arg(long)]
+    pub video: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2073,6 +2076,9 @@ pub struct ScrollArgs {
     /// Roll mode: up (end credits) | ticker (bottom news crawl)
     #[arg(long, value_enum, default_value_t = ScrollMode::Up)]
     pub mode: ScrollMode,
+    /// Opaque bar behind ticker text (name or RRGGBB; ticker only)
+    #[arg(long)]
+    pub bg: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -2523,7 +2529,7 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "list"])]
+    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "list", "remove"])]
     pub at: Vec<String>,
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
@@ -2539,6 +2545,9 @@ pub struct ChapterArgs {
     /// List the input's embedded chapter marks as JSON (no output written)
     #[arg(long)]
     pub list: bool,
+    /// Strip every chapter on remux (platforms that mangle them)
+    #[arg(long)]
+    pub remove: bool,
 }
 
 #[derive(clap::Args, Debug)]
