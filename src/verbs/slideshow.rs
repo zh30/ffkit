@@ -48,6 +48,11 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("--fps must be 1..=120"));
     }
     let (w, h) = parse_size(&args.size)?;
+    let bg = args
+        .bg
+        .as_deref()
+        .map(crate::color::lavfi)
+        .unwrap_or_else(|| "black".to_string());
     for p in &args.inputs {
         paths::ensure_input(p)?;
     }
@@ -113,7 +118,7 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         } else {
             fc.push_str(&format!(
                 "[{i}:v]scale={w}:{h}:force_original_aspect_ratio=decrease,\
-                 pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={fps:.3},format=yuv420p[s{i}];"
+                 pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:{bg},setsar=1,fps={fps:.3},format=yuv420p[s{i}];"
             ));
         }
     }

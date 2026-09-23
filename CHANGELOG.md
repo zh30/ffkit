@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.137.0] — 2026-09-22
+
+### Added
+- `deliver --platform youtube` — 16:9 pack (1920x1080, −14 LUFS).
+- `slideshow --bg` — letterbox color behind stills (name or hex).
+- `extract --at end` — last-frame still / last-N-seconds GIF.
+
 ## [0.136.0] — 2026-09-22
 
 ### Added

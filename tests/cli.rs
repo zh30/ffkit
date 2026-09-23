@@ -14484,3 +14484,104 @@ fn grid_bg_colors_gutters() {
         .join(" ");
     assert!(cmds.contains(":(oh-ih)/2:0xff0000"), "{cmds}");
 }
+
+#[test]
+fn deliver_youtube_is_landscape() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("yt.mp4");
+    let v = run_json(&[
+        "deliver",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--platform",
+        "youtube",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["platform"], "youtube");
+    assert_eq!(v["extra"]["frame"], "1920x1080");
+}
+
+#[test]
+fn slideshow_bg_colors_letterbox() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    for (name, c) in [("sa.png", "red"), ("sb.png", "green")] {
+        let o = Command::new("ffmpeg")
+            .args([
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=0x333333:size=320x240",
+                "-frames:v",
+                "1",
+            ])
+            .arg(dir.path().join(name))
+            .output()
+            .unwrap();
+        assert!(o.status.success(), "{c}");
+    }
+    let out = dir.path().join("ss.mp4");
+    let v = run_json(&[
+        "slideshow",
+        dir.path().join("sa.png").to_str().unwrap(),
+        dir.path().join("sb.png").to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--per",
+        "0.5",
+        "--fade",
+        "0.1",
+        "--bg",
+        "112233",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains(":(oh-ih)/2:0x112233"), "{cmds}");
+}
+
+#[test]
+fn extract_at_end_grabs_last_frame() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("last.png");
+    let v = run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "end",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.exists());
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("-ss 00:00:00.950") || cmds.contains("-ss 0.95"),
+        "{cmds}"
+    );
+}

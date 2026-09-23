@@ -403,7 +403,7 @@ pub struct ExtractArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Timestamp for a still frame
+    /// Timestamp for a still frame (or `end` for the last frame / last --dur seconds)
     #[arg(long)]
     pub at: Option<String>,
     /// Scale the still to this width (height follows aspect)
@@ -840,6 +840,8 @@ pub enum DeliverPlatform {
     Reels,
     Tiktok,
     Shorts,
+    /// 16:9 landscape upload (1920x1080, -14 LUFS)
+    Youtube,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1128,6 +1130,9 @@ pub struct SlideshowArgs {
     /// drop to ~0.5 under narration)
     #[arg(long)]
     pub volume: Option<f64>,
+    /// Letterbox color behind stills (name or RRGGBB; default black)
+    #[arg(long)]
+    pub bg: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

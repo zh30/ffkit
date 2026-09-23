@@ -7,8 +7,6 @@ use crate::error::Error;
 use crate::spawn::{self, Argv};
 use crate::verbs::loudnorm;
 
-const FRAME_W: u32 = 1080;
-const FRAME_H: u32 = 1920;
 const TARGET_I: f64 = -14.0;
 const TARGET_TP: f64 = -1.5;
 const TARGET_LRA: f64 = 11.0;
@@ -17,8 +15,12 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "deliver")?;
 
+    let (fw, fh) = match args.platform {
+        DeliverPlatform::Youtube => (1920, 1080),
+        _ => (1080, 1920),
+    };
     let vf = format!(
-        "scale={FRAME_W}:{FRAME_H}:force_original_aspect_ratio=decrease,pad={FRAME_W}:{FRAME_H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30,format=yuv420p"
+        "scale={fw}:{fh}:force_original_aspect_ratio=decrease,pad={fw}:{fh}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30,format=yuv420p"
     );
     let platform = platform_name(args.platform);
 
@@ -77,19 +79,24 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             let mut commands = engine::commands_of(&[m]);
             commands.extend(c.commands.clone());
             c.commands = commands;
-            return Ok(finish(c, platform, measured));
+            return Ok(finish(c, platform, (fw, fh), measured));
         }
     }
 
     argvs.push(apply);
     let c = engine::write_job("deliver", &[&args.input], &args.output, argvs, g)?;
-    Ok(finish(c, platform, measured))
+    Ok(finish(c, platform, (fw, fh), measured))
 }
 
-fn finish(c: Contract, platform: &str, measured: Option<serde_json::Value>) -> Contract {
+fn finish(
+    c: Contract,
+    platform: &str,
+    frame: (u32, u32),
+    measured: Option<serde_json::Value>,
+) -> Contract {
     c.with_extra(json!({
         "platform": platform,
-        "frame": format!("{FRAME_W}x{FRAME_H}"),
+        "frame": format!("{}x{}", frame.0, frame.1),
         "fps": 30,
         "target_i": TARGET_I,
         "target_tp": TARGET_TP,
@@ -103,5 +110,6 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Reels => "reels",
         DeliverPlatform::Tiktok => "tiktok",
         DeliverPlatform::Shorts => "shorts",
+        DeliverPlatform::Youtube => "youtube",
     }
 }

@@ -237,6 +237,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 110)
+- `deliver --platform youtube` — 16:9 landscape pack (1920x1080, same −14 LUFS chain); YouTube was the biggest missing platform.
+- `slideshow --bg` — letterbox color behind stills (brand-color photo montages).
+- `extract --at end` — grab the last frame (--gif gives the last --dur seconds: outro/reaction GIFs).
+
 ## Shipped this run (round 109)
 - `vdenoise --at/--dur` — window the nlmeans denoise to just the grainy scene (it's the priciest filter in the kit).
 - `cover --size WxH` — poster canvas at any size (1280x720 for YouTube thumbs), not just 1080x1920.

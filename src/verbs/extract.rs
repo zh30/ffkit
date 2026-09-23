@@ -25,13 +25,24 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut argv = ffmpeg_base(g.progress);
 
+    // `--at end`: last frame (stills) or the last --dur seconds (--gif).
+    let at_secs = match &args.at {
+        Some(a) if a.trim().eq_ignore_ascii_case("end") => {
+            let probe = engine::probe_or_err(&args.input, g)?;
+            let back = args.dur.unwrap_or(if args.gif { 1.0 } else { 0.05 });
+            Some((probe.duration - back).max(0.0))
+        }
+        Some(a) => Some(parse_time(a)?),
+        None => None,
+    };
+
     match ext.as_str() {
         _ if args.gif => {
             // --bounce handled below in the paletteuse pass
             // 2-pass palette GIF from the window, like transcode --preset gif
             let mut gen = ffmpeg_base(g.progress);
-            if let Some(at) = &args.at {
-                gen.extend(["-ss", &fmt_time(parse_time(at)?)]);
+            if let Some(at) = at_secs {
+                gen.extend(["-ss", &fmt_time(at)]);
             }
             if let Some(d) = args.dur {
                 gen.extend(["-t", &fmt_time(d)]);
@@ -54,8 +65,8 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
             gen.push(&palette_path);
 
             let mut use_p = ffmpeg_base(g.progress);
-            if let Some(at) = &args.at {
-                use_p.extend(["-ss", &fmt_time(parse_time(at)?)]);
+            if let Some(at) = at_secs {
+                use_p.extend(["-ss", &fmt_time(at)]);
             }
             if let Some(d) = args.dur {
                 use_p.extend(["-t", &fmt_time(d)]);
@@ -83,8 +94,7 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
             return r;
         }
         "png" | "jpg" | "jpeg" | "webp" => {
-            if let Some(at) = &args.at {
-                let t = parse_time(at)?;
+            if let Some(t) = at_secs {
                 argv.extend(["-ss", &fmt_time(t)]);
             }
             argv.push("-i");

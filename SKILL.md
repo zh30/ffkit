@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.136.0
+version: 0.137.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -68,7 +68,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart); `--audio` rips the track, `--video` video-only |
 | top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline`, `--at/--dur` window), `--position` center/bottom, `--wrap` + `--align` multiline |
 | fix my podcast voice | `voice` — one-shot chain: gate hiss → compress swings → loudnorm `--lufs` (default −16); `--at`/`--dur` windows it |
-| slideshow that runs exactly N seconds | `slideshow` (`--dur` spreads the runtime across the stills) |
+| slideshow that runs exactly N seconds | `slideshow` (`--dur` spreads the runtime across the stills, `--bg` letterbox color) |
 | old interlaced footage | `deinterlace` (`--mode field` doubles the rate, `frame` same rate, `--parity` field order, `--engine` yadif/bwdif) |
 | fade to white | `fade --color white` (`--in`/`--out` seconds as usual) |
 | blend two audio files | `crossfade` (`--second`, `--dur` overlap — acrossfade) |
@@ -135,7 +135,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | waveform band at the top | `audiogram` (`--position`) |
 | pull OUT of a shot (reveal) | `zoom` (`--out`) |
 | title with a soft shadow | `title` (`--shadow`) |
-| still at an exact width | `extract` (`--gif` clip, `--width`), `--loop` gif repeats |
+| still at an exact width | `extract` (`--gif` clip, `--width`, `--at end` last frame), `--loop` gif repeats |
 | countdown with tick beeps | `countdown` (`--beep`, `--text` label during the count) |
 | one-word compressor curve | `leveler` (`--preset`) |
 | spectrogram in brand colors | `spectrogram` (`--color`) |
