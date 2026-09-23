@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 111)
+- `zoom --center X,Y` — punch target point in % of frame (zoom the left-third speaker, not just dead center); works in the still punch and the kenburns push.
+- `censor/meme/overlay --at end --dur N` — tail-anchored windows: blur the outro QR, flash a meme on the last beat, watermark only the close. Shared `time::resolve_at`.
+
 ## Shipped this run (round 110)
 - `deliver --platform youtube` — 16:9 landscape pack (1920x1080, same −14 LUFS chain); YouTube was the biggest missing platform.
 - `slideshow --bg` — letterbox color behind stills (brand-color photo montages).

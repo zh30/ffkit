@@ -1498,6 +1498,10 @@ pub struct ZoomArgs {
     /// Zoom OUT instead of in: starts at --factor and settles to 1x (reveal shot)
     #[arg(long)]
     pub out: bool,
+    /// Punch target point X,Y in % of frame (default 50,50 = dead center;
+    /// 25,50 zooms the left third)
+    #[arg(long)]
+    pub center: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

@@ -41,6 +41,19 @@ pub fn fmt_time(seconds: f64) -> String {
     format!("{seconds:.3}")
 }
 
+/// Resolve a `--at` value: a timestamp, or `end` meaning the tail of the
+/// media — `duration - dur` (`--dur` is required when passing `end`).
+pub fn resolve_at(s: &str, dur: Option<f64>, duration: f64) -> Result<f64, Error> {
+    if s.trim().eq_ignore_ascii_case("end") {
+        let d = dur.ok_or_else(|| Error::input("--at end needs --dur"))?;
+        if d <= 0.0 || d > duration {
+            return Err(Error::input("--dur is outside the input"));
+        }
+        return Ok(duration - d);
+    }
+    parse_time(s)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

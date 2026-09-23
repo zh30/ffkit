@@ -26,7 +26,7 @@ pub fn run(args: MemeArgs, g: &Globals) -> Result<Contract, Error> {
 
     let enable = match (&args.at, args.dur) {
         (Some(at), dur) => {
-            let start = crate::time::parse_time(at)?;
+            let start = crate::time::resolve_at(at, dur, probe.duration)?;
             match dur {
                 Some(d) => format!(":enable='between(t,{start:.3},{:.3})'", start + d),
                 None => format!(":enable='gte(t,{start:.3})'"),

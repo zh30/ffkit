@@ -47,7 +47,7 @@ pub fn run(args: CensorArgs, g: &Globals) -> Result<Contract, Error> {
     };
     let enable = match (&args.at, args.dur) {
         (Some(at), dur) => {
-            let start = crate::time::parse_time(at)?;
+            let start = crate::time::resolve_at(at, dur, probe.duration)?;
             if !(0.0..probe.duration).contains(&start) {
                 return Err(Error::input("--at is outside the input"));
             }

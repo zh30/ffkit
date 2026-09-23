@@ -36,7 +36,7 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let (at_secs, end_secs) = match &args.at {
         Some(s) => {
-            let at = crate::time::parse_time(s)?;
+            let at = crate::time::resolve_at(s, args.dur, probe.duration)?;
             if at < 0.0 || at >= probe.duration {
                 return Err(Error::input("--at must land inside the input"));
             }
@@ -240,7 +240,7 @@ fn tiled(
     }
     let enable = match &args.at {
         Some(s) => {
-            let at = crate::time::parse_time(s)?;
+            let at = crate::time::resolve_at(s, args.dur, probe.duration)?;
             if at < 0.0 || at >= probe.duration {
                 return Err(Error::input("--at must land inside the input"));
             }

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.138.0] — 2026-09-22
+
+### Added
+- `zoom --center X,Y` — punch target point in % of frame (default 50,50).
+- `censor --at end --dur`, `meme --at end --dur`, `overlay --at end --dur` — tail-anchored windows via shared `time::resolve_at`.
+
 ## [0.137.0] — 2026-09-22
 
 ### Added

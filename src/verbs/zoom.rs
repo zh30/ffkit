@@ -14,11 +14,20 @@ pub fn run(args: ZoomArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "zoom")?;
+    let (cx, cy) = match &args.center {
+        Some(s) => s
+            .split_once(',')
+            .and_then(|(a, b)| Some((a.trim().parse::<f64>().ok()?, b.trim().parse::<f64>().ok()?)))
+            .filter(|(a, b)| (0.0..=100.0).contains(a) && (0.0..=100.0).contains(b))
+            .map(|(a, b)| (a / 100.0, b / 100.0))
+            .ok_or_else(|| Error::input("--center must look like 50,50 (percent)"))?,
+        None => (0.5, 0.5),
+    };
     let w = paths::even(probe.width.unwrap_or(1280)).max(2);
     let h = paths::even(probe.height.unwrap_or(720)).max(2);
     let sw = paths::even(((w as f64) * args.factor).round() as u32).max(w + 2);
     let sh = paths::even(((h as f64) * args.factor).round() as u32).max(h + 2);
-    let vf = format!("scale={sw}:{sh},crop={w}:{h},setsar=1");
+    let vf = format!("scale={sw}:{sh},crop={w}:{h}:(iw-ow)*{cx:.4}:(ih-oh)*{cy:.4},setsar=1");
 
     let factor0 = args.factor;
     let fps0 = probe.fps.unwrap_or(30.0).max(1.0);
@@ -29,12 +38,12 @@ pub fn run(args: ZoomArgs, g: &Globals) -> Result<Contract, Error> {
         let step = (factor0 - 1.0) / frames;
         if args.out {
             format!(
-                "zoompan=z='max({f:.4}-on*{step:.8},1.0)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={w}x{h},setsar=1",
+                "zoompan=z='max({f:.4}-on*{step:.8},1.0)':d=1:x='iw*{cx:.4}-{cx:.4}*iw/zoom':y='ih*{cy:.4}-{cy:.4}*ih/zoom':s={w}x{h},setsar=1",
                 f = factor0,
             )
         } else {
             format!(
-                "zoompan=z='min(pzoom+{step:.8},{f:.4})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={w}x{h},setsar=1",
+                "zoompan=z='min(pzoom+{step:.8},{f:.4})':d=1:x='iw*{cx:.4}-{cx:.4}*iw/zoom':y='ih*{cy:.4}-{cy:.4}*ih/zoom':s={w}x{h},setsar=1",
                 f = factor0,
             )
         }

@@ -14585,3 +14585,109 @@ fn extract_at_end_grabs_last_frame() {
         "{cmds}"
     );
 }
+
+#[test]
+fn zoom_center_offsets_punch() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("zc.mp4");
+    let v = run_json(&[
+        "zoom",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--factor",
+        "1.5",
+        "--center",
+        "25,50",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("(iw-ow)*0.2500:(ih-oh)*0.5000"), "{cmds}");
+}
+
+#[test]
+fn censor_at_end_covers_tail() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("ce.mp4");
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--region",
+        "10:10:40:40",
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("gte(t,0.600") || cmds.contains("between(t,0.600"),
+        "{cmds}"
+    );
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("ce2.mp4").to_str().unwrap(),
+        "--region",
+        "10:10:40:40",
+        "--at",
+        "end",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert_eq!(v["error"]["kind"], "input");
+}
+
+#[test]
+fn meme_at_end_windows_tail() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("me.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--top",
+        "OUTRO",
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("between(t,0.600,1.000"), "{cmds}");
+}
