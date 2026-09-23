@@ -24,6 +24,39 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(img) = &args.image {
         paths::ensure_input(img)?;
     }
+    let from = match &args.from {
+        Some(s) => crate::time::parse_time(s)?,
+        None => 0.0,
+    };
+    let to = match &args.to {
+        Some(s) => Some(crate::time::parse_time(s)?),
+        None => None,
+    };
+    if from < 0.0 {
+        return Err(Error::input("--from must be >= 0"));
+    }
+    if let Some(t) = to {
+        if t <= from {
+            return Err(Error::input("--to must be later than --from"));
+        }
+    }
+    if from >= probe.duration {
+        return Err(Error::input("--from is past the end of the audio"));
+    }
+    let ranged = args.from.is_some() || args.to.is_some();
+    let clip_dur = to.unwrap_or(probe.duration) - from;
+    // Ranged: atrim clips the audio once, asplit feeds the waveform input
+    // ([wvin]) and the mapped audio ([amap]) — pads are single-consumer.
+    let (range_fc, awave, amap): (String, &str, &str) = if ranged {
+        let end_part = to.map(|t| format!(":end={t}")).unwrap_or_default();
+        (
+            format!("[0:a]atrim=start={from}{end_part},asetpts=PTS-STARTPTS[a0];[a0]asplit=2[amap][wvin];"),
+            "[wvin]",
+            "[amap]",
+        )
+    } else {
+        (String::new(), "[0:a]", "0:a")
+    };
 
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
@@ -78,7 +111,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     let (wave_src, mode) = match args.mode {
         WaveMode::Spectrum => (
             format!(
-                "[0:a]showfreqs=s={{ww}}x{{wh}}:mode=bar{freq_rate}:colors={}{fs}[wv];",
+                "{awave}showfreqs=s={{ww}}x{{wh}}:mode=bar{freq_rate}:colors={}{fs}[wv];",
                 crate::color::lavfi(&args.color)
             ),
             "spectrum",
@@ -96,7 +129,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
                     let sc = wave_scale(&args)?;
                     let sp = if args.split { ":split_channels=1" } else { "" };
                     format!(
-                        "[0:a]showwaves=s={{ww}}x{{wh}}:mode={name}:rate={fps}:colors={}:draw=full{sc}{sp}[wv];",
+                        "{awave}showwaves=s={{ww}}x{{wh}}:mode={name}:rate={fps}:colors={}:draw=full{sc}{sp}[wv];",
                         crate::color::lavfi(&args.color)
                     )
                 },
@@ -169,14 +202,14 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         (true, true) => tail.push_str(&format!(
             "[mid];[mid][2:v]overlay=(W-w)/2:(H-h)*0.16:shortest=1[mid2];\
              [mid2][{prog_idx}:v]overlay='(W-w)*t/{:.3}':H-h-6:shortest=1[vout]",
-            probe.duration.max(0.01)
+            clip_dur.max(0.01)
         )),
         (true, false) => {
             tail.push_str("[mid];[mid][2:v]overlay=(W-w)/2:(H-h)*0.16:shortest=1[vout]")
         }
         (false, true) => tail.push_str(&format!(
             "[mid];[mid][{prog_idx}:v]overlay='(W-w)*t/{:.3}':H-h-6:shortest=1[vout]",
-            probe.duration.max(0.01)
+            clip_dur.max(0.01)
         )),
         (false, false) => tail.push_str("[vout]"),
     }
@@ -209,7 +242,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         }
     };
     let fc = format!(
-        "[1:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1[bg];\
+        "{range_fc}[1:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1[bg];\
               {wave}\
               [wv]colorkey=0x000000:0.12:0.1[wvk];\
               [bg][wvk]overlay=(W-w)/2:(H-h)*{yf}:shortest=1{tail}",
@@ -221,7 +254,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
             ),
         yf = yf,
     );
-    argv.extend(["-filter_complex", &fc, "-map", "[vout]", "-map", "0:a"]);
+    argv.extend(["-filter_complex", &fc, "-map", "[vout]", "-map", amap]);
     argv.extend([
         "-c:v",
         "libx264",
@@ -253,6 +286,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         "mode": mode,
         "color": crate::color::lavfi(&args.color),
         "sub_cues": sub_cues.len(),
+        "clip": { "from": from, "to": to },
     }));
     Ok(c)
 }

@@ -231,11 +231,16 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `broll --position` PiP corner
 - [ ] `grid --audio` exists; `grid --labels` done — `grid --time`? (n/a, multi-input)
 - [ ] `progress --position` / `--color`
-- [ ] `waveform --duration` clip visuals
+- [ ] `waveform --duration` clip visuals — covered by `audiogram --from/--to` (round 107)
 - [ ] `mix --gain`
-- [ ] `gate --at/--dur`, `mix --at/--dur` (same window family)
-- [ ] `audiogram --subs` burn captions on the waveform video
-- [ ] `broll --volume` scale insert audio
+- [ ] `gate --at/--dur`, `mix --at/--dur` (same window family) — both shipped
+- [ ] `audiogram --subs` burn captions on the waveform video — shipped
+- [ ] `broll --volume` scale insert audio — shipped
+
+## Shipped this run (round 107)
+
+- `transcode --preset wav` / `flac` / `opus` — the audio-only preset family completes: pcm_s16le lossless for DAW/edit handoff, flac for archival, libopus 128k for the smallest voice/music delivery; same `-vn` path and `--copy-audio` passthrough as mp3/aac.
+- `audiogram --from` / `--to` — clip a segment of the episode straight into the audiogram (`atrim` + `asplit` so the waveform and the mapped audio share the window); the podcast→clips ask no longer needs a separate `cut` step.
 
 ## Shipped this run (round 106)
 

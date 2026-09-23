@@ -14128,3 +14128,114 @@ fn transcode_preset_mp3_audio_only() {
         "{cmds}"
     );
 }
+
+#[test]
+fn transcode_preset_wav_and_opus() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let wav = dir.path().join("a.wav");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        wav.to_str().unwrap(),
+        "--preset",
+        "wav",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["audio_only"], true);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream=codec_name",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&wav)
+        .output()
+        .unwrap();
+    assert!(String::from_utf8_lossy(&o.stdout).contains("pcm_s16le"));
+    let opus = dir.path().join("a.ogg");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        opus.to_str().unwrap(),
+        "--preset",
+        "opus",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream=codec_name",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&opus)
+        .output()
+        .unwrap();
+    assert!(String::from_utf8_lossy(&o.stdout).contains("opus"));
+}
+
+#[test]
+fn audiogram_from_to_clips_segment() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = lavfi_fixture(dir.path(), "seg.mp4", "660", 1.0);
+    let out = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--from",
+        "0.2",
+        "--to",
+        "0.8",
+        "--progress",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["clip"]["from"], 0.2);
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("atrim=start=0.2:end=0.8") && cmds.contains("-map [amap]"),
+        "{cmds}"
+    );
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let d: f64 = String::from_utf8_lossy(&o.stdout)
+        .trim()
+        .parse()
+        .unwrap_or(0.0);
+    assert!((d - 0.6).abs() < 0.15, "duration {d}");
+}

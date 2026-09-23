@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.134.0] — 2026-09-22
+
+### Added
+
+- `transcode --preset wav` / `flac` / `opus` — audio-only lossless + compact delivery: `pcm_s16le` WAV for DAW/edit handoff, FLAC archival, libopus 128k smallest voice/music; same `-vn` path and `--copy-audio` passthrough as mp3/aac
+- `audiogram --from` / `--to` — render just a segment of the episode (`atrim` + `asplit` shares the window between the waveform and the mapped audio); podcast→clips no longer needs a separate `cut`
+
 ## [0.133.0] — 2026-09-22
 
 ### Added

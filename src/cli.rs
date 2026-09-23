@@ -701,6 +701,13 @@ pub struct AudiogramArgs {
     /// Burn this .srt's cues onto the audiogram (bottom strip)
     #[arg(long)]
     pub subs: Option<PathBuf>,
+    /// Start the clip at this time (h:mm:ss or seconds) — the
+    /// podcast→clip ask: render just the best segment as an audiogram
+    #[arg(long)]
+    pub from: Option<String>,
+    /// ..and stop at this time (default: end of the audio)
+    #[arg(long)]
+    pub to: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -809,6 +816,12 @@ pub enum TranscodePreset {
     Mp3,
     /// Audio-only AAC in .m4a (Apple uploads, voice notes)
     Aac,
+    /// Audio-only WAV (pcm_s16le lossless — DAW/edit handoff)
+    Wav,
+    /// Audio-only FLAC (lossless archival, ~50% smaller than wav)
+    Flac,
+    /// Audio-only Opus (libopus 128k — smallest voice/music delivery)
+    Opus,
 }
 
 #[derive(clap::Args, Debug)]

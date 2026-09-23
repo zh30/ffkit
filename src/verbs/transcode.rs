@@ -24,7 +24,11 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
 
     match preset {
-        TranscodePreset::Mp3 | TranscodePreset::Aac => audio_only(&args, g, preset),
+        TranscodePreset::Mp3
+        | TranscodePreset::Aac
+        | TranscodePreset::Wav
+        | TranscodePreset::Flac
+        | TranscodePreset::Opus => audio_only(&args, g, preset),
         TranscodePreset::Gif => gif(&args, g),
         TranscodePreset::H264 => h264(&args, g),
         TranscodePreset::Hevc => hevc(&args, g),
@@ -227,7 +231,7 @@ fn audio_only(
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_audio {
         return Err(Error::input(
-            "transcode --preset mp3/aac: input has no audio",
+            "audio preset (mp3/aac/wav/flac/opus): input has no audio",
         ));
     }
     let mut argv = ffmpeg_base(g.progress);
@@ -239,6 +243,9 @@ fn audio_only(
     } else {
         match preset {
             TranscodePreset::Mp3 => argv.extend(["-c:a", "libmp3lame", "-b:a", "192k"]),
+            TranscodePreset::Wav => argv.extend(["-c:a", "pcm_s16le"]),
+            TranscodePreset::Flac => argv.extend(["-c:a", "flac"]),
+            TranscodePreset::Opus => argv.extend(["-c:a", "libopus", "-b:a", "128k"]),
             _ => argv.extend(["-c:a", "aac", "-b:a", "192k"]),
         }
     }
