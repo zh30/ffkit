@@ -37,6 +37,9 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         Some(crate::cli::GradePreset::Soft) => {
             String::from("eq=contrast=0.92:brightness=0.04:saturation=0.95")
         }
+        Some(crate::cli::GradePreset::Sepia) => {
+            String::from("colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131")
+        }
         // teal shadows + warm mids (bs/bm only — 4.4 lacks ms)
         Some(crate::cli::GradePreset::Teal) => {
             String::from("eq=contrast=1.08:saturation=1.12,colorbalance=bs=0.10:bm=-0.06")

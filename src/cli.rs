@@ -227,6 +227,10 @@ pub enum Cmd {
     Trail(TrailArgs),
     /// Datamosh-style RGB-shift glitch look
     Glitch(GlitchArgs),
+    /// Mirror half the frame across the center axis (dance/symmetry look)
+    Mirror(MirrorArgs),
+    /// Chunky retro pixelation over the whole frame
+    Pix(PixArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -944,6 +948,46 @@ pub struct GlitchArgs {
     pub strength: f64,
 }
 
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum MirrorAxis {
+    /// Left half mirrored onto the right
+    X,
+    /// Top half mirrored onto the bottom
+    Y,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct MirrorArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Mirror axis: x = left→right, y = top→bottom
+    #[arg(long, value_enum, default_value_t = MirrorAxis::X)]
+    pub axis: MirrorAxis,
+    /// Timestamp(s) to start mirroring — comma list allowed; `end` = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Seconds the mirror lasts per --at point (default: to end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct PixArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Pixel block divisor 2-64 (bigger = chunkier)
+    #[arg(long, default_value_t = 8.0)]
+    pub strength: f64,
+    /// Timestamp(s) to start pixelating — comma list allowed; `end` = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Seconds the pixelation lasts per --at point (default: to end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
 #[derive(clap::Args, Debug)]
 pub struct SpeedArgs {
     pub input: PathBuf,
@@ -1638,6 +1682,7 @@ pub enum GradePreset {
     Vivid,
     Vintage,
     Soft,
+    Sepia,
     /// Orange-and-teal blockbuster look
     Teal,
     /// High-contrast black & white

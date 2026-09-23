@@ -672,6 +672,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `audiogram --mode scope` — lissajous vectorscope via `avectorscope=r={fps}:draw=line:zoom=2:rc/gc/bc` (verified on ffmpeg 4.4).
 - `delogo --shape circle` — elliptical logo mask painted into the `--soft` removelogo PNG (circle forces the mask path even without --soft).
 
+## Shipped this run (round 167)
+
+- `mirror` — half-frame mirror across the center axis (`--axis x` crop+hflip+hstack / `--axis y` vflip+vstack); `--at`/`--dur` swaps the mirrored branch in via `blend=all_expr='if(between(T,...),B,A)'` (blend's clock var is uppercase T — not the enable-expr lowercase t).
+- `pix` — full-frame retro pixelation (downscale + `flags=neighbor` upscale). Gotcha: inside a filter chain `iw`/`ih` are the PREVIOUS filter's output dims — the restore scale must target the probed width/height, or the encode gets the downscaled size (odd dims → x264 rejects).
+- `grade --preset sepia` — classic `colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131` matrix.
+
 ## Shipped this run (round 163)
 
 - `censor --shape circle` — elliptical alpha mask inside each `--region` via `format=rgba,geq=…:a='if(lte(hypot(X-W/2,Y-H/2),min(W,H)/2),255,0)'` (circular face censor; corners of the box stay untouched). Verified: center diff large, corner diff ≤ codec noise.
