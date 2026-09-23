@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.173.0] — 2026-09-22
+
+### Added
+- `audiogram --at a,b,...` + `--dur` — one N-second waveform clip per start point (`<stem>_N.mp4`, `extra.files`); single `--at`/`--from` + `--dur` bounds one clip. Rendering refactored to `render_clip(from, to, out)` per window.
+
 ## [0.172.0] — 2026-09-22
 
 ### Added

@@ -24,18 +24,56 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(img) = &args.image {
         paths::ensure_input(img)?;
     }
-    let from = match &args.from {
-        Some(s) if s.trim().eq_ignore_ascii_case("end") => probe.duration,
-        Some(s) if s.trim().to_ascii_lowercase().starts_with("end-") => {
+    if args.at.is_some() && (args.from.is_some() || args.to.is_some()) {
+        return Err(Error::input("pass --at or --from/--to, not both"));
+    }
+    if args.dur.is_some() && args.at.is_none() && args.from.is_none() {
+        return Err(Error::input("--dur needs --at or --from"));
+    }
+    if let Some(d) = args.dur {
+        if !(0.05..=3600.0).contains(&d) {
+            return Err(Error::input("--dur must be 0.05..=3600s"));
+        }
+    }
+
+    // comma --at: one audiogram per start point → `<stem>_N.<ext>`
+    if let Some(raw) = &args.at {
+        if raw.split(',').count() > 1 {
+            let mut files = Vec::new();
+            let mut first = None;
+            for (i, part) in raw.split(',').enumerate() {
+                let t0 = crate::time::resolve_frame_at(part.trim(), probe.duration)?;
+                if t0 < 0.0 || t0 >= probe.duration {
+                    return Err(Error::input(format!(
+                        "--at {t0} is outside the {:.2}s audio",
+                        probe.duration
+                    )));
+                }
+                let out = derive_output(&args.output, i + 1);
+                let t1 = args.dur.map(|d| (t0 + d).min(probe.duration));
+                let c = render_clip(&args, g, &probe, w, h, t0, t1, &out)?;
+                if i == 0 {
+                    first = Some(c);
+                }
+                files.push(out.to_string_lossy().into_owned());
+            }
+            return Ok(first.unwrap().with_extra(json!({ "files": files })));
+        }
+    }
+
+    let from = match (&args.from, &args.at) {
+        (Some(s), _) | (_, Some(s)) if s.trim().eq_ignore_ascii_case("end") => probe.duration,
+        (Some(s), _) | (_, Some(s)) if s.trim().to_ascii_lowercase().starts_with("end-") => {
             probe.duration - crate::time::parse_time(&s.trim()[4..])?
         }
-        Some(s) => crate::time::parse_time(s)?,
-        None => 0.0,
+        (Some(s), _) | (_, Some(s)) => crate::time::parse_time(s)?,
+        _ => 0.0,
     };
-    let to = match &args.to {
-        Some(s) if s.trim().eq_ignore_ascii_case("end") => Some(probe.duration),
-        Some(s) => Some(crate::time::parse_time(s)?),
-        None => None,
+    let to = match (&args.to, args.dur) {
+        (Some(s), _) if s.trim().eq_ignore_ascii_case("end") => Some(probe.duration),
+        (Some(s), _) => Some(crate::time::parse_time(s)?),
+        (None, Some(d)) => Some((from + d).min(probe.duration)),
+        (None, None) => None,
     };
     if from < 0.0 {
         return Err(Error::input("--from must be >= 0"));
@@ -48,7 +86,21 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     if from >= probe.duration {
         return Err(Error::input("--from is past the end of the audio"));
     }
-    let ranged = args.from.is_some() || args.to.is_some();
+    render_clip(&args, g, &probe, w, h, from, to, &args.output)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_clip(
+    args: &AudiogramArgs,
+    g: &Globals,
+    probe: &crate::probe::Probe,
+    w: u32,
+    h: u32,
+    from: f64,
+    to: Option<f64>,
+    output: &Path,
+) -> Result<Contract, Error> {
+    let ranged = from > 0.0 || to.is_some();
     let clip_dur = to.unwrap_or(probe.duration) - from;
     // Ranged: atrim clips the audio once, asplit feeds the waveform input
     // ([wvin]) and the mapped audio ([amap]) — pads are single-consumer.
@@ -131,7 +183,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
             };
             (
                 {
-                    let sc = wave_scale(&args)?;
+                    let sc = wave_scale(args)?;
                     let sp = if args.split { ":split_channels=1" } else { "" };
                     format!(
                         "{awave}showwaves=s={{ww}}x{{wh}}:mode={name}:rate={fps}:colors={}:draw=full{sc}{sp}[wv];",
@@ -273,7 +325,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         "aac",
         "-shortest",
     ]);
-    argv.push(&args.output);
+    argv.push(output);
 
     let mut inputs: Vec<&Path> = vec![&args.input];
     if let Some(img) = &args.image {
@@ -282,7 +334,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(s) = &args.subs {
         inputs.push(s);
     }
-    let mut c = engine::write_job("audiogram", &inputs, &args.output, vec![argv], g)?;
+    let mut c = engine::write_job("audiogram", &inputs, output, vec![argv], g)?;
     drop(prog_tmp);
     drop(sub_tmp);
     c = c.with_extra(json!({
@@ -306,4 +358,10 @@ fn wave_scale(args: &crate::cli::AudiogramArgs) -> Result<String, Error> {
         }
         None => Ok(String::new()),
     }
+}
+
+fn derive_output(base: &Path, i: usize) -> std::path::PathBuf {
+    let stem = base.file_stem().and_then(|s| s.to_str()).unwrap_or("clip");
+    let ext = base.extension().and_then(|e| e.to_str()).unwrap_or("mp4");
+    base.with_file_name(format!("{stem}_{i}.{ext}"))
 }

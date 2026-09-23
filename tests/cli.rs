@@ -5300,6 +5300,49 @@ fn waveform_renders_a_drawn_png() {
 }
 
 #[test]
+fn audiogram_comma_at_renders_one_clip_each() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("tone.mp3");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=2",
+            "-c:a",
+            "libmp3lame",
+            src.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    let mp4 = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        mp4.to_str().unwrap(),
+        "--at",
+        "0.2,1.0",
+        "--dur",
+        "0.5",
+        "--size",
+        "160x160",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let one = dir.path().join("ag_1.mp4");
+    let two = dir.path().join("ag_2.mp4");
+    assert!(one.exists() && two.exists(), "audiogram writes _1/_2: {v}");
+    assert_eq!(v["extra"]["files"].as_array().unwrap().len(), 2, "{v}");
+    let pv = run_json(&["probe", one.to_str().unwrap()]);
+    let dur = pv["probe"]["duration"].as_f64().unwrap();
+    assert!((dur - 0.5).abs() < 0.2, "clip is ~0.5s, got {dur}");
+}
+
+#[test]
 fn thumb_comma_at_grabs_one_still_each() {
     if !has_ffmpeg() {
         return;

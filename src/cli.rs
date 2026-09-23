@@ -725,6 +725,13 @@ pub struct AudiogramArgs {
     /// ..and stop at this time (default: end of the audio)
     #[arg(long)]
     pub to: Option<String>,
+    /// Clip start point(s) — comma list renders one audiogram per point
+    /// as <stem>_N.mp4 (`end`/`end-N` anchors work)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Seconds each --at/--from clip runs (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
