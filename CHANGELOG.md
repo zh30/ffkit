@@ -10,6 +10,14 @@
 - `pix` — full-frame retro pixelation (`--strength` 2-64 block divisor, `--at`/`--dur` window)
 - `grade --preset sepia` — classic sepia `colorchannelmixer` matrix
 
+## [0.192.0] — 2026-09-23
+
+### Added
+
+- `waveform --vertical` — transpose the rendered wave (top→bottom, h×w PNG)
+- `broll --opacity` — ghost inserts (colorchannelmixer=aa on the overlay branch)
+- `title --margin N` — pixel corner insets (platform safe-zone margins)
+
 ## [0.191.0] — 2026-09-23
 
 ### Added

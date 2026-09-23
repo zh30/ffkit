@@ -107,7 +107,20 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
         String::new()
     };
     let win = end - at;
-    let pix = if args.fade > 0.0 { "rgba" } else { "yuv420p" };
+    let pix = if args.fade > 0.0 || args.opacity.is_some() {
+        "rgba"
+    } else {
+        "yuv420p"
+    };
+    let alpha = match args.opacity {
+        Some(op) => {
+            if !(1.0..=100.0).contains(&op) {
+                return Err(Error::input("--opacity must be 1..=100"));
+            }
+            format!(",colorchannelmixer=aa={:.3}", op / 100.0)
+        }
+        None => String::new(),
+    };
     let fade_chain_of = |s: f64, e: f64| -> String {
         if args.fade > 0.0 {
             let f = args.fade.min((e - s) / 2.0).max(0.02);
@@ -138,7 +151,7 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
     let mut fc = String::new();
     if windows.len() == 1 {
         fc.push_str(&format!(
-            "[1:v]{still_pre}{prep},setsar=1{border_pre},format={pix},setpts=PTS-STARTPTS+{at:.3}/TB{fade_chain}[br];[0:v][br]overlay={ox}:{oy}:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
+            "[1:v]{still_pre}{prep},setsar=1{border_pre},format={pix}{alpha},setpts=PTS-STARTPTS+{at:.3}/TB{fade_chain}[br];[0:v][br]overlay={ox}:{oy}:eof_action=repeat:enable='between(t,{at:.3},{end:.3})'[vout]"
         ));
     } else {
         // One overlay branch per window so the insert restarts at every point.
@@ -151,7 +164,7 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
         fc.push_str(&split);
         for (i, (s, e)) in windows.iter().zip(&ends).enumerate() {
             fc.push_str(&format!(
-                ";[bs{i}]{still_pre}{prep},setsar=1{border_pre},format={pix},setpts=PTS-STARTPTS+{s:.3}/TB{}[br{i}]",
+                ";[bs{i}]{still_pre}{prep},setsar=1{border_pre},format={pix}{alpha},setpts=PTS-STARTPTS+{s:.3}/TB{}[br{i}]",
                 fade_chain_of(*s, *e)
             ));
         }
