@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.174.0] — 2026-09-22
+
+### Added
+- `extract --gif --at` comma lists — one GIF per timepoint (`<stem>_N.gif`, `extra.files`); 2-pass palette per clip, `--dur`/`--width`/`--bounce`/`--loop` honored.
+
 ## [0.172.0] — 2026-09-22
 
 ### Added
