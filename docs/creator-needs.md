@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 115)
+- `chapter --yt` — export marks as YouTube description lines ("0:00 Intro") that paste into a video description for platform seek chapters; `--import` accepts the same `H:MM:SS Title` lines back (round-trip).
+- `waveform`/`spectrogram --at end --dur N` — visualize just the tail slice.
+
 ## Shipped this run (round 114)
 - `sprite` — seek-preview thumbnails for video players: `<stem>-N.jpg` tile sheets + a WebVTT cue file with `#xywh` cell coordinates (`--every`/`--width`/`--cols`/`--rows`/`--vtt`).
 

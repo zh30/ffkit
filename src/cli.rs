@@ -2642,7 +2642,7 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "list", "remove"])]
+    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "list", "remove"])]
     pub at: Vec<String>,
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
@@ -2651,6 +2651,10 @@ pub struct ChapterArgs {
     /// embedding them (hand the marks to an editor/DAW)
     #[arg(long)]
     pub export: bool,
+    /// Write marks in YouTube description format ("0:00 Intro") at -o —
+    /// paste under the video for platform seek chapters
+    #[arg(long)]
+    pub yt: bool,
     /// Import marks from a text file: lines "TIME|TITLE" or "TIME,TITLE"
     /// ('#' comments and blank lines skipped)
     #[arg(long)]

@@ -14836,6 +14836,18 @@ fn at_end_works_on_speed_and_audio_windows() {
         "0.4",
     ]);
     assert_eq!(v["status"], "ok", "{v}");
+    // waveform --at end --dur 0.4 crops the wave to the tail
+    let v = run_json(&[
+        "waveform",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("wf.png").to_str().unwrap(),
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
 }
 
 #[test]
@@ -14867,4 +14879,45 @@ fn sprite_writes_sheets_and_vtt() {
     assert_eq!(text.matches("-->").count(), 5, "{text}");
     assert!(text.contains("00:00:00.200 --> 00:00:00.400"), "{text}");
     assert!(text.contains("sp-1.jpg#xywh=80,0,80,60"), "{text}");
+}
+
+#[test]
+fn chapter_yt_writes_description_format_and_imports_it_back() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // --yt → "M:SS Title" lines for the YouTube description box
+    let marks = dir.path().join("marks.txt");
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "-o",
+        marks.to_str().unwrap(),
+        "--at",
+        "0:00|Intro",
+        "--at",
+        "0.5|Demo",
+        "--yt",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["exported"], "youtube");
+    let text = std::fs::read_to_string(&marks).unwrap();
+    assert!(text.contains("0:00 Intro"), "{text}");
+    assert!(text.contains("0:01 Demo"), "{text}");
+    // --import accepts the same "H:MM:SS Title" lines back
+    std::fs::write(dir.path().join("yt.txt"), "0:00 Intro\n0:00.5 Demo\n").unwrap();
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("out.mp4").to_str().unwrap(),
+        "--import",
+        dir.path().join("yt.txt").to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let ch = v["extra"]["chapters"].as_array().unwrap();
+    assert_eq!(ch.len(), 2, "{ch:?}");
+    assert_eq!(ch[1]["title"], "Demo");
 }

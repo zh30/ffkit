@@ -48,7 +48,7 @@ pub fn run(args: SpectrogramArgs, g: &Globals) -> Result<Contract, Error> {
 
     let slice = match &args.at {
         Some(raw) => {
-            let at = crate::time::parse_time(raw)?;
+            let at = crate::time::resolve_at(raw, args.dur, probe.duration)?;
             match args.dur {
                 Some(d) => format!("atrim={at:.3}:{e:.3},asetpts=PTS-STARTPTS,", e = at + d),
                 None => format!("atrim=start={at:.3},asetpts=PTS-STARTPTS,"),

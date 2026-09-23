@@ -5,6 +5,15 @@ use crate::contract::{Contract, Status};
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
+fn yt_ts(t: f64) -> String {
+    let s = t.round().max(0.0) as u64;
+    if s >= 3600 {
+        format!("{}:{:02}:{:02}", s / 3600, (s / 60) % 60, s % 60)
+    } else {
+        format!("{}:{:02}", s / 60, s % 60)
+    }
+}
+
 pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
 
@@ -63,9 +72,11 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             let (t, title) = line
                 .split_once('|')
                 .or_else(|| line.split_once(','))
+                // YouTube-description style: "0:00 Intro" / "1:02:33 Outro"
+                .or_else(|| line.split_once(' '))
                 .ok_or_else(|| {
                     Error::input(format!(
-                        "--import line {}: want TIME|TITLE or TIME,TITLE, got '{line}'",
+                        "--import line {}: want TIME|TITLE, TIME,TITLE or 'H:MM:SS Title', got '{line}'",
                         ln + 1
                     ))
                 })?;
@@ -132,8 +143,20 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             title.replace('=', ";").replace('\n', " "),
         ));
     }
-    if args.export {
-        std::fs::write(&args.output, &meta).map_err(|e| {
+    if args.export || args.yt {
+        let text = if args.yt {
+            // YouTube description format — paste under the video and the
+            // platform turns the marks into seek chapters.
+            marks
+                .iter()
+                .map(|(t, ti)| format!("{} {}", yt_ts(*t), ti))
+                .collect::<Vec<_>>()
+                .join("\n")
+                + "\n"
+        } else {
+            meta
+        };
+        std::fs::write(&args.output, &text).map_err(|e| {
             Error::output(format!(
                 "writing chapter metadata {}: {e}",
                 args.output.display()
@@ -141,7 +164,7 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         })?;
         let mut c = Contract::ok("chapter", Some(args.output.display().to_string()), None);
         c = c.with_extra(json!({
-            "exported": "ffmetadata",
+            "exported": if args.yt { "youtube" } else { "ffmetadata" },
             "chapters": marks
                 .iter()
                 .map(|(t, ti)| json!({"time": t, "title": ti}))

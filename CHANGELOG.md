@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.142.0] — 2026-09-22
+
+### Added
+- `chapter --yt` — write marks in YouTube description format ("0:00 Intro") for paste-in seek chapters; `--import` accepts the same `H:MM:SS Title` lines.
+- `waveform`/`spectrogram --at end --dur N` — tail-anchored slices via `time::resolve_at`.
+
 ## [0.141.0] — 2026-09-22
 
 ### Added
