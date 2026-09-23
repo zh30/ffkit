@@ -24,12 +24,12 @@ pub fn run(args: MemeArgs, g: &Globals) -> Result<Contract, Error> {
         None => [255, 255, 255],
     };
 
+    let mut starts: Vec<f64> = Vec::new();
     let enable = match (&args.at, args.dur) {
         (Some(at), dur) => {
             if at.contains(',') && dur.is_none() {
                 return Err(Error::input("a comma list of --at times needs --dur"));
             }
-            let mut starts = Vec::new();
             for part in at.split(',') {
                 starts.push(crate::time::resolve_at(part.trim(), dur, probe.duration)?);
             }
@@ -129,23 +129,54 @@ pub fn run(args: MemeArgs, g: &Globals) -> Result<Contract, Error> {
             v
         }
     };
+    // --fade needs the at/dur windows and animated pts on each still.
+    let fade = args.fade.unwrap_or(0.0).clamp(0.0, f64::MAX);
+    if fade > 0.0 && args.dur.is_none() {
+        return Err(Error::input("--fade needs --dur"));
+    }
+    let windows: Vec<(f64, f64)> = if args.at.is_some() {
+        let d = args.dur.unwrap_or(f64::MAX);
+        starts.iter().map(|s| (*s, *s + d)).collect()
+    } else {
+        vec![(0.0, probe.duration)]
+    };
+
     let mut n_png = 0usize;
+    let mut pre = String::new();
     let mut segs = Vec::new();
     let mut prev = "[0:v]".to_string();
     for ((_, img), y) in renders.into_iter().zip(ys) {
         let png = tmp.path().join(format!("t{n_png}.png"));
         img.save(&png)
             .map_err(|e| Error::output(format!("write meme text png: {e}")))?;
+        if fade > 0.0 {
+            argv.extend(["-loop", "1", "-framerate", "30"]);
+        }
         argv.push("-i");
         argv.push(png);
         n_png += 1;
         let label = format!("m{n_png}");
+        let src = if fade > 0.0 {
+            let mut chain = format!("[{n_png}:v]format=rgba");
+            for (s, e) in &windows {
+                chain.push_str(&format!(
+                    ",fade=t=in:st={s:.3}:d={fade:.3}:alpha=1,fade=t=out:st={:.3}:d={fade:.3}:alpha=1",
+                    e - fade
+                ));
+            }
+            chain.push_str(&format!("[ovl{n_png}];"));
+            pre.push_str(&chain);
+            format!("ovl{n_png}")
+        } else {
+            format!("{n_png}:v")
+        };
+        let shortest = if fade > 0.0 { ":shortest=1" } else { "" };
         segs.push(format!(
-            "{prev}[{n_png}:v]overlay=x=(W-w)/2:y={y}{enable}[{label}]"
+            "{prev}[{src}]overlay=x=(W-w)/2:y={y}{enable}{shortest}[{label}]"
         ));
         prev = format!("[{label}]");
     }
-    let fc = segs.join(";");
+    let fc = format!("{pre}{}", segs.join(";"));
     let last_label = format!("m{n_png}");
     argv.extend(["-filter_complex", &fc, "-map", &format!("[{last_label}]")]);
     if probe.has_audio {

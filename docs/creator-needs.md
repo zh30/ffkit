@@ -237,6 +237,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 152)
+
+- `progress --reverse` — countdown-depleting progress bar ("time left" overlays); `meme --fade` — alpha fades at the `--at/--dur` window edges on each text card (looped-PNG pre-chain like `title --fade`).
+
+
 ## Shipped this run (round 151)
 
 - `hls --encrypt` — AES-128 segment encryption: writes `key.bin` + `key.info`, playlist gains `#EXT-X-KEY`; `--key HEX` supplies your own key, `--key-uri` sets the playlist URI (auth/CDN URL for real deployments). Private course/membership streams.

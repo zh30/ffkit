@@ -1866,6 +1866,9 @@ pub struct MemeArgs {
     /// Per-line alignment inside each meme card (with --wrap)
     #[arg(long, value_enum)]
     pub align: Option<crate::raster::TextAlign>,
+    /// Fade each text card in/out over SEC seconds at the window edges (with --at/--dur)
+    #[arg(long)]
+    pub fade: Option<f64>,
 }
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
 pub enum MemePos {
@@ -2673,6 +2676,9 @@ pub struct ProgressArgs {
     /// ..for this many seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Count down instead: bar starts full and depletes to zero ("time left" overlays)
+    #[arg(long)]
+    pub reverse: bool,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug, Default, PartialEq)]

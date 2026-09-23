@@ -16135,6 +16135,57 @@ fn censor_multi_region_and_subs_burn_si() {
 }
 
 #[test]
+
+fn meme_fade_and_progress_reverse() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = lavfi_fixture(dir.path(), "mf.mp4", "440", 2.0);
+    let out = dir.path().join("mf_out.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--top",
+        "HELLO",
+        "--at",
+        "0.4",
+        "--dur",
+        "1.0",
+        "--fade",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.is_file());
+    // --fade without --dur errors (fades need window edges).
+    let err = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("mf2.mp4").to_str().unwrap(),
+        "--top",
+        "HELLO",
+        "--fade",
+        "0.3",
+    ]);
+    assert_eq!(err["status"], "failed", "{err}");
+    let pr = dir.path().join("pr.mp4");
+    let v = run_json(&[
+        "progress",
+        src.to_str().unwrap(),
+        "-o",
+        pr.to_str().unwrap(),
+        "--reverse",
+        "--color",
+        "red",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(pr.is_file());
+}
+
+#[test]
 fn timer_countdown_meter_at_end() {
     if !has_ffmpeg() {
         return;

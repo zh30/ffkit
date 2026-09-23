@@ -38,7 +38,13 @@ pub fn run(args: ProgressArgs, g: &Globals) -> Result<Contract, Error> {
         }
     };
     // Vertical bars fill bottom-up: the strip slides down from y=-H.
-    let slide = if vertical {
+    let slide = if args.reverse {
+        if vertical {
+            format!("y='main_h*t/{:.3}'", probe.duration)
+        } else {
+            format!("x='-main_w*t/{:.3}'", probe.duration)
+        }
+    } else if vertical {
         format!("y='main_h-main_h*t/{:.3}'", probe.duration)
     } else {
         format!("x='-main_w+main_w*t/{:.3}'", probe.duration)
