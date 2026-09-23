@@ -5300,6 +5300,33 @@ fn waveform_renders_a_drawn_png() {
 }
 
 #[test]
+fn thumb_comma_at_grabs_one_still_each() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = lavfi_fixture(dir.path(), "f.mp4", "440", 1.0);
+    let jpg = dir.path().join("t.jpg");
+    let v = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        jpg.to_str().unwrap(),
+        "--at",
+        "0.2,0.6",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let one = dir.path().join("t_1.jpg");
+    let two = dir.path().join("t_2.jpg");
+    assert!(
+        one.exists() && two.exists(),
+        "thumb writes _1/_2 stills: {v}"
+    );
+    let files = v["extra"]["files"].as_array().expect("extra.files");
+    assert_eq!(files.len(), 2, "{v}");
+}
+
+#[test]
 fn waveform_spectrogram_comma_at_render_one_png_each() {
     if !has_ffmpeg() {
         return;
