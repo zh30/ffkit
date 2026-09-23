@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.213.0
+version: 0.214.0
 
 
 
@@ -43,7 +43,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | platform loudness | `loudnorm` (`--target`, `-I/--tp/--lra`; `--measure` report-only, `--gate N` fails when input tops N LUFS, `--dynamic` per-frame) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur --strength`), `zoom`, `--position` top/bottom/corners |
 
-| export | `deliver`, `transcode` (`--copy-audio`, `--vbitrate` peak cap, `--abitrate` audio bitrate, `--preset mp3`/`aac`/`wav`/`flac`/`opus` audio-only), `compress` (`--size 10MB` two-pass, `--crf` quality one-pass, `--res` downscale), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores`, `--target` platform sizes |
+| export | `deliver`, `transcode` (`--copy-audio`, `--vbitrate` peak cap, `--abitrate` audio bitrate, `--preset mp3`/`aac`/`wav`/`flac`/`opus` audio-only), `compress` (`--size 10MB` two-pass, `--crf` quality one-pass, `--res` downscale), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores`/`dnxhd`, `--target` platform sizes |
 | captions / mute | `caption` (`--karaoke` word reveal (`--highlight` sung color), `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, `--align`, `--from/--to` window, `--opacity` ghost, or `--mode mux`), `--fade` |
 
 | hook text | `title` (`--wrap` auto line breaks, `--align` left/right lower-thirds, `--box`/`--outline`/`--shadow`, `--margin` px corner inset) |
@@ -122,7 +122,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | subtle watermark | `overlay` (`--opacity` on `--image`) |
 | split a podcast on pauses | `split` (`--silence=-35` — cuts at gap midpoints) |
 | music bed that eases in/out | `music` (`--fade` on the bed) |
-| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass`), `--band` parametric, `--tilt` |
+| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass/warm/air`), `--band` parametric, `--tilt` |
 | soft b-roll cutaway edges | `broll` (`--fade`), `--position` pip (+`--border` ring), `--opacity` ghost insert |
 | stills at exact moments | `frames` (`--at 12,45,90`) |
 | audiogram on any canvas | `audiogram` (`--size` — 1080x1920, 1920x1080, 1080x1080) |
@@ -247,7 +247,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | draft/tiled watermark | `overlay --tile N` (diagonal watermark pass) |
 | shift subtitle timing | `caption --shift SEC` |
 | gif tuning | `transcode --preset gif --fps --width`, `extract --gif --bounce` (palindrome loop), `extract --colors` palette size |
-| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `split` → `_L/_R.wav` host/guest stems) |
+| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `split` → `_L/_R.wav` host/guest stems, `mid`/`side` M/S extract) |
 | loop to a length | `loop --until SEC` |
 | text draft watermark | `title --tile N` |
 | audio EQ polish | `eq` (`--bass`/`--treble`/`--presence` dB) |

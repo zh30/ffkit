@@ -502,6 +502,10 @@ pub enum EqPreset {
     Bright,
     /// bass-heavy boost
     Bass,
+    /// warm/rounded: low boost + slight presence cut (thins harshness)
+    Warm,
+    /// top-end air: strong treble shelf, small presence lift
+    Air,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
@@ -975,6 +979,8 @@ pub enum TranscodePreset {
     Gif,
     /// ProRes 422 HQ in .mov — the FCP/Premiere edit delivery format
     Prores,
+    /// DNxHR HQ in .mov — the Avid/Resolve edit delivery format
+    Dnxhd,
     /// AV1 (svt-av1 on ffmpeg ≥7, libaom on 4.x) — smallest web delivery
     Av1,
     /// Audio-only MP3 (podcast/voice delivery; -vn, libmp3lame)
@@ -2672,6 +2678,10 @@ pub enum ChannelMode {
     Split,
     /// Cut side-channel room/ambience (stereotools slev) — drier voice
     Ambience,
+    /// Keep only the mid (center) channel — isolate centered voice/dry-mix
+    Mid,
+    /// Keep only the side (difference) channel — room tone / ambience capture
+    Side,
 }
 
 #[derive(clap::Args, Debug)]

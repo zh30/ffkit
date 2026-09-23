@@ -20524,3 +20524,155 @@ fn v360_projections_and_tone_fx() {
         "crystalizer should sharpen the top end: {v}"
     );
 }
+
+#[test]
+fn dnxhd_mid_side_warm_air() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+
+    // dnxhd: DNxHR HQ + PCM in .mov — the Avid/Resolve handoff
+    let mov = dir.path().join("edit.mov");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        mov.to_str().unwrap(),
+        "--preset",
+        "dnxhd",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let codec = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "stream=codec_name",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&mov)
+        .output()
+        .unwrap();
+    assert_eq!(
+        String::from_utf8_lossy(&codec.stdout).trim(),
+        "dnxhd",
+        "{v}"
+    );
+
+    // dual-mono sine: mid keeps it, side cancels it to silence
+    let dual = dir.path().join("dual.m4a");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("sine=frequency=440:duration=1")
+        .args(["-f", "lavfi", "-i"])
+        .arg("sine=frequency=440:duration=1")
+        .args([
+            "-filter_complex",
+            "[0:a][1:a]join=inputs=2:channel_layout=stereo",
+        ])
+        .arg(&dual)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let level = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-af", "volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find(|l| l.contains("mean_volume"))
+            .and_then(|l| l.split("mean_volume:").nth(1))
+            .and_then(|s| s.trim().trim_end_matches(" dB").parse().ok())
+            .unwrap_or(-91.0)
+    };
+    let mid = dir.path().join("mid.m4a");
+    let v = run_json(&[
+        "channel",
+        dual.to_str().unwrap(),
+        "-o",
+        mid.to_str().unwrap(),
+        "--mode",
+        "mid",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        level(&mid) > level(&dual) - 1.0,
+        "mid should keep the correlated signal: {v}"
+    );
+    let side = dir.path().join("side.m4a");
+    let v = run_json(&[
+        "channel",
+        dual.to_str().unwrap(),
+        "-o",
+        side.to_str().unwrap(),
+        "--mode",
+        "side",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        level(&side) < -60.0,
+        "side should cancel the correlated signal to silence: {v}"
+    );
+
+    // eq presets: warm lifts lows; air lifts the top shelf on dull noise
+    let noise = dir.path().join("noise.m4a");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("anoisesrc=color=pink:duration=1")
+        .arg(&noise)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let band = |p: &std::path::Path, af: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-af", af, "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find(|l| l.contains("mean_volume"))
+            .and_then(|l| l.split("mean_volume:").nth(1))
+            .and_then(|s| s.trim().trim_end_matches(" dB").parse().ok())
+            .unwrap_or(-91.0)
+    };
+    let warm = dir.path().join("warm.m4a");
+    let v = run_json(&[
+        "eq",
+        noise.to_str().unwrap(),
+        "-o",
+        warm.to_str().unwrap(),
+        "--preset",
+        "warm",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        band(&warm, "lowpass=f=200,volumedetect")
+            > band(&noise, "lowpass=f=200,volumedetect") + 1.0,
+        "warm should lift the low band: {v}"
+    );
+    let air = dir.path().join("air.m4a");
+    let v = run_json(&[
+        "eq",
+        noise.to_str().unwrap(),
+        "-o",
+        air.to_str().unwrap(),
+        "--preset",
+        "air",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        band(&air, "highpass=f=8000,volumedetect")
+            > band(&noise, "highpass=f=8000,volumedetect") + 3.0,
+        "air should lift the top shelf: {v}"
+    );
+}

@@ -19,6 +19,8 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
             Podcast => (-1.0, 4.0, 1.0),
             Bright => (0.0, 2.0, 5.0),
             Bass => (8.0, 0.0, 0.0),
+            Warm => (3.0, -2.0, -1.5),
+            Air => (0.0, 1.0, 6.0),
         };
         if bass == 0.0 {
             bass = b;

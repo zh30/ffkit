@@ -1,6 +1,12 @@
 # Changelog
 
 ## [Unreleased]
+## [0.214.0] — RSI round 187
+
+- `transcode --preset dnxhd` — DNxHR HQ + PCM in .mov, the Avid/Resolve-side edit handoff (ProRes covers the Apple side).
+- `channel --mode mid|side` — mid/side extraction: `mid` keeps the correlated center (dry voice), `side` keeps the difference (room tone, ambience — a correlated signal cancels to silence).
+- `eq --preset warm|air` — warm = +3dB lows with a slight presence dip (de-harshens); air = +6dB top shelf + small presence lift (dull-recording sparkle).
+
 ## [0.213.0] — RSI round 186
 
 - `v360 --in` — input projection for non-equirect 360 sources: `fisheye`, `dfisheye` (GoPro Max / Insta360 / Ricoh Theta dual-fisheye), `c3x2`/`eac` cubemaps, `barrel`, `hequirect` (180 VR).

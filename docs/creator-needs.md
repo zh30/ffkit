@@ -787,3 +787,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `fx --kind muffled` — next-room/underwater muffle via lowpass sweep (2400→500Hz).
 - `fx --kind crystal` — transient sharpening (crystalizer, +12dB >8kHz on pink noise).
 - Dropped mid-round (verified): none.
+
+## Shipped this run (round 187)
+- `transcode --preset dnxhd` — DNxHR HQ + PCM in .mov (Avid/Resolve-side edit handoff; verified codec_name=dnxhd on ffmpeg 4.4).
+- `channel --mode mid|side` — M/S extraction via pan matrix: `mid` keeps the correlated center (−21dB kept on dual-mono), `side` keeps the difference (cancels to −91dB on correlated input).
+- `eq --preset warm|air` — warm (+3dB lows, −2 presence, −1.5 treble) and air (+6dB top shelf, +1 presence).
+- Note: `anlmdn` engine skipped — it segfaults on the brew ffmpeg 4.4 build (noted in denoise.rs).

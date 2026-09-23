@@ -84,6 +84,10 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
             }
             format!("stereotools=slev={a:.3}")
         }
+        // M/S decode: mid = (L+R)/2 per ear, side = ±(L−R)/2 — polarity
+        // flips on the right ear, which is what makes side ambience-only
+        ChannelMode::Mid => "pan=stereo|FL<0.5*FL+0.5*FR|FR<0.5*FL+0.5*FR".to_string(),
+        ChannelMode::Side => "pan=stereo|FL<0.5*FL-0.5*FR|FR<-0.5*FL+0.5*FR".to_string(),
         ChannelMode::Split => unreachable!("split returns early"),
     };
     let mut argv = ffmpeg_base(g.progress);

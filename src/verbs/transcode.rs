@@ -46,6 +46,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Opus
                 | TranscodePreset::Gif
                 | TranscodePreset::Prores
+                | TranscodePreset::Dnxhd
         )
     {
         return Err(Error::input(
@@ -64,6 +65,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Hevc => hevc(&args, g),
         TranscodePreset::Webm => webm(&args, g),
         TranscodePreset::Prores => prores(&args, g),
+        TranscodePreset::Dnxhd => dnxhd(&args, g),
         TranscodePreset::Av1 => av1(&args, g),
     }
 }
@@ -356,6 +358,51 @@ fn prores(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     cap_bitrate(&mut argv, &args.vbitrate);
+    argv.push(&args.output);
+    engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
+}
+
+/// DNxHR HQ in .mov — the Avid/Resolve-side edit handoff (ProRes on the
+/// Apple side). dnxhr profiles take any resolution; pcm_s16le like prores.
+fn dnxhd(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let probe = engine::probe_or_err(&args.input, g)?;
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != "mov" {
+        return Err(Error::input(
+            "dnxhd preset wants a .mov output (DNxHR + PCM in MOV)",
+        ));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    if probe.has_video {
+        argv.extend([
+            "-c:v",
+            "dnxhd",
+            "-profile:v",
+            "dnxhr_hq",
+            "-pix_fmt",
+            "yuv422p",
+        ]);
+        let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
+        if let Some(fps) = args.fps {
+            vf.push_str(&format!(",fps={fps}"));
+        }
+        vf.push_str(range_tag(args));
+        argv.extend(["-vf", &vf]);
+    }
+    if probe.has_audio {
+        if args.copy_audio {
+            argv.extend(["-c:a", "copy"]);
+        } else {
+            argv.extend(["-c:a", "pcm_s16le"]);
+        }
+    }
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
