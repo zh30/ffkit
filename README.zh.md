@@ -151,7 +151,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `zoom` | 中心推近（`--factor 1.25`） | `--out`
 | `sharpen` | USM 锐化，整段或定时窗口（`--amount`、`--at`、`--dur`） |
 | `vignette` | 暗角，整段或定时窗口（`--angle`、`--at`、`--dur`） |
-| `bw` | 黑白化，整段或定时窗口（`--at`、`--dur`） |
+| `bw` | 黑白化，整段或定时窗口（`--at`、`--dur`、`--strength` 保留部分色彩） |
 | `volume` | 音量 ±dB（平台响度请用 `loudnorm`） |
 | `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`、`--dur`） |
 | `vdenoise` | 视频降噪（暗光噪点）：`--strength` 0.5–30（nlmeans，长片较慢） |
@@ -183,7 +183,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sync` | 修复音画同步（`--ms ±N` 垫音/裁音头） |
 | `align` | 音频互相关自动对齐第二路录音（多机位/外接录音笔，`--max-lag`） |
 | `scroll` | 片尾滚动字幕（`--text`/`--file`、`--at`、`--dur`、`--size`、`--color`、`--font`、`--align` 对齐、`--wrap` 折行）；`--mode ticker` 底部新闻条可加 `--bg` 不透明底条 |
-| `insert` | 在视频中段插入整段素材（`--at`；`--dur` 只取前 N 秒；`--transition` 转场 + `--duration` 两端淡入淡出） |
+| `insert` | 在视频中段插入整段素材（`--at`，`end` 追加到片尾；`--dur` 只取前 N 秒；`--transition` 转场 + `--duration` 两端淡入淡出） |
 | `multicam` | 双机位对齐后角度切换：`--at t1,t2,...` 逐点换机位；`--keep-audio` 全程用 A 机位音轨、`--transition` 软切换 |
 | `art` | 给音频嵌入封面图；`--extract` 反向导出封面 |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |

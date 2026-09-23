@@ -8,6 +8,11 @@ use crate::error::Error;
 pub fn run(args: BwArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "bw")?;
+    let sat = match args.strength {
+        Some(s) if (0.0..=1.0).contains(&s) => 1.0 - s,
+        Some(_) => return Err(Error::input("--strength must be 0..=1")),
+        None => 0.0,
+    };
 
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
@@ -23,16 +28,16 @@ pub fn run(args: BwArgs, g: &Globals) -> Result<Contract, Error> {
                     }
                     match args.dur {
                         Some(d) if at + d < probe.duration => {
-                            format!("hue=s=0:enable='between(t,{at:.3},{:.3})'", at + d)
+                            format!("hue=s={sat}:enable='between(t,{at:.3},{:.3})'", at + d)
                         }
-                        _ => format!("hue=s=0:enable='gte(t,{at:.3})'"),
+                        _ => format!("hue=s={sat}:enable='gte(t,{at:.3})'"),
                     }
                 }
                 None => {
                     if args.dur.is_some() {
                         return Err(Error::input("--dur needs --at"));
                     }
-                    "hue=s=0".to_string()
+                    format!("hue=s={sat}")
                 }
             }
         },

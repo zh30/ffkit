@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.129.0] — 2026-09-22
+
+### Added
+
+- `bw --strength` — partial desaturation, keeps muted color
+- `insert --at end` — append a clip just before the tail
+
 ## [0.128.0] — 2026-09-22
 
 ### Added

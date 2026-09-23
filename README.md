@@ -151,7 +151,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `zoom` | Center punch-in (`--factor 1.25`) | `--out`
 | `sharpen` | Unsharp mask, whole clip or a window (`--amount`, `--at`, `--dur`) |
 | `vignette` | Corner darkening, whole clip or a window (`--angle`, `--at`, `--dur`) |
-| `bw` | Desaturate to B&W, whole clip or a window (`--at`, `--dur`) |
+| `bw` | Desaturate to B&W, whole clip or a window (`--at`, `--dur`, `--strength` keeps muted color) |
 | `volume` | Gain ±dB (platform loudness is `loudnorm`) |
 | `blur` | Full-frame or windowed gaussian blur (`--sigma`, `--at`, `--dur`) |
 | `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30 (nlmeans; slow on long clips) |
@@ -183,7 +183,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sync` | Shift audio ±ms to fix A/V sync (`--ms`) |
 | `align` | Auto-sync a second recording to a reference by audio cross-correlation — multi-cam/external recorder (`--max-lag`) |
 | `scroll` | Rolling end credits: text rolls bottom→top (`--text`/`--file`, `--at`, `--dur`, `--size`, `--color`, `--font`, `--align` left/right, `--wrap` folds); `--mode ticker` news crawl with `--bg` opaque bar |
-| `insert` | Splice a clip mid-video (`--at`; `--dur` cap the insert; `--transition` any xfade `--duration` S crossfades both joints) |
+| `insert` | Splice a clip mid-video (`--at`, `end` appends; `--dur` cap; `--transition` any xfade `--duration` S crossfades both joints) |
 | `multicam` | Two-camera angle switching across an aligned pair: `--at t1,t2,...` flips angle; `--keep-audio` stays on cam A, `--transition` xfade switches |
 | `art` | Attach embedded cover art to audio; `--extract` pulls it out to an image |
 | `batch` | One verb on every media file in a directory |

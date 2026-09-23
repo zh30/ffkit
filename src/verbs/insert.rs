@@ -22,7 +22,12 @@ pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
             "insert: clip must have an audio stream when the base does",
         ));
     }
-    let at = parse_time(&args.at)?;
+    let at = if args.at == "end" {
+        // splice just before the tail (the bound below requires strictly-inside)
+        base.duration - 0.06
+    } else {
+        parse_time(&args.at)?
+    };
     if !(0.05..base.duration - 0.05).contains(&at) {
         return Err(Error::input(format!(
             "--at must sit inside the {:.2}s base",

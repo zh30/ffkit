@@ -13831,3 +13831,56 @@ fn countdown_bg_plates_numerals() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn bw_strength_partial_desat() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "bw",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--strength",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("hue=s=0.6"), "{cmds}");
+}
+
+#[test]
+fn insert_at_end_appends_near_tail() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("i.mp4");
+    let v = run_json(&[
+        "insert",
+        src.to_str().unwrap(),
+        "--clip",
+        src.to_str().unwrap(),
+        "--at",
+        "end",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let probe = run_json(&["probe", out.to_str().unwrap()]);
+    assert!(
+        probe["probe"]["duration"].as_f64().unwrap() > 1.5,
+        "insert should nearly double duration: {probe}"
+    );
+}

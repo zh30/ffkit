@@ -237,6 +237,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 102)
+
+- `bw --strength` — partial desaturation (maps to `hue=s=1-S`): "mute the color" looks without going full monochrome.
+- `insert --at end` — appends the clip just before the tail (sugar for outro cards/post-roll without probing the duration).
+
 ## Shipped this run (round 101)
 
 - `countdown --bg` — 200-alpha card plate rendered under each numeral PNG (streamable "3-2-1" on busy backdrops).

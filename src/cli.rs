@@ -2120,7 +2120,7 @@ pub struct InsertArgs {
     /// Clip spliced in whole (scaled to the base size)
     #[arg(long)]
     pub clip: PathBuf,
-    /// Splice point in the base (h:mm:ss or seconds)
+    /// Splice point in the base (h:mm:ss or seconds, or `end` to append)
     #[arg(long)]
     pub at: String,
     /// xfade into and out of the insert (any xfade name) instead of a hard cut
@@ -2449,6 +2449,9 @@ pub struct BwArgs {
     /// ..for this many seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Saturation left 0..=1 (default 0 = full bw; 0.4 keeps muted color)
+    #[arg(long)]
+    pub strength: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
