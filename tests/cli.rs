@@ -5330,6 +5330,7 @@ fn waveform_spectrogram_comma_at_render_one_png_each() {
     }
 }
 
+#[test]
 fn spectrogram_renders_a_drawn_png() {
     if !has_ffmpeg() {
         return;
