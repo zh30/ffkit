@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.220.0] — RSI round 193
+
+- `shear` — italic-style picture slant (`shear` filter): `--x`/`--y` shear factors -2..2, `--fill` edge color, `--interp nearest|bilinear`, `--at`/`--dur` windows. Dynamic-tilt look without full rotate.
+- `vdenoise --engine dctdnoiz|owdenoise` — two more denoisers: DCT-domain (σ=s×5, edge-sharp) and overcomplete wavelet (s×4, smoothest). Verified: flat-region stdev 16.1 → 2.5 / 1.4. Like bm3d they have no timeline → `--at` rejected.
+- `channel --mode base --pan -1..1` — stereotools stereo base: -1 folds an over-wide/phasey recording to mono, +1 widens. Measured L-R diff 2.5 → 5.2 (wide) / 0 (narrow).
+
 ## [0.219.0] — RSI round 192
 
 - `gen` — generative animated backgrounds from lavfi sources, no input file: `--pattern mandelbrot` (endless fractal zoom, `--zoom` depth), `gradients` (drifting palette — `--colors` up to 8, `--seed`, `--speed`), `life` (cellular automaton, `--rule` 0-255). `--size`/`--fps`/`--dur`. For music-visualizer backdrops, VJ loops, text cards.

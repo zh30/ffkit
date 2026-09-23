@@ -307,6 +307,8 @@ pub enum Cmd {
     Perspective(PerspectiveArgs),
     /// Generative animated background: mandelbrot zoom | gradients | life
     Gen(GenArgs),
+    /// Slant the picture like italic text (shear transform)
+    Shear(ShearArgs),
     /// Reframe 360 equirect footage to a flat viewport (yaw/pitch/fov)
     V360(V360Args),
     /// Mirror half the frame across the center axis (dance/symmetry look)
@@ -1646,6 +1648,31 @@ pub enum MirrorAxis {
 }
 
 #[derive(clap::Args, Debug)]
+pub struct ShearArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Horizontal shear -2..2 (rows slant; 0.3 ≈ strong italic)
+    #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
+    pub x: f64,
+    /// Vertical shear -2..2 (columns slant)
+    #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
+    pub y: f64,
+    /// Edge fill color for the vacated corners (default black)
+    #[arg(long, default_value = "black")]
+    pub fill: String,
+    /// Interpolation: bilinear (default, smoother) | nearest (retro staircase)
+    #[arg(long, default_value = "bilinear")]
+    pub interp: String,
+    /// Timestamp(s) to start the slant — comma list allowed; `end` = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Seconds the slant lasts per --at point (default: to end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
 pub struct MirrorArgs {
     pub input: PathBuf,
     #[arg(short, long)]
@@ -2801,6 +2828,8 @@ pub enum ChannelMode {
     /// Upmix stereo to 5.1 surround (soundfield transform + derived LFE —
     /// TV / set-top / cinema delivery)
     Surround,
+    /// Stereo base via stereotools: --pan -1 (mono-fold) .. 0 (unchanged) .. 1 (wide)
+    Base,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3784,6 +3813,10 @@ pub enum VDenoiseEngine {
     /// bm3d — state-of-the-art patch denoiser, slowest but cleanest
     /// (no timeline window: --at is rejected with this engine)
     Bm3d,
+    /// dctdnoiz — DCT-domain denoiser (sharp, aggressive sigma)
+    Dctdnoiz,
+    /// owdenoise — overcomplete wavelet denoiser (very smooth result)
+    Owdenoise,
 }
 
 #[derive(clap::Args, Debug)]

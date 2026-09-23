@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.219.0
+version: 0.220.0
 
 
 
@@ -160,7 +160,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | find black/frozen stretches (QC) | `scan` (JSON extras; no -o) |
 | beauty/skin smoothing | `smooth` (`--strength`, `--at`/`--dur` window) |
 | reframe 360/equirect footage | `v360` (`--yaw`/`--pitch`/`--fov`, `--in` projection, `--size`) |
-| noisy clip, pick denoiser | `vdenoise --engine nlmeans\|hqdn3d\|atadenoise\|vaguedenoise\|bm3d` (bm3d strongest, slow), `denoise --engine auto\|wavel\|fftdn` |
+| noisy clip, pick denoiser | `vdenoise --engine nlmeans\|hqdn3d\|atadenoise\|vaguedenoise\|bm3d` (bm3d strongest, slow; dctdnoiz/owdenoise also — those 3 have no --at), `denoise --engine auto\|wavel\|fftdn` |
 | old footage is too low-res | `upscale` (zscale spline36 + unsharp, `--factor` 2 doubles dims) |
 | filmed a screen/whiteboard at an angle | `perspective` `--points x0,y0,...,x3,y3` deskews the quad onto the frame (TL,TR,BL,BR) |
 | broadcast range tag | `transcode --range limited` |
@@ -253,6 +253,8 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | headphone fatigue on long audio | `fx --kind crossfeed` (`--strength` 0..1 ear bleed); `fx --kind sub` adds a synthesized low octave; `fx --kind autopan` sweeps L-R |
 | draw a freehand EQ curve | `eq --curve "80,0;3000,-6;8000,4"` (freq,gain dB points, interpolated) or `eq --graphic` 18-band classic EQ |
 | animated backdrop for a music/text card | `gen` `--pattern mandelbrot\|gradients\|life` (no input file; `--size`/`--dur`/`--colors`/`--seed`) |
+| italic-style slant / dynamic tilt | `shear` `--x`/`--y` (-2..2; `--fill` edge color, `--interp`) — `--at`/`--dur` windows |
+| stereo too wide / phase issues | `channel` `--mode base --pan -1..1` (-1 folds to mono, +1 widens) |
 | one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `split` → `_L/_R.wav` host/guest stems, `mid`/`side` M/S extract, `haas` stereo widening, `surround` stereo→5.1 upmix) |
 | loop to a length | `loop --until SEC` |
 | text draft watermark | `title --tile N` |

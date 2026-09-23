@@ -99,6 +99,15 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
         }
         // Stereo→5.1 soundfield upmix: derived surround + LFE (aac takes 5.1)
         ChannelMode::Surround => "surround=chl_out=5.1".to_string(),
+        // stereotools stereo base: -1 folds toward mono (fixes over-wide
+        // recordings / stereo-phase issues), +1 exaggerates width
+        ChannelMode::Base => {
+            let p = args.pan.unwrap_or(0.5);
+            if !(-1.0..=1.0).contains(&p) {
+                return Err(Error::input("--pan must be -1..=1"));
+            }
+            format!("stereotools=base={p:.3}")
+        }
         ChannelMode::Split => unreachable!("split returns early"),
     };
     let mut argv = ffmpeg_base(g.progress);

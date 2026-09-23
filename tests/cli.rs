@@ -21295,3 +21295,209 @@ fn gen_vdenoise_bm3d_eq_graphic() {
         "graphic band 9 should cut 1kHz: {v}"
     );
 }
+
+#[test]
+fn shear_denoise_engines_channel_base() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let flat_stdev = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-vf", "select='eq(n,10)',format=gray"])
+            .args(["-frames:v", "1", "-f", "rawvideo", "-"])
+            .output()
+            .unwrap();
+        let d = o.stdout;
+        if d.is_empty() {
+            return 99.0;
+        }
+        let m = d.iter().map(|v| *v as f64).sum::<f64>() / d.len() as f64;
+        (d.iter().map(|v| (*v as f64 - m).powi(2)).sum::<f64>() / d.len() as f64).sqrt()
+    };
+    let lr_diff = |p: &std::path::Path| -> f64 {
+        let tl = dir.path().join("L.pcm");
+        let tr = dir.path().join("R.pcm");
+        let _ = Command::new("ffmpeg")
+            .args(["-y", "-i"])
+            .arg(p)
+            .args([
+                "-filter_complex",
+                "[0:a]channelsplit[aL][aR]",
+                "-map",
+                "[aL]",
+                "-f",
+                "s16le",
+            ])
+            .arg(&tl)
+            .args(["-map", "[aR]", "-f", "s16le"])
+            .arg(&tr)
+            .output()
+            .unwrap();
+        let (l, r) = (
+            std::fs::read(&tl).unwrap_or_default(),
+            std::fs::read(&tr).unwrap_or_default(),
+        );
+        let n = l.len().min(r.len()) / 2;
+        if n == 0 {
+            return 0.0;
+        }
+        let s: f64 = (0..n)
+            .step_by(8)
+            .map(|i| {
+                let a = i16::from_le_bytes([l[i * 2], l[i * 2 + 1]]) as f64;
+                let b = i16::from_le_bytes([r[i * 2], r[i * 2 + 1]]) as f64;
+                ((a - b) / 32768.0).powi(2)
+            })
+            .sum();
+        (s / (n / 8) as f64).sqrt() * 20.0
+    };
+    let vid = dir.path().join("v.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("testsrc=size=160x90:rate=25")
+        .args(["-t", "1"])
+        .arg(&vid)
+        .status()
+        .unwrap();
+    assert!(st.success());
+
+    // shear: --x 0.6 slants the frame; cyan fill shows in the top-left corner
+    let sh = dir.path().join("sh.mp4");
+    let v = run_json(&[
+        "shear",
+        vid.to_str().unwrap(),
+        "-o",
+        sh.to_str().unwrap(),
+        "--x",
+        "0.6",
+        "--fill",
+        "cyan",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let corner = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-vf", "select='eq(n,10)',format=gray"])
+            .args(["-frames:v", "1", "-f", "rawvideo", "-"])
+            .output()
+            .unwrap();
+        let d = o.stdout;
+        if d.len() < 160 * 20 {
+            return -1.0;
+        }
+        (0..15).map(|r| d[r * 160 + 8] as f64).sum::<f64>() / 15.0
+    };
+    assert!(
+        corner(&sh) > corner(&vid) + 40.0,
+        "shear fill should brighten the corner: {v}"
+    );
+    // windowed slant: only mid-frames slanted
+    let shw = dir.path().join("shw.mp4");
+    let v = run_json(&[
+        "shear",
+        vid.to_str().unwrap(),
+        "-o",
+        shw.to_str().unwrap(),
+        "--x",
+        "0.6",
+        "--at",
+        "0.4",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+
+    // dctdnoiz + owdenoise: flat noise collapses like bm3d
+    let flat = dir.path().join("flat.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("color=c=gray:size=160x90:rate=25")
+        .args(["-vf", "noise=alls=25:allf=t", "-t", "1"])
+        .arg(&flat)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    for eng in ["dctdnoiz", "owdenoise"] {
+        let dn = dir.path().join(format!("dn_{eng}.mp4"));
+        let v = run_json(&[
+            "vdenoise",
+            flat.to_str().unwrap(),
+            "-o",
+            dn.to_str().unwrap(),
+            "--engine",
+            eng,
+            "--strength",
+            "6",
+        ]);
+        assert_eq!(v["status"], "ok", "{eng}: {v}");
+        assert!(
+            flat_stdev(&dn) < flat_stdev(&flat) * 0.5,
+            "{eng} should halve flat stdev: {v}"
+        );
+        let v = run_json(&[
+            "vdenoise",
+            flat.to_str().unwrap(),
+            "-o",
+            dir.path().join(format!("d2_{eng}.mp4")).to_str().unwrap(),
+            "--engine",
+            eng,
+            "--at",
+            "0.2",
+            "--dur",
+            "0.3",
+        ]);
+        assert_eq!(v["status"], "failed", "{eng} --at should reject: {v}");
+    }
+
+    // channel --mode base: +1 widens L-R, -1 folds to mono
+    let ste = dir.path().join("st.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("sine=frequency=440:duration=1")
+        .args(["-f", "lavfi", "-i", "sine=frequency=660:duration=1"])
+        .args([
+            "-filter_complex",
+            "[0:a][1:a]join=inputs=2:channel_layout=stereo",
+        ])
+        .arg(&ste)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let base_in = lr_diff(&ste);
+    let wide = dir.path().join("w.wav");
+    let v = run_json(&[
+        "channel",
+        ste.to_str().unwrap(),
+        "-o",
+        wide.to_str().unwrap(),
+        "--mode",
+        "base",
+        "--pan",
+        "1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        lr_diff(&wide) > base_in * 1.5,
+        "base +1 should widen stereo: {v}"
+    );
+    let narrow = dir.path().join("n.wav");
+    let v = run_json(&[
+        "channel",
+        ste.to_str().unwrap(),
+        "-o",
+        narrow.to_str().unwrap(),
+        "--mode",
+        "base",
+        "--pan",
+        "-1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        lr_diff(&narrow) < base_in * 0.3,
+        "base -1 should fold toward mono: {v}"
+    );
+}

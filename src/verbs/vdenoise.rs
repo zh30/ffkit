@@ -40,14 +40,28 @@ pub fn run(args: VdenoiseArgs, g: &Globals) -> Result<Contract, Error> {
         // the 0-5 'mild' band, so strength maps s*8 (6 → 48: flat-region luma
         // stdev halved on a noise=25 fixture)
         crate::cli::VDenoiseEngine::Bm3d => (format!("bm3d=sigma={:.1}", s * 8.0), "bm3d"),
+        // dctdnoiz: DCT-domain sigma — aggressive cut that keeps edges sharp
+        crate::cli::VDenoiseEngine::Dctdnoiz => {
+            (format!("dctdnoiz=sigma={:.1}", s * 5.0), "dctdnoiz")
+        }
+        // owdenoise: overcomplete wavelet — smoothest output of the set
+        crate::cli::VDenoiseEngine::Owdenoise => (
+            format!(
+                "owdenoise=luma_strength={:.1}:chroma_strength={:.1}",
+                s * 4.0,
+                s * 4.0
+            ),
+            "owdenoise",
+        ),
     };
     let vf = match &args.at {
         Some(raw) => {
-            if filter_name == "bm3d" {
-                return Err(Error::input(
-                    "--at needs a timeline-capable engine — bm3d has none; \n\
-                     use nlmeans/hqdn3d/atadenoise/vaguedenoise, or denoise the whole clip",
-                ));
+            // bm3d/dctdnoiz/owdenoise have no timeline `enable` on ffmpeg 4.4
+            if matches!(filter_name, "bm3d" | "dctdnoiz" | "owdenoise") {
+                return Err(Error::input(format!(
+                    "--at needs a timeline-capable engine — {filter_name} has none; \n\
+                     use nlmeans/hqdn3d/atadenoise/vaguedenoise, or denoise the whole clip"
+                )));
             }
             format!(
                 "{base}:enable='{}'",

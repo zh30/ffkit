@@ -99,6 +99,7 @@ pub mod scope;
 pub mod scroll;
 pub mod selective;
 pub mod sharpen;
+pub mod shear;
 pub mod sheet;
 pub mod silence;
 pub mod slideshow;

@@ -827,3 +827,11 @@ Note: ffmpeg 4.4 `perspective` takes `sense` as int (0=source coords = our deske
 - `eq --graphic` — `superequalizer` 18-band graphic EQ (dB → multiplier 10^(dB/20)).
 
 Dropped after probing: `dynaudnorm` is a verified passthrough on ffmpeg 4.4.8 (output bit-identical to input at any settings) — do not ship it; `removerect`/`find_rect` not in 4.4.
+
+## Shipped — RSI round 193 (0.220.0)
+
+- `shear` — `shear=shx:shy:fillcolor:interp` slant with edge fill; windowed via split+blend.
+- `vdenoise --engine dctdnoiz` (sigma=s×5) + `--engine owdenoise` (luma/chroma strength=s×4) — both verified on the noise=25 flat fixture; both lack timeline `enable` → `--at` rejected like bm3d.
+- `channel --mode base` — `stereotools=base={pan}` (-1 mono fold / +1 wide).
+
+Not on 4.4: `earwax` (no output from `ffmpeg -h filter=earwax`).
