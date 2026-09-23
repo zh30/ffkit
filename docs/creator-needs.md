@@ -237,6 +237,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 120)
+- `end` sweep leftovers: `subs --burn --to end`, `audiogram --to end`, `bleep --at end --dur` (via `time::resolve_at`).
+
 ## Shipped this run (round 119)
 - `channel --mode pan --pan -1..1` — stereo pan (push the mix to one ear for ASMR / placement).
 - `grade --exposure` — real EV stops (-3..3, ffmpeg `exposure` filter) to rescue under/over-exposed footage.

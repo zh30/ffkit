@@ -22,7 +22,7 @@ pub fn run(args: BleepArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_audio {
         return Err(Error::input("bleep: input has no audio stream"));
     }
-    let start = crate::time::parse_time(&args.at)?;
+    let start = crate::time::resolve_at(&args.at, Some(args.dur), probe.duration)?;
     if !(0.0..probe.duration).contains(&start) {
         return Err(Error::input("--at is outside the input"));
     }

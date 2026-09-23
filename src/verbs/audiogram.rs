@@ -29,6 +29,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         None => 0.0,
     };
     let to = match &args.to {
+        Some(s) if s.trim().eq_ignore_ascii_case("end") => Some(probe.duration),
         Some(s) => Some(crate::time::parse_time(s)?),
         None => None,
     };

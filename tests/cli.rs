@@ -15156,3 +15156,58 @@ fn channel_pan_and_grade_exposure() {
         .join(" ");
     assert!(cmds.contains("exposure=exposure=1.5"), "{cmds}");
 }
+
+#[test]
+fn end_bounds_on_subs_audiogram_bleep() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,800\nhi\n").unwrap();
+    // subs --from 0.2 --to end → trims cue to the tail window
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("s.mp4").to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--from",
+        "0.2",
+        "--to",
+        "end",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // audiogram --from 0 --to end → whole-clip audiogram
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("ag.mp4").to_str().unwrap(),
+        "--to",
+        "end",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // bleep --at end --dur 0.4 → beep at duration-0.4
+    let v = run_json(&[
+        "bleep",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("b.mp4").to_str().unwrap(),
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("adelay=600"), "{cmds}"); // beep at duration-0.4
+}

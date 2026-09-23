@@ -228,6 +228,9 @@ fn burn(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract
         None => None,
     };
     let win_to = match &args.to {
+        Some(t) if t.trim().eq_ignore_ascii_case("end") => {
+            Some(engine::probe_or_err(&args.input, g)?.duration)
+        }
         Some(t) => Some(crate::time::parse_time(t)?),
         None => None,
     };

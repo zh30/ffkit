@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.147.0] — 2026-09-22
+
+### Added
+- `subs --burn --to end`, `audiogram --to end` — tail-bound windows without probing.
+- `bleep --at end --dur` — beep the last N seconds.
+
 ## [0.146.0] — 2026-09-22
 
 ### Added
