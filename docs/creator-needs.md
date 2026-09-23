@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 176)
+
+- `pick` (zone-swatch color report), `diff` (amplified two-clip difference), `selective` (keep-one-color maskedmerge).
+
 ## Shipped this run (round 175)
 
 - `outline` (edge inking), `night` (night-vision green+grain), `snow` (scrolling noise keyed snow overlay).

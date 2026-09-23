@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.203.0] — 2026-09-23
+
+### Added
+
+- `pick` — dominant-color report: decodes one frame at `--at` (default midpoint), scales to a 3x2 grid and reports mean + per-zone hex colors as JSON extras.
+- `diff` — visual diff between two clips: `scale2ref` conforms then `blend=all_mode=difference` + gamma boost; `--side` stacks the reference beside the diff; output stops at the shorter duration.
+- `selective` — keep-one-color look: `colorkey` mask + `maskedmerge` paints a desaturated copy everywhere except matching pixels; `--color`/`--similarity`, `--at`/`--dur` windows.
+
 ## [0.202.0] — 2026-09-23
 
 ### Added

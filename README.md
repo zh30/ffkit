@@ -171,6 +171,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `outline` | Ink detected edges black over footage: `--strength` threshold, `--at` windows |
 | `night` | Night-vision look: green tint + grain + vignette, `--at` windows |
 | `snow` | Falling snow overlay: scrolling noise keyed over video, `--density`/`--speed`, `--at` windows |
+| `pick` | Dominant-color report at a timestamp: mean hex + 3x2 zone swatches (JSON only) |
+| `diff` | Visual diff between two clips: amplified difference blend, `--side` shows reference |
+| `selective` | Keep one color, desaturate the rest: `--color` + `--similarity`, `--at` windows |
 | `cartoon` | Comic look: posterized base (`--levels` 2-16) + ink outlines from edge-detect, `--at` windows |
 | `heat` | Thermal / false-color luma map: `--preset` magma|inferno|plasma|viridis|turbo|cividis|range1|range2|shadows|highlights, `--opacity`, `--at` windows |
 | `kaleido` | 2x2 mirrored mandala from the top-left quadrant, `--at` windows |

@@ -18961,3 +18961,92 @@ fn outline_night_snow() {
     let white = d2.iter().filter(|&&p| p > 200).count();
     assert!(white > 20, "expected snow speckles, got {white} white px");
 }
+
+#[test]
+fn pick_diff_selective() {
+    if !has_ffmpeg() || !has_filter("maskedmerge") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let red = dir.path().join("red.mp4");
+    let blue = dir.path().join("blue.mp4");
+    for (f, c) in [(&red, "red"), (&blue, "blue")] {
+        let o = Command::new("ffmpeg")
+            .args([
+                "-y",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color=c={c}:size=160x120:duration=1:rate=24"),
+                "-pix_fmt",
+                "yuv420p",
+            ])
+            .arg(f)
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+    }
+
+    // pick on red: mean near #ff0000, 6 zones
+    let v = run_json(&["pick", red.to_str().unwrap(), "--json"]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["zones"].as_array().unwrap().len(), 6);
+    let mean = v["extra"]["mean"].as_str().unwrap();
+    assert!(mean.starts_with("#f") || mean.starts_with("#e"), "{mean}");
+
+    // diff identical -> near-black frame; diff red vs blue -> bright
+    let same = dir.path().join("same.mp4");
+    let v = run_json(&[
+        "diff",
+        red.to_str().unwrap(),
+        blue.to_str().unwrap(),
+        "-o",
+        same.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let raw = dir.path().join("d.raw");
+    let o = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-ss", "0.4", "-i"])
+        .arg(&same)
+        .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray"])
+        .arg(&raw)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let d = std::fs::read(&raw).unwrap();
+    let mean2 = d.iter().map(|p| *p as u64).sum::<u64>() / d.len() as u64;
+    assert!(mean2 > 30, "red vs blue diff should be bright, got {mean2}");
+
+    // selective keeps blue: output still has strong blue channel where source was blue
+    let sl = dir.path().join("sl.mp4");
+    let v = run_json(&[
+        "selective",
+        blue.to_str().unwrap(),
+        "-o",
+        sl.to_str().unwrap(),
+        "--color",
+        "blue",
+        "--at",
+        "0.2",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let joined: String = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|a| a.as_str().unwrap_or(""))
+        })
+        .collect();
+    assert!(joined.contains("maskedmerge"), "{joined}");
+    assert!(joined.contains("blend=all_expr"), "{joined}");
+}
