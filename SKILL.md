@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.211.0
+version: 0.212.0
 
 
 
@@ -158,6 +158,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | audiogram scrolling spectrogram | `audiogram --mode spectro` |
 | find black/frozen stretches (QC) | `scan` (JSON extras; no -o) |
 | beauty/skin smoothing | `smooth` (`--strength`, `--at`/`--dur` window) |
+| reframe 360/equirect footage | `v360` (`--yaw`/`--pitch`/`--fov`, `--size`) |
 | noisy clip, pick denoiser | `vdenoise --engine nlmeans\|hqdn3d\|atadenoise` |
 | broadcast range tag | `transcode --range limited` |
 | halo-free sharpening | `sharpen --engine cas` (`--amount`) |
@@ -206,7 +207,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | short overlay clip repeats | `overlay` (`--loop` — covers the base) |
 | waveform showing quiet detail | `waveform` (`--scale log`) |
 | split on longer pauses | `split` (`--silence --min-silence`) |
-| wobble/sci-fi/echo/lofi/telephone voice | `fx` (`--kind` 9 effects, incl. `saturate` tape warmth) |
+| wobble/sci-fi/echo/lofi/telephone voice | `fx` (`--kind` 10 effects, incl. `saturate` warmth, `excite` air) |
 | effect only in the drop | `fx` (`--at`/`--dur`) |
 | boomerang that loops 3x | `boomerang` (`--times`), `--at/--dur` window |
 | H.265 for Apple / smaller archive | `transcode` (`--preset hevc`) |
@@ -260,7 +261,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | container metadata tags | `meta` (`--title`/`--artist`/`--comment`, `--copy` pulls tags+chapters from another file) |
 | fix display rotation flag | `meta --rotate 90` (lossless; clears with `--rotate 0`) |
 | room tone on a voice | `reverb` (`--size room|hall|cave`, `--wet 0..0.9`) |
-| wobble/sci-fi/echo/lofi/telephone/saturate audio | `fx` (`--kind`, `--strength`, `--at`/`--dur`) |
+| wobble/sci-fi/echo/lofi/telephone/saturate/excite audio | `fx` (`--kind`, `--strength`, `--at`/`--dur`) |
 | Ken Burns on a photo cutaway | `broll --insert img.png --still --motion kenburns` |
 | styled captions | `caption --color ff0000 --size 1.5` |
 | logo only for part of the clip | `overlay --at 2 --dur 5` |

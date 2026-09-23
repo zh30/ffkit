@@ -299,6 +299,8 @@ pub enum Cmd {
     Edge(EdgeArgs),
     /// Lens distortion: fisheye look or action-cam defish
     Lens(LensArgs),
+    /// Reframe 360 equirect footage to a flat viewport (yaw/pitch/fov)
+    V360(V360Args),
     /// Mirror half the frame across the center axis (dance/symmetry look)
     Mirror(MirrorArgs),
     /// Chunky retro pixelation over the whole frame
@@ -2504,6 +2506,12 @@ pub enum GradePreset {
     Bleach,
     /// Cyberpunk cyan shadows + magenta highlights
     Neon,
+    /// Cross-processed film look (curves preset)
+    Crossprocess,
+    /// Hard S-curve contrast (curves preset)
+    Strongcontrast,
+    /// Gentle straight-line contrast stretch (curves preset)
+    Linearcontrast,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3578,6 +3586,25 @@ pub struct SmoothArgs {
     pub dur: Option<f64>,
 }
 
+#[derive(clap::Args, Debug)]
+pub struct V360Args {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Look direction: degrees left(-)/right(+) of the source center
+    #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
+    pub yaw: f64,
+    /// Look direction: degrees down(-)/up(+)
+    #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
+    pub pitch: f64,
+    /// Output horizontal field of view in degrees (default 90)
+    #[arg(long, default_value_t = 90.0)]
+    pub fov: f64,
+    /// Output canvas WxH (default: input width x 16:9 height)
+    #[arg(long)]
+    pub size: Option<String>,
+}
+
 #[derive(clap::ValueEnum, Clone, Copy, Debug, Default)]
 pub enum VDenoiseEngine {
     /// nlmeans — best quality, slowest (per-pixel patch search)
@@ -3799,6 +3826,8 @@ pub enum FxKind {
     Radio,
     /// Tape-style soft clip saturation (asoftclip) — warmth + loudness
     Saturate,
+    /// Harmonic exciter — adds airy presence above ~7.5kHz (aexciter)
+    Excite,
 }
 
 #[derive(clap::Args, Debug)]

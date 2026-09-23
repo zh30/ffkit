@@ -189,6 +189,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `audiogram --mode spectro` | Scrolling spectrogram (`showspectrum`) — colour time/frequency roll |
 | `scan` | QC report: black stretches, frozen frames, black-frame hits (JSON extras; writes no media) |
 | `smooth` | Edge-preserving beauty/skin blur (smartblur; `--strength`, `--at`/`--dur`) |
+| `v360` | Reframe equirect/360 footage to flat (`--yaw`/`--pitch`/`--fov`, `--size`) |
 | `sharpen --engine cas` | Contrast-adaptive sharpening — crisper edges without unsharp halos, `--amount` |
 | `equalize` | Auto-contrast via `histeq` for flat/washed footage, `--strength`/`--intensity`/`--at` window |
 | `pick` | Dominant-color report at a timestamp: mean hex + 3x2 zone swatches (JSON only) |

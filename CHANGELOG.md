@@ -1,6 +1,15 @@
 # Changelog
 
 ## [Unreleased]
+## [0.212.0] — RSI round 185
+
+- `v360` — reframe equirect/360 footage to a flat viewport
+  (`--yaw`/`--pitch` look direction, `--fov` lens, `--size` canvas)
+- `grade --preset crossprocess|strongcontrast|linearcontrast` — film curves
+  presets (cross-processed, hard S-curve, gentle contrast stretch)
+- `fx --kind excite` — harmonic exciter (aexciter): adds air/presence above
+  ~7.5kHz, `--strength` scales the amount
+
 ## [0.211.0] — RSI round 184
 
 - `smooth` — edge-preserving beauty/skin blur (smartblur in `ls>0` flat-region mode;

@@ -50,6 +50,13 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         Some(crate::cli::GradePreset::Bleach) => {
             String::from("eq=contrast=1.30:brightness=0.02:saturation=0.55,colorbalance=bs=0.04")
         }
+        Some(crate::cli::GradePreset::Crossprocess) => String::from("curves=preset=cross_process"),
+        Some(crate::cli::GradePreset::Strongcontrast) => {
+            String::from("curves=preset=strong_contrast")
+        }
+        Some(crate::cli::GradePreset::Linearcontrast) => {
+            String::from("curves=preset=linear_contrast")
+        }
         Some(crate::cli::GradePreset::Neon) => String::from(
             "eq=contrast=1.15:saturation=1.5,colorbalance=bs=0.20:gs=0.10:rh=0.15:bh=0.15",
         ),

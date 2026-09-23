@@ -164,6 +164,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Strobe(args) => verbs::strobe::run(args, &g),
         Cmd::Edge(args) => verbs::edge::run(args, &g),
         Cmd::Lens(args) => verbs::lens::run(args, &g),
+        Cmd::V360(args) => verbs::v360::run(args, &g),
         Cmd::Mirror(args) => verbs::mirror::run(args, &g),
         Cmd::Pix(args) => verbs::pix::run(args, &g),
         Cmd::Flip(args) => verbs::flip::run(args, &g),

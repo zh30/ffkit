@@ -189,6 +189,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `audiogram --mode spectro` | 滚动频谱图（`showspectrum`）——彩色时频滚动 |
 | `scan` | 质检报告：黑屏/冻结区间与黑帧计数（JSON extras，不写文件） |
 | `smooth` | 边缘保留美颜/皮肤模糊（smartblur，`--strength`、`--at/--dur` 窗口） |
+| `v360` | 等距柱状 360° 画面重取景为平面（`--yaw`/`--pitch`/`--fov`、`--size`） |
 | `sharpen --engine cas` | 对比自适应锐化——边缘更脆且无 unsharp 光晕，`--amount` |
 | `equalize` | `histeq` 自动对比度，修复灰暗/洗白画面，`--strength`/`--intensity`/`--at` 窗口 |
 | `pick` | 主色提取：某时刻均色 + 3x2 分区色板（仅 JSON 报告） |

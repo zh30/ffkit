@@ -121,6 +121,7 @@ pub mod timer;
 pub mod title;
 pub mod trail;
 pub mod transcode;
+pub mod v360;
 pub mod vdenoise;
 pub mod vhs;
 pub mod vignette;

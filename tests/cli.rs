@@ -20297,3 +20297,113 @@ fn smooth_vaguedenoise_and_channel_ambience() {
     );
     assert!(out_r > -60.0, "mid should survive onto the quiet ear: {v}");
 }
+
+#[test]
+fn v360_reframe_crossprocess_excite() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+
+    // equirect reframe → flat viewport at the asked canvas
+    let out = dir.path().join("flat.mp4");
+    let v = run_json(&[
+        "v360",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--yaw",
+        "45",
+        "--pitch",
+        "20",
+        "--fov",
+        "90",
+        "--size",
+        "320x240",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"], 320, "{v}");
+    assert_eq!(v["probe"]["height"], 240, "{v}");
+
+    // curves presets reshape pixels — assert each graded frame visibly
+    // differs from the source (cross_process is heavy on the green channel)
+    let diff_mean = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&src)
+            .args(["-i"])
+            .arg(p)
+            .args([
+                "-filter_complex",
+                "[0:v][1:v]blend=all_mode=difference",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+        o.stdout.iter().map(|b| *b as f64).sum::<f64>() / o.stdout.len() as f64
+    };
+    for preset in ["crossprocess", "strongcontrast", "linearcontrast"] {
+        let g = dir.path().join(format!("g-{preset}.mp4"));
+        let v = run_json(&[
+            "grade",
+            src.to_str().unwrap(),
+            "-o",
+            g.to_str().unwrap(),
+            "--preset",
+            preset,
+        ]);
+        assert_eq!(v["status"], "ok", "{v}");
+        assert!(
+            diff_mean(&g) > 5.0,
+            "curves preset {preset} should reshape the frame: {v}"
+        );
+    }
+
+    // excite: harmonic energy above 6kHz rises on a band-limited tone
+    let tone = dir.path().join("tone.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("sine=frequency=400:duration=1")
+        .arg(&tone)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let ex = dir.path().join("ex.m4a");
+    let v = run_json(&[
+        "fx",
+        tone.to_str().unwrap(),
+        "-o",
+        ex.to_str().unwrap(),
+        "--kind",
+        "excite",
+        "--strength",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let hf = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-af", "highpass=f=6000,volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find(|l| l.contains("max_volume"))
+            .and_then(|l| l.split("max_volume:").nth(1))
+            .and_then(|s| s.trim().trim_end_matches(" dB").parse().ok())
+            .unwrap_or(-91.0)
+    };
+    assert!(
+        hf(&ex) > hf(&tone) + 3.0,
+        "exciter should lift the >6kHz band: {v}"
+    );
+}
