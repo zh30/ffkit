@@ -153,7 +153,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sharpen` | Unsharp mask, whole clip or a window (`--amount`, `--at`, `--dur`) |
 | `vignette` | Corner darkening, whole clip or a window (`--angle`, `--at`, `--dur`) |
 | `bw` | Desaturate to B&W, whole clip or a window (`--at`, `--dur`, `--strength` keeps muted color) |
-| `volume` | Gain ±dB (platform loudness is `loudnorm`) |
+| `volume` | Gain ±dB; `--at/--dur` limits it to a window — comma list covers several spots (needs `--dur`) (platform loudness is `loudnorm`) |
 | `blur` | Full-frame or windowed gaussian blur (`--sigma`, `--at`/`--dur`; `--at end` = tail) |
 | `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30, `--at`/`--dur` window (nlmeans; slow on long clips), `end` ok |
 | `crop` | Crop `--region x:y:w:h`, or `--aspect` reframe with `--anchor center|top|bottom|left|right` |
@@ -176,7 +176,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `countdown` | Overlay a counting leader (`--from`, `--beep` + `--tone` Hz, `--text`, `--position`, `--bg` numeral plate) |
 | `invert` | Full-frame or windowed color inversion (`--at`, `--dur`) |
 | `mix` | Blend two sources (`--vol-a/--vol-b`, `--at/--dur` window, `end` ok, `--loop`, `--duck` sidechain bed under voice) , `--normalize`, `--fade` bed edges |
-| `mute` | Drop the audio track, stream-copy the rest , `--at/--dur` silences only that window (`end` ok) |
+| `mute` | Drop the audio track, stream-copy the rest , `--at/--dur` silences only that window (comma list covers several spots, needs `--dur`; `end` ok) |
 | `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown, `--start` seed the readout) |
 | `hls` | Web-ready HLS (`--seg`, `--single`, `--copy`, `--ladder` ABR, `--audio-only` podcast streams, `--fmp4` CMAF) |
 | `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |

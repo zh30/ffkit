@@ -2068,8 +2068,8 @@ pub struct MuteArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Silence only inside this window instead of dropping the whole track
-    /// (h:mm:ss or seconds)
+    /// Silence only inside this window instead of dropping the whole track —
+    /// comma list for several spots (needs --dur; `end` ok)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)
@@ -2576,7 +2576,7 @@ pub struct VolumeArgs {
     /// Gain in dB (negative = quieter)
     #[arg(long, allow_hyphen_values = true)]
     pub db: f64,
-    /// Apply the gain only from this time on (h:mm:ss or seconds)
+    /// Apply the gain only from this time on — comma list for several spots (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Length of the gain window (default: to the end)

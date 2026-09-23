@@ -24,15 +24,27 @@ pub fn run(args: MuteArgs, g: &Globals) -> Result<Contract, Error> {
     match &args.at {
         // Silence inside the window, keep the rest of the track.
         Some(raw) => {
-            let at = crate::time::resolve_at(raw, args.dur, probe.duration)?;
-            if at >= probe.duration {
-                return Err(Error::input("--at is past the end of the input"));
+            if raw.contains(',') && args.dur.is_none() {
+                return Err(Error::input("a comma list of --at times needs --dur"));
             }
-            let end = (at + args.dur.unwrap_or(probe.duration - at)).min(probe.duration);
+            let mut windows = Vec::new();
+            for part in raw.split(',') {
+                let at = crate::time::resolve_at(part.trim(), args.dur, probe.duration)?;
+                if at >= probe.duration {
+                    return Err(Error::input("--at is past the end of the input"));
+                }
+                let end = (at + args.dur.unwrap_or(probe.duration - at)).min(probe.duration);
+                windows.push((at, end));
+            }
+            let expr = windows
+                .iter()
+                .map(|(s, e)| format!("between(t,{s:.3},{e:.3})"))
+                .collect::<Vec<_>>()
+                .join("+");
             argv.extend(["-map".to_string(), "0".to_string()]);
             argv.extend([
                 "-af".to_string(),
-                format!("volume=0:enable='between(t,{at:.3},{end:.3})':eval=frame"),
+                format!("volume=0:enable='{expr}':eval=frame"),
             ]);
             argv.extend(["-c:v".to_string(), "copy".to_string()]);
             argv.extend(["-c:a".to_string(), "aac".to_string()]);

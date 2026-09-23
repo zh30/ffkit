@@ -23,16 +23,37 @@ pub fn run(args: VolumeArgs, g: &Globals) -> Result<Contract, Error> {
 
     let af = match (&args.at, args.dur) {
         (Some(at), dur) => {
-            let start = crate::time::resolve_at(at, dur, probe.duration)?;
-            if !(0.0..probe.duration).contains(&start) {
-                return Err(Error::input("--at is outside the input"));
+            if at.contains(',') && dur.is_none() {
+                return Err(Error::input("a comma list of --at times needs --dur"));
             }
-            let end = dur.map(|d| start + d);
-            match end {
-                Some(e) if e < probe.duration => {
-                    format!("volume={}dB:enable='between(t,{start:.3},{e:.3})'", args.db)
+            let mut starts = Vec::new();
+            for part in at.split(',') {
+                let start = crate::time::resolve_at(part.trim(), dur, probe.duration)?;
+                if !(0.0..probe.duration).contains(&start) {
+                    return Err(Error::input("--at is outside the input"));
                 }
-                _ => format!("volume={}dB:enable='gte(t,{start:.3})'", args.db),
+                starts.push(start);
+            }
+            if starts.len() == 1 {
+                let start = starts[0];
+                let end = dur.map(|d| start + d);
+                match end {
+                    Some(e) if e < probe.duration => {
+                        format!("volume={}dB:enable='between(t,{start:.3},{e:.3})'", args.db)
+                    }
+                    _ => format!("volume={}dB:enable='gte(t,{start:.3})'", args.db),
+                }
+            } else {
+                let d = dur.unwrap();
+                let expr = starts
+                    .iter()
+                    .map(|s| {
+                        let e = (s + d).min(probe.duration);
+                        format!("between(t,{s:.3},{e:.3})")
+                    })
+                    .collect::<Vec<_>>()
+                    .join("+");
+                format!("volume={}dB:enable='{expr}'", args.db)
             }
         }
         (None, Some(_)) => return Err(Error::input("--dur needs --at")),

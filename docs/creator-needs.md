@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 126)
+- `mute --at t1,t2 --dur N` — comma list silences several coughs/words (OR'd `between` enable; needs `--dur`).
+- `volume --at t1,t2 --dur N` — comma list rides several gain windows.
+
 ## Shipped this run (round 125)
 - `bleep --at t1,t2,...` — comma list censors several words in one pass (one sine + adelay per window, OR'd mute enable).
 - `censor --at t1,t2 --dur N` — comma list covers several spots (requires `--dur`).

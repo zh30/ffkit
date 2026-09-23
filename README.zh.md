@@ -153,7 +153,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sharpen` | USM 锐化，整段或定时窗口（`--amount`、`--at`、`--dur`） |
 | `vignette` | 暗角，整段或定时窗口（`--angle`、`--at`、`--dur`） |
 | `bw` | 黑白化，整段或定时窗口（`--at`、`--dur`、`--strength` 保留部分色彩） |
-| `volume` | 音量 ±dB（平台响度请用 `loudnorm`） |
+| `volume` | 音量 ±dB；`--at/--dur` 局部增益，逗号列表可作用多处（需 `--dur`）（平台响度请用 `loudnorm`） |
 | `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`/`--dur`；`--at end` = 片尾） |
 | `vdenoise` | 视频降噪（暗光噪点）：`--strength` 0.5–30、`--at`/`--dur` 只处理一段（nlmeans，长片较慢），支持 `end` |
 | `crop` | 裁剪 `--region` 区域，或 `--aspect` 重构（`--anchor center|top|bottom|left|right` 可选锚点） |
@@ -176,7 +176,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `countdown` | 画面倒数（`--from`、`--beep` + `--tone` 蜂鸣频率、`--text`、`--position`、`--bg` 数字底板） |
 | `invert` | 全帧或定时反色（`--at`、`--dur`） |
 | `mix` | 双音轨叠加（`--vol-a/--vol-b`、`--at/--dur`、`--loop`、`--duck` 人声闪避音乐） ，`--normalize` 归一求和、`--fade` 淡入淡出，支持 `end` |
-| `mute` | 去掉音轨（其余流直接封装，不重编码） ，`--at/--dur` 局部静音，支持 `end` |
+| `mute` | 去掉音轨（其余流直接封装，不重编码） ，`--at/--dur` 局部静音（逗号列表可静多处，需 `--dur`），支持 `end` |
 | `timer` | 画面计时器（`--position`、`--format ms`、`--box-color` 底板） （`--format`、`--box-color`、`--down` 倒计时、`--start` 设定起始读数） |
 | `hls` | 网页 HLS 封装（`--seg`、`--single`、`--copy`、`--ladder` 多码率、`--audio-only` 纯音频、`--fmp4` CMAF） |
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM，`--metric`） |

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.153.0] — 2026-09-22
+
+### Added
+- `mute --at` comma list — silence several windows (requires `--dur`).
+- `volume --at` comma list — gain several windows (requires `--dur`).
+
 ## [0.152.0] — 2026-09-22
 
 ### Added
