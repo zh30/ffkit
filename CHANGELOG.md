@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.252.0] — 2026-09-23
+
+### Added
+
+- `scan --dupe REF` — MPEG-7 `signature` match: reports `dupe`,
+  `dupe_segments`, `dupe_frames` — is this clip inside REF (re-upload /
+  library-duplicate QC; needs a few seconds of footage).
+- `scan` — `rg_gain_db`/`rg_peak` extras from a `replaygain` leg in the
+  audio pass (the gain a player applies for reference loudness).
+- `scan --text` — `ocr` leg (tesseract, 2fps pass): `text` (first hit),
+  `text_frames`, `text_confidence` — burned-in text QC.
+- `scope --mode cie` — `ciescope` CIE-1931 horseshoe vs Rec.709 triangle
+  (out-of-gamut spills past — wide-gamut QC).
+- `bars --kind sd|pal100|pal75|rgb|yuv` — other broadcast test-card
+  generators (PAL 100/75, rgbtestsrc, yuvtestsrc).
+- `delogo --find ref.png --track` — `find_rect`+`cover_rect` re-detects
+  the mark EVERY frame and blurs wherever it lands (moving watermarks).
+
 ## [0.251.0] — 2026-09-23
 
 ### Added

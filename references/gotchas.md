@@ -325,3 +325,24 @@ an atempo'd whole-file render would shift the window.
   contrast=80) — it is a tilt, not transparent expansion.
 - **`maskedthreshold` threshold is 0..1 of full-scale** (0.2 works as a
   change mask) — both inputs must share dims (`scale2ref` first).
+- **`deconvolve` is broken on ffmpeg 4.4** — even a pure impulse PSF
+  (identity case) scores PSNR ~5.9 vs input; all deblur attempts are
+  worse than leaving the blur. Skipped, not a blur-rescue path.
+- **`headphone` needs external HRIR files on 4.4** — no
+  `hrir=multichan` option (that syntax is newer); with only `map` it
+  expects HRIR impulse-response streams as extra inputs. No bundled
+  HRIRs → binaural verb skipped.
+- **`signature` needs a few seconds of footage** — ~2s clips report
+  "no matching" even against themselves; 4s+ builds enough words for
+  "matching of video 0 at T and 1 at T2, N frames matching" +
+  "whole video matching" verdicts.
+- **`ciescope` `size`/`s` is an INT (256-8192), not WxH** — it renders
+  its own square scope ignoring input dims; clamp tile size to >=256.
+- **`cover_rect` reads `find_rect` metadata in-chain** —
+  `find_rect=object=x,cover_rect=mode=blur` tracks a moving mark live;
+  the object bitmap must be grayscale (color errors out).
+- **`replaygain` prints at EOF to stderr** — `track_gain = +N.NN dB` /
+  `track_peak = 0.NNN`; chains after volumedetect in one pass.
+- **`ocr` finds tessdata by itself** (no datapath needed when tesseract
+  is installed under the prefix); each frame costs ~0.5-1s so gate it
+  behind `fps=2`.

@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::cli::{BarsArgs, Globals};
+use crate::cli::{BarKind, BarsArgs, Globals};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -18,7 +18,21 @@ pub fn run(args: BarsArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("--size out of range"));
     }
 
-    let src = if args.hd { "smptehdbars" } else { "smptebars" };
+    let src = match args.kind {
+        Some(BarKind::Hd) => "smptehdbars",
+        Some(BarKind::Sd) => "smptebars",
+        Some(BarKind::Pal100) => "pal100bars",
+        Some(BarKind::Pal75) => "pal75bars",
+        Some(BarKind::Rgb) => "rgbtestsrc",
+        Some(BarKind::Yuv) => "yuvtestsrc",
+        None => {
+            if args.hd {
+                "smptehdbars"
+            } else {
+                "smptebars"
+            }
+        }
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-f", "lavfi", "-i"]);
     argv.push(format!(
@@ -41,6 +55,7 @@ pub fn run(args: BarsArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c2.with_extra(json!({
         "size": args.size,
         "hd": args.hd,
+        "kind": format!("{:?}", args.kind),
         "tone": args.tone,
     })))
 }

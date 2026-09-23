@@ -51,6 +51,52 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--find file not found"));
         }
     }
+    // --track: find_rect + cover_rect re-detect the ref EVERY frame — the
+    // moving-watermark path (news tickers, corner bugs that drift). The
+    // static --find probe below is skipped; detection happens live in-chain
+    if args.track {
+        let f = match &args.find {
+            Some(f) => f,
+            None => {
+                return Err(Error::input(
+                    "--track needs --find ref.png (the mark to hunt)",
+                ))
+            }
+        };
+        if args.at.is_some()
+            || args.dur.is_some()
+            || args.image.is_some()
+            || args.regions.is_some()
+            || args.x.is_some()
+            || args.y.is_some()
+            || args.w.is_some()
+            || args.h.is_some()
+        {
+            return Err(Error::input(
+                "--track covers the whole clip — drop --at/--dur/--image/--regions/--x/--y/--w/--h",
+            ));
+        }
+        let esc_f = f
+            .to_string_lossy()
+            .replace('\\', "\\\\")
+            .replace(':', "\\:")
+            .replace('\'', "\\'");
+        let vf = format!("find_rect=object='{esc_f}':threshold=0.5,cover_rect=mode=blur");
+        let fc = format!("[0:v]{vf}[vout]");
+        let mut argv = ffmpeg_base(g.progress);
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
+        if probe.has_audio {
+            argv.extend(["-map", "0:a?", "-c:a", "copy"]);
+        }
+        argv.extend([
+            "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+        ]);
+        argv.push(&args.output);
+        let c = engine::write_job("delogo", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(json!({"find": args.find, "track": true})));
+    }
     // --find: find_rect hunts the reference bitmap through the first 15s and
     // reports its box in lavfi.rect.* frame metadata — that becomes the
     // removal region, no manual coordinates needed

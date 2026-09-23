@@ -4,6 +4,7 @@ use crate::cli::{Globals, ScanArgs};
 use crate::contract::Contract;
 use crate::engine;
 use crate::error::Error;
+use crate::paths;
 use crate::spawn::{self, Argv};
 
 /// QC pass: report black stretches, frozen frames and per-black-frame hits.
@@ -263,12 +264,15 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     let blur_min = entropy_vals.iter().cloned().reduce(f64::min);
 
     // volumedetect pass: peak + mean dB (clip check + cheap loudness read)
+    // volumedetect + replaygain in one audio pass: peak/mean dB plus the
+    // ReplayGain tags (track_gain/track_peak print at EOF)
     let (mut audio_max_db, mut audio_mean_db): (Option<f64>, Option<f64>) = (None, None);
+    let (mut rg_gain_db, mut rg_peak): (Option<f64>, Option<f64>) = (None, None);
     if probe.has_audio {
         let mut argv = Argv::ffmpeg();
         argv.push("-i");
         argv.push(&args.input);
-        argv.extend(["-af", "volumedetect", "-f", "null", "-"]);
+        argv.extend(["-af", "volumedetect,replaygain", "-f", "null", "-"]);
         if let Ok(sp) = spawn::run(&argv, g.timeout, false) {
             let stderr = String::from_utf8_lossy(&sp.stderr);
             for line in stderr.lines() {
@@ -277,6 +281,93 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
                 }
                 if let Some(v) = line.split("mean_volume:").nth(1) {
                     audio_mean_db = v.trim().trim_end_matches(" dB").parse().ok();
+                }
+                if let Some(v) = line.split("track_gain = ").nth(1) {
+                    rg_gain_db = v.trim().trim_end_matches(" dB").parse().ok();
+                }
+                if let Some(v) = line.split("track_peak = ").nth(1) {
+                    rg_peak = v.trim().parse().ok();
+                }
+            }
+        }
+    }
+    // --dupe REF: MPEG-7 signature match — is this clip inside REF (or a
+    // re-upload of it)? nb_inputs=2 + detectmode=full logs "matching of
+    // video 0 at T and 1 at T2, N frames matching" / "whole video matching"
+    // / "no matching" — needs a few seconds of footage to build its words
+    let mut dupe_segments = 0usize;
+    let mut dupe_frames = 0usize;
+    if let Some(dref) = &args.dupe {
+        paths::ensure_input(dref)?;
+        let mut argv = Argv::ffmpeg();
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.push("-i");
+        argv.push(dref);
+        argv.extend([
+            "-filter_complex",
+            "[0:v][1:v]signature=nb_inputs=2:detectmode=full",
+            "-f",
+            "null",
+            "-",
+        ]);
+        if let Ok(sp) = spawn::run(&argv, g.timeout, false) {
+            for line in String::from_utf8_lossy(&sp.stderr).lines() {
+                if line.contains("matching of video") {
+                    dupe_segments += 1;
+                    if let Some(n) = line
+                        .split(',')
+                        .nth(1)
+                        .and_then(|s| s.trim().split(' ').next())
+                        .and_then(|s| s.parse::<usize>().ok())
+                    {
+                        dupe_frames += n;
+                    }
+                }
+            }
+        }
+    }
+    // --text: OCR burned-in text (tesseract, if this ffmpeg links it) at
+    // 2fps — slow per frame, so a dedicated low-rate pass. Reports the
+    // first hit, hit frame count and best word confidence
+    let mut ocr_text: Option<String> = None;
+    let mut ocr_frames = 0usize;
+    let mut ocr_conf = 0.0f64;
+    if args.text {
+        let mut argv = Argv::ffmpeg();
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend([
+            "-vf",
+            "fps=2,ocr,metadata=mode=print:file=-",
+            "-an",
+            "-f",
+            "null",
+            "-",
+        ]);
+        if let Ok(sp) = spawn::run(&argv, g.timeout, false) {
+            if sp.status_ok {
+                let mut saw_text = false;
+                for line in spawn::stdout_str(&sp).unwrap_or_default().lines() {
+                    if let Some(rest) = line.split("lavfi.ocr.text=").nth(1) {
+                        let t = rest.trim();
+                        if !t.is_empty() {
+                            saw_text = true;
+                            if ocr_text.is_none() {
+                                ocr_text = Some(t.to_string());
+                            }
+                        }
+                    }
+                    if saw_text && line.contains("lavfi.ocr.confidence=") {
+                        ocr_frames += 1;
+                        if let Some(rest) = line.split("lavfi.ocr.confidence=").nth(1) {
+                            for tok in rest.trim().split(' ') {
+                                if let Ok(v) = tok.parse::<f64>() {
+                                    ocr_conf = ocr_conf.max(v);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -326,6 +417,21 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         "illegal_luma": luma_min < 16.0 || luma_max > 235.0,
         "audio_max_db": audio_max_db,
         "audio_mean_db": audio_mean_db,
+        // replaygain tags (music libraries): the gain a player should apply
+        // to hit reference loudness — negative = this track is loud, needs
+        // turning down; positive = quiet, needs a boost
+        "rg_gain_db": rg_gain_db,
+        "rg_peak": rg_peak,
+        // duplicate detection (--dupe REF): matching segments the signature
+        // pass found — 0 = not in REF, >0 = (partially) re-uploaded content
+        "dupe": dupe_segments > 0,
+        "dupe_segments": if args.dupe.is_some() { Some(dupe_segments) } else { None },
+        "dupe_frames": if args.dupe.is_some() { Some(dupe_frames) } else { None },
+        // OCR (--text): burned-in text found, frames containing it, and the
+        // best word confidence 0-100
+        "text": ocr_text,
+        "text_frames": if args.text { Some(ocr_frames) } else { None },
+        "text_confidence": if args.text { Some(ocr_conf) } else { None },
         // entropy blur QC: normalized luma-diff entropy per frame —
         // soft/out-of-focus stretches sink under blur_threshold
         "blur_threshold": blur_th,

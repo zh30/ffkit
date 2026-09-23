@@ -25644,3 +25644,179 @@ fn repair_diffmask_matte_contrast_loud_untile() {
         assert_eq!(j["probe"]["width"], 40);
     }
 }
+
+#[test]
+fn scan_dupe_text_rg_scope_cie_bars_kind_delogo_track() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+
+    // bars --kind pal100 — PAL test card
+    if has_filter("pal100bars") {
+        let o = dir.path().join("pal.mp4");
+        let j = run_json(&[
+            "bars",
+            "-o",
+            &o.to_string_lossy(),
+            "--kind",
+            "pal100",
+            "--dur",
+            "0.5",
+            "--size",
+            "160x120",
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["kind"], "Some(Pal100)");
+        assert_eq!(j["probe"]["width"], 160);
+    }
+
+    // scope --mode cie — CIE gamut map tile
+    if has_filter("ciescope") {
+        let a = fixture(dir.path());
+        let o = dir.path().join("cie.mp4");
+        let j = run_json(&[
+            "scope",
+            &a.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--mode",
+            "cie",
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["mode"], "Cie");
+    }
+
+    // scan: --dupe signature match + --text OCR + replaygain extras
+    let long = dir.path().join("long.mp4");
+    assert!(Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:rate=10:duration=8",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=8",
+            "-shortest",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&long)
+        .status()
+        .unwrap()
+        .success());
+    let excerpt = dir.path().join("excerpt.mp4");
+    assert!(Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-ss",
+            "2",
+            "-t",
+            "4",
+            "-i",
+        ])
+        .arg(&long)
+        .arg(&excerpt)
+        .status()
+        .unwrap()
+        .success());
+    if has_filter("signature") {
+        let j = run_json(&[
+            "scan",
+            &excerpt.to_string_lossy(),
+            "--dupe",
+            &long.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["dupe"], true);
+        assert!(j["extra"]["dupe_segments"].as_i64().unwrap() >= 1);
+        // replaygain legs ride the audio pass
+        assert!(j["extra"]["rg_gain_db"].is_number());
+        assert!(j["extra"]["rg_peak"].is_number());
+    }
+    if has_filter("ocr") {
+        let txt = dir.path().join("txt.mp4");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=white:s=200x80:d=4:r=10,drawtext=text='SALE':fontsize=40:fontcolor=black:x=20:y=20",
+            ])
+            .arg(&txt)
+            .status()
+            .unwrap()
+            .success());
+        let j = run_json(&["scan", &txt.to_string_lossy(), "--text"]);
+        assert_eq!(j["status"], "ok");
+        assert!(
+            j["extra"]["text"].as_str().unwrap_or("").contains("SALE"),
+            "ocr should read the burned text: {:?}",
+            j["extra"]["text"]
+        );
+        assert!(j["extra"]["text_frames"].as_i64().unwrap() >= 1);
+    }
+
+    // delogo --track — find_rect+cover_rect follows a moving mark
+    if has_filter("find_rect") && has_filter("cover_rect") {
+        let mv = dir.path().join("mv.mp4");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc2=size=160x120:rate=10:duration=2",
+                "-vf",
+                "drawbox=x='40+20*t':y=40:w=24:h=24:c=black:t=fill",
+            ])
+            .arg(&mv)
+            .status()
+            .unwrap()
+            .success());
+        // ref bitmap = the 24x24 black box at t=0 (any grayscale patch works
+        // for find_rect scoring)
+        let obj = dir.path().join("obj.png");
+        assert!(Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-i",])
+            .arg(&mv)
+            .args([
+                "-vf",
+                "select='eq(n,0)',crop=24:24:40:40,format=gray",
+                "-frames:v",
+                "1",
+            ])
+            .arg(&obj)
+            .status()
+            .unwrap()
+            .success());
+        let o = dir.path().join("tracked.mp4");
+        let j = run_json(&[
+            "delogo",
+            &mv.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--find",
+            &obj.to_string_lossy(),
+            "--track",
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["track"], true);
+    }
+}

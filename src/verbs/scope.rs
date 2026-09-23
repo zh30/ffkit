@@ -93,6 +93,10 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
         ScopeMode::Drift => format!(
             "signalstats,drawgraph=m1=lavfi.signalstats.YAVG:fg1=0xFF2020:min=0:max=255:bg=0x202020@0.7:slide=scroll:size={sw}x{sh}"
         ),
+        // cie: CIE 1931 horseshoe — pixels land inside the Rec.709 triangle
+        // when in-gamut; spills past it = wide-gamut content a 709 viewer
+        // clips. Renders its own square, so scale AFTER it
+        ScopeMode::Cie => "ciescope=system=hdtv:gamuts=rec709".to_string(),
         ScopeMode::Mvs | ScopeMode::Data => unreachable!(),
     };
     let (x, y) = match args.position.as_str() {
@@ -128,6 +132,17 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
         format!(
             "[0:v]split[a][b];[b]scale='max(iw,640)':'max(ih,480)':flags=neighbor,format=rgb24,{filt},scale={sw}:{sh}[sc];[a][sc]overlay={x}:{y}{en}[v]",
             filt = filt, x = x, y = y, en = en
+        )
+    } else if matches!(args.mode, ScopeMode::Cie) {
+        // ciescope ignores input dims and renders s x s (256..8192) — run it
+        // at tile size directly (clamped to its 256 floor)
+        format!(
+            "[0:v]split[a][b];[b]format=rgb24,{filt}:s={}[sc];[a][sc]overlay={x}:{y}{en}[v]",
+            sw.max(256),
+            filt = filt,
+            x = x,
+            y = y,
+            en = en
         )
     } else {
         format!(

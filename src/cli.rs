@@ -1196,9 +1196,29 @@ pub struct BarsArgs {
     /// HD bars (smptehdbars) instead of SD smptebars
     #[arg(long, default_value_t = true)]
     pub hd: bool,
+    /// Test-card generator: hd (SMPTE HD) | sd (SMPTE SD) | pal100 | pal75 |
+    /// rgb | yuv (wins over --hd when set)
+    #[arg(long, value_enum)]
+    pub kind: Option<BarKind>,
     /// Add a 1kHz tone bed
     #[arg(long, default_value_t = true)]
     pub tone: bool,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum BarKind {
+    /// SMPTE HD bars (smptehdbars) — default card
+    Hd,
+    /// SMPTE SD bars (smptebars)
+    Sd,
+    /// PAL 100% bars (pal100bars)
+    Pal100,
+    /// PAL 75% bars (pal75bars)
+    Pal75,
+    /// RGB test pattern (rgbtestsrc)
+    Rgb,
+    /// YUV test pattern (yuvtestsrc)
+    Yuv,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -1229,6 +1249,9 @@ pub enum ScopeMode {
     /// loud — adrawgraph loudness-over-time curve (ebur128 momentary LUFS;
     /// podcast/voice QC: dips = quiet stretches, flat-top = clipping drive)
     Loud,
+    /// cie — CIE 1931 chromaticity map (gamut QC: pixels plotted on the
+    /// horseshoe diagram vs the Rec.709 triangle — out-of-gamut spills past)
+    Cie,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2343,6 +2366,10 @@ pub struct DelogoArgs {
     /// the first 15s, then removes the found box) — no coordinates needed
     #[arg(long)]
     pub find: Option<PathBuf>,
+    /// Follow a MOVING watermark: find_rect+cover_rect re-detects the ref
+    /// every frame and blurs wherever it lands (needs --find; no --at window)
+    #[arg(long)]
+    pub track: bool,
     /// Feathered removal via removelogo mask instead of the hard delogo box
     #[arg(long)]
     pub soft: bool,
@@ -4684,6 +4711,14 @@ pub struct ScanArgs {
     /// Also report hard scene-cut timestamps (scdet) — edit-point map for QC
     #[arg(long)]
     pub scenes: bool,
+    /// Check whether REF contains this video (MPEG-7 signature match) —
+    /// duplicate/re-upload detection for library QC; needs ~2s+ of footage
+    #[arg(long, value_name = "REF")]
+    pub dupe: Option<PathBuf>,
+    /// OCR the frames for burned-in text (tesseract) — reports first hit,
+    /// hit frame count, and top confidence. Needs libtesseract ffmpeg
+    #[arg(long)]
+    pub text: bool,
 }
 
 #[derive(clap::Args, Debug)]
