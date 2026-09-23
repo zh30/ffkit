@@ -13,11 +13,54 @@ const MUX_RESERVE: f64 = 0.98;
 const PCM_EXTS: &[&str] = &["wav", "aif", "aiff", "caf", "flac"];
 
 pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
-    let target = parse_size(&args.size)?;
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if let Some(crf) = args.crf {
+        if crf > 51 {
+            return Err(Error::input("--crf must be 0..=51"));
+        }
+        if !probe.has_video {
+            return Err(Error::input("compress --crf is video-only"));
+        }
+        let vf = match args.res {
+            Some(h) => format!(
+                "scale=-2:{h}:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p"
+            ),
+            None => "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p".to_string(),
+        };
+        let mut argv = ffmpeg_base(g.progress);
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend(["-vf", &vf, "-c:v", "libx264", "-crf", &crf.to_string()]);
+        if probe.has_audio {
+            argv.extend([
+                "-c:a",
+                "aac",
+                "-b:a",
+                &format!("{:.0}", args.audio_kbps * 1_000.0),
+            ]);
+        } else {
+            argv.push("-an");
+        }
+        argv.extend(["-movflags", "+faststart"]);
+        argv.push(&args.output);
+        let c = engine::write_job("compress", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(json!({ "crf": crf, "passes": 1 })));
+    }
+    let size_str = match &args.size {
+        Some(s) => s.clone(),
+        None => match args.target {
+            Some(crate::cli::CompressTarget::Discord) => "8MB".to_string(),
+            Some(crate::cli::CompressTarget::Whatsapp) => "16MB".to_string(),
+            Some(crate::cli::CompressTarget::Gmail) => "25MB".to_string(),
+            None => {
+                return Err(Error::input("compress needs --size or --target"));
+            }
+        },
+    };
+    let target = parse_size(&size_str)?;
     if !(8.0..=512.0).contains(&args.audio_kbps) {
         return Err(Error::input("--audio-kbps must be 8–512"));
     }
-    let probe = engine::probe_or_err(&args.input, g)?;
     if probe.duration <= 0.0 || !probe.duration.is_finite() {
         return Err(Error::input(format!(
             "compress: cannot budget bitrate without a duration ({})",
@@ -46,16 +89,22 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
     if probe.has_video && video_bps < MIN_VIDEO_BPS {
         return Err(Error::input(format!(
             "--size {} cannot fit {:.1}s of video under 64 kbps; raise --size or cut first",
-            args.size, probe.duration
+            size_str, probe.duration
         )));
     }
     if !probe.has_video && audio_bps < 16_000.0 {
         return Err(Error::input(format!(
             "--size {} cannot fit {:.1}s of audio; raise --size",
-            args.size, probe.duration
+            size_str, probe.duration
         )));
     }
 
+    let scale_vf = match args.res {
+        Some(h) => format!(
+            "scale=-2:{h}:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p"
+        ),
+        None => "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p".to_string(),
+    };
     let mut argvs = Vec::new();
     let mut video_kbps = 0.0;
     // Two-pass stats live in a tempdir that must outlive write_job's ffmpeg run.
@@ -89,7 +138,7 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         pass2.push(&args.input);
         pass2.extend([
             "-vf",
-            "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p",
+            &scale_vf,
             "-c:v",
             "libx264",
             "-b:v",
@@ -125,12 +174,13 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         "video_kbps": video_kbps,
         "audio_kbps": audio_bps / 1_000.0,
         "passes": if probe.has_video { 2 } else { 1 },
+        "res": args.res,
     }));
     Ok(c)
 }
 
 /// "10MB", "800KB", "1.5GB" (decimal SI); a bare number is MB.
-fn parse_size(s: &str) -> Result<u64, Error> {
+pub(crate) fn parse_size(s: &str) -> Result<u64, Error> {
     let t = s.trim();
     let (num, mult) = if let Some(n) = t.strip_suffix(['B', 'b']) {
         match n.strip_suffix(['K', 'k', 'M', 'G']) {

@@ -73,6 +73,22 @@ pub fn ffmpeg_base(progress: bool) -> Argv {
     argv
 }
 
+/// Major version of the ffmpeg on PATH (from `ffmpeg -version`), if parseable.
+pub fn ffmpeg_major() -> Option<u32> {
+    let mut argv = Argv::ffmpeg();
+    argv.push("-version");
+    let spawned = spawn::run(&argv, Duration::from_secs(10), false).ok()?;
+    if !spawned.status_ok {
+        return None;
+    }
+    let line = String::from_utf8_lossy(&spawned.stdout);
+    let line = line.lines().next()?;
+    let ver = line.split_whitespace().nth(2)?;
+    ver.split(|c: char| !c.is_ascii_digit())
+        .next()
+        .and_then(|s| s.parse().ok())
+}
+
 pub fn need_video(probe: &Probe, tool: &str) -> Result<(), Error> {
     if probe.has_video {
         Ok(())
@@ -83,4 +99,64 @@ pub fn need_video(probe: &Probe, tool: &str) -> Result<(), Error> {
 
 pub fn probe_or_err(path: &Path, g: &Globals) -> Result<Probe, Error> {
     probe::probe(path, g.timeout.min(Duration::from_secs(120)))
+}
+
+/// Audio window for filters that lack timeline `enable` (ffmpeg 4.4 applies
+/// it to most audio FX): dry feed is ducked to 0 inside [at, end), the FX
+/// chain runs on the whole input and its window is trimmed/delayed into place.
+/// `dur=None` = to input end. Emits a filter_complex body ending in `[aout]`.
+pub fn audio_window(fx: &str, at: f64, dur: Option<f64>) -> String {
+    let (gate, slice) = match dur {
+        Some(d) => (
+            format!("1-between(t,{at:.3},{:.3})", at + d),
+            format!("atrim=start={at:.3}:duration={d:.3}"),
+        ),
+        None => (format!("lt(t,{at:.3})"), format!("atrim=start={at:.3}")),
+    };
+    format!(
+        "[0:a]asplit=2[d][w];[d]volume='{gate}':eval=frame[dout];[w]{fx},{slice},asetpts=PTS-STARTPTS,adelay={:.0}:all=1[wx];[dout][wx]amix=inputs=2:duration=first:normalize=0[aout]",
+        at * 1000.0
+    )
+}
+
+/// `--at` may be a comma list: resolve it to windows and emit one wet branch
+/// per window — the dry gate ANDs `1-between(t,..)` terms so the original
+/// audio dips under every FX window. Comma lists need `--dur`.
+pub fn audio_window_for(
+    fx: &str,
+    at: &str,
+    dur: Option<f64>,
+    duration: f64,
+) -> Result<String, crate::error::Error> {
+    let windows = crate::time::enable_windows(at, dur, duration)?;
+    if windows.len() == 1 {
+        return Ok(audio_window(fx, windows[0].0, dur));
+    }
+    let n = windows.len();
+    let gate = windows
+        .iter()
+        .map(|(s, e)| format!("1-between(t,{s:.3},{e:.3})"))
+        .collect::<Vec<_>>()
+        .join("*");
+    let mut fc = format!("[0:a]asplit={}[d]", n + 1);
+    for i in 0..n {
+        fc.push_str(&format!("[w{i}]"));
+    }
+    fc.push_str(&format!(";[d]volume='{gate}':eval=frame[dout];"));
+    for (i, (s, e)) in windows.iter().enumerate() {
+        fc.push_str(&format!(
+            "[w{i}]{fx},atrim=start={s:.3}:duration={:.3},asetpts=PTS-STARTPTS,adelay={:.0}:all=1[wx{i}];",
+            e - s,
+            s * 1000.0
+        ));
+    }
+    fc.push_str("[dout]");
+    for i in 0..n {
+        fc.push_str(&format!("[wx{i}]"));
+    }
+    fc.push_str(&format!(
+        "amix=inputs={}:duration=first:normalize=0[aout]",
+        n + 1
+    ));
+    Ok(fc)
 }

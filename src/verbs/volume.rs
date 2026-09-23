@@ -13,15 +13,67 @@ pub fn run(args: VolumeArgs, g: &Globals) -> Result<Contract, Error> {
     if args.db == 0.0 {
         return Err(Error::input("--db 0 is a no-op; use a non-zero gain"));
     }
+    if args.dur.is_some_and(|d| d <= 0.0) {
+        return Err(Error::input("--dur must be positive"));
+    }
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_audio {
         return Err(Error::input("volume: input has no audio stream"));
     }
 
+    let af = match (&args.at, args.dur) {
+        (Some(at), dur) => {
+            if at.contains(',') && dur.is_none() {
+                return Err(Error::input("a comma list of --at times needs --dur"));
+            }
+            let mut starts = Vec::new();
+            for part in at.split(',') {
+                let start = crate::time::resolve_at(part.trim(), dur, probe.duration)?;
+                if !(0.0..probe.duration).contains(&start) {
+                    return Err(Error::input("--at is outside the input"));
+                }
+                starts.push(start);
+            }
+            if starts.len() == 1 {
+                let start = starts[0];
+                let end = dur.map(|d| start + d);
+                match end {
+                    Some(e) if e < probe.duration => {
+                        format!("volume={}dB:enable='between(t,{start:.3},{e:.3})'", args.db)
+                    }
+                    _ => format!("volume={}dB:enable='gte(t,{start:.3})'", args.db),
+                }
+            } else {
+                let d = dur.unwrap();
+                let expr = starts
+                    .iter()
+                    .map(|s| {
+                        let e = (s + d).min(probe.duration);
+                        format!("between(t,{s:.3},{e:.3})")
+                    })
+                    .collect::<Vec<_>>()
+                    .join("+");
+                format!("volume={}dB:enable='{expr}'", args.db)
+            }
+        }
+        (None, Some(_)) => return Err(Error::input("--dur needs --at")),
+        (None, None) => format!("volume={}dB", args.db),
+    };
+    let af = if let Some(tp) = args.limit {
+        if !(-30.0..=0.0).contains(&tp) {
+            return Err(Error::input("--limit must be -30..=0 dBTP"));
+        }
+        // brickwall ceiling after the gain so the boost can't clip
+        let lin = 10f64.powf(tp / 20.0);
+        format!("{af},alimiter=limit={lin:.4}:level=false")
+    } else {
+        af
+    };
+
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    argv.extend(["-af", &format!("volume={}dB", args.db), "-c:a", "aac"]);
+    argv.extend(["-af", &af, "-c:a", "aac"]);
     if probe.has_video {
         argv.extend(["-c:v", "copy"]);
     }
@@ -29,6 +81,12 @@ pub fn run(args: VolumeArgs, g: &Globals) -> Result<Contract, Error> {
 
     let c = engine::write_job("volume", &[&args.input], &args.output, vec![argv], g)?;
     let mut extra = json!({ "db": args.db });
+    if let Some(at) = &args.at {
+        extra["at"] = json!(at);
+        if let Some(d) = args.dur {
+            extra["dur"] = json!(d);
+        }
+    }
     if matches!(c.status, Status::Ok) {
         if let Ok(m) = mean_volume(&args.output, g.timeout) {
             extra["mean_volume"] = json!(m);

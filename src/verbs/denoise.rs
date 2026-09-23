@@ -39,10 +39,44 @@ pub fn run(args: DenoiseArgs, g: &Globals) -> Result<Contract, Error> {
         af = format!("highpass=f={:.0},{af}", args.highpass);
     }
 
+    // --at/--dur: windowed denoise via the shared dry/wet splitter
+    let fc = match &args.at {
+        Some(raw) => Some(engine::audio_window_for(
+            &af,
+            raw,
+            args.dur,
+            probe.duration,
+        )?),
+        None => {
+            if args.dur.is_some() {
+                return Err(Error::input("--dur needs --at"));
+            }
+            None
+        }
+    };
+
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    if args.video && probe.has_video {
+    if let Some(fc) = &fc {
+        let chain = if args.video && probe.has_video {
+            format!("{fc};[0:v]hqdn3d[vout]")
+        } else {
+            fc.clone()
+        };
+        argv.extend(["-filter_complex", &chain]);
+        if args.video && probe.has_video {
+            argv.extend(["-map", "[vout]"]);
+        } else if probe.has_video {
+            argv.extend(["-map", "0:v"]);
+        }
+        argv.extend(["-map", "[aout]"]);
+        if args.video && probe.has_video {
+            argv.extend(["-c:v", "libx264", "-preset", "fast", "-crf", "18"]);
+        } else if probe.has_video {
+            argv.extend(["-c:v", "copy"]);
+        }
+    } else if args.video && probe.has_video {
         // Degrain too: hqdn3d needs a real encode, not stream copy.
         argv.extend([
             "-filter_complex",
@@ -68,6 +102,7 @@ pub fn run(args: DenoiseArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-c:v", "copy"]);
         }
     }
+    argv.extend(["-c:a", "aac"]);
     argv.push(&args.output);
 
     let mut c = engine::write_job("denoise", &[&args.input], &args.output, vec![argv], g)?;

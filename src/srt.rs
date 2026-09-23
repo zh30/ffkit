@@ -49,6 +49,29 @@ pub fn parse_srt(raw: &str) -> Result<Vec<Cue>, Error> {
     Ok(cues)
 }
 
+pub fn to_srt(cues: &[Cue]) -> String {
+    let mut out = String::new();
+    for (i, c) in cues.iter().enumerate() {
+        out.push_str(&format!(
+            "{}\n{} --> {}\n{}\n\n",
+            i + 1,
+            fmt_srt_ts(c.start),
+            fmt_srt_ts(c.end),
+            c.text
+        ));
+    }
+    out
+}
+
+fn fmt_srt_ts(secs: f64) -> String {
+    let ms = (secs.max(0.0) * 1000.0).round() as u64;
+    let h = ms / 3_600_000;
+    let m = (ms / 60_000) % 60;
+    let s = (ms / 1000) % 60;
+    let msec = ms % 1000;
+    format!("{h:02}:{m:02}:{s:02},{msec:03}")
+}
+
 fn parse_srt_ts(s: &str) -> Result<f64, Error> {
     parse_time(&s.replace(',', "."))
 }

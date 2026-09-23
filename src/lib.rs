@@ -1,5 +1,6 @@
 pub mod batch;
 pub mod cli;
+pub mod color;
 pub mod contract;
 pub mod doctor;
 pub mod embed;
@@ -14,6 +15,7 @@ pub mod paths;
 pub mod pipeline;
 pub mod probe;
 pub mod raster;
+pub mod scene;
 pub mod silence;
 pub mod spawn;
 pub mod srt;
@@ -38,6 +40,62 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Look(args) => look::run(args, &g),
         Cmd::Cut(args) => verbs::cut::run(args, &g),
         Cmd::Concat(args) => verbs::concat::run(args, &g),
+        Cmd::Split(args) => verbs::split::run(args, &g),
+        Cmd::Key(args) => verbs::key::run(args, &g),
+        Cmd::Grid(args) => verbs::grid::run(args, &g),
+        Cmd::Insert(args) => verbs::insert::run(args, &g),
+        Cmd::Progress(args) => verbs::progress::run(args, &g),
+        Cmd::Freeze(args) => verbs::freeze::run(args, &g),
+        Cmd::Censor(args) => verbs::censor::run(args, &g),
+        Cmd::Crop(args) => verbs::crop::run(args, &g),
+        Cmd::Vdenoise(args) => verbs::vdenoise::run(args, &g),
+        Cmd::Waveform(args) => verbs::waveform::run(args, &g),
+        Cmd::Meter(args) => verbs::meter::run(args, &g),
+        Cmd::Spectrogram(args) => verbs::spectrogram::run(args, &g),
+        Cmd::Dehum(args) => verbs::dehum::run(args, &g),
+        Cmd::Tempo(args) => verbs::tempo::run(args, &g),
+        Cmd::Silence(args) => verbs::silence::run(args, &g),
+        Cmd::Vocal(args) => verbs::vocal::run(args, &g),
+        Cmd::Remux(args) => verbs::remux::run(args, &g),
+        Cmd::Meme(args) => verbs::meme::run(args, &g),
+        Cmd::Voice(args) => verbs::voice::run(args, &g),
+        Cmd::Deinterlace(args) => verbs::deinterlace::run(args, &g),
+        Cmd::Crossfade(args) => verbs::crossfade::run(args, &g),
+        Cmd::Strip(args) => verbs::strip::run(args, &g),
+        Cmd::Frames(args) => verbs::frames::run(args, &g),
+        Cmd::Invert(args) => verbs::invert::run(args, &g),
+        Cmd::Countdown(args) => verbs::countdown::run(args, &g),
+        Cmd::Mix(args) => verbs::mix::run(args, &g),
+        Cmd::Timer(args) => verbs::timer::run(args, &g),
+        Cmd::Multicam(args) => verbs::multicam::run(args, &g),
+        Cmd::Mute(args) => verbs::mute::run(args, &g),
+        Cmd::Hls(args) => verbs::hls::run(args, &g),
+        Cmd::Qa(args) => verbs::qa::run(args, &g),
+        Cmd::Conform(args) => verbs::conform::run(args, &g),
+        Cmd::Scroll(args) => verbs::scroll::run(args, &g),
+        Cmd::Sync(args) => verbs::sync::run(args, &g),
+        Cmd::Art(args) => verbs::art::run(args, &g),
+        Cmd::Leveler(args) => verbs::leveler::run(args, &g),
+        Cmd::Gate(args) => verbs::gate::run(args, &g),
+        Cmd::Boomerang(args) => verbs::boomerang::run(args, &g),
+        Cmd::Fx(args) => verbs::fx::run(args, &g),
+        Cmd::Align(args) => verbs::align::run(args, &g),
+        Cmd::Chapter(args) => verbs::chapter::run(args, &g),
+        Cmd::Autocrop(args) => verbs::autocrop::run(args, &g),
+        Cmd::Sheet(args) => verbs::sheet::run(args, &g),
+        Cmd::Sprite(args) => verbs::sprite::run(args, &g),
+        Cmd::Pitch(args) => verbs::pitch::run(args, &g),
+        Cmd::Cutsil(args) => verbs::cutsil::run(args, &g),
+        Cmd::Channel(args) => verbs::channel::run(args, &g),
+        Cmd::Eq(args) => verbs::eq::run(args, &g),
+        Cmd::Reverb(args) => verbs::reverb::run(args, &g),
+        Cmd::Bleep(args) => verbs::bleep::run(args, &g),
+        Cmd::Rotate(args) => verbs::rotate::run(args, &g),
+        Cmd::Delogo(args) => verbs::delogo::run(args, &g),
+        Cmd::Meta(args) => verbs::meta::run(args, &g),
+        Cmd::Subs(args) => verbs::subs::run(args, &g),
+        Cmd::Thumb(args) => verbs::thumb::run(args, &g),
+        Cmd::Solid(args) => verbs::solid::run(args, &g),
         Cmd::Fit(args) => verbs::fit::run(args, &g),
         Cmd::Extract(args) => verbs::extract::run(args, &g),
         Cmd::Overlay(args) => verbs::overlay::run(args, &g),
@@ -51,6 +109,8 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Audiogram(args) => verbs::audiogram::run(args, &g),
         Cmd::Speed(args) => verbs::speed::run(args, &g),
         Cmd::Music(args) => verbs::music::run(args, &g),
+        Cmd::Replace(args) => verbs::replace::run(args, &g),
+        Cmd::Slideshow(args) => verbs::slideshow::run(args, &g),
         Cmd::Jumpcut(args) => verbs::jumpcut::run(args, &g),
         Cmd::Rough(args) => verbs::rough::run(args, &g),
         Cmd::Cover(args) => verbs::cover::run(args, &g),

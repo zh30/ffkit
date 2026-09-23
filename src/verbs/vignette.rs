@@ -19,7 +19,21 @@ pub fn run(args: VignetteArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.input);
     argv.extend([
         "-vf",
-        &format!("vignette=angle={}", args.angle),
+        &{
+            match &args.at {
+                Some(s) => format!(
+                    "vignette=angle={}:enable='{}'",
+                    args.angle,
+                    crate::time::enable_expr(s, args.dur, probe.duration)?
+                ),
+                None => {
+                    if args.dur.is_some() {
+                        return Err(Error::input("--dur needs --at"));
+                    }
+                    format!("vignette=angle={}", args.angle)
+                }
+            }
+        },
         "-c:v",
         "libx264",
         "-preset",

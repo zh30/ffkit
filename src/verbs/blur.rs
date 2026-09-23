@@ -15,17 +15,21 @@ pub fn run(args: BlurArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
+    let vf = match &args.at {
+        Some(s) => format!(
+            "gblur=sigma={}:enable='{}'",
+            args.sigma,
+            crate::time::enable_expr(s, args.dur, probe.duration)?
+        ),
+        None => {
+            if args.dur.is_some() {
+                return Err(Error::input("--dur needs --at"));
+            }
+            format!("gblur=sigma={}", args.sigma)
+        }
+    };
     argv.extend([
-        "-vf",
-        &format!("gblur=sigma={}", args.sigma),
-        "-c:v",
-        "libx264",
-        "-preset",
-        "fast",
-        "-crf",
-        "18",
-        "-pix_fmt",
-        "yuv420p",
+        "-vf", &vf, "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
     ]);
     if probe.has_audio {
         argv.extend(["-c:a", "copy"]);

@@ -40,6 +40,23 @@ pub fn run(args: FitArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
 
+    let pos: Option<(u8, u8)> = match args.position.as_deref() {
+        None | Some("center") | Some("middle") => None,
+        Some("top") => Some((1, 0)),
+        Some("bottom") => Some((1, 2)),
+        Some("left") => Some((0, 1)),
+        Some("right") => Some((2, 1)),
+        Some("top-left") => Some((0, 0)),
+        Some("top-right") => Some((2, 0)),
+        Some("bottom-left") => Some((0, 2)),
+        Some("bottom-right") => Some((2, 2)),
+        Some(other) => {
+            return Err(Error::input(format!(
+                "--position must be top/bottom/left/right/top-left/top-right/bottom-left/bottom-right/center, got {other}"
+            )));
+        }
+    };
+
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
@@ -55,12 +72,29 @@ pub fn run(args: FitArgs, g: &Globals) -> Result<Contract, Error> {
         } else {
             format!("{},", vf.join(","))
         };
+        let sigma = args.strength.unwrap_or(30.0).clamp(1.0, 300.0);
         let fc = format!(
             "[0:v]{pre}split[bg0][fg0];\
-             [bg0]scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th},gblur=sigma=30[bg];\
+             [bg0]scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th},gblur=sigma={sigma}[bg];\
              [fg0]scale={tw}:{th}:force_original_aspect_ratio=decrease[fg];\
-             [bg][fg]overlay=(W-w)/2:(H-h)/2,{}[vout]",
+             [bg][fg]overlay={ox}:{oy},{}[vout]",
             tail.join(","),
+            ox = match pos {
+                Some((x, _)) => match x {
+                    0 => "0".to_string(),
+                    2 => "W-w".to_string(),
+                    _ => "(W-w)/2".to_string(),
+                },
+                None => "(W-w)/2".to_string(),
+            },
+            oy = match pos {
+                Some((_, y)) => match y {
+                    0 => "0".to_string(),
+                    2 => "H-h".to_string(),
+                    _ => "(H-h)/2".to_string(),
+                },
+                None => "(H-h)/2".to_string(),
+            },
         );
         argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
         if probe.has_audio {
@@ -68,12 +102,34 @@ pub fn run(args: FitArgs, g: &Globals) -> Result<Contract, Error> {
         }
     } else {
         let scale_pad = match args.fit {
-            FitMode::Pad => format!(
-                "scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2:black"
-            ),
-            FitMode::Crop => format!(
-                "scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}"
-            ),
+            FitMode::Pad => {
+                let pad_color = match &args.color {
+                    Some(c) => crate::color::lavfi(c),
+                    None => "black".to_string(),
+                };
+                let px = match pos {
+                    Some((x, _)) => match x {
+                        0 => "0".to_string(),
+                        2 => "ow-iw".to_string(),
+                        _ => "(ow-iw)/2".to_string(),
+                    },
+                    None => "(ow-iw)/2".to_string(),
+                };
+                let py = match pos {
+                    Some((_, y)) => match y {
+                        0 => "0".to_string(),
+                        2 => "oh-ih".to_string(),
+                        _ => "(oh-ih)/2".to_string(),
+                    },
+                    None => "(oh-ih)/2".to_string(),
+                };
+                format!(
+                    "scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:{px}:{py}:{pad_color}"
+                )
+            }
+            FitMode::Crop => {
+                format!("scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}")
+            }
             FitMode::Blur => unreachable!(),
         };
         vf.push(scale_pad);

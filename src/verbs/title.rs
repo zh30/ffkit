@@ -7,41 +7,218 @@ use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
+/// Greedy word-wrap: break lines at ~`n` chars on spaces.
+pub(crate) fn wrap(text: &str, n: usize) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    for raw_line in text.lines() {
+        let mut cur = String::new();
+        for w in raw_line.split_whitespace() {
+            if !cur.is_empty() && cur.len() + 1 + w.len() > n {
+                lines.push(std::mem::take(&mut cur));
+            }
+            if !cur.is_empty() {
+                cur.push(' ');
+            }
+            cur.push_str(w);
+        }
+        lines.push(std::mem::take(&mut cur));
+    }
+    lines.join("\n")
+}
+
 pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
-    let text = args.text.trim();
-    if text.is_empty() {
+    if args.align.is_some() && (args.outline.is_some() || args.shadow.is_some()) {
+        return Err(Error::input(
+            "--align works on plain titles (drop --outline/--shadow)",
+        ));
+    }
+    let raw = args.text.trim();
+    if raw.is_empty() {
         return Err(Error::input("--text is empty"));
     }
+    let wrapped;
+    let text = match args.wrap {
+        Some(n) if n >= 4 => {
+            wrapped = crate::verbs::title::wrap(raw, n as usize);
+            wrapped.as_str()
+        }
+        Some(_) => return Err(Error::input("--wrap needs at least 4 chars")),
+        None => raw,
+    };
     if args.duration <= 0.0 {
         return Err(Error::input("--duration must be > 0"));
     }
-    let (x, y) = match args.position.as_str() {
-        "center" => ("(W-w)/2", "(H-h)/2"),
-        "top" => ("(W-w)/2", "trunc(H*0.18)"),
-        other => {
-            return Err(Error::input(format!(
-                "--position {other}: use center or top"
-            )));
-        }
-    };
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "title")?;
-    let until = args.duration.min(probe.duration.max(0.05));
+    // --at takes a comma list: flash the card at several marks.
+    let mut windows = Vec::new();
+    match &args.at {
+        Some(s) => {
+            for part in s.split(',') {
+                let t = crate::time::resolve_at(part.trim(), Some(args.duration), probe.duration)?;
+                if t < 0.0 || t >= probe.duration {
+                    return Err(Error::input("--at must land inside the input"));
+                }
+                windows.push((t, (t + args.duration).min(probe.duration)));
+            }
+        }
+        None => windows.push((0.0, args.duration.min(probe.duration))),
+    }
+    let enable_expr = windows
+        .iter()
+        .map(|(s, e)| format!("between(t,{s:.3},{e:.3})"))
+        .collect::<Vec<_>>()
+        .join("+");
     let font_path = crate::font::resolve(args.font.as_deref().map(Path::new))?;
     let font_bytes = std::fs::read(&font_path)?;
     let vw = probe.width.unwrap_or(1280);
-    let img = crate::raster::render_title(text, &font_bytes, vw)?;
+    let fg = match &args.color {
+        Some(c) => crate::color::rgb(c)?,
+        None => [255, 255, 255],
+    };
+    if !(0.25..=8.0).contains(&args.size) {
+        return Err(Error::input("--size must be 0.25..8"));
+    }
+    let mut img = match &args.outline {
+        Some(c) => {
+            let oc = crate::color::rgb(c)?;
+            // stroke ~6% of glyph height so it scales with --size
+            let ow = ((vw as f32 / 8.0 * args.size as f32) * 0.06)
+                .round()
+                .clamp(2.0, 24.0) as u32;
+            crate::raster::render_title_outlined(
+                text,
+                &font_bytes,
+                vw,
+                fg,
+                args.size as f32,
+                (oc, ow),
+            )?
+        }
+        None if args.align.is_some() => crate::raster::render_title_aligned(
+            text,
+            &font_bytes,
+            vw,
+            fg,
+            args.size as f32,
+            args.align.unwrap_or_default(),
+        )?,
+        None => match args.shadow {
+            Some(b) => crate::raster::render_title_shadow(
+                text,
+                &font_bytes,
+                vw,
+                fg,
+                args.size as f32,
+                b.min(48),
+            )?,
+            None => {
+                let mut img = crate::raster::render_title_styled(
+                    text,
+                    &font_bytes,
+                    vw,
+                    fg,
+                    args.size as f32,
+                )?;
+                if let Some(b) = &args.box_color {
+                    let [r, g_, b_] = crate::color::rgb(b)?;
+                    let pad = (img.height() / 2).max(8);
+                    let mut card = image::RgbaImage::new(img.width() + 2 * pad, img.height() + pad);
+                    for px in card.pixels_mut() {
+                        *px = image::Rgba([r, g_, b_, 200]);
+                    }
+                    image::imageops::overlay(&mut card, &img, pad as i64, (pad / 2) as i64);
+                    img = card;
+                }
+                img
+            }
+        },
+    };
+    if let Some(op) = args.opacity {
+        if !(1.0..=100.0).contains(&op) {
+            return Err(Error::input("--opacity must be 1..=100"));
+        }
+        for px in img.pixels_mut() {
+            px.0[3] = (px.0[3] as f64 * op / 100.0).round() as u8;
+        }
+    }
     let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
     let png = tmp.path().join("title.png");
     img.save(&png)
         .map_err(|e| Error::output(format!("write title png: {e}")))?;
 
+    let (x, y) = if args.tile > 0 {
+        ("", "")
+    } else {
+        match args.position.as_str() {
+            "center" => ("(W-w)/2", "(H-h)/2"),
+            "top" => ("(W-w)/2", "trunc(H*0.18)"),
+            "bottom" => ("(W-w)/2", "trunc(H*0.78)"),
+            "top-left" => ("trunc(W*0.06)", "trunc(H*0.10)"),
+            "top-right" => ("W-w-trunc(W*0.06)", "trunc(H*0.10)"),
+            "bottom-left" => ("trunc(W*0.06)", "H-h-trunc(H*0.10)"),
+            "bottom-right" => ("W-w-trunc(W*0.06)", "H-h-trunc(H*0.10)"),
+            other => {
+                return Err(Error::input(format!(
+                    "--position {other}: use center, top, bottom or a corner"
+                )));
+            }
+        }
+    };
+    let fade = args
+        .fade
+        .clamp(0.0, ((windows[0].1 - windows[0].0) / 2.0).max(0.0));
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
+    if fade > 0.0 {
+        // Looping the PNG gives the still advancing pts so alpha fades animate.
+        argv.extend(["-loop", "1", "-framerate", "30"]);
+    }
     argv.push("-i");
     argv.push(&png);
-    let fc = format!("[0:v][1:v]overlay=x={x}:y={y}:enable='between(t,0,{until:.3})'[vout]");
+    let (pre, ovl) = if fade > 0.0 {
+        (
+            {
+                let mut chain = String::from("[1:v]format=rgba");
+                for (s, e) in &windows {
+                    chain.push_str(&format!(
+                        ",fade=t=in:st={s:.3}:d={fade:.3}:alpha=1,fade=t=out:st={:.3}:d={fade:.3}:alpha=1",
+                        e - fade
+                    ));
+                }
+                chain.push_str("[ovl];");
+                chain
+            },
+            "ovl",
+        )
+    } else {
+        (String::new(), "1:v")
+    };
+    let shortest = if fade > 0.0 { ":shortest=1" } else { "" };
+    let fc = if args.tile > 0 {
+        // N copies on a diagonal cascade — text draft watermark
+        let n = args.tile.clamp(2, 6);
+        let mut seg: Vec<String> = Vec::new();
+        let mut prev = "[0:v]".to_string();
+        for i in 0..n {
+            let fx = i as f64 / n as f64;
+            let fy = (i as f64 + 0.5) / n as f64;
+            let lab = if i + 1 == n {
+                "vout".to_string()
+            } else {
+                format!("t{i}")
+            };
+            seg.push(format!(
+                "{prev}[{ovl}]overlay=x={fx:.3}*(W-w):y={fy:.3}*(H-h):enable='{enable_expr}'{shortest}[{lab}]"
+            ));
+            prev = format!("[{lab}]");
+        }
+        seg.join(";")
+    } else {
+        format!("[0:v][{ovl}]overlay=x={x}:y={y}:enable='{enable_expr}'{shortest}[vout]")
+    };
+    let fc = format!("{pre}{fc}");
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if probe.has_audio {
         argv.extend(["-map", "0:a", "-c:a", "copy"]);
@@ -55,8 +232,9 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     drop(tmp);
     Ok(c.with_extra(json!({
         "text": text,
-        "duration": until,
-        "position": args.position,
+        "duration": windows[0].1,
+        "position": if args.tile > 0 { format!("tile-{}", args.tile) } else { args.position },
+        "at": windows[0].0,
         "font": font_path.display().to_string(),
     })))
 }

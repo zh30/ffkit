@@ -15,17 +15,21 @@ pub fn run(args: SharpenArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
+    let vf = match &args.at {
+        Some(s) => format!(
+            "unsharp=5:5:{}:5:5:0.0:enable='{}'",
+            args.amount,
+            crate::time::enable_expr(s, args.dur, probe.duration)?
+        ),
+        None => {
+            if args.dur.is_some() {
+                return Err(Error::input("--dur needs --at"));
+            }
+            format!("unsharp=5:5:{}:5:5:0.0", args.amount)
+        }
+    };
     argv.extend([
-        "-vf",
-        &format!("unsharp=5:5:{}:5:5:0.0", args.amount),
-        "-c:v",
-        "libx264",
-        "-preset",
-        "fast",
-        "-crf",
-        "18",
-        "-pix_fmt",
-        "yuv420p",
+        "-vf", &vf, "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
     ]);
     if probe.has_audio {
         argv.extend(["-c:a", "copy"]);

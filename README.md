@@ -97,36 +97,96 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `doctor` | Whether local ffmpeg works, which encoders/filters exist |
 | `probe` | Duration, size, codecs, channels |
 | `look` | Contact sheet (`--tiles`) or timestamps (`--at`, repeatable) |
-| `cut` | Trim; lossless copy by default, `--accurate` for frame-exact |
-| `concat` | Join; two clips with `--transition fade` is a crossfade |
-| `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop |
-| `extract` | Audio, a frame, or subtitles from the output extension |
-| `overlay` | Logo, watermark, picture-in-picture |
-| `broll` | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay |
-| `caption` | `--mode mux` soft subs; `burn` overlay raster (no libass); `--safe social` clears the bottom 20% |
-| `loudnorm` | EBU R128 two-pass (`-I -14` social, `-I -16` podcast) |
-| `denoise` | Voice cleanup (fan / rumble / hiss); `--video` also degrains the picture |
-| `transcode` | Presets `h264` / `webm` / `gif` |
-| `compress` | Two-pass shrink to `--size 10MB` (Discord, WhatsApp 16MB, email ~25MB) |
-| `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
-| `audiogram` | Podcast audio → 9:16 waveform video over a cover still (`--image`) |
-| `speed` | `--factor 2` is 2×; talking-head keeps pitch |
-| `music` | Bed under speech with ducking (`--track`) |
+| `cut` | Trim; lossless copy by default, `--accurate`, `--ranges`, `--drop` for frame-exact (bounds take `end`: `T-end` through the tail, `end-N` last N secs); `--fade N` softens the cut edges |
+| `concat` | Join N clips (any xfade `--transition`, comma list picks one per joint); `--level -14` loudnorms each clip first |
+| `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop , `--position` anchors the picture in the bars , `--strength` sigma |
+| `extract` | Still frame or `--gif` clip (`--bounce` palindrome) | `--at` (`end` = last frame / last --dur sec), `--width`, `--fps` , `--loop` GIF repeat count, `--colors` palette size |
+| `overlay` | Image/video overlay; position/scale/`--tile`, `--fade`, `--angle`, `--at`/`--dur`, `--mode`, `--opacity` blend composite, `--loop` repeat short clips | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture; `--border` PiP ring |
+| `broll` | Cutaway insert (`--insert` video, `--still` image, `--motion kenburns`) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay , `--audio` hear the insert (`--volume` its level) , `--position` PiP corner + `--scale`, `--border` ring the insert; `--at end` = tail cutaway, comma `--at` re-flashes it at several points |
+| `caption` | Burn subtitles (`--srt`, `--chunk`, `--karaoke`, `--box-color` card, `--wrap` folds, `--from/--to` cue window, `end`/`end-N` ok) , `--fade` soft in/out |
+| `loudnorm` | EBU R128 two-pass normalization (`--target spotify|podcast|broadcast`, `-I/--tp/--lra`); `--measure` reports loudness without writing; `--dynamic` per-frame gain |
+| `denoise` | Audio cleanup (`--strength`, `--highpass`, `--at/--dur` window); `end` ok, comma list = several windows |
+| `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`/`--colors`) | Presets `h264` / `webm` / `gif` / `hevc` / `mp3` / `aac` / `wav` / `flac` / `opus`; `--fps` retimes video too , `--preset prores` FCP delivery; `av1` preset; `--alpha` keeps transparency (webm/prores) |
+| `compress` | Fit a size budget (`--size 10MB` two-pass, `--target discord|whatsapp|gmail`); `--crf` quality one-pass, `--res` downscale to free bitrate |
+| `deliver` | One-shot platform pack (Reels / TikTok / Shorts 9:16, `square` 1:1 grid, `youtube` 16:9; −14 LUFS; `--fps 60` high-frame-rate uploads) |
+
+| `audiogram` | Waveform video | `--mode`, `--scale`, `--split` channels, `--fscale` freq axis (spectrum), `--fps` rate, `--text`, `--bg`, `--progress` bar , `--subs` burn an .srt on it, `--from`/`--to` clip a segment (`end`/`end-N` ok); `--mode spectrum` bars |
+
+| `split` | Split by `--every`/`--at`/`--scenes`/`--size`/`--parts`/`--silence`/`--chapters`; `--subs` writes re-timed per-part .srt; `--fade N` softens each part's edges |
+| `slideshow` | Still images → video montage (`--per` or `--dur` total runtime, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed + `--volume`, `--size` canvas, `--bg` letterbox) |
+| `speed` | Change playback speed (`--factor`, `--at/--dur` (comma list = several windows), `--ramp` FROM,TO); `end` ok |
+| `music` | Bed under speech with ducking (`--track`, `--at`/`--dur` window, `end` ok; comma `--at` = multi-entrance bed) |
+| `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`, `--at`/`--dur` window — comma list ok) |
+| `grid` | Multi-up collage (`--layout`, `--audio` pick, `--labels`, `--gap`, `--bg` gutter color, `--fill` crop instead of letterbox) |
+| `progress` | Progress bar on any edge, whole clip or a window (`--color`, `--height`, `--edge` bottom/top/left/right, `--at`, `--dur`) |
+| `freeze` | Hold a frame (`--at`, comma list freezes at several points, `--dur`, `--end`, `--ease`, `--reverse`, `--zoom` push-in) |
+| `censor` | Blur/mosaic a region (`--mode`, `--strength`, `--at`/`--dur` (comma list covers several spots, needs `--dur`; `end` ok)) |
+| `bleep` | Tone over a word/segment: `--at`/`--dur` (comma list censors several spots; `end` ok), `--freq`, `--level` |
+| `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) , `--at/--dur` bounces just that window — comma list for several spots (`end` ok) |
+| `chapter` | Embed chapter marks at `TIME|TITLE` or `--import` a marks file (YouTube `H:MM:SS Title` lines ok); `--auto` / `--export` ffmeta / `--yt` description lines; `--list`; `--remove`; `--shift` re-times marks |
+| `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`; `--buffer N` keeps N px edge context) |
+| `sheet` | Contact sheet grid (`--cols`x`--rows`, `--time` stamps, `--title` header, `--from`/`--to` window) |
+| `sprite` | Seek-preview sprite sheets + WebVTT (`--every` secs, `--width` tile px, `--cols`x`--rows` per sheet, `--vtt` path, `--from`/`--to` bounds -- `end` ok) — hover thumbnails for video players |
+| `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window); `end` ok, comma list = several windows |
+| `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
+| `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51|pan|widen|split` (stereo→`_L/_R.wav` stems); `--pan -1..1` pan |
+| `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--tilt` warm↔bright; `end` ok, comma list = several windows |
+| `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window); `end` ok, comma list = several windows |
+| `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio (`--kind`, `--strength`, `--at`/`--dur`); `end` ok, comma list = several windows |
+| `rotate` | 90/180/270 or mirror: `--deg`/`--flip`, free `--angle` tilt |
+| `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window, `--at end` the tail (`--soft` removelogo) |
+| `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
+| `subs` | Extract (`--stream`, `--all`)/burn/mux subtitles (`--shift` (±N; `--from`/`--to` bounds it)/`--merge`/`--rate`, burn style + `--outline`/`--box` plate/`--align`/`--margin` px/`--from`/`--to` window (`end`/`end-N` ok), `--safe`); `--convert` .srt↔.vtt; `--case` cue text |
+| `thumb` | One-frame cover grab (`--at` — `end` = last frame / `--frame`, `--count` N stills (`--from`/`--to` bounds the spread, `end`/`end-N` ok), `--width`) → jpg/png/webp; `--scenes` stills at cuts |
+| `solid` | Solid-color clip card (`--color`, `--size`, `--dur`, `--fps` rate; silent stereo optional) (`--gradient` animated, `--noise` grain) , `--text` end-card text (`--wrap` folds, `--align` lines) |
+| `replace` | Swap the audio track (`--mix`, `--duck`, `--fade`, `--loop` short beds, `--at`/`--dur` window — comma `--at` several) |
 | `jumpcut` | Cut silence inside a talking-head take |
-| `rough` | Map speech islands in a long take (`--json`); `-o` assembles (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
-| `cover` | 9:16 cover still (1080×1920) |
-| `fade` | Video and audio fade (`--in` / `--out`) |
-| `title` | First-second hook card (`--text`, no libass) |
-| `loop` | Repeat the clip N times (Shorts replay length) |
-| `stabilize` | Handheld deshake |
+| `rough` | Map speech islands in a long take (`--json`); `-o` assembles (`--merge N` merges keeps closer than N s, `--by-scene` splits keeps at scene changes) (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
+| `cover` | Cover still (`--at` — `end` = last frame, `--blur` ambient pad, `--size` canvas — default 1080x1920) |
+| `fade` | Video and audio fade (`--in` / `--out`, `--color` e.g. white, `--dip T` scene-change dip — comma list dips at every mark) |
+| `title` | Hook/title card (`--at` — `end` = end-card, comma list flashes at several marks, `--fade`, `--outline`, `--box` backplate, `--wrap` long hooks, `--align` lines, `--opacity` ghost) |
+| `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section, `end` ok, `--fade` seamless joints) |
+| `stabilize` | Handheld deshake — `--rx`/`--ry` radius, `--edge` fill (blank|original|clamped|mirror) |
 | `reverse` | Play picture and sound backwards |
-| `grade` | Contrast / saturation / brightness (mild Reels pop) |
-| `zoom` | Center punch-in (`--factor 1.25`) |
-| `sharpen` | Unsharp |
-| `vignette` | Darken corners |
-| `bw` | Black and white |
-| `volume` | Gain ±dB (platform loudness is `loudnorm`) |
-| `blur` | Gaussian blur (`--sigma`) |
+| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops) | Presets `cinematic`/`vivid`/`vintage`/`soft` stack under the sliders; `--lut look.cube` applies a 3D LUT | `--at`/`--dur`
+| `zoom` | Punch-in (`--factor 1.25`, `--center X,Y` target; `--at`/`--dur` window — comma list for several, `end` ok) | `--out`
+| `sharpen` | Unsharp mask, whole clip or a window (`--amount`, `--at`, `--dur`) |
+| `vignette` | Corner darkening, whole clip or a window (`--angle`, `--at`, `--dur`) |
+| `bw` | Desaturate to B&W, whole clip or a window (`--at`, `--dur`, `--strength` keeps muted color) |
+| `volume` | Gain ±dB; `--at/--dur` limits it to a window — comma list covers several spots (needs `--dur`) (platform loudness is `loudnorm`) |
+| `blur` | Full-frame or windowed gaussian blur (`--sigma`, `--at`/`--dur`; `--at end` = tail) |
+| `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30, `--at`/`--dur` window — comma list ok (nlmeans; slow on long clips), `end` ok |
+| `crop` | Crop `--region x:y:w:h`, or `--aspect` reframe with `--anchor center|top|bottom|left|right` |
+| `waveform` | Audio waveform → PNG (`--size`, `--color`, `--scale`, `--peak` transients, `--split` per-channel rows, `--full` dense draw, `--bg` opaque card) for podcast art/thumbnails (`--at/--dur` slice, `end` ok) |
+| `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup (`--color` magma/viridis…, `--scale` lin/sqrt…, `--no-legend`, `--separate` per-channel bands) (`--at/--dur` slice, `end` ok) |
+| `meter` | Live EBU R128 loudness meter video (`--size`, `--meter 9\|18`, `--at/--dur` slice) — watch I/TP/LRA while audio plays |
+| `dehum` | Notch out mains hum (`--mains 50|60` or `--freq HZ` custom, `--harmonics`, `--at/--dur`, `end` ok, comma list = several windows) |
+| `tempo` | Speed audio `--factor` 0.5–8, pitch held (`atempo` chain; use `speed` for video) , `--at/--dur` retempo just a window — comma list ok; `end` ok |
+| `leveler` | Compress dynamics (`--preset`, `--at/--dur` window); `end` ok, comma list = several windows |
+| `gate` | Noise gate — silence below `--threshold` dB (`agate`) (`--preset voice|podcast|studio`, `--at/--dur` window); `end` ok, comma list = several windows |
+| `silence` | Insert `--dur` secs of silence at `--at` (comma list pads several points) or `--end`; `--detect` reports silence ranges as JSON |
+| `vocal` | Remove/isolate center vocals (`--mode`, `--at/--dur` window, `--amount` strength); `end` ok, comma list = several windows |
+| `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov); `--audio` rips the track, `--video` video-only repack, `--aspect 16:9` display-AR fix |
+| `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window — comma list for several spots; `--at end` tail) , `--position` text block top/center/bottom; `--wrap` folds, `--align` line alignment |
+| `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`, `--at`/`--dur` window, `end` ok, comma list = several windows) |
+| `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order, `--engine` yadif/bwdif) |
+| `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
+| `strip` | Remove all metadata + chapters, lossless `-c copy` |
+| `frames` | Still dump every `--every`, `--at` seconds (`end` = last frame), `--count` even-spread → `stem_001.png…` (`--width`) |
+| `countdown` | Overlay a counting leader (`--from`, `--beep` + `--tone` Hz, `--text`, `--position`, `--bg` numeral plate) |
+| `invert` | Full-frame or windowed color inversion (`--at`, `--dur` — comma list ok) |
+| `mix` | Blend two sources (`--vol-a/--vol-b`, `--at/--dur` window — comma list for several entrances, `end` ok, `--loop`, `--duck` sidechain bed under voice) , `--normalize`, `--fade` bed edges |
+| `mute` | Drop the audio track, stream-copy the rest , `--at/--dur` silences only that window (comma list covers several spots, needs `--dur`; `end` ok) |
+| `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown, `--start` seed the readout) |
+| `hls` | Web-ready HLS (`--seg`, `--single`, `--copy`, `--ladder` ABR, `--audio-only` podcast streams, `--fmp4` CMAF, `--poster` writes poster.jpg) |
+| `qa` | Measure quality loss vs a reference: PSNR + SSIM (`--metric`) |
+| `conform` | Resize/fps/loudnorm to spec in one pass; `--size WxH`, `--fps 30`, `--lufs -14`, `--crf`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill |
+| `sync` | Shift audio ±ms to fix A/V sync (`--ms`) |
+| `align` | Auto-sync a second recording to a reference by audio cross-correlation — multi-cam/external recorder (`--max-lag`) |
+| `scroll` | Rolling end credits: text rolls bottom→top (`--text`/`--file`, `--at`, `--dur`, `--size`, `--color`, `--font`, `--align` left/right, `--wrap` folds); `--mode ticker` news crawl with `--bg` opaque bar |
+| `insert` | Splice a clip mid-video (`--at`, comma list splices at several points, `end` appends; `--dur` cap; `--transition` any xfade `--duration` S crossfades both joints) |
+| `multicam` | Two-camera angle switching across an aligned pair: `--at t1,t2,...` flips angle (`end` = tail switch); `--keep-audio` stays on cam A, `--transition` xfade switches |
+| `art` | Attach embedded cover art to audio; `--extract` pulls it out to an image |
 | `batch` | One verb on every media file in a directory |
 | `pipeline` | Run a JSON scheme in order (`$src` / `$in` / `expect`) |
 | `graph` | JSON filter graph, see [`references/graph.md`](references/graph.md) |

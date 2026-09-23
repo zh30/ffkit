@@ -32,6 +32,12 @@ pub struct Probe {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>,
     pub variable_frame_rate_suspected: bool,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub subtitle_streams: u32,
+}
+
+fn is_zero(v: &u32) -> bool {
+    *v == 0
 }
 
 impl Probe {
@@ -118,6 +124,53 @@ pub fn probe(path: &Path, timeout: Duration) -> Result<Probe, Error> {
     parse_ffprobe(raw)
 }
 
+#[derive(Deserialize)]
+struct ChaptersOut {
+    #[serde(default)]
+    chapters: Vec<ChapterTime>,
+}
+#[derive(Deserialize)]
+struct ChapterTime {
+    start_time: Option<String>,
+    #[serde(default)]
+    tags: std::collections::HashMap<String, String>,
+}
+
+/// One embedded chapter mark.
+pub struct ChapterMark {
+    pub start: f64,
+    pub title: Option<String>,
+}
+
+/// Chapter marks (time + title) embedded in the container — lectures, courses.
+pub fn chapter_marks(path: &Path, timeout: Duration) -> Result<Vec<ChapterMark>, Error> {
+    let mut argv = Argv::ffprobe();
+    argv.extend(["-print_format", "json", "-show_chapters", "-v", "error"]);
+    argv.push(path);
+    let spawned = spawn::require_ok(&argv, spawn::run(&argv, timeout, false)?)?;
+    let raw = spawn::stdout_str(&spawned)?;
+    let out: ChaptersOut = serde_json::from_str(raw)
+        .map_err(|e| Error::ffmpeg(format!("ffprobe chapters json: {e}")))?;
+    Ok(out
+        .chapters
+        .iter()
+        .filter_map(|c| {
+            Some(ChapterMark {
+                start: c.start_time.as_deref()?.parse::<f64>().ok()?,
+                title: c.tags.get("title").cloned(),
+            })
+        })
+        .collect())
+}
+
+/// Chapter boundaries (seconds) embedded in the container — lectures, courses.
+pub fn chapters(path: &Path, timeout: Duration) -> Result<Vec<f64>, Error> {
+    Ok(chapter_marks(path, timeout)?
+        .into_iter()
+        .map(|m| m.start)
+        .collect())
+}
+
 pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
     let parsed: FfprobeOut =
         serde_json::from_str(raw).map_err(|e| Error::ffmpeg(format!("ffprobe json: {e}")))?;
@@ -167,6 +220,11 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
             .and_then(|s| s.parse().ok()),
         format: parsed.format.and_then(|f| f.format_name),
         variable_frame_rate_suspected: vfr,
+        subtitle_streams: parsed
+            .streams
+            .iter()
+            .filter(|s| s.codec_type == "subtitle")
+            .count() as u32,
     })
 }
 

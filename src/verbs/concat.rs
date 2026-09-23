@@ -1,7 +1,9 @@
 use std::io::Write;
 use std::path::Path;
 
-use crate::cli::{ConcatArgs, Globals};
+use clap::ValueEnum;
+
+use crate::cli::{ConcatArgs, Globals, XfadeTransition};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -9,30 +11,39 @@ use crate::paths;
 use crate::probe::Probe;
 
 pub fn run(args: ConcatArgs, g: &Globals) -> Result<Contract, Error> {
+    if let Some(l) = args.level {
+        if !(-70.0..=-5.0).contains(&l) {
+            return Err(Error::input("--level must be -70..=-5 LUFS (e.g. -14)"));
+        }
+    }
     if args.inputs.len() < 2 {
         return Err(Error::input("concat needs at least two inputs"));
     }
     let input_refs: Vec<&Path> = args.inputs.iter().map(Path::new).collect();
-
-    if let Some(t) = args.transition.as_deref() {
-        if t != "fade" {
-            return Err(Error::input(
-                "only --transition fade is supported; use graph for other xfade names",
-            ));
-        }
-        if args.inputs.len() != 2 {
-            return Err(Error::input(
-                "fade concat supports exactly two inputs; chain via graph for more",
-            ));
-        }
-        return fade_two(&args, g, &input_refs);
-    }
 
     let probes: Vec<Probe> = args
         .inputs
         .iter()
         .map(|p| engine::probe_or_err(p, g))
         .collect::<Result<_, _>>()?;
+
+    if let Some(t) = &args.transition {
+        let mut kinds = Vec::new();
+        for part in t.split(',') {
+            let name = part.trim();
+            let kind = XfadeTransition::from_str(name, true)
+                .map_err(|_| Error::input(format!("concat: unknown --transition '{name}'")))?;
+            kinds.push(kind);
+        }
+        if kinds.len() > 1 && kinds.len() != args.inputs.len() - 1 {
+            return Err(Error::input(format!(
+                "concat: {} transitions but {} joints — give one per joint or a single one",
+                kinds.len(),
+                args.inputs.len() - 1
+            )));
+        }
+        return transition_chain(&args, g, &input_refs, &probes, &kinds);
+    }
 
     if can_copy(&probes) {
         copy_concat(&args, g, &input_refs)
@@ -143,37 +154,102 @@ fn filter_concat(
     engine::write_job("concat", inputs, &args.output, vec![argv], g)
 }
 
-fn fade_two(args: &ConcatArgs, g: &Globals, inputs: &[&Path]) -> Result<Contract, Error> {
-    let a = engine::probe_or_err(&args.inputs[0], g)?;
-    let _b = engine::probe_or_err(&args.inputs[1], g)?;
-    engine::need_video(&a, "concat")?;
+// N-input xfade chain: transition i starts at cumsum(d_0..d_i) - i*fade;
+// audio mirrors it with an acrossfade chain at the same boundaries.
+fn transition_chain(
+    args: &ConcatArgs,
+    g: &Globals,
+    inputs: &[&Path],
+    probes: &[Probe],
+    kinds: &[crate::cli::XfadeTransition],
+) -> Result<Contract, Error> {
+    engine::need_video(&probes[0], "concat")?;
     let fade = args.duration.max(0.01);
-    if a.duration <= fade {
-        return Err(Error::input("first clip is shorter than the fade"));
+    for (i, p) in probes.iter().enumerate() {
+        if p.duration <= fade {
+            return Err(Error::input(format!(
+                "concat: input {} ({:.2}s) is shorter than the {fade:.2}s transition",
+                i + 1,
+                p.duration
+            )));
+        }
     }
-    let offset = a.duration - fade;
-    let tw = paths::even(a.width.unwrap_or(1280));
-    let th = paths::even(a.height.unwrap_or(720));
+    let all_audio = probes.iter().all(|p| p.has_audio);
+    let tw = paths::even(probes[0].width.unwrap_or(1280));
+    let th = paths::even(probes[0].height.unwrap_or(720));
+    let fps = probes[0].fps.unwrap_or(30.0);
+    let n = args.inputs.len();
+    let names: Vec<&'static str> = if kinds.len() == 1 {
+        vec![kinds[0].xfade_name(); n - 1]
+    } else {
+        kinds.iter().map(|k| k.xfade_name()).collect()
+    };
 
     let mut argv = ffmpeg_base(g.progress);
-    argv.push("-i");
-    argv.push(&args.inputs[0]);
-    argv.push("-i");
-    argv.push(&args.inputs[1]);
-
-    let mut fc = format!(
-        "[0:v]scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[v0];\
-         [1:v]scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[v1];\
-         [v0][v1]xfade=transition=fade:duration={fade}:offset={offset}[vout]"
-    );
-    if a.has_audio {
-        fc.push_str(&format!(";[0:a][1:a]acrossfade=d={fade}[aout]"));
+    for p in &args.inputs {
+        argv.push("-i");
+        argv.push(p);
     }
+
+    let mut seg = Vec::new();
+    for i in 0..n {
+        seg.push(format!(
+            "[{i}:v]scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={fps:.3},format=yuv420p[v{i}]"
+        ));
+        if all_audio {
+            let lvl = args
+                .level
+                .map(|l| format!(",loudnorm=I={l:.1}"))
+                .unwrap_or_default();
+            seg.push(format!(
+                "[{i}:a]aresample=48000,aformat=channel_layouts=stereo{lvl}[a{i}]"
+            ));
+        }
+    }
+    let mut prev_v = "v0".to_string();
+    let mut prev_a = "a0".to_string();
+    let mut cum = 0.0;
+    for i in 1..n {
+        let last = i == n - 1;
+        let out_v = if last {
+            "vout".to_string()
+        } else {
+            format!("x{i}")
+        };
+        let offset = cum + probes[i - 1].duration - i as f64 * fade;
+        seg.push(format!(
+            "[{prev_v}][v{i}]xfade=transition={}:duration={fade:.3}:offset={offset:.3}[{out_v}]",
+            names[i - 1]
+        ));
+        prev_v = out_v;
+        if all_audio {
+            let out_a = if last {
+                "aout".to_string()
+            } else {
+                format!("af{i}")
+            };
+            seg.push(format!("[{prev_a}][a{i}]acrossfade=d={fade:.3}[{out_a}]"));
+            prev_a = out_a;
+        }
+        cum += probes[i - 1].duration;
+    }
+    let fc = seg.join(";");
+
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
-    if a.has_audio {
+    if all_audio {
         argv.extend(["-map", "[aout]", "-c:a", "aac"]);
     }
     argv.extend(["-c:v", "libx264", "-preset", "fast", "-crf", "18"]);
     argv.push(&args.output);
-    engine::write_job("concat", inputs, &args.output, vec![argv], g)
+    let mut c = engine::write_job("concat", inputs, &args.output, vec![argv], g)?;
+    c = c.with_extra(serde_json::json!({
+        "transition": if names.iter().all(|n| *n == names[0]) {
+            serde_json::json!(names[0])
+        } else {
+            serde_json::json!(names)
+        },
+        "transition_duration": fade,
+        "clips": n,
+    }));
+    Ok(c)
 }

@@ -26,18 +26,173 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         overlay_xy(&args.position, args.margin)?
     };
+    if args.tile > 0 {
+        let overlay_path = overlay.to_path_buf();
+        return tiled(args, overlay_path, &probe, g);
+    }
 
+    if args.dur.is_some() && args.at.is_none() {
+        return Err(Error::input("--dur needs --at"));
+    }
+    let windows = match &args.at {
+        Some(s) => crate::time::enable_windows(s, args.dur, probe.duration)?,
+        None => vec![(0.0, probe.duration)],
+    };
+    let enable = if args.at.is_some() {
+        let expr = windows
+            .iter()
+            .map(|(s, e)| format!("between(t,{s:.3},{e:.3})"))
+            .collect::<Vec<_>>()
+            .join("+");
+        format!(":enable='{expr}'")
+    } else {
+        String::new()
+    };
+    let fade = args
+        .fade
+        .clamp(0.0, ((windows[0].1 - windows[0].0) / 2.0).max(0.0));
+    if fade > 0.0 && args.tile > 0 {
+        return Err(Error::input("--fade is not supported with --tile"));
+    }
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
+    if fade > 0.0 && args.image.is_some() {
+        // Looping the still gives it advancing pts so alpha fades animate.
+        argv.extend(["-loop", "1", "-framerate", "30"]);
+    }
     argv.push("-i");
     argv.push(overlay);
-
-    let fc = if let Some(scale) = args.scale {
-        format!("[1:v]scale={scale}:-1[ov];[0:v][ov]overlay=x={x}:y={y}[vout]")
+    let (loop_pre, src0) = if args.loop_track {
+        let ov = args
+            .video
+            .as_ref()
+            .ok_or_else(|| Error::input("overlay --loop needs --video"))?;
+        if args.tile > 0 {
+            return Err(Error::input("overlay --loop is not supported with --tile"));
+        }
+        let ovp = engine::probe_or_err(ov, g)?;
+        let of = ovp.fps.unwrap_or(30.0);
+        (
+            format!(
+                "[1:v]loop=loop=-1:size={},setpts=N/({}*TB),fps={}[lv];",
+                (probe.duration * of).ceil() as u64,
+                of,
+                of
+            ),
+            "lv",
+        )
     } else {
-        format!("[0:v][1:v]overlay=x={x}:y={y}[vout]")
+        (String::new(), "1:v")
     };
+    let (rot_pre, src) = match args.angle {
+        Some(deg) => (
+            format!(
+                "[{src0}]format=rgba,rotate=a={:.6}:c=none[rotraw];",
+                deg.to_radians()
+            ),
+            "rotraw",
+        ),
+        None => (String::new(), src0),
+    };
+    let (border_pre, src2) = match args.border {
+        Some(b) if b > 0 => {
+            if args.tile > 0 {
+                return Err(Error::input(
+                    "overlay --border is not supported with --tile",
+                ));
+            }
+            if b > 200 {
+                return Err(Error::input("--border must be ≤ 200 px"));
+            }
+            let col = match args.border_color.as_deref() {
+                Some(c) => crate::color::lavfi(c),
+                None => "white".to_string(),
+            };
+            (
+                format!(
+                    "[{src}]pad=iw+{d}:ih+{d}:{b}:{b}:{col}[bov];",
+                    src = src,
+                    d = b * 2,
+                    b = b,
+                    col = col
+                ),
+                "bov",
+            )
+        }
+        Some(_) => return Err(Error::input("--border must be ≥ 1 px")),
+        None => (String::new(), src),
+    };
+    let (pre, ovl) = if fade > 0.0 {
+        (
+            {
+                let mut chain = format!("[{src}]format=rgba", src = src2);
+                for (s, e) in &windows {
+                    chain.push_str(&format!(
+                        ",fade=t=in:st={s:.3}:d={fade:.3}:alpha=1,fade=t=out:st={:.3}:d={fade:.3}:alpha=1",
+                        e - fade
+                    ));
+                }
+                chain.push_str("[ovl];");
+                chain
+            },
+            "ovl",
+        )
+    } else if args.image.is_some() && args.opacity < 1.0 && args.mode.is_none() {
+        // subtle watermark: scale + alpha on the still itself
+        let op = args.opacity.clamp(0.0, 1.0);
+        (
+            format!(
+                "[{src}]format=rgba,colorchannelmixer=aa={op:.3}[ovl];",
+                src = src2
+            ),
+            "ovl",
+        )
+    } else {
+        (String::new(), src2)
+    };
+    // Infinite looped still/--loop secondary: end each composite on the main stream.
+    let shortest = if (fade > 0.0 && args.image.is_some()) || args.loop_track {
+        ":shortest=1"
+    } else {
+        ""
+    };
+
+    let fc = if let Some(mode) = &args.mode {
+        const MODES: &[&str] = &[
+            "screen",
+            "addition",
+            "multiply",
+            "lighten",
+            "darken",
+            "overlay",
+            "difference",
+        ];
+        if !MODES.contains(&mode.as_str()) {
+            return Err(Error::input(format!(
+                "unknown --mode {mode}; use {MODES:?}"
+            )));
+        }
+        if args.scale.is_some() {
+            return Err(Error::input("--mode covers the whole frame; drop --scale"));
+        }
+        if args.x.is_some() || args.y.is_some() {
+            return Err(Error::input("--mode covers the whole frame; drop --x/--y"));
+        }
+        let (w, h) = (probe.width.unwrap_or(1280), probe.height.unwrap_or(720));
+        format!(
+            "[{ovl}]scale={w}:{h},format=yuv420p[b];             [0:v][b]blend=all_mode={mode}:all_opacity={op}{en}:shortest=1[vout]",
+            op = args.opacity.clamp(0.0, 1.0),
+            en = enable,
+        )
+    } else if let Some(scale) = args.scale {
+        format!("[{ovl}]scale={scale}:-1[ov];[0:v][ov]overlay=x={x}:y={y}{enable}{shortest}[vout]")
+    } else {
+        format!("[0:v][{ovl}]overlay=x={x}:y={y}{enable}{shortest}[vout]")
+    };
+    let fc = format!("{loop_pre}{rot_pre}{border_pre}{pre}{fc}");
+    let _ = x;
+    let _ = y;
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if probe.has_audio {
         argv.extend(["-map", "0:a?", "-c:a", "copy"]);
@@ -45,11 +200,11 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     argv.extend(["-c:v", "libx264", "-preset", "fast", "-crf", "18"]);
     argv.push(&args.output);
 
-    let inputs: Vec<&Path> = vec![&args.input, overlay];
+    let inputs: Vec<&Path> = vec![&args.input, &overlay];
     engine::write_job("overlay", &inputs, &args.output, vec![argv], g)
 }
 
-fn overlay_xy(pos: &str, margin: i32) -> Result<(String, String), Error> {
+pub(crate) fn overlay_xy(pos: &str, margin: i32) -> Result<(String, String), Error> {
     let m = margin;
     let (x, y) = match pos {
         "top-left" => (format!("{m}"), format!("{m}")),
@@ -68,4 +223,72 @@ fn overlay_xy(pos: &str, margin: i32) -> Result<(String, String), Error> {
         }
     };
     Ok((x, y))
+}
+
+/// Tiled draft watermark: N scaled copies chained as overlay passes in a
+/// diagonal/stepped pattern — one logo per pass (cheap up to ~6).
+fn tiled(
+    args: OverlayArgs,
+    overlay: std::path::PathBuf,
+    probe: &crate::probe::Probe,
+    g: &Globals,
+) -> Result<Contract, Error> {
+    let n = args.tile.clamp(2, 6);
+    let w = probe.width.unwrap_or(1280) as i64;
+    let h = probe.height.unwrap_or(720) as i64;
+    let scale = args.scale.unwrap_or(320);
+    // ffmpeg 4.4 consumes a pad label on first use — split into N copies.
+    if args.dur.is_some() && args.at.is_none() {
+        return Err(Error::input("--dur needs --at"));
+    }
+    let enable = match &args.at {
+        Some(s) => {
+            let expr = crate::time::enable_windows(s, args.dur, probe.duration)?
+                .iter()
+                .map(|(s, e)| format!("between(t,{s:.3},{e:.3})"))
+                .collect::<Vec<_>>()
+                .join("+");
+            format!(":enable='{expr}'")
+        }
+        None => String::new(),
+    };
+    let ovs: String = (0..n).map(|i| format!("[ov{i}]")).collect();
+    let mut seg: Vec<String> = vec![format!(
+        "[1:v]scale={scale}:-1,format=rgba,colorchannelmixer=aa=0.5,split={n}{ovs}"
+    )];
+    let mut prev = "[0:v]".to_string();
+    for i in 0..n {
+        // Diagonal cascade: each copy offset by its index
+        let fx = i as f64 / n as f64;
+        let fy = (i as f64 + 0.5) / n as f64;
+        let x = format!("{}-overlay_w/2", (fx * w as f64) as i64);
+        let y = format!("{}-overlay_h/2", (fy * h as f64) as i64);
+        let lab = if i + 1 == n {
+            "vout".to_string()
+        } else {
+            format!("t{i}")
+        };
+        let en = if i + 1 == n { enable.as_str() } else { "" };
+        seg.push(format!("{prev}[ov{i}]overlay=x={x}:y={y}{en}[{lab}]"));
+        prev = format!("[{lab}]");
+    }
+    let fc = seg.join(";");
+
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.push("-i");
+    argv.push(&overlay);
+    argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?", "-c:a", "copy"]);
+    }
+    argv.extend([
+        "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+    ]);
+    argv.push(&args.output);
+
+    let inputs: Vec<&Path> = vec![&args.input, &overlay];
+    let c = engine::write_job("overlay", &inputs, &args.output, vec![argv], g)?;
+    Ok(c.with_extra(serde_json::json!({ "tile": n })))
 }

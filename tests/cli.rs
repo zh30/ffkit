@@ -15,6 +15,14 @@ fn has_ffmpeg() -> bool {
         .unwrap_or(false)
 }
 
+fn has_filter(name: &str) -> bool {
+    Command::new("ffmpeg")
+        .args(["-hide_banner", "-filters"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).contains(name))
+        .unwrap_or(false)
+}
+
 fn fixture(dir: &Path) -> PathBuf {
     let out = dir.join("f.mp4");
     let status = Command::new("ffmpeg")
@@ -1978,4 +1986,14232 @@ fn audiogram_paints_waves_on_cover() {
     assert_eq!(v["probe"]["has_audio"], true, "{v}");
     let d = v["probe"]["duration"].as_f64().unwrap();
     assert!(d > 0.8 && d < 1.3, "audiogram keeps ~1s, got {d}; {v}");
+}
+
+#[test]
+fn replace_swaps_audio_keeps_video_and_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // 2s replacement audio; fixture video is ~1s so the bed must be trimmed.
+    let wav = dir.path().join("bed.wav");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=2",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let out = dir.path().join("swapped.mp4");
+    let v = run_json(&[
+        "replace",
+        f.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        wav.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["tool"], "replace");
+    assert_eq!(v["probe"]["has_video"], true, "{v}");
+    assert_eq!(v["probe"]["has_audio"], true, "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        d > 0.8 && d < 1.3,
+        "replace keeps video length, got {d}; {v}"
+    );
+}
+
+#[test]
+fn replace_refuses_audio_without_stream() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // A silent video as the --audio source must be refused.
+    let silent = dir.path().join("silent.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=64x64:rate=10",
+            "-an",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&silent)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let v = run_json(&[
+        "replace",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+        "--audio",
+        silent.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    // An mp4 that *does* carry audio is a valid --audio source too.
+    let v = run_json(&[
+        "replace",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("y.mp4").to_str().unwrap(),
+        "--audio",
+        f.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn grade_lut_shifts_pixels() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // Tiny 2x2x2 .cube that crushes red.
+    let lut = dir.path().join("crush.cube");
+    std::fs::write(
+        &lut,
+        "LUT_3D_SIZE 2\n0 0 0\n0 0 1\n0 1 0\n0 1 1\n0 0 0\n0 0 1\n0 1 0\n0 1 1\n",
+    )
+    .unwrap();
+    let out = dir.path().join("lutted.mp4");
+    let v = run_json(&[
+        "grade",
+        f.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--lut",
+        lut.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(
+        v["extra"]["lut"].as_str().unwrap(),
+        lut.to_str().unwrap(),
+        "{v}"
+    );
+}
+
+#[test]
+fn slideshow_assembles_stills_with_bed() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mut imgs = vec![];
+    for (i, c) in ["red", "green", "blue"].iter().enumerate() {
+        let p = dir.path().join(format!("i{i}.png"));
+        let status = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color=c={c}:s=320x240:d=0.5"),
+                "-frames:v",
+                "1",
+            ])
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        imgs.push(p);
+    }
+    let out = dir.path().join("show.mp4");
+    let v = run_json(&[
+        "slideshow",
+        imgs[0].to_str().unwrap(),
+        imgs[1].to_str().unwrap(),
+        imgs[2].to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--per",
+        "1",
+        "--fade",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["tool"], "slideshow");
+    // 3*1 - 2*0.2 = 2.6 expected
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 2.6).abs() < 0.4, "slideshow ≈2.6s, got {d}; {v}");
+    assert_eq!(v["probe"]["width"], 1920, "{v}");
+    assert_eq!(v["probe"]["height"], 1080, "{v}");
+    assert_eq!(v["probe"]["has_audio"], true, "{v}");
+}
+
+#[test]
+fn slideshow_refuses_fade_longer_than_per() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = dir.path().join("a.png");
+    let b = dir.path().join("b.png");
+    for p in [&a, &b] {
+        let status = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=red:s=64x64:d=0.5",
+                "-frames:v",
+                "1",
+            ])
+            .arg(p)
+            .status()
+            .unwrap();
+        assert!(status.success());
+    }
+    let v = run_json(&[
+        "slideshow",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        dir.path().join("s.mp4").to_str().unwrap(),
+        "--per",
+        "0.5",
+        "--fade",
+        "0.6",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn caption_chunk_splits_long_cues() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:01,000\nHELLO THERE BRAVE NEW WORLD\n\n\
+         2\n00:00:01,000 --> 00:00:01,800\nBYE NOW\n",
+    )
+    .unwrap();
+    let out = dir.path().join("cap.mp4");
+    let v = run_json(&[
+        "caption",
+        f.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--chunk",
+        "2",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    // 5 words -> 3 chunks of <=2; the short cue passes through: 4 total.
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["cues"], 4, "{v}");
+    assert_eq!(v["extra"]["chunk"], 2, "{v}");
+}
+
+#[test]
+fn caption_chunk_rejects_out_of_range() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:01,000\nHELLO WORLD\n").unwrap();
+    let v = run_json(&[
+        "caption",
+        f.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--chunk",
+        "0",
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn replace_mix_blends_original_under_new_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let bed = dir.path().join("bed.m4a");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&bed)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let out = dir.path().join("mix.mp4");
+    let v = run_json(&[
+        "replace",
+        f.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        bed.to_str().unwrap(),
+        "--mix",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["mix"], 0.3, "{v}");
+    assert!(out.exists());
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        (d - 1.0).abs() < 0.3,
+        "mix keeps video duration, got {d}; {v}"
+    );
+
+    // --mix on an input with no audio must be refused.
+    let silent = dir.path().join("silent.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=64x64:rate=10",
+            "-an",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&silent)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let v = run_json(&[
+        "replace",
+        silent.to_str().unwrap(),
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+        "--audio",
+        bed.to_str().unwrap(),
+        "--mix",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn slideshow_kenburns_and_wipe_transition() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mut imgs = vec![];
+    for (i, c) in ["red", "green", "blue"].iter().enumerate() {
+        let p = dir.path().join(format!("k{i}.png"));
+        let status = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color=c={c}:s=320x240:d=0.5"),
+                "-frames:v",
+                "1",
+            ])
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        imgs.push(p);
+    }
+    let out = dir.path().join("kb.mp4");
+    let v = run_json(&[
+        "slideshow",
+        imgs[0].to_str().unwrap(),
+        imgs[1].to_str().unwrap(),
+        imgs[2].to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--per",
+        "1",
+        "--fade",
+        "0.2",
+        "--motion",
+        "kenburns",
+        "--transition",
+        "wipeleft",
+        "--size",
+        "640x360",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["motion"], "kenburns", "{v}");
+    assert_eq!(v["extra"]["transition"], "wipeleft", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        (d - 2.6).abs() < 0.4,
+        "kenburns slideshow ≈2.6s, got {d}; {v}"
+    );
+    assert_eq!(v["probe"]["width"], 640, "{v}");
+}
+
+#[test]
+fn concat_transition_chains_three_clips() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mut clips = vec![];
+    for i in 0..3 {
+        let p = dir.path().join(format!("c{i}.mp4"));
+        let status = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=duration=2:size=320x240:rate=30",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("sine=frequency={}:duration=2", 300 + i * 200),
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                "-shortest",
+            ])
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        clips.push(p);
+    }
+    let out = dir.path().join("cat.mp4");
+    let v = run_json(&[
+        "concat",
+        clips[0].to_str().unwrap(),
+        clips[1].to_str().unwrap(),
+        clips[2].to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--transition",
+        "wipeleft",
+        "--duration",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["transition"], "wipeleft", "{v}");
+    assert_eq!(v["extra"]["clips"], 3, "{v}");
+    // 3*2 - 2*0.3 = 5.4
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 5.4).abs() < 0.5, "concat chain ≈5.4s, got {d}; {v}");
+    assert_eq!(v["probe"]["has_audio"], true, "{v}");
+}
+
+#[test]
+fn concat_transition_refuses_clip_shorter_than_fade() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    let b = fixture(dir.path());
+    let v = run_json(&[
+        "concat",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+        "--transition",
+        "fade",
+        "--duration",
+        "2",
+    ]);
+    // fixture is 1s; a 2s transition can't fit.
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn split_cuts_equal_parts() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("long.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=5:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=5",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("part.mp4").to_str().unwrap(),
+        "--every",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let parts = v["extra"]["parts"].as_array().unwrap();
+    assert_eq!(parts.len(), 3, "5s / every 2 -> 3 parts; {v}");
+    let d0 = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d0 - 2.0).abs() < 0.3, "first part ≈2s, got {d0}; {v}");
+    for p in parts {
+        assert!(std::path::Path::new(p.as_str().unwrap()).exists(), "{v}");
+    }
+}
+
+#[test]
+fn key_composites_greenscreen_over_background() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let fg = dir.path().join("fg.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0x00ff00:size=320x240:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:size=80x80:duration=1",
+            "-filter_complex",
+            "[0:v][1:v]overlay=100:80",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&fg)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let bg = dir.path().join("bg.png");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=blue:size=640x480:duration=0.5",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&bg)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let out = dir.path().join("key.mp4");
+    let v = run_json(&[
+        "key",
+        fg.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--bg",
+        bg.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["bg_is_still"], true, "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.0).abs() < 0.3, "key keeps fg duration, got {d}; {v}");
+}
+
+#[test]
+fn key_refuses_bad_color() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let v = run_json(&[
+        "key",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+        "--bg",
+        f.to_str().unwrap(),
+        "--color",
+        "green",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn split_at_chapter_points() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("long.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=5:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=5",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("ch.mp4").to_str().unwrap(),
+        "--at",
+        "2,3.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let parts = v["extra"]["parts"].as_array().unwrap();
+    assert_eq!(parts.len(), 3, "cuts at 2,3.5 -> 3 parts; {v}");
+    let d0 = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d0 - 2.0).abs() < 0.3, "first part ≈2s, got {d0}; {v}");
+
+    // --every and --at together is refused.
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("y.mp4").to_str().unwrap(),
+        "--every",
+        "2",
+        "--at",
+        "3",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn volume_at_mutes_only_the_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("v.mp4");
+    // Crush the second half.
+    let v = run_json(&[
+        "volume",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--db",
+        "-24",
+        "--at",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let mean_at = |ss: &str, dur: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-ss", ss, "-t", dur, "-i"])
+            .arg(&out)
+            .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stderr);
+        s.lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(0.0)
+    };
+    let first = mean_at("0", "0.5");
+    let last = mean_at("0.55", "0.4");
+    assert!(
+        last < first - 10.0,
+        "windowed gain should hit only the tail ({first} -> {last}); {v}"
+    );
+    // --dur without --at is refused.
+    let v = run_json(&[
+        "volume",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("w.mp4").to_str().unwrap(),
+        "--db",
+        "-6",
+        "--dur",
+        "1",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn progress_bar_fills_over_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("p.mp4");
+    let v = run_json(&[
+        "progress",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let bar = |n: u32| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&out)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n}),crop=320:4:0:236"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+        o.stdout
+            .chunks(3)
+            .filter(|c| c.len() == 3 && c.iter().all(|b| *b > 200))
+            .count() as f64
+            / 320.0
+            / 4.0
+    };
+    let early = bar(3);
+    let late = bar(28);
+    assert!(early < 0.5, "bar barely filled at 0.1s ({early}); {v}");
+    assert!(late > 0.8, "bar nearly full at 0.95s ({late}); {v}");
+}
+
+#[test]
+fn grid_stacks_four_tiles() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let mut inputs = Vec::new();
+    for (i, c) in ["red", "green", "blue", "yellow"].iter().enumerate() {
+        let f = dir.path().join(format!("g{i}.mp4"));
+        let status = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color=c={c}:duration=1:size=320x240:rate=30"),
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=1",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                "-shortest",
+            ])
+            .arg(&f)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        inputs.push(f);
+    }
+    let out = dir.path().join("grid.mp4");
+    let v = run_json(&[
+        "grid",
+        inputs[0].to_str().unwrap(),
+        inputs[1].to_str().unwrap(),
+        inputs[2].to_str().unwrap(),
+        inputs[3].to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "640x480",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"].as_u64().unwrap(), 640);
+    assert_eq!(v["probe"]["height"].as_u64().unwrap(), 480);
+    // 3 inputs into a 2x2 is fine; 5 is refused.
+    let v = run_json(&[
+        "grid",
+        inputs[0].to_str().unwrap(),
+        inputs[1].to_str().unwrap(),
+        inputs[2].to_str().unwrap(),
+        inputs[3].to_str().unwrap(),
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("too.mp4").to_str().unwrap(),
+        "--size",
+        "640x480",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn freeze_end_pads_last_frame() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("fr.mp4");
+    let v = run_json(&[
+        "freeze",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--end",
+        "1.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["extra"]["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        (d - 2.5).abs() < 0.3,
+        "1s clip + 1.5s freeze = ~2.5s, got {d}"
+    );
+    // frozen tail: frame at t≈2.0 identical to last source frame
+    let px = |n: u32| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&out)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n})"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let a = px(29); // last source frame (~0.97s)
+    let b = px(59); // deep in the frozen tail (~1.97s)
+    assert!(!a.is_empty() && !b.is_empty());
+    let diff: u64 = a
+        .iter()
+        .zip(b.iter())
+        .map(|(x, y)| x.abs_diff(*y) as u64)
+        .sum();
+    assert!(
+        diff < a.len() as u64,
+        "frozen frames should be near-identical (diff {diff} on {} bytes)",
+        a.len()
+    );
+}
+
+#[test]
+fn censor_pixelizes_the_region() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--region",
+        "100:100:64:64",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // inside the box the mosaic changes pixels vs the source; outside stays.
+    let region = |f: &Path| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                "crop=64:64:100:100",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let src_px = region(&src);
+    let out_px = region(&out);
+    let diff: u64 = src_px
+        .iter()
+        .zip(out_px.iter())
+        .map(|(x, y)| x.abs_diff(*y) as u64)
+        .sum();
+    assert!(
+        diff > 5000,
+        "mosaic must alter the region (diff {diff}); {v}"
+    );
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+        "--region",
+        "500:500:64:64",
+    ]);
+    assert_eq!(v["status"], "failed", "out-of-frame region refused; {v}");
+}
+
+#[test]
+fn speed_at_ramps_only_the_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "speed",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--factor",
+        "2",
+        "--at",
+        "0.4",
+        "--dur",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let p = run_json(&["probe", out.to_str().unwrap()]);
+    let d = p["probe"]["duration"]
+        .as_f64()
+        .unwrap_or_else(|| p["extra"]["probe"]["duration"].as_f64().unwrap_or(0.0));
+    assert!(
+        (d - 0.9).abs() < 0.15,
+        "1s with a 0.2s window at 2x = 0.9s, got {d}; {v}"
+    );
+}
+
+#[test]
+fn boomerang_doubles_and_last_frame_matches_first() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "boomerang",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["extra"]["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 2.0).abs() < 0.3, "1s fwd + 1s rev = ~2s, got {d}; {v}");
+    let px = |n: u32| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&out)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n})"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let a = px(0);
+    let b = px(59); // last frame of 60 == reverse's last frame == source frame 0
+    assert!(!a.is_empty() && !b.is_empty());
+    let diff: u64 = a
+        .iter()
+        .zip(b.iter())
+        .map(|(x, y)| x.abs_diff(*y) as u64)
+        .sum();
+    assert!(
+        diff < a.len() as u64,
+        "boomerang ends where it starts (diff {diff} on {})",
+        a.len()
+    );
+}
+
+#[test]
+fn chapter_embeds_named_marks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("ch.mp4");
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0|Intro",
+        "--at",
+        "0.5|Middle",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args(["-v", "error", "-show_chapters", "-of", "csv"])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    assert!(s.contains("Intro") && s.contains("Middle"), "chapters: {s}");
+    // bad entry refused
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+        "--at",
+        "no title separator",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn zoom_at_punches_only_the_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("z.mp4");
+    let v = run_json(&[
+        "zoom",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--factor",
+        "1.5",
+        "--at",
+        "0.4",
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"]
+        .as_f64()
+        .unwrap_or_else(|| v["extra"]["probe"]["duration"].as_f64().unwrap_or(0.0));
+    assert!(
+        (d - 1.0).abs() < 0.15,
+        "windowed zoom keeps duration, got {d}; {v}"
+    );
+    // frame inside the window differs from source; frame outside matches
+    let px = |f: &Path, n: u32| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n}),crop=64:64:128:88"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let inside_src = px(&src, 15); // ~0.5s inside window
+    let inside_out = px(&out, 15);
+    let diff: u64 = inside_src
+        .iter()
+        .zip(inside_out.iter())
+        .map(|(x, y)| x.abs_diff(*y) as u64)
+        .sum();
+    assert!(diff > 500, "zoomed center must differ inside window; {v}");
+}
+
+#[test]
+fn key_despill_keeps_composite_working() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let bg = dir.path().join("bg.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0x0000ff:size=640x480",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&bg)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("k.mp4");
+    let v = run_json(&[
+        "key",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--bg",
+        bg.to_str().unwrap(),
+        "--color",
+        "0xff7f00",
+        "--despill",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn autocrop_strips_letterbox() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let padded = dir.path().join("padded.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-vf",
+            "pad=320:320:0:40:color=black",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&padded)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("cropped.mp4");
+    let v = run_json(&[
+        "autocrop",
+        padded.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["extra"]["detected"].as_object().unwrap();
+    let h = d["h"].as_u64().unwrap();
+    assert!(
+        h <= 242,
+        "letterboxed 240 of 320 rows should be detected, got {h}"
+    );
+}
+
+#[test]
+fn sheet_tiles_the_clip() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("sheet.png");
+    let v = run_json(&[
+        "sheet",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--cols",
+        "2",
+        "--rows",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // sheet output is a single PNG with 4 tile regions differing in pixels
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+    let (w, h) = s
+        .split_once(',')
+        .map(|(a, b)| (a.parse::<u32>().unwrap_or(0), b.parse::<u32>().unwrap_or(0)))
+        .unwrap_or((0, 0));
+    assert!(
+        w >= 640 && h >= 480,
+        "2x2 @ 320 tiles+padding ≥ 640x480, got {w}x{h}"
+    );
+}
+
+#[test]
+fn title_at_shows_mid_clip() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "MID",
+        "--at",
+        "0.4",
+        "--duration",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        (v["extra"]["at"].as_f64().unwrap() - 0.4).abs() < 1e-6,
+        "{v}"
+    );
+}
+
+#[test]
+fn replace_duck_dips_original_under_voice() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // video with a loud bed; replacement = quiet tone
+    let src = dir.path().join("bed.mp4");
+    let voice = dir.path().join("voice.wav");
+    for (args, path) in [
+        (
+            vec![
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=duration=2:size=160x120:rate=15",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=220:duration=2",
+            ],
+            &src,
+        ),
+        (
+            vec!["-f", "lavfi", "-i", "sine=frequency=880:duration=2"],
+            &voice,
+        ),
+    ] {
+        let mut a = vec!["-hide_banner", "-loglevel", "error", "-y"];
+        a.extend(args.iter().copied());
+        a.extend([
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ]);
+        if path == &voice {
+            a = vec!["-hide_banner", "-loglevel", "error", "-y"];
+            a.extend(args.iter().copied());
+        }
+        let st = Command::new("ffmpeg").args(&a).arg(path).status().unwrap();
+        assert!(st.success());
+    }
+    let out = dir.path().join("ducked.mp4");
+    let v = run_json(&[
+        "replace",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        voice.to_str().unwrap(),
+        "--mix",
+        "1.0",
+        "--duck",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // both streams mixed: second has the 880Hz voice AND (compressed) 220Hz bed
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args(["-af", "volumedetect", "-f", "null", "-"])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stderr);
+    let mean: f64 = s
+        .split("mean_volume:")
+        .nth(1)
+        .and_then(|r| r.split_whitespace().next())
+        .and_then(|r| r.trim_end_matches("dB").parse().ok())
+        .unwrap_or(-99.0);
+    assert!(
+        mean > -60.0,
+        "mixed output should carry audio, mean {mean}dB; {v}"
+    );
+}
+
+#[test]
+fn pitch_semitones_shift_keeps_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("p.m4a");
+    let v = run_json(&[
+        "pitch",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--semitones",
+        "7",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        (d - 1.0).abs() < 0.2,
+        "pitch keeps duration ~1s, got {d}; {v}"
+    );
+    // 440Hz -> ~659Hz at +7st: zero-crossing count should rise ~1.5x
+    let zc = |f: &Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args(["-af", "astats", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stderr);
+        s.lines()
+            .filter(|l| l.contains("Zero crossings:"))
+            .filter_map(|l| l.rsplit(':').next())
+            .filter_map(|v| v.trim().parse::<f64>().ok())
+            .fold(0.0, f64::max)
+    };
+    let (a, b) = (zc(&src), zc(&out));
+    assert!(b > a * 1.3, "zero crossings should rise: {a} -> {b}");
+}
+
+#[test]
+fn grade_grain_adds_noise() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let flat = dir.path().join("flat.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0x808080:size=160x120:rate=15:duration=1",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-crf",
+            "23",
+        ])
+        .arg(&flat)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("g.mp4");
+    let v = run_json(&[
+        "grade",
+        flat.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--grain",
+        "12",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let variance = |f: &Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                "crop=80:60:40:30,signalstats,metadata=print:key=lavfi.signalstats.YMIN:file=-",
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stdout);
+        s.lines()
+            .filter_map(|l| l.split("YMIN=").nth(1))
+            .filter_map(|v| v.trim().parse::<f64>().ok())
+            .fold(f64::NEG_INFINITY, f64::max)
+    };
+    // flat gray: YMIN stays ~128 without grain, dips with it
+    let (a, b) = (variance(&flat), variance(&out));
+    assert!(
+        b < a - 4.0,
+        "grain should push dark pixels in flat area: {a} -> {b}"
+    );
+}
+
+#[test]
+fn split_scenes_cuts_at_shot_change() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // red 0.5s -> blue 0.5s -> green 0.5s = 2 hard scene cuts
+    let src = dir.path().join("shots.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:size=160x120:rate=20:duration=0.5",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=blue:size=160x120:rate=20:duration=0.5",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=green:size=160x120:rate=20:duration=0.5",
+            "-filter_complex",
+            "[0:v][1:v][2:v]concat=n=3:v=1[v]",
+            "-map",
+            "[v]",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-g",
+            "20",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("shot_%02d.mp4").to_str().unwrap(),
+        "--scenes",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let count = v["extra"]["count"].as_u64().unwrap_or(0);
+    assert!(
+        count >= 2,
+        "two color cuts should split into >=2 parts, got {count}; {v}"
+    );
+}
+
+#[test]
+fn grid_audio_follows_one_input() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mk = |name: &str, color: &str, hz: u32| -> PathBuf {
+        let p = dir.path().join(name);
+        let st = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color=c={color}:size=160x120:rate=15:duration=1"),
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("sine=frequency={hz}:duration=1"),
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                "-shortest",
+            ])
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(st.success());
+        p
+    };
+    let a = mk("a.mp4", "red", 220);
+    let b = mk("b.mp4", "blue", 440);
+    let c = mk("c.mp4", "green", 660);
+    let d = mk("d.mp4", "yellow", 880);
+    let out = dir.path().join("g.mp4");
+    let v = run_json(&[
+        "grid",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        c.to_str().unwrap(),
+        d.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // output audio should be the 660Hz sine only — zero-crossings ~1320/s
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args(["-af", "astats", "-f", "null", "-"])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stderr);
+    let zc: f64 = s
+        .lines()
+        .filter(|l| l.contains("Zero crossings:"))
+        .filter_map(|l| l.rsplit(':').next())
+        .filter_map(|v| v.trim().parse::<f64>().ok())
+        .fold(0.0, f64::max);
+    assert!(
+        zc > 1000.0 && zc < 1600.0,
+        "audio from input 2 = 660Hz ~1320 zc, got {zc}; {v}"
+    );
+}
+
+#[test]
+fn cutsil_strips_head_and_tail_silence() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // 0.5s silence + 1s tone + 0.5s silence
+    let src = dir.path().join("pad.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=r=48000:cl=stereo:d=0.5",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=r=48000:cl=stereo:d=0.5",
+            "-filter_complex",
+            "[0:a][1:a][2:a]concat=n=3:v=0:a=1[a]",
+            "-map",
+            "[a]",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("cut.m4a");
+    let v = run_json(&["cutsil", src.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        d > 0.5 && d < 1.5,
+        "padded 2s -> ~1s after both-end strip, got {d}; {v}"
+    );
+}
+
+#[test]
+fn overlay_tile_repeats_watermark() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let logo = dir.path().join("logo.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=white:size=40x40",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&logo)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--image",
+        logo.to_str().unwrap(),
+        "--scale",
+        "40",
+        "--tile",
+        "4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["tile"].as_u64(), Some(4), "{v}");
+    // four white copies on a testsrc frame: two opposite corners differ from source
+    let px = |f: &Path| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                "select=eq(n\\,15)",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let a = px(&src);
+    let b = px(&out);
+    let diff: u64 = a
+        .iter()
+        .zip(b.iter())
+        .map(|(x, y)| x.abs_diff(*y) as u64)
+        .sum();
+    assert!(diff > 5000, "4 white tiles must change pixels; {v}");
+}
+
+#[test]
+fn caption_shift_moves_cue_timing() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,100 --> 00:00:00,400\nHI\n").unwrap();
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--mode",
+        "burn",
+        "--safe",
+        "off",
+        "--shift",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // cue now lives at 0.5-0.8s: frame 5 (0.17s) == source; frame 18 (0.6s) differs
+    let px = |f: &Path, n: u32| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n})"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let d = |n: u32| -> u64 {
+        let a = px(&src, n);
+        let b = px(&out, n);
+        a.iter()
+            .zip(b.iter())
+            .map(|(x, y)| x.abs_diff(*y) as u64)
+            .sum()
+    };
+    let pre = d(5);
+    let inside = d(18);
+    assert!(
+        inside > pre + 2000,
+        "caption must appear after shift: pre {pre} vs inside {inside}; {v}"
+    );
+}
+
+#[test]
+fn transcode_gif_honors_fps_and_width() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("g.gif");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "gif",
+        "--fps",
+        "5",
+        "--width",
+        "160",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,avg_frame_rate",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    assert!(s.contains("160"), "gif width 160, got {s}");
+    assert!(s.contains("5/1"), "gif fps 5, got {s}");
+}
+
+#[test]
+fn channel_dualmono_fills_both_ears() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // mono voice file → dualmono → 2 channels
+    let src = dir.path().join("mono.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-ac",
+            "1",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("stereo.m4a");
+    let v = run_json(&[
+        "channel",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "dualmono",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let ch = v["probe"]["channels"].as_u64().unwrap_or(0);
+    assert_eq!(ch, 2, "dualmono → stereo, got {ch}; {v}");
+}
+
+#[test]
+fn channel_swap_flips_left_right() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // left-ear only sine: pan stereo c0→FL, silence FR
+    let src = dir.path().join("left.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-af",
+            "pan=stereo|c0=c0|c1=0*c0",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("swapped.m4a");
+    let v = run_json(&[
+        "channel",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "swap",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // measure per-channel RMS via pan extract of each ear
+    let rms = |f: &Path, sel: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-af",
+                &format!("pan=mono|c0={sel},volumedetect"),
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stderr);
+        s.split("mean_volume:")
+            .nth(1)
+            .and_then(|r| r.split_whitespace().next())
+            .and_then(|r| r.trim_end_matches("dB").parse().ok())
+            .unwrap_or(-99.0)
+    };
+    let (l0, r0) = (rms(&src, "c0"), rms(&src, "c1"));
+    let (l1, r1) = (rms(&out, "c0"), rms(&out, "c1"));
+    assert!(
+        r1 > r0 + 15.0 && l1 < l0 - 15.0,
+        "swap must move the ear: ({l0:.1},{r0:.1}) -> ({l1:.1},{r1:.1}); {v}"
+    );
+}
+
+#[test]
+fn loop_until_hits_target_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path()); // 1s
+    let out = dir.path().join("l.mp4");
+    let v = run_json(&[
+        "loop",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--until",
+        "2.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        (d - 2.5).abs() < 0.35,
+        "loop --until 2.5 → ~2.5s, got {d}; {v}"
+    );
+    assert!(v["extra"]["times"].as_u64().unwrap_or(0) >= 3, "{v}");
+}
+
+#[test]
+fn title_tile_stamps_multiple_copies() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("tw.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "DRAFT",
+        "--tile",
+        "4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(
+        v["extra"]["position"].as_str().unwrap_or(""),
+        "tile-4",
+        "{v}"
+    );
+}
+
+#[test]
+fn eq_bass_raises_low_energy() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("sine.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=110:duration=1",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("bass.m4a");
+    let v = run_json(&[
+        "eq",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--bass",
+        "8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let mean = |f: &Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args(["-af", "volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stderr);
+        s.split("mean_volume:")
+            .nth(1)
+            .and_then(|r| r.split_whitespace().next())
+            .and_then(|r| r.trim_end_matches("dB").parse().ok())
+            .unwrap_or(-99.0)
+    };
+    let (a, b) = (mean(&src), mean(&out));
+    assert!(
+        b > a + 3.0,
+        "+8dB bass on 110Hz should raise level: {a} -> {b}; {v}"
+    );
+}
+
+#[test]
+fn zoom_motion_kenburns_pushes_over_time() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("z.mp4");
+    let v = run_json(&[
+        "zoom",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--factor",
+        "1.4",
+        "--motion",
+        "kenburns",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // early frame ≈ unzoomed, late frame zoomed: diff vs source grows
+    let px = |f: &Path, n: u32| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n}),crop=64:64:128:88"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let d = |n: u32| -> u64 {
+        let a = px(&src, n);
+        let b = px(&out, n);
+        a.iter()
+            .zip(b.iter())
+            .map(|(x, y)| x.abs_diff(*y) as u64)
+            .sum()
+    };
+    let (e, l) = (d(3), d(27));
+    assert!(
+        l > e + 300,
+        "kenburns diff grows over clip: {e} -> {l}; {v}"
+    );
+}
+
+#[test]
+fn broll_still_inserts_image() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let still = dir.path().join("s.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0xff0000:size=320x240",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&still)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "broll",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--insert",
+        still.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "--duration",
+        "0.4",
+        "--still",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // inside the window the frame is red
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args([
+            "-vf",
+            "select=eq(n\\,18),signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-",
+            "-frames:v",
+            "1",
+            "-f",
+            "null",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    let y: f64 = s
+        .split("YAVG=")
+        .nth(1)
+        .and_then(|r| r.trim().parse().ok())
+        .unwrap_or(0.0);
+    // red (0xff0000) in bt601 Y ≈ 76; testsrc center isn't uniformly red
+    assert!(
+        (60.0..95.0).contains(&y),
+        "red still fills the window, YAVG {y}; {v}"
+    );
+}
+
+#[test]
+fn rotate_swaps_dimensions() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("r.mp4");
+    let v = run_json(&[
+        "rotate",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--deg",
+        "90",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    assert_eq!(
+        s.trim(),
+        "240,320",
+        "90deg should swap 320x240 -> 240x320; {v}"
+    );
+}
+
+#[test]
+fn delogo_blends_out_box() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // Burn a solid white box at 10,10 60x40
+    let marked = dir.path().join("marked.mp4");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&src)
+        .args([
+            "-vf",
+            "drawbox=x=10:y=10:w=60:h=40:color=white:t=fill",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "18",
+            "-c:a",
+            "copy",
+        ])
+        .arg(&marked)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("d.mp4");
+    let v = run_json(&[
+        "delogo",
+        marked.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--x",
+        "10",
+        "--y",
+        "10",
+        "--w",
+        "60",
+        "--h",
+        "40",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let mean_luma = |f: &Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                "crop=40:20:20:20,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-",
+                "-frames:v",
+                "1",
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stdout);
+        s.split("YAVG=")
+            .nth(1)
+            .and_then(|r| r.lines().next())
+            .and_then(|r| r.trim().parse().ok())
+            .unwrap_or(-1.0)
+    };
+    let (a, b) = (mean_luma(&marked), mean_luma(&out));
+    assert!(
+        b < a - 30.0,
+        "logo box luma drops after delogo: {a} -> {b}; {v}"
+    );
+}
+
+#[test]
+fn speed_interp_adds_frames() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let plain = dir.path().join("p.mp4");
+    let interp = dir.path().join("i.mp4");
+    let v1 = run_json(&[
+        "speed",
+        src.to_str().unwrap(),
+        "-o",
+        plain.to_str().unwrap(),
+        "--factor",
+        "0.5",
+    ]);
+    assert_eq!(v1["status"], "ok", "{v1}");
+    let v2 = run_json(&[
+        "speed",
+        src.to_str().unwrap(),
+        "-o",
+        interp.to_str().unwrap(),
+        "--factor",
+        "0.5",
+        "--interp",
+    ]);
+    assert_eq!(v2["status"], "ok", "{v2}");
+    let frames = |f: &Path| -> u64 {
+        let o = Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-count_packets",
+                "-show_entries",
+                "stream=nb_read_packets",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(f)
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stdout)
+            .trim()
+            .parse()
+            .unwrap_or(0)
+    };
+    let (a, b) = (frames(&plain), frames(&interp));
+    assert!(b > a + 10, "interp should add frames: {a} -> {b}; {v2}");
+}
+
+#[test]
+fn title_color_and_size_render() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // red title, 2x size
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "HI",
+        "--duration",
+        "0.5",
+        "--color",
+        "ff0000",
+        "--size",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // R channel should dominate in center rows where the title sits
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args([
+            "-vf",
+            "select=eq(n\\,5),crop=200:80:60:80",
+            "-frames:v",
+            "1",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let px = o.stdout;
+    let mut r = 0u64;
+    let mut b = 0u64;
+    for c in px.chunks(3) {
+        r += c[0] as u64;
+        b += c[2] as u64;
+    }
+    assert!(r > b, "red title should dominate: R {r} vs B {b}; {v}");
+}
+
+#[test]
+fn meta_writes_title_tag() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "meta",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--title",
+        "Episode 12",
+        "--artist",
+        "Pod Team",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args(["-v", "error", "-show_entries", "format_tags", "-of", "json"])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    assert!(s.contains("Episode 12"), "title tag written: {s}");
+    assert!(s.contains("Pod Team"), "artist tag written: {s}");
+    // lossless copy: same duration
+    assert!(
+        (v["probe"]["duration"].as_f64().unwrap_or(0.0) - 1.0).abs() < 0.05,
+        "{v}"
+    );
+}
+
+#[test]
+fn broll_still_motion_keeps_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let still = dir.path().join("s.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0x00ff00:size=320x240",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&still)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "broll",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--insert",
+        still.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--duration",
+        "0.5",
+        "--still",
+        "--motion",
+        "kenburns",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // window shows the green still, and duration stays at A-roll's 1s
+    assert!(
+        (v["probe"]["duration"].as_f64().unwrap_or(0.0) - 1.0).abs() < 0.2,
+        "{v}"
+    );
+}
+
+#[test]
+fn overlay_windowed_shows_only_inside() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // black 40x40 logo on the bright top-right gradient
+    let logo = dir.path().join("logo.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0x000000:size=40x40",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&logo)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("o.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--image",
+        logo.to_str().unwrap(),
+        "--position",
+        "top-right",
+        "--at",
+        "0.5",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // frame 3 (t=0.1) top-right corner should NOT be white; frame 20 (t=0.67) should be
+    let corner = |n: u32| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"]).arg(&out)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n}),crop=30:30:285:5,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-"),
+                "-frames:v", "1", "-f", "null", "-",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stdout)
+            .split("YAVG=")
+            .nth(1)
+            .and_then(|r| r.lines().next())
+            .and_then(|r| r.trim().parse().ok())
+            .unwrap_or(-1.0)
+    };
+    let (before, inside) = (corner(3), corner(20));
+    assert!(
+        before > inside + 40.0,
+        "black logo drops luma only inside window: {before} -> {inside}; {v}"
+    );
+}
+
+#[test]
+fn caption_color_burns_red() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:01,000\nRED TEXT\n").unwrap();
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--mode",
+        "burn",
+        "--color",
+        "ff0000",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let white = dir.path().join("w.mp4");
+    let v2 = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "-o",
+        white.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--mode",
+        "burn",
+    ]);
+    assert_eq!(v2["status"], "ok", "{v2}");
+    // red text drops the B channel vs the white default on the same strip
+    let blue_energy = |f: &Path| -> u64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                "select=eq(n\\,5),crop=300:80:10:140",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        o.stdout.chunks(3).map(|c| c[2] as u64).sum()
+    };
+    let (b_red, b_white) = (blue_energy(&out), blue_energy(&white));
+    assert!(
+        b_red + 3000 < b_white,
+        "red caption drops B energy: {b_white} -> {b_red}; {v}"
+    );
+}
+
+#[test]
+fn subs_extracts_embedded() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // mkv with embedded srt
+    let srt = dir.path().join("in.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,800\nhello subs\n").unwrap();
+    let mkv = dir.path().join("with.mkv");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&src)
+        .args(["-i"])
+        .arg(&srt)
+        .args([
+            "-map", "0", "-map", "1", "-c:v", "copy", "-c:a", "copy", "-c:s", "srt",
+        ])
+        .arg(&mkv)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "fixture mkv w/ subs");
+    let out = dir.path().join("out.srt");
+    let v = run_json(&["subs", mkv.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let text = std::fs::read_to_string(&out).unwrap_or_default();
+    assert!(text.contains("hello subs"), "extracted srt has cue: {text}");
+}
+
+#[test]
+fn meta_rotate_writes_display_matrix() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("rot.mp4");
+    let v = run_json(&[
+        "meta",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--rotate",
+        "90",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let rot = |p: &std::path::Path| -> f64 {
+        // ffprobe <7 lacks the `stream_side_data` show_entries section.
+        let o = Command::new("ffprobe")
+            .args(["-v", "error", "-select_streams", "v:0", "-show_streams"])
+            .arg(p)
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stdout)
+            .lines()
+            .find_map(|l| {
+                l.trim()
+                    .strip_prefix("rotation=")
+                    .and_then(|r| r.parse::<f64>().ok())
+            })
+            .unwrap_or(0.0)
+    };
+    assert!(
+        (rot(&out).abs() - 90.0).abs() < 0.1,
+        "display matrix rotation +/-90, got {}",
+        rot(&out)
+    );
+    // lossless: duration unchanged
+    assert!(
+        (v["probe"]["duration"].as_f64().unwrap_or(0.0) - 1.0).abs() < 0.05,
+        "{v}"
+    );
+    // clear it back
+    let out2 = dir.path().join("rot0.mp4");
+    let v2 = run_json(&[
+        "meta",
+        out.to_str().unwrap(),
+        "-o",
+        out2.to_str().unwrap(),
+        "--rotate",
+        "0",
+    ]);
+    assert_eq!(v2["status"], "ok", "{v2}");
+    assert!(
+        rot(&out2).abs() < 45.0,
+        "rotation cleared to ~0, got {}",
+        rot(&out2)
+    );
+}
+
+#[test]
+fn audiogram_mode_and_color_recolor_wave() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("talk.wav");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    // red line-mode wave vs default white cline
+    let red = dir.path().join("red.mp4");
+    let vr = run_json(&[
+        "audiogram",
+        wav.to_str().unwrap(),
+        "-o",
+        red.to_str().unwrap(),
+        "--mode",
+        "line",
+        "--color",
+        "0xFF0000",
+    ]);
+    assert_eq!(vr["status"], "ok", "{vr}");
+    let white = dir.path().join("white.mp4");
+    let vw = run_json(&[
+        "audiogram",
+        wav.to_str().unwrap(),
+        "-o",
+        white.to_str().unwrap(),
+    ]);
+    assert_eq!(vw["status"], "ok", "{vw}");
+    // R-B mean inside the wave band (overlay sits ~(H-h)*0.62 down)
+    let rb = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-ss", "0.5", "-i"])
+            .arg(p)
+            .args([
+                "-vf",
+                "crop=600:200:240:1050",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let px = &o.stdout;
+        assert!(px.len() >= 600 * 200 * 3, "raw rgb24 frame");
+        let (mut rs, mut bs) = (0u64, 0u64);
+        for c in px.chunks_exact(3) {
+            rs += c[0] as u64;
+            bs += c[2] as u64;
+        }
+        (rs as f64 - bs as f64) / (px.len() / 3) as f64
+    };
+    let (red_rb, white_rb) = (rb(&red), rb(&white));
+    assert!(
+        red_rb > white_rb + 10.0,
+        "red wave is redder than white wave: red(R-B)={red_rb} white={white_rb}"
+    );
+}
+
+#[test]
+fn delogo_at_blurs_only_the_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let marked = dir.path().join("marked.mp4");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&src)
+        .args([
+            "-vf",
+            "drawbox=x=10:y=10:w=60:h=40:color=white:t=fill",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "18",
+            "-c:a",
+            "copy",
+        ])
+        .arg(&marked)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "marked fixture");
+    let out = dir.path().join("d.mp4");
+    let v = run_json(&[
+        "delogo",
+        marked.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--x",
+        "10",
+        "--y",
+        "10",
+        "--w",
+        "60",
+        "--h",
+        "40",
+        "--at",
+        "0.5",
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let luma = |n: u32| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&out)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n}),crop=40:20:20:20,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-"),
+                "-frames:v", "1", "-f", "null", "-",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stdout)
+            .split("YAVG=")
+            .nth(1)
+            .and_then(|r| r.lines().next())
+            .and_then(|r| r.trim().parse().ok())
+            .unwrap_or(-1.0)
+    };
+    let (before, inside) = (luma(3), luma(21));
+    assert!(
+        before > inside + 30.0,
+        "box intact before window ({before}) but blended inside ({inside}); {v}"
+    );
+}
+
+#[test]
+fn reverb_adds_tail_after_tone() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // 0.2s tone then silence — the tail window stays silent unless reverb rings
+    let wav = dir.path().join("pulse.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.2,apad=whole_dur=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "pulse fixture");
+    let tail = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args([
+                "-af",
+                "atrim=0.3:0.5,volumedetect",
+                "-vn",
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(0.0)
+    };
+    let dry_tail = tail(&wav);
+    let out = dir.path().join("wet.wav");
+    let v = run_json(&[
+        "reverb",
+        wav.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "hall",
+        "--wet",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let wet_tail = tail(&out);
+    assert!(
+        wet_tail > dry_tail + 10.0,
+        "reverb rings into the silent tail: dry {dry_tail} dB -> wet {wet_tail} dB; {v}"
+    );
+}
+
+#[test]
+fn bleep_replaces_source_with_tone_in_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "bleep",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+        "--freq",
+        "1000",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let band = |f: &Path, win: &str, hz: u32| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-af",
+                &format!("atrim={win},bandpass=f={hz}:w=200,volumedetect"),
+                "-vn",
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(-99.0)
+    };
+    let beep = band(&out, "0.3:0.7", 1000);
+    let src_in = band(&out, "0.3:0.7", 440);
+    let src_out = band(&out, "0:0.2", 440);
+    assert!(beep > -50.0, "1kHz beep audible in window ({beep} dB); {v}");
+    assert!(
+        src_in < src_out - 20.0,
+        "440 silenced in window ({src_in} vs {src_out} outside); {v}"
+    );
+}
+
+#[test]
+fn censor_at_pixelizes_only_the_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--region",
+        "100:100:64:64",
+        "--at",
+        "0.5",
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let region = |f: &Path, n: u32| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,{n}),crop=64:64:100:100"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let diff_at = |n: u32| -> u64 {
+        region(&src, n)
+            .iter()
+            .zip(region(&out, n).iter())
+            .map(|(x, y)| x.abs_diff(*y) as u64)
+            .sum()
+    };
+    assert!(
+        diff_at(3) < 5000,
+        "region untouched before --at 0.5 (diff {})",
+        diff_at(3)
+    );
+    assert!(
+        diff_at(21) > 5000,
+        "mosaic applied inside window (diff {})",
+        diff_at(21)
+    );
+}
+
+#[test]
+fn grade_warm_shifts_red_up_and_blue_down() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let gray = dir.path().join("g.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=gray:duration=1:size=320x240:rate=30",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&gray)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "gray fixture");
+    let out = dir.path().join("w.mp4");
+    let v = run_json(&[
+        "grade",
+        gray.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--warm",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = |f: &Path| -> PathBuf {
+        let png = f.with_extension("frame.png");
+        Command::new("ffmpeg")
+            .args(["-y", "-i"])
+            .arg(f)
+            .args(["-frames:v", "1"])
+            .arg(&png)
+            .output()
+            .unwrap();
+        png
+    };
+    let (r0, _, b0) = mean_rgb(&frame(&gray));
+    let (r1, _, b1) = mean_rgb(&frame(&out));
+    // Warmth opens the red-blue spread (blue falls faster than red on gray).
+    assert!(
+        (r1 - b1) > (r0 - b0) + 30.0,
+        "warm grade opens R-B spread ({r0}-{b0} -> {r1}-{b1}); {v}"
+    );
+}
+
+#[test]
+fn vdenoise_smooths_noisy_footage() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let noisy = dir.path().join("n.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=gray:duration=1:size=320x240:rate=30,noise=alls=30:allf=t",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "18",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&noisy)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "noisy fixture");
+    let out = dir.path().join("d.mp4");
+    let v = run_json(&[
+        "vdenoise",
+        noisy.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--strength",
+        "8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // Sample variance of a flat crop: denoised footage is smoother.
+    let spread = |f: &Path| -> f64 {
+        let px = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                "crop=120:120:100:60",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout;
+        let n = px.len() as f64;
+        let mean = px.iter().map(|&b| f64::from(b)).sum::<f64>() / n;
+        px.iter()
+            .map(|&b| (f64::from(b) - mean).powi(2))
+            .sum::<f64>()
+            / n
+    };
+    let (before, after) = (spread(&noisy), spread(&out));
+    assert!(
+        after < before * 0.7,
+        "denoise cuts noise variance: {before} -> {after}; {v}"
+    );
+}
+
+#[test]
+fn crop_region_and_aspect_reframe() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "crop",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--region",
+        "40:20:200:100",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let dims = |f: &Path| -> (u64, u64) {
+        let p = run_json(&["probe", f.to_str().unwrap()]);
+        let pr = &p["probe"];
+        (
+            pr["width"].as_u64().unwrap_or(0),
+            pr["height"].as_u64().unwrap_or(0),
+        )
+    };
+    assert_eq!(dims(&out), (200, 100), "region crop dims; {v}");
+    let out2 = dir.path().join("sq.mp4");
+    let v = run_json(&[
+        "crop",
+        src.to_str().unwrap(),
+        "-o",
+        out2.to_str().unwrap(),
+        "--aspect",
+        "1:1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let (w, h) = dims(&out2);
+    assert_eq!(w, h, "1:1 aspect gives a square ({w}x{h}); {v}");
+    let v = run_json(&[
+        "crop",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("x.mp4").to_str().unwrap(),
+        "--region",
+        "300:200:64:64",
+    ]);
+    assert_eq!(v["status"], "failed", "out-of-frame region refused; {v}");
+}
+
+#[test]
+fn title_position_bottom_puts_text_low() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let bot = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        bot.to_str().unwrap(),
+        "--text",
+        "HELLO",
+        "--position",
+        "bottom",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // Diff against the source frame per band: text should land in the bottom
+    // quarter while the top quarter stays untouched.
+    let band_diff = |y: u32| -> u64 {
+        let px = |f: &Path| -> Vec<u8> {
+            Command::new("ffmpeg")
+                .args(["-i"])
+                .arg(f)
+                .args([
+                    "-vf",
+                    &format!("select=eq(n\\,10),crop=320:60:0:{y}"),
+                    "-frames:v",
+                    "1",
+                    "-f",
+                    "rawvideo",
+                    "-pix_fmt",
+                    "gray",
+                    "-",
+                ])
+                .output()
+                .unwrap()
+                .stdout
+        };
+        px(&src)
+            .iter()
+            .zip(px(&bot).iter())
+            .map(|(a, b)| a.abs_diff(*b) as u64)
+            .sum()
+    };
+    let (top_band, bot_band) = (band_diff(0), band_diff(180));
+    assert!(
+        bot_band > top_band * 4,
+        "title edits the bottom band (top diff {top_band} vs bottom {bot_band}); {v}"
+    );
+}
+
+#[test]
+fn waveform_renders_a_drawn_png() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let png = dir.path().join("w.png");
+    let v = run_json(&[
+        "waveform",
+        src.to_str().unwrap(),
+        "-o",
+        png.to_str().unwrap(),
+        "--size",
+        "320x120",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let img = image::open(&png).expect("png").to_rgb8();
+    let lit = img
+        .pixels()
+        .filter(|p| u32::from(p[0]) + u32::from(p[1]) + u32::from(p[2]) > 200)
+        .count();
+    assert!(lit > 300, "waveform PNG draws the wave ({lit} lit px); {v}");
+}
+
+#[test]
+fn spectrogram_renders_a_drawn_png() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let png = dir.path().join("s.png");
+    let v = run_json(&[
+        "spectrogram",
+        src.to_str().unwrap(),
+        "-o",
+        png.to_str().unwrap(),
+        "--size",
+        "320x240",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let img = image::open(&png).expect("png").to_rgb8();
+    let lit = img
+        .pixels()
+        .filter(|p| u32::from(p[0]) + u32::from(p[1]) + u32::from(p[2]) > 60)
+        .count();
+    assert!(
+        lit > 1000,
+        "spectrogram PNG draws energy ({lit} lit px); {v}"
+    );
+}
+
+#[test]
+fn dehum_notches_the_mains_tone() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let hum = dir.path().join("hum.wav");
+    // 440 Hz voice over a 60 Hz mains hum.
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=60:duration=1",
+            "-filter_complex",
+            "[0:a][1:a]amix=inputs=2:normalize=0[a]",
+            "-map",
+            "[a]",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&hum)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "hum fixture");
+    let out = dir.path().join("clean.m4a");
+    let v = run_json(&[
+        "dehum",
+        hum.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mains",
+        "60",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let band = |f: &Path, hz: u32| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-af",
+                &format!("bandpass=f={hz}:w=15,volumedetect"),
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(-99.0)
+    };
+    let (hum_in, hum_out, voice_out) = (band(&hum, 60), band(&out, 60), band(&out, 440));
+    assert!(
+        hum_out < hum_in - 15.0,
+        "60Hz hum notched: {hum_in} -> {hum_out} dB; {v}"
+    );
+    assert!(
+        voice_out > -40.0,
+        "440 voice survives ({voice_out} dB); {v}"
+    );
+}
+
+#[test]
+fn tempo_doubles_speed_without_pitch_loss() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("t.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "tone fixture");
+    let out = dir.path().join("f.m4a");
+    let v = run_json(&[
+        "tempo",
+        wav.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--factor",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let p = run_json(&["probe", out.to_str().unwrap()]);
+    let d = p["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 0.5).abs() < 0.12, "2x halves duration ({d}); {v}");
+    // A 440 Hz sine stays at 440 Hz — atempo shifts time, not pitch.
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args(["-af", "bandpass=f=440:w=60,volumedetect", "-f", "null", "-"])
+        .output()
+        .unwrap();
+    let mean = String::from_utf8_lossy(&o.stderr)
+        .lines()
+        .find_map(|l| {
+            l.split("mean_volume:")
+                .nth(1)
+                .and_then(|r| r.split_whitespace().next())
+                .and_then(|x| x.parse::<f64>().ok())
+        })
+        .unwrap_or(-99.0);
+    assert!(mean > -40.0, "440 Hz pitch preserved ({mean} dB); {v}");
+    // Video inputs are refused — speed retimes those.
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "tempo",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("v.m4a").to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "failed", "video refused for tempo; {v}");
+}
+
+#[test]
+fn leveler_tames_loud_peaks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // Alternating loud/quiet 0.1s tones — compression narrows the gap.
+    let wav = dir.path().join("dyn.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.4",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.4",
+            "-filter_complex",
+            "[0:a]volume=0.9[a];[1:a]volume=0.05[b];[a][b]concat=n=2:v=0:a=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "dyn fixture");
+    let out = dir.path().join("l.m4a");
+    let v = run_json(&[
+        "leveler",
+        wav.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--threshold",
+        "-30",
+        "--ratio",
+        "10",
+        "--makeup",
+        "12",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let seg = |f: &Path, win: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-af",
+                &format!("atrim={win},volumedetect"),
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(-99.0)
+    };
+    let (loud0, quiet0) = (seg(&wav, "0:0.3"), seg(&wav, "0.5:0.8"));
+    let (loud1, quiet1) = (seg(&out, "0:0.3"), seg(&out, "0.5:0.8"));
+    assert!(
+        (loud1 - quiet1) < (loud0 - quiet0) - 8.0,
+        "range narrows: {loud0}-{quiet0}dB gap -> {loud1}-{quiet1}dB; {v}"
+    );
+}
+
+#[test]
+fn gate_silences_the_quiet_parts() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("t.wav");
+    // Loud tone then a quiet hiss — the gate should kill the hiss.
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.5",
+            "-f",
+            "lavfi",
+            "-i",
+            "anoisesrc=color=white:duration=0.5:amplitude=0.05",
+            "-filter_complex",
+            "[0:a][1:a]concat=n=2:v=0:a=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "gate fixture");
+    let out = dir.path().join("g.m4a");
+    let v = run_json(&[
+        "gate",
+        wav.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--threshold",
+        "-20",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let tail = |f: &Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args(["-af", "atrim=0.5:1,volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(0.0)
+    };
+    let (before, after) = (tail(&wav), tail(&out));
+    assert!(
+        after < before - 10.0,
+        "gate drops the quiet tail: {before} -> {after} dB; {v}"
+    );
+}
+
+#[test]
+fn silence_inserts_quiet_mid_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("t.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "tone fixture");
+    let out = dir.path().join("s.m4a");
+    let v = run_json(&[
+        "silence",
+        wav.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.25",
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        (d - 1.5).abs() < 0.25,
+        "1s + 0.5s pad = ~1.5s, got {d}; {v}"
+    );
+    let mean_at = |ss: &str, dur: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-ss", ss, "-t", dur, "-i"])
+            .arg(&out)
+            .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stderr);
+        s.lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(0.0)
+    };
+    assert!(
+        mean_at("0.3", "0.35") < -50.0,
+        "inserted window is silent; {v}"
+    );
+    assert!(mean_at("0.9", "0.4") > -40.0, "tone resumes after pad; {v}");
+    // Video inputs are refused — freeze holds frames.
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "silence",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("v.m4a").to_str().unwrap(),
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "failed", "video refused for silence; {v}");
+}
+
+#[test]
+fn transcode_fps_retimes_video() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("r.mp4");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "h264",
+        "--fps",
+        "10",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-count_frames",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=nb_read_frames",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    let frames: u32 = s.trim().parse().unwrap_or(0);
+    assert!(
+        (9..=12).contains(&frames),
+        "1s at 10fps = ~10 frames, got {frames}; {v}"
+    );
+}
+
+#[test]
+fn grade_preset_vintage_shifts_warm() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("v.mp4");
+    let v = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "vintage",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = |f: &Path| -> (f64, f64) {
+        let png = f.with_extension("warm.png");
+        let ok = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+            .arg(f)
+            .args(["-frames:v", "1"])
+            .arg(&png)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok, "frame extract");
+        let (r, _g, b) = mean_rgb(&png);
+        (r, b)
+    };
+    let (sr, sb) = frame(&src);
+    let (r, b) = frame(&out);
+    assert!(
+        (r - b) > (sr - sb) + 4.0,
+        "vintage warms the cast: R-B {} -> {}; {v}",
+        sr - sb,
+        r - b
+    );
+}
+
+#[test]
+fn vocal_karaoke_removes_center() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("st.wav");
+    // Identical 440 Hz in both channels = maximally "centered" content.
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1,pan=stereo|c0=c0|c1=c0",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "stereo fixture");
+    let mean = |f: &Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(0.0)
+    };
+    let kara = dir.path().join("k.m4a");
+    let v = run_json(&[
+        "vocal",
+        wav.to_str().unwrap(),
+        "-o",
+        kara.to_str().unwrap(),
+        "--mode",
+        "karaoke",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        mean(&kara) < -60.0,
+        "karaoke cancels centered content (~silent); {v}"
+    );
+    let iso = dir.path().join("i.m4a");
+    let v = run_json(&[
+        "vocal",
+        wav.to_str().unwrap(),
+        "-o",
+        iso.to_str().unwrap(),
+        "--mode",
+        "isolate",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(mean(&iso) > -30.0, "isolate keeps the center loud; {v}");
+}
+
+#[test]
+fn remux_swaps_container_without_reencode() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("r.mkv");
+    let v = run_json(&["remux", src.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        v["probe"]["format"]
+            .as_str()
+            .unwrap_or("")
+            .contains("matroska"),
+        "mkv container; {v}"
+    );
+    assert_eq!(
+        v["probe"]["vcodec"].as_str().unwrap_or(""),
+        "h264",
+        "stream copy keeps h264; {v}"
+    );
+}
+
+#[test]
+fn meme_top_text_stays_in_band() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--top",
+        "TOP TEXT",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let band_diff = |y: u32| -> u64 {
+        let px = |f: &Path| -> Vec<u8> {
+            Command::new("ffmpeg")
+                .args(["-i"])
+                .arg(f)
+                .args([
+                    "-vf",
+                    &format!("select=eq(n\\,10),crop=320:60:0:{y}"),
+                    "-frames:v",
+                    "1",
+                    "-f",
+                    "rawvideo",
+                    "-pix_fmt",
+                    "gray",
+                    "-",
+                ])
+                .output()
+                .unwrap()
+                .stdout
+        };
+        px(&src)
+            .iter()
+            .zip(px(&out).iter())
+            .map(|(a, b)| a.abs_diff(*b) as u64)
+            .sum()
+    };
+    let (top_band, bot_band) = (band_diff(0), band_diff(180));
+    assert!(
+        top_band > bot_band * 4,
+        "meme edits the top band (top diff {top_band} vs bottom {bot_band}); {v}"
+    );
+}
+
+#[test]
+fn voice_chain_levels_and_loudness() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("v.wav");
+    // Loud burst, a hiss-quiet stretch, then speech-level tone again.
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=300:duration=0.4,volume=6dB",
+            "-f",
+            "lavfi",
+            "-i",
+            "anoisesrc=color=pink:duration=0.4:amplitude=0.02",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=300:duration=0.4,volume=-6dB",
+            "-filter_complex",
+            "[0:a][1:a][2:a]concat=n=3:v=0:a=1[a]",
+            "-map",
+            "[a]",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "voice fixture");
+    let out = dir.path().join("v.m4a");
+    let v = run_json(&["voice", wav.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stderr);
+    let mean = s
+        .lines()
+        .find_map(|l| {
+            l.split("mean_volume:")
+                .nth(1)
+                .and_then(|r| r.split_whitespace().next())
+                .and_then(|x| x.parse::<f64>().ok())
+        })
+        .unwrap_or(0.0);
+    assert!(
+        (-30.0..-5.0).contains(&mean),
+        "leveled voice lands near broadcast mean ({mean} dB); {v}"
+    );
+}
+
+#[test]
+fn deinterlace_field_doubles_rate() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("d.mp4");
+    let v = run_json(&[
+        "deinterlace",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "field",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-count_frames",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=nb_read_frames",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let frames: u32 = String::from_utf8_lossy(&o.stdout)
+        .trim()
+        .parse()
+        .unwrap_or(0);
+    assert!(
+        (55..=62).contains(&frames),
+        "field mode doubles 30 frames to ~60, got {frames}; {v}"
+    );
+}
+
+#[test]
+fn fade_color_white_fades_to_white() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("w.mp4");
+    let v = run_json(&[
+        "fade",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--out",
+        "0.4",
+        "--color",
+        "white",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let png = dir.path().join("last.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-sseof",
+            "-0.1",
+            "-i",
+        ])
+        .arg(&out)
+        .args(["-frames:v", "1"])
+        .arg(&png)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "last frame");
+    let (r, g, b) = mean_rgb(&png);
+    let m = (r + g + b) / 3.0;
+    assert!(
+        m > 200.0,
+        "fade --color white ends near white ({m:.0}); {v}"
+    );
+}
+
+#[test]
+fn crossfade_overlaps_two_audio_files() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mk = |name: &str, hz: u32| -> PathBuf {
+        let f = dir.path().join(name);
+        let ok = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("sine=frequency={hz}:duration=1"),
+                "-c:a",
+                "pcm_s16le",
+            ])
+            .arg(&f)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok, "tone {hz}");
+        f
+    };
+    let a = mk("a.wav", 440);
+    let b = mk("b.wav", 880);
+    let out = dir.path().join("x.m4a");
+    let v = run_json(&[
+        "crossfade",
+        a.to_str().unwrap(),
+        "--second",
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        (d - 1.7).abs() < 0.25,
+        "1+1-0.3 overlap = ~1.7s, got {d}; {v}"
+    );
+    // The overlap window should carry both tones (mixed), not silence.
+    let o = Command::new("ffmpeg")
+        .args(["-ss", "0.7", "-t", "0.25", "-i"])
+        .arg(&out)
+        .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stderr);
+    let mean = s
+        .lines()
+        .find_map(|l| {
+            l.split("mean_volume:")
+                .nth(1)
+                .and_then(|r| r.split_whitespace().next())
+                .and_then(|x| x.parse::<f64>().ok())
+        })
+        .unwrap_or(0.0);
+    assert!(mean > -60.0, "overlap keeps signal ({mean} dB); {v}");
+}
+
+#[test]
+fn strip_drops_metadata_tags() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let tagged = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "meta",
+        src.to_str().unwrap(),
+        "-o",
+        tagged.to_str().unwrap(),
+        "--title",
+        "Secret Title",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let out = dir.path().join("clean.mp4");
+    let v = run_json(&[
+        "strip",
+        tagged.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args(["-v", "error", "-show_entries", "format_tags", "-of", "json"])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    assert!(!s.contains("Secret Title"), "title stripped: {s}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 1.0).abs() < 0.3, "copy keeps duration; {v}");
+}
+
+#[test]
+fn frames_dumps_stills_on_a_grid() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let base = dir.path().join("shot.png");
+    let v = run_json(&[
+        "frames",
+        src.to_str().unwrap(),
+        "-o",
+        base.to_str().unwrap(),
+        "--every",
+        "0.34",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let count = v["extra"]["count"].as_u64().unwrap_or(0);
+    assert!(
+        (2..=4).contains(&count),
+        "1s at 0.34s grid ≈ 3 stills, got {count}; {v}"
+    );
+    assert!(
+        dir.path().join("shot_001.png").exists(),
+        "stem_%03d.png naming; {v}"
+    );
+}
+
+#[test]
+fn invert_flips_channels() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("n.mp4");
+    let v = run_json(&["invert", src.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = |f: &Path, name: &str| -> (f64, f64, f64) {
+        let png = dir.path().join(name);
+        let ok = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+            .arg(f)
+            .args(["-frames:v", "1"])
+            .arg(&png)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok, "frame extract");
+        mean_rgb(&png)
+    };
+    let (sr, sg, sb) = frame(&src, "s.png");
+    let (r, g, b) = frame(&out, "o.png");
+    for (a, b2) in [(r, sr), (g, sg), (b, sb)] {
+        assert!(
+            (a - (255.0 - b2)).abs() < 25.0,
+            "inverted: {b2} -> {a} (want ~{})",
+            255.0 - b2
+        );
+    }
+}
+
+#[test]
+fn split_size_aims_parts_at_target() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // A 1 s testsrc clip lands ~15–50 KB; 8 KB forces ≥2 parts.
+    let out = dir.path().join("part.mp4");
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "8KB",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let count = v["extra"]["count"].as_u64().unwrap_or(0);
+    assert!(count >= 2, "--size should force multiple parts; {v}");
+    assert!(dir.path().join("part_00.mp4").exists(), "stem_%02d naming");
+}
+
+#[test]
+fn countdown_shows_digits_then_clears() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "countdown",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--from",
+        "2",
+        "--each",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // Center-crop diff vs the source at n=3 (inside count) vs n=28 (after it).
+    let diff = |n: u32| -> u64 {
+        let px = |f: &Path| -> Vec<u8> {
+            Command::new("ffmpeg")
+                .args(["-i"])
+                .arg(f)
+                .args([
+                    "-vf",
+                    &format!("select=eq(n\\,{n}),crop=120:80:100:80"),
+                    "-frames:v",
+                    "1",
+                    "-f",
+                    "rawvideo",
+                    "-pix_fmt",
+                    "gray",
+                    "-",
+                ])
+                .output()
+                .unwrap()
+                .stdout
+        };
+        px(&src)
+            .iter()
+            .zip(px(&out).iter())
+            .map(|(a, b)| a.abs_diff(*b) as u64)
+            .sum()
+    };
+    let (early, late) = (diff(3), diff(28));
+    assert!(
+        early > 50000 && early > late * 4,
+        "digit burns early then clears: {early} vs {late}; {v}"
+    );
+}
+
+#[test]
+fn mix_merges_two_sources() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mk = |name: &str, freq: u32, dur: f64| -> PathBuf {
+        let p = dir.path().join(name);
+        let ok = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+            ])
+            .arg(format!("sine=frequency={freq}:duration={dur}"))
+            .arg(&p)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok);
+        p
+    };
+    let a = mk("a.wav", 440, 1.0);
+    let b = mk("b.wav", 880, 0.5);
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "mix",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["duration_mode"], "first");
+    let mean = |p: &Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .arg("-i")
+            .arg(p)
+            .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|x| x.parse::<f64>().ok())
+            })
+            .unwrap_or(0.0)
+    };
+    let (solo, merged) = (mean(&a).max(mean(&b)), mean(&out));
+    assert!(
+        merged > solo + 1.5,
+        "summed mix should run hotter than either source ({solo} -> {merged}); {v}"
+    );
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 1.0).abs() < 0.3, "duration=first ≈ A's 1s: {d}");
+}
+
+#[test]
+fn grade_gamma_lifts_mids() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("mid.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=0x777777:s=320x240:d=0.5:rate=30")
+        .args(["-pix_fmt", "yuv420p", "-c:v", "libx264"])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let grab = |name: &str, gamma: &str| -> f64 {
+        let o = dir.path().join(name);
+        let v = run_json(&[
+            "grade",
+            src.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--gamma",
+            gamma,
+        ]);
+        assert_eq!(v["status"], "ok", "{v}");
+        let png = dir.path().join(format!("{name}.png"));
+        let ok = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+            .arg(&o)
+            .args(["-frames:v", "1"])
+            .arg(&png)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok);
+        let (r, g, b) = mean_rgb(&png);
+        (r + g + b) / 3.0
+    };
+    let hi = grab("hi.mp4", "2.2");
+    let lo = grab("lo.mp4", "0.6");
+    assert!(
+        hi > lo + 10.0,
+        "gamma 2.2 should out-lift gamma 0.6 ({lo} -> {hi})"
+    );
+}
+
+#[test]
+fn caption_position_top_keeps_text_up() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = dir.path().join("blue.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0x0033aa:s=360x640:d=1:rate=30",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:v",
+            "libx264",
+        ])
+        .arg(&f)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:01,000\nHELLO\n").unwrap();
+    let out = dir.path().join("burn.mp4");
+    let mut args = vec![
+        "caption".to_string(),
+        f.to_string_lossy().into_owned(),
+        "--srt".into(),
+        srt.to_string_lossy().into_owned(),
+        "--mode".into(),
+        "burn".into(),
+        "--position".into(),
+        "top".into(),
+        "-o".into(),
+        out.to_string_lossy().into_owned(),
+    ];
+    let arial = "/System/Library/Fonts/Supplemental/Arial.ttf";
+    if std::path::Path::new(arial).is_file() {
+        args.push("--font".into());
+        args.push(arial.into());
+    }
+    let argv: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    let v = run_json(&argv);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["position"], "top", "{v}");
+    let png = dir.path().join("t.png");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&out)
+        .args(["-frames:v", "1"])
+        .arg(&png)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let img = image::open(&png).expect("frame").to_rgb8();
+    let (w, h) = img.dimensions();
+    let (mut top, mut bottom_half) = (0u32, 0u32);
+    for y in 0..h {
+        for x in 0..w {
+            let p = img.get_pixel(x, y);
+            if p[0] > 230 && p[1] > 230 && p[2] > 230 {
+                if y * 2 < h {
+                    top += 1;
+                } else {
+                    bottom_half += 1;
+                }
+            }
+        }
+    }
+    assert!(top > 20, "top caption glyphs visible: {top}");
+    assert_eq!(
+        bottom_half, 0,
+        "top captions keep the lower half clean: {bottom_half}"
+    );
+}
+
+#[test]
+fn mute_drops_audio_keeps_video() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&["mute", src.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["has_video"], true);
+    assert_eq!(v["probe"]["has_audio"], false, "{v}");
+}
+
+#[test]
+fn hls_writes_playlist_and_segments() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("web");
+    let v = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--seg",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.join("index.m3u8").is_file(), "playlist written");
+    let segs = v["extra"]["segments"].as_u64().unwrap_or(0);
+    assert!(segs >= 1, "{v}");
+    assert!(out.join("seg_000.ts").is_file(), "seg_000.ts exists");
+}
+
+#[test]
+fn timer_burns_counter_in_corner() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "timer",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--position",
+        "bottom-right",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // Corner crop of source vs output differs; center is untouched.
+    let px = |f: &Path, crop: &str| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                &format!("select=eq(n\\,15),{crop}"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let corner = px(&src, "crop=140:60:160:170")
+        .iter()
+        .zip(px(&out, "crop=140:60:160:170").iter())
+        .map(|(a, b)| a.abs_diff(*b) as u64)
+        .sum::<u64>();
+    let center = px(&src, "crop=140:60:90:90")
+        .iter()
+        .zip(px(&out, "crop=140:60:90:90").iter())
+        .map(|(a, b)| a.abs_diff(*b) as u64)
+        .sum::<u64>();
+    assert!(corner > 20000, "timer digits burn in the corner: {corner}");
+    assert_eq!(center, 0, "frame center untouched: {center}");
+}
+
+#[test]
+fn qa_reports_psnr_and_ssim() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let b = dir.path().join("b.mp4");
+    let g = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        b.to_str().unwrap(),
+        "--gamma",
+        "2.2",
+    ]);
+    assert_eq!(g["status"], "ok", "{g}");
+    let v = run_json(&["qa", src.to_str().unwrap(), b.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let psnr = v["extra"]["psnr"].as_f64().unwrap_or(0.0);
+    let ssim = v["extra"]["ssim"].as_f64().unwrap_or(0.0);
+    assert!(
+        psnr > 5.0 && psnr.is_finite(),
+        "gamma-graded vs src: {psnr}"
+    );
+    assert!(ssim > 0.3 && ssim < 1.0, "ssim band: {ssim}");
+}
+
+#[test]
+fn conform_normalizes_spec() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "conform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--fps",
+        "15",
+        "--size",
+        "160x160",
+        "--lufs",
+        "-14",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["fps"].as_f64().unwrap_or(0.0), 15.0, "{v}");
+    let w = v["probe"]["width"].as_u64().unwrap_or(0);
+    assert!(w <= 160 && w % 2 == 0, "fit inside 160x160: {w}");
+    assert_eq!(
+        v["probe"]["sample_rate"].as_u64().unwrap_or(0),
+        48000,
+        "loudnorm tail must be resampled back: {v}"
+    );
+}
+
+#[test]
+fn overlay_mode_screen_brightens() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let leak = dir.path().join("leak.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=0x662200:s=320x240:d=1:rate=30")
+        .args(["-pix_fmt", "yuv420p", "-c:v", "libx264"])
+        .arg(&leak)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("o.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "--video",
+        leak.to_str().unwrap(),
+        "--mode",
+        "screen",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // screen blend of an orange wash warms/brightens the frame.
+    let mean = |f: &Path| -> f64 {
+        let png = dir
+            .path()
+            .join(format!("m{}.png", f.file_stem().unwrap().to_string_lossy()));
+        let ok = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+            .arg(f)
+            .args(["-frames:v", "1"])
+            .arg(&png)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok);
+        let (r, g, b) = mean_rgb(&png);
+        (r + g + b) / 3.0
+    };
+    let (s, o) = (mean(&src), mean(&out));
+    assert!(
+        o > s + 3.0,
+        "screen blend should lift the frame ({s} -> {o})"
+    );
+}
+
+#[test]
+fn sync_shifts_audio_late_and_early() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let late = dir.path().join("late.mp4");
+    let v = run_json(&[
+        "sync",
+        src.to_str().unwrap(),
+        "-o",
+        late.to_str().unwrap(),
+        "--ms",
+        "300",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 1.3).abs() < 0.15, "+300ms pad extends container: {d}");
+    // Audio is silent for the first ~0.3s of the padded output.
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&late)
+        .args([
+            "-ss",
+            "0",
+            "-t",
+            "0.2",
+            "-af",
+            "volumedetect",
+            "-vn",
+            "-f",
+            "null",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stderr);
+    let mean = s
+        .lines()
+        .find_map(|l| {
+            l.split("mean_volume:")
+                .nth(1)?
+                .split_whitespace()
+                .next()?
+                .parse::<f64>()
+                .ok()
+        })
+        .unwrap_or(0.0);
+    assert!(
+        mean < -60.0 || mean == -91.0 || mean.abs() < 1e-9 || mean < -55.0,
+        "delay pad should be near-silent: {mean}"
+    );
+
+    let early = dir.path().join("early.mp4");
+    let v2 = run_json(&[
+        "sync",
+        src.to_str().unwrap(),
+        "-o",
+        early.to_str().unwrap(),
+        "--ms",
+        "-300",
+    ]);
+    assert_eq!(v2["status"], "ok", "{v2}");
+    let d2 = v2["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(d2 <= 1.05, "trim path doesn't grow duration: {d2}");
+}
+
+#[test]
+fn crop_anchor_top_keeps_top_third() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // Top-red / bottom-blue fixture.
+    let src = dir.path().join("tb.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=red:s=320x480:d=0.4:rate=30,drawbox=x=0:y=240:w=320:h=240:c=blue:t=fill")
+        .args(["-pix_fmt", "yuv420p", "-c:v", "libx264"])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("sq.mp4");
+    let v = run_json(&[
+        "crop",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--aspect",
+        "1:1",
+        "--anchor",
+        "top",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let png = dir.path().join("f.png");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&out)
+        .args(["-frames:v", "1"])
+        .arg(&png)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let (r, _g, b) = mean_rgb(&png);
+    assert!(
+        r > b + 30.0,
+        "top-anchored 1:1 keeps the red top (r={r} b={b})"
+    );
+}
+
+#[test]
+fn art_attaches_cover_stream() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let aud = dir.path().join("a.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=440:duration=0.5")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let img = dir.path().join("c.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=red:s=300x300")
+        .args(["-frames:v", "1"])
+        .arg(&img)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("o.mp3");
+    let v = run_json(&[
+        "art",
+        aud.to_str().unwrap(),
+        "--image",
+        img.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // Two streams in the mp3: audio + mjpeg cover.
+    let o = Command::new("ffprobe")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-show_streams",
+            "-of",
+            "json",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let j: Value = serde_json::from_slice(&o.stdout).unwrap();
+    let kinds: Vec<&str> = j["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|s| s["codec_type"].as_str())
+        .collect();
+    assert!(
+        kinds.contains(&"audio") && kinds.contains(&"video"),
+        "{kinds:?}"
+    );
+}
+
+#[test]
+fn thumb_grabs_single_frame() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("cover.png");
+    let v = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.is_file());
+    let (r, g, b) = mean_rgb(&out);
+    assert!(
+        r > 1.0 || g > 1.0 || b > 1.0,
+        "cover not black: {r},{g},{b}"
+    );
+}
+
+#[test]
+fn subs_burn_renders_caption() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("t.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,900\nHELLO SUB\n").unwrap();
+    let out = dir.path().join("burned.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let png = dir.path().join("f.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-ss",
+            "0.4",
+            "-i",
+        ])
+        .arg(&out)
+        .args(["-frames:v", "1"])
+        .arg(&png)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&png)
+        .args([
+            "-vf",
+            "crop=w=iw:h=ih/4:x=0:y=3*ih/4,signalstats,metadata=print",
+            "-f",
+            "null",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stderr);
+    let ymax: f64 = s
+        .lines()
+        .find_map(|l| l.split("YMAX=").nth(1)?.trim().parse().ok())
+        .unwrap_or(0.0);
+    assert!(
+        ymax > 200.0,
+        "burned caption should add white pixels: YMAX={ymax}"
+    );
+}
+
+#[test]
+fn split_parts_n_equal_chunks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out_tpl = dir.path().join("p_%d.mp4");
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        out_tpl.to_str().unwrap(),
+        "--parts",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let p0 = dir.path().join("p_0.mp4");
+    let p1 = dir.path().join("p_1.mp4");
+    assert!(p0.is_file() && p1.is_file(), "expected p_0 + p_1");
+}
+
+#[test]
+fn title_fade_terminates_and_renders() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("faded.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "FADE ME",
+        "--duration",
+        "0.9",
+        "--fade",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // Infinite looped secondary must not stretch the output past the input.
+    let d = v["probe"]["duration"].as_f64().unwrap_or(99.0);
+    assert!(d < 1.3, "fade title should end with the source: {d}");
+}
+
+#[test]
+fn grade_hue_rotates_colors() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // Pure red frame: hue=120 should turn it green-ish.
+    let src = dir.path().join("red.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=red:s=320x240:d=0.3:rate=30")
+        .args(["-pix_fmt", "yuv420p", "-c:v", "libx264"])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("rot.mp4");
+    let v = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--hue",
+        "120",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let png = dir.path().join("f.png");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&out)
+        .args(["-frames:v", "1"])
+        .arg(&png)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let (r, g, _b) = mean_rgb(&png);
+    assert!(
+        g > r + 20.0,
+        "hue=120 turns a red frame green-ish (r={r} g={g})"
+    );
+}
+
+#[test]
+fn silence_end_appends_quiet_tail() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let aud = dir.path().join("a.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=440:duration=1")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("pad.wav");
+    let v = run_json(&[
+        "silence",
+        aud.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--end",
+        "--dur",
+        "1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        (d - 2.0).abs() < 0.1,
+        "--end appends 1s of silence to a 1s clip: {d}"
+    );
+}
+
+#[test]
+fn overlay_fade_terminates_and_writes() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let img = dir.path().join("logo.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=white:s=80x80")
+        .args(["-frames:v", "1"])
+        .arg(&img)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("ov.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "--image",
+        img.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--fade",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(99.0);
+    assert!(d < 1.3, "looped still must not stretch output: {d}");
+}
+
+#[test]
+fn subs_shift_moves_all_cues() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let srt = dir.path().join("in.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:01,000 --> 00:00:02,000\nHELLO\n\n2\n00:00:05,000 --> 00:00:06,500\nWORLD\n",
+    )
+    .unwrap();
+    let out = dir.path().join("out.srt");
+    let v = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--shift",
+        "2.5",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let txt = std::fs::read_to_string(&out).unwrap();
+    assert!(
+        txt.contains("00:00:03,500 --> 00:00:04,500"),
+        "cue1 shifted +2.5: {txt}"
+    );
+    assert!(
+        txt.contains("00:00:07,500 --> 00:00:09,000"),
+        "cue2 shifted +2.5: {txt}"
+    );
+}
+
+#[test]
+fn meta_album_genre_track_tags() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("tagged.mp4");
+    let v = run_json(&[
+        "meta",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--album",
+        "My Album",
+        "--genre",
+        "Podcast",
+        "--track",
+        "3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-show_entries",
+            "format_tags",
+            "-of",
+            "default=noprint_wrappers=1",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let tags = String::from_utf8_lossy(&o.stdout);
+    assert!(tags.contains("album=My Album"), "{tags}");
+    assert!(tags.contains("genre=Podcast"), "{tags}");
+    assert!(tags.contains("track=3"), "{tags}");
+}
+
+#[test]
+fn cut_ranges_joins_kept_segments() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path()); // 1s fixture
+    let out = dir.path().join("kept.mp4");
+    let v = run_json(&[
+        "cut",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--ranges",
+        "0-0.4,0.6-1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        (d - 0.8).abs() < 0.15,
+        "0-0.4 + 0.6-1 should give ~0.8s: {d}"
+    );
+}
+
+#[test]
+fn solid_generates_color_clip() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("bg.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--color",
+        "ff0000",
+        "--dur",
+        "0.5",
+        "--size",
+        "320x240",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 0.5).abs() < 0.15, "duration: {d}");
+    assert_eq!(v["probe"]["width"].as_u64(), Some(320));
+    // Red-dominant frame + silent stereo track.
+    let png = dir.path().join("f.png");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&out)
+        .args(["-frames:v", "1"])
+        .arg(&png)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let (r, g, b) = mean_rgb(&png);
+    assert!(r > 150.0 && g < 60.0 && b < 60.0, "red frame: {r},{g},{b}");
+}
+
+#[test]
+fn volume_limit_caps_peak() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // Hot 1kHz tone: +12dB would clip without the limiter.
+    let aud = dir.path().join("hot.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=1000:duration=0.4")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("lim.wav");
+    let v = run_json(&[
+        "volume",
+        aud.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--db",
+        "12",
+        "--limit",
+        "-1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&out)
+        .args(["-af", "volumedetect", "-f", "null", "-"])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stderr);
+    let peak = s
+        .lines()
+        .find_map(|l| {
+            l.split("max_volume:")
+                .nth(1)?
+                .split_whitespace()
+                .next()?
+                .parse::<f64>()
+                .ok()
+        })
+        .unwrap_or(0.0);
+    assert!(
+        peak <= -0.5,
+        "limiter -1 dBTP should cap the peak: max_volume={peak}"
+    );
+}
+
+#[test]
+fn cut_drop_removes_middle_segment() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path()); // 1s
+    let out = dir.path().join("dropped.mp4");
+    let v = run_json(&[
+        "cut",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--drop",
+        "0.3-0.6",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        (d - 0.7).abs() < 0.15,
+        "1s minus 0.3-0.6 should give ~0.7s: {d}"
+    );
+}
+
+#[test]
+fn title_outline_keeps_dark_stroke_around_text() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t_out.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "HI",
+        "--duration",
+        "0.3",
+        "--color",
+        "ffffff",
+        "--outline",
+        "000000",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn fit_pad_color_fills_bars() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path()); // 16:9 src
+    let out = dir.path().join("fit_c.mp4");
+    let v = run_json(&[
+        "fit",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--aspect",
+        "1:1",
+        "--color",
+        "ff0000",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // top-left pad bar should be red, not black
+    let png = dir.path().join("fitc.png");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&out)
+        .args(["-frames:v", "1"])
+        .arg(&png)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let img = image::open(&png).unwrap().to_rgb8();
+    let (w, _h) = img.dimensions();
+    let p = img.get_pixel(w / 2, 4);
+    assert!(
+        p[0] > 150 && p[1] < 60 && p[2] < 60,
+        "top pad bar should be red: {p:?}"
+    );
+}
+
+#[test]
+fn subs_burn_takes_style_overrides() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("s.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,800\nHI\n").unwrap();
+    let out = dir.path().join("burn.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--size",
+        "30",
+        "--color",
+        "ff0000",
+        "--top",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn audiogram_bg_replaces_default_backdrop() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let aud = dir.path().join("a.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=440:duration=0.5")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        aud.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--bg",
+        "ff0000",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn overlay_opacity_blends_image() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let logo = dir.path().join("logo.png");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=0xff0000:s=64x64:d=1")
+        .args(["-frames:v", "1"])
+        .arg(&logo)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("ov.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--image",
+        logo.to_str().unwrap(),
+        "--opacity",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn split_silence_cuts_at_gap_midpoints() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // tone - silence - tone so silencedetect finds one gap near 1.0s
+    let aud = dir.path().join("gap.wav");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y"])
+        .args(["-f", "lavfi", "-i", "sine=frequency=440:duration=1"])
+        .args(["-f", "lavfi", "-t", "0.6", "-i", "anullsrc=r=44100:cl=mono"])
+        .args(["-f", "lavfi", "-i", "sine=frequency=440:duration=1"])
+        .args([
+            "-filter_complex",
+            "[0][1][2]concat=n=3:v=0:a=1[a]",
+            "-map",
+            "[a]",
+            "-t",
+            "2.6",
+        ])
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let tmpl = dir.path().join("part_%02d.wav");
+    let v = run_json(&[
+        "split",
+        aud.to_str().unwrap(),
+        "-o",
+        tmpl.to_str().unwrap(),
+        "--silence=-30",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(dir.path().join("part_00.wav").exists());
+    assert!(dir.path().join("part_01.wav").exists());
+}
+
+#[test]
+fn music_fade_does_not_break_bed() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let bed = dir.path().join("bed.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=220:duration=2")
+        .arg(&bed)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("mus.mp4");
+    let v = run_json(&[
+        "music",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--track",
+        bed.to_str().unwrap(),
+        "--fade",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn eq_preset_fills_zero_bands() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let aud = dir.path().join("a.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=3000:duration=0.4")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("eq.wav");
+    let v = run_json(&[
+        "eq",
+        aud.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "podcast",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn broll_fade_softens_cutaway_edges() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let ins = dir.path().join("ins.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("color=c=0x00ff00:s=320x240:d=1")
+        .arg(&ins)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("br.mp4");
+    let v = run_json(&[
+        "broll",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--insert",
+        ins.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--duration",
+        "0.6",
+        "--fade",
+        "0.15",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 1.0).abs() < 0.15, "A-roll length pinned: {d}");
+}
+
+#[test]
+fn frames_at_grabs_listed_timestamps() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("shot.png");
+    let v = run_json(&[
+        "frames",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2,0.7",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(dir.path().join("shot_001.png").exists());
+    assert!(dir.path().join("shot_002.png").exists());
+}
+
+#[test]
+fn audiogram_size_sets_canvas() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let aud = dir.path().join("a.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=440:duration=0.5")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        aud.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "1280x720",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"].as_u64(), Some(1280));
+    assert_eq!(v["probe"]["height"].as_u64(), Some(720));
+}
+
+#[test]
+fn audiogram_text_overlays_top_title() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let aud = dir.path().join("a.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=440:duration=0.5")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        aud.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "EP 12",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn replace_fade_keeps_duration() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let aud = dir.path().join("a.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+        ])
+        .arg("sine=frequency=440:duration=1.5")
+        .arg(&aud)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("rep.mp4");
+    let v = run_json(&[
+        "replace",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        aud.to_str().unwrap(),
+        "--fade",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 1.0).abs() < 0.15, "video length pinned: {d}");
+}
+
+#[test]
+fn thumb_width_scales_still() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.png");
+    let v = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--width",
+        "160",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"].as_u64(), Some(160));
+}
+
+#[test]
+fn invert_at_windows_the_negation() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("inv.mp4");
+    let v = run_json(&[
+        "invert",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn blur_at_windows_the_defocus() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("blr.mp4");
+    let v = run_json(&[
+        "blur",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn title_corner_position_places_text() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("tp.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "HI",
+        "--position",
+        "top-right",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn bw_at_windows_desaturation() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("bw.mp4");
+    let v = run_json(&[
+        "bw",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn sharpen_at_windows_unsharp() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("sh.mp4");
+    let v = run_json(&[
+        "sharpen",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn meta_clear_strips_tags() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("mc.mp4");
+    let v = run_json(&[
+        "meta",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--clear",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn vignette_at_windows_effect() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("vig.mp4");
+    let v = run_json(&[
+        "vignette",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn grade_at_windows_look() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("gr.mp4");
+    let v = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--saturation",
+        "1.8",
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn broll_audio_mixes_insert_sound() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("bra.mp4");
+    let v = run_json(&[
+        "broll",
+        src.to_str().unwrap(),
+        "--insert",
+        src.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--duration",
+        "0.4",
+        "--audio",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn progress_at_windows_bar() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("pr.mp4");
+    let v = run_json(&[
+        "progress",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn audiogram_position_top() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--position",
+        "top",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn subs_burn_font_flag() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("s.srt");
+    std::fs::write(&srt, "1\n00:00:00,0 --> 00:00:00,8\nHola\n").unwrap();
+    let out = dir.path().join("sub.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--font",
+        "Helvetica",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn zoom_out_reveals() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("zo.mp4");
+    let v = run_json(&[
+        "zoom",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--out",
+        "--factor",
+        "2",
+        "--at",
+        "0.2",
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn title_shadow_renders() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("sh.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "--text",
+        "SHADOW",
+        "-o",
+        out.to_str().unwrap(),
+        "--shadow",
+        "12",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn extract_width_scales_still() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("ex.png");
+    let v = run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--width",
+        "160",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn countdown_beep_adds_tone() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("cd.mp4");
+    let v = run_json(&[
+        "countdown",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--beep",
+        "--from",
+        "2",
+        "--each",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn leveler_preset_voice() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("lv.m4a");
+    let v = run_json(&[
+        "leveler",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "voice",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn spectrogram_color_scheme() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("sp.png");
+    let v = run_json(&[
+        "spectrogram",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--color",
+        "magma",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn music_at_delays_bed() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("mu.mp4");
+    let v = run_json(&[
+        "music",
+        src.to_str().unwrap(),
+        "--track",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn channel_invert_flips_side() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("st.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1[a];[a]pan=stereo|c0=c0|c1=c0",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("ch.wav");
+    let v = run_json(&[
+        "channel",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "invert",
+        "--side",
+        "left",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn sheet_pad_margin() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("sh.png");
+    let v = run_json(&[
+        "sheet",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--pad",
+        "12",
+        "--margin",
+        "20",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn overlay_angle_rotates_watermark() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let logo = dir.path().join("logo.png");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:s=80x80:d=1",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&logo)
+        .output()
+        .unwrap();
+    let out = dir.path().join("ang.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "--image",
+        logo.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--angle",
+        "25",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn waveform_scale_log() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("wf.png");
+    let v = run_json(&[
+        "waveform",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--scale",
+        "log",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn fx_tremolo_wobbles() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("fx.m4a");
+    let v = run_json(&[
+        "fx",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--kind",
+        "tremolo",
+        "--strength",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["effect"], "tremolo");
+}
+
+#[test]
+fn boomerang_times_repeats_cycle() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("bo.mp4");
+    let v = run_json(&[
+        "boomerang",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--times",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let dur = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(
+        dur > 3.5,
+        "boomerang --times 2 = 2 full fwd+rev cycles, got {dur}"
+    );
+}
+
+#[test]
+fn fx_window_ducks_dry_and_adds_wet() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("fxw.m4a");
+    let v = run_json(&[
+        "fx",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--kind",
+        "chorus",
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["effect"], "chorus");
+}
+
+#[test]
+fn transcode_hevc_encodes() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("h.mp4");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "hevc",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn gate_preset_voice() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("g.m4a");
+    let v = run_json(&[
+        "gate",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "voice",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["threshold_db"], -40.0);
+}
+
+#[test]
+fn reverb_at_windows_the_tail() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("rv.m4a");
+    let v = run_json(&[
+        "reverb",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--wet",
+        "0.6",
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn eq_at_windows_the_boost() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("eq.m4a");
+    let v = run_json(&[
+        "eq",
+        tone.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--bass",
+        "8",
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn loop_section_repeats_only_the_middle() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("lp.mp4");
+    let v = run_json(&[
+        "loop",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--from",
+        "0.2",
+        "--to",
+        "0.6",
+        "--times",
+        "3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let dur = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    // 0.2 head + 0.4x3 section + 0.4 tail = 1.8s from the 1s fixture
+    assert!(dur > 1.5, "looped section should make ~1.8s, got {dur}");
+}
+
+#[test]
+fn subs_mux_soft_subtitles() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,800\nhello\n").unwrap();
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mux",
+        srt.to_str().unwrap(),
+        "--lang",
+        "spa",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["codec"], "mov_text");
+}
+
+#[test]
+fn audiogram_custom_font() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("t.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    let out = dir.path().join("ag.mp4");
+    let mut cmd = vec![
+        "audiogram".to_string(),
+        tone.to_string_lossy().to_string(),
+        "-o".to_string(),
+        out.to_string_lossy().to_string(),
+        "--text".to_string(),
+        "EP 1".to_string(),
+    ];
+    if std::path::Path::new("/System/Library/Fonts/Helvetica.ttc").exists() {
+        cmd.push("--font".to_string());
+        cmd.push("/System/Library/Fonts/Helvetica.ttc".to_string());
+    }
+    let refs: Vec<&str> = cmd.iter().map(String::as_str).collect();
+    let v = run_json(&refs);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn solid_gradient_makes_gradient_clip() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("gr.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--gradient",
+        "ff0000:0000ff",
+        "--dur",
+        "1",
+        "--size",
+        "320x240",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["gradient"], "ff0000:0000ff");
+}
+
+#[test]
+fn delogo_soft_runs_removelogo() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("dl.mp4");
+    let v = run_json(&[
+        "delogo",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--x",
+        "10",
+        "--y",
+        "10",
+        "--w",
+        "60",
+        "--h",
+        "40",
+        "--soft",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn grid_labels_overlay_tiles() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    let b = dir.path().join("b.mp4");
+    std::fs::copy(&a, &b).unwrap();
+    let out = dir.path().join("g.mp4");
+    let v = run_json(&[
+        "grid",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--layout",
+        "2x1",
+        "--size",
+        "640x240",
+        "--labels",
+        "cam A,cam B",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn autocrop_buffer_expands_box() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = dir.join("box.mp4");
+    let src2 = dir.join("box2.mp4");
+    let o0 = dir.join("o0.mp4");
+    let o8 = dir.join("o8.mp4");
+    run_json(&[
+        "solid",
+        "-o",
+        src.to_str().unwrap(),
+        "--color",
+        "FF0000",
+        "--size",
+        "320x180",
+        "--dur",
+        "1",
+        "--overwrite",
+    ]);
+    // letterbox the red 320x240 card into 320x300 (30px black bars top+bottom)
+    run_json(&[
+        "fit",
+        src.to_str().unwrap(),
+        "-o",
+        src2.to_str().unwrap(),
+        "--width",
+        "320",
+        "--height",
+        "300",
+        "--color",
+        "000000",
+        "--overwrite",
+    ]);
+    let v0 = run_json(&[
+        "autocrop",
+        src2.to_str().unwrap(),
+        "-o",
+        o0.to_str().unwrap(),
+        "--overwrite",
+    ]);
+    let h0 = v0["extra"]["detected"]["h"].as_i64().unwrap();
+    let v8 = run_json(&[
+        "autocrop",
+        src2.to_str().unwrap(),
+        "-o",
+        o8.to_str().unwrap(),
+        "--buffer",
+        "8",
+        "--overwrite",
+    ]);
+    assert_eq!(v8["status"], "ok");
+    let d8 = &v8["extra"]["detected"];
+    assert_eq!(d8["h"].as_i64().unwrap(), h0 + 16);
+    assert_eq!(v8["extra"]["buffer"].as_i64().unwrap(), 8);
+}
+
+#[test]
+fn timer_ms_format_renders() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "timer",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--format",
+        "ms",
+        "--dur",
+        "0.5",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok");
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 0.7);
+}
+
+#[test]
+fn rough_merge_merges_close_keeps() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = dir.join("sp.m4a");
+    // tone with gaps at ~0.5-0.8 and ~1.2-1.8 (i.e. speech 0-0.5, 0.8-1.2, 1.8-3)
+    Command::new("ffmpeg")
+        .args([
+            "-v", "error", "-y", "-f", "lavfi", "-i",
+            "sine=frequency=440:duration=3,volume='lt(t,0.5)+between(t,0.8,1.2)+gte(t,1.8)':eval=frame",
+            "-c:a", "aac",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    let v1 = run_json(&[
+        "rough",
+        src.to_str().unwrap(),
+        "--threshold",
+        "-40",
+        "--min-duration",
+        "0.2",
+        "--overwrite",
+    ]);
+    let n1 = v1["extra"]["keeps"].as_array().unwrap().len();
+    assert!(n1 >= 2, "expected multiple keeps, got {n1}");
+    let v2 = run_json(&[
+        "rough",
+        src.to_str().unwrap(),
+        "--threshold",
+        "-40",
+        "--min-duration",
+        "0.2",
+        "--merge",
+        "0.5",
+        "--overwrite",
+    ]);
+    let n2 = v2["extra"]["keeps"].as_array().unwrap().len();
+    assert!(n2 < n1, "merge should reduce keeps: {n2} !< {n1}");
+}
+
+#[test]
+fn solid_accepts_color_names() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let out = dir.join("s.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--color",
+        "red",
+        "--size",
+        "160x120",
+        "--dur",
+        "0.5",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let vg = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--gradient",
+        "red:blue",
+        "--size",
+        "160x120",
+        "--dur",
+        "0.5",
+        "--overwrite",
+    ]);
+    assert_eq!(vg["status"], "ok", "{vg}");
+}
+
+#[test]
+fn fit_accepts_color_names() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "fit",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--width",
+        "480",
+        "--height",
+        "360",
+        "--color",
+        "black",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn title_accepts_color_names() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "hi",
+        "--color",
+        "red",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn hls_single_and_copy() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("hls");
+    let v = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--single",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.join("seg.ts").is_file());
+    let out2 = dir.join("hls2");
+    let v2 = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        out2.to_str().unwrap(),
+        "--copy",
+        "--overwrite",
+    ]);
+    assert_eq!(v2["status"], "ok", "{v2}");
+}
+
+#[test]
+fn deinterlace_parity_flag() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "deinterlace",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--parity",
+        "tff",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["parity"], "tff");
+}
+
+#[test]
+fn meme_outline_renders() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--top",
+        "HELLO",
+        "--outline",
+        "4",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 0.5);
+}
+
+#[test]
+fn transcode_copy_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "h264",
+        "--copy-audio",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn title_box_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "LOWER THIRD",
+        "--box-color",
+        "black",
+        "--duration",
+        "0.5",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn censor_strength_blur() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--region",
+        "40:40:80:80",
+        "--mode",
+        "blur",
+        "--strength",
+        "20",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn chapter_auto_from_silence() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = dir.join("sp.m4a");
+    Command::new("ffmpeg")
+        .args([
+            "-v", "error", "-y", "-f", "lavfi", "-i",
+            "sine=frequency=440:duration=3,volume='lt(t,0.5)+between(t,0.8,1.2)+gte(t,1.8)':eval=frame",
+            "-c:a", "aac",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    let out = dir.join("o.m4a");
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--auto",
+        "0.2",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn extract_gif_clip() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.gif");
+    let v = run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--gif",
+        "--at",
+        "0.1",
+        "--dur",
+        "0.8",
+        "--fps",
+        "12",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.is_file());
+}
+
+#[test]
+fn cover_blur_ambient() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.png");
+    let v = run_json(&[
+        "cover",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--blur",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn audiogram_progress_bar() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = dir.join("a.m4a");
+    Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--progress",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let v2 = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--progress",
+        "--text",
+        "EP1",
+        "--overwrite",
+    ]);
+    assert_eq!(v2["status"], "ok", "{v2}");
+}
+
+#[test]
+fn sheet_time_stamps() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.png");
+    let v = run_json(&[
+        "sheet",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--time",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(v["extra"]["time"].as_bool().unwrap());
+}
+
+#[test]
+fn freeze_ease_swoops_in() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "freeze",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "--dur",
+        "0.5",
+        "--ease",
+        "0.2",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // 1.0s src + 0.5 hold + 0.2 ease stretch
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 1.5);
+}
+
+#[test]
+fn meme_at_dur_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--top",
+        "HI",
+        "--at",
+        "0.2",
+        "--dur",
+        "0.4",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn freeze_reverse_rewinds_in() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "freeze",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "--dur",
+        "0.5",
+        "--reverse",
+        "0.2",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // 1.0s src + 0.5 hold + 0.2 rewind replay
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 1.5);
+}
+
+#[test]
+fn speed_ramp_full_clip() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "speed",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--ramp",
+        "0.5,2",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(v["extra"]["out_duration"].as_f64().unwrap() > 0.3);
+}
+
+#[test]
+fn subs_merge_combines_cues() {
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let a = dir.join("a.srt");
+    let b = dir.join("b.srt");
+    let out = dir.join("both.srt");
+    std::fs::write(&a, "1\n00:00:00,000 --> 00:00:00,400\nA\n\n").unwrap();
+    std::fs::write(&b, "1\n00:00:00,100 --> 00:00:00,500\nB\n\n").unwrap();
+    let v = run_json(&[
+        "subs",
+        a.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--merge",
+        b.to_str().unwrap(),
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["cues"].as_u64().unwrap(), 2);
+    let body = std::fs::read_to_string(&out).unwrap();
+    assert!(body.contains("A") && body.contains("B"));
+}
+
+#[test]
+fn denoise_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "denoise",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--dur",
+        "0.3",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn leveler_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "leveler",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--dur",
+        "0.3",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn caption_karaoke_reveals_words() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let srt = dir.join("c.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,100 --> 00:00:00,600\nhello dark world\n\n",
+    )
+    .unwrap();
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--karaoke",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn timer_box_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "timer",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--dur",
+        "0.3",
+        "--box-color",
+        "black",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn caption_box_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let srt = dir.join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,100 --> 00:00:00,500\nhi there\n\n").unwrap();
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--box-color",
+        "black",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn replace_loop_extends_short_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let short = dir.join("s.m4a");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=300:duration=0.1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&short)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "replace",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        short.to_str().unwrap(),
+        "--loop",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // video length preserved even though the bed is 0.1s
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - v["summary"].as_str().map(|_| 0.0).unwrap_or(0.0)).abs() < 10.0);
+    assert!(d > 0.5);
+}
+
+#[test]
+fn pitch_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "pitch",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--semitones",
+        "4",
+        "--at",
+        "0.1",
+        "--dur",
+        "0.3",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn dehum_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    let src = fixture(dir);
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "dehum",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--dur",
+        "0.3",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn vocal_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let dir = dir.path();
+    // vocal needs a stereo source
+    let src = dir.join("st.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=0.6:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.6",
+            "-t",
+            "0.6",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-ac",
+            "2",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let out = dir.join("o.mp4");
+    let v = run_json(&[
+        "vocal",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--dur",
+        "0.3",
+        "--overwrite",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn gate_window_applies_gate_only_inside_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("g.mp4");
+    let v = run_json(&[
+        "gate",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn mix_window_gates_second_track() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "mix",
+        src.to_str().unwrap(),
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn waveform_window_crops_slice() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("w.png");
+    let v = run_json(&[
+        "waveform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--dur",
+        "0.3",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.is_file());
+}
+
+#[test]
+fn spectrogram_window_trims_slice() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("s.png");
+    let v = run_json(&[
+        "spectrogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--dur",
+        "0.3",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.is_file());
+}
+
+#[test]
+fn extract_gif_bounce_makes_palindrome() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("b.gif");
+    let v = run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--gif",
+        "--bounce",
+        "--dur",
+        "0.3",
+        "--fps",
+        "10",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.is_file());
+    // palindrome ≈ 2x the frames of a same-length non-bounce gif
+    let out2 = dir.path().join("f.gif");
+    run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        out2.to_str().unwrap(),
+        "--gif",
+        "--dur",
+        "0.3",
+        "--fps",
+        "10",
+        "--json",
+    ]);
+    let n = |p: &std::path::Path| {
+        let bytes = std::fs::read(p).unwrap();
+        bytes
+            .windows(3)
+            .filter(|w| w == &[0x21, 0xF9, 0x04])
+            .count()
+    };
+    let (nb, nf) = (n(&out), n(&out2));
+    assert!(nb >= nf * 2 - 1, "bounce {nb} vs flat {nf}");
+}
+
+#[test]
+fn loudnorm_target_preset_sets_i() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("l.mp4");
+    let v = run_json(&[
+        "loudnorm",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--target",
+        "broadcast",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["target_i"], -23.0);
+}
+
+#[test]
+fn stabilize_edge_fill() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "stabilize",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--edge",
+        "clamped",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn timer_down_counts_to_end() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "timer",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--down",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn broll_volume_scales_insert_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    // insert with an audio stream
+    let ins = dir.path().join("ins.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=0.6:size=160x120:rate=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.6",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            ins.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(st.status.success());
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "broll",
+        a.to_str().unwrap(),
+        "--insert",
+        ins.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--duration",
+        "0.3",
+        "--audio",
+        "--volume",
+        "0.5",
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn broll_volume_needs_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "broll",
+        a.to_str().unwrap(),
+        "--insert",
+        a.to_str().unwrap(),
+        "--at",
+        "0.1",
+        "--duration",
+        "0.3",
+        "--volume",
+        "0.5",
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+}
+
+#[test]
+fn mix_loop_repeats_short_b() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    // 0.1s B track — without --loop the mix ends with A alone
+    let b = dir.path().join("b.wav");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=330:duration=0.1",
+            b.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(st.status.success());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "mix",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--loop",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn subs_rate_rescales_cues() {
+    let dir = tempfile::tempdir().unwrap();
+    let srt = dir.path().join("a.srt");
+    std::fs::write(&srt, "1\n00:00:01,000 --> 00:00:02,000\nhello\n").unwrap();
+    let out = dir.path().join("b.srt");
+    let v = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--rate",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.contains("00:00:00,500"), "{text}");
+    assert!(text.contains("00:00:01,000"), "{text}");
+}
+
+#[test]
+fn caption_fade_writes_soft_captions() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,050 --> 00:00:00,500\nfade me\n").unwrap();
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--fade",
+        "0.1",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn audiogram_subs_burns_cues() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("a.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,050 --> 00:00:00,400\nepisode title line\n",
+    )
+    .unwrap();
+    let out = dir.path().join("a.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--subs",
+        srt.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["sub_cues"], 1);
+}
+
+#[test]
+fn fit_position_anchors_picture_in_bars() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("sq.mp4");
+    let v = run_json(&[
+        "fit",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--aspect",
+        "1:1",
+        "--position",
+        "top",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+
+    let frame = dir.path().join("f.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let (w, h) = img.dimensions();
+    let top = img.get_pixel(w / 2, 2);
+    let bottom = img.get_pixel(w / 2, h.saturating_sub(3));
+    assert!(
+        top.0.iter().map(|&c| c as u32).sum::<u32>() > 60,
+        "picture should reach the top edge, got {top:?}"
+    );
+    assert!(
+        bottom.0.iter().map(|&c| c as u32).sum::<u32>() < 60,
+        "bottom bar should stay dark, got {bottom:?}"
+    );
+}
+
+#[test]
+fn mute_at_silences_window_only() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "mute",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--dur",
+        "0.2",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // the muted window should show up as a silence cut
+    let parts = dir.path().join("p_%d.mp4");
+    let sp = run_json(&[
+        "split",
+        out.to_str().unwrap(),
+        "-o",
+        parts.to_str().unwrap(),
+        "--silence",
+        "-45",
+        "--min-silence",
+        "0.15",
+        "--json",
+    ]);
+    assert_eq!(sp["status"], "ok", "{sp}");
+    assert_eq!(sp["extra"]["count"], 2, "{sp}");
+    let cut = sp["extra"]["cuts"][0].as_f64().unwrap();
+    assert!((cut - 0.3).abs() < 0.1, "cut at {cut}, want ~0.3");
+}
+
+#[test]
+fn boomerang_at_bounces_window_only() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "boomerang",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--dur",
+        "0.3",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    let want = 1.0 + 0.3;
+    assert!((d - want).abs() < 0.25, "expected ~{want}s, got {d}");
+}
+
+#[test]
+fn extract_gif_loop_writes_animation() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("e.gif");
+    let v = run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--gif",
+        "--dur",
+        "0.3",
+        "--loop",
+        "-1",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let bytes = std::fs::read(&out).unwrap();
+    let gce = bytes
+        .windows(3)
+        .filter(|w| *w == [0x21, 0xF9, 0x04])
+        .count();
+    assert!(gce >= 2, "expected multiple frames, got {gce}");
+}
+
+#[test]
+fn meme_position_center_stacks_text_mid_screen() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "--top",
+        "MIDDLE",
+        "-o",
+        out.to_str().unwrap(),
+        "--position",
+        "center",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = dir.path().join("f.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let (w, h) = img.dimensions();
+    let white_in = |y0: u32, y1: u32| -> u32 {
+        let mut n = 0;
+        for y in y0..y1.min(h) {
+            for x in 0..w {
+                let p = img.get_pixel(x, y);
+                if p[0] > 220 && p[1] > 220 && p[2] > 220 {
+                    n += 1;
+                }
+            }
+        }
+        n
+    };
+    let mid = white_in(h * 2 / 5, h * 3 / 5);
+    let top = white_in(0, h / 10);
+    assert!(
+        mid > top,
+        "text should sit mid-screen: mid {mid} vs top {top}"
+    );
+}
+
+#[test]
+fn solid_text_puts_text_on_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--dur",
+        "0.6",
+        "--size",
+        "640x360",
+        "--text",
+        "THE END",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = dir.path().join("f.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let white = img
+        .pixels()
+        .filter(|p| p[0] > 200 && p[1] > 200 && p[2] > 200)
+        .count();
+    assert!(white > 50, "expected glyphs on the card, got {white}");
+}
+
+#[test]
+fn tempo_at_retempos_window_only() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("tone.m4a");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("t.m4a");
+    let v = run_json(&[
+        "tempo",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--factor",
+        "2",
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // 1.0s - 0.4s window + 0.4s/2 = 0.8s
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 0.8).abs() < 0.12, "expected ~0.8s, got {d}");
+}
+
+#[test]
+fn broll_position_pips_insert_in_corner() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let ins = dir.path().join("ins.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:size=320x240:duration=1:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=330:duration=1",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&ins)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("pip.mp4");
+    let v = run_json(&[
+        "broll",
+        src.to_str().unwrap(),
+        "--insert",
+        ins.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--duration",
+        "0.4",
+        "-o",
+        out.to_str().unwrap(),
+        "--position",
+        "top-right",
+        "--scale",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = dir.path().join("f.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.35",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let (w, h) = img.dimensions();
+    let red = |x: u32, y: u32| -> bool {
+        let p = img.get_pixel(x, y);
+        p[0] > 150 && p[1] < 90 && p[2] < 90
+    };
+    assert!(red(w - 60, 60), "top-right corner should carry the red PiP");
+    assert!(!red(w / 2, h / 2), "center should stay A-roll, not PiP");
+}
+
+#[test]
+fn subs_burn_safe_lifts_captions_out_of_bottom() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("s.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,900\nSAFE LINE\n").unwrap();
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--safe",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = dir.path().join("f.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let (w, h) = img.dimensions();
+    let bright_in = |y0: u32, y1: u32| -> u32 {
+        let mut n = 0;
+        for y in y0..y1.min(h) {
+            for x in 0..w {
+                let p = img.get_pixel(x, y);
+                if p[0] > 200 && p[1] > 200 && p[2] > 200 {
+                    n += 1;
+                }
+            }
+        }
+        n
+    };
+    let bottom = bright_in((h as f64 * 0.88) as u32, h);
+    let above = bright_in((h as f64 * 0.55) as u32, (h as f64 * 0.80) as u32);
+    assert!(
+        above > bottom,
+        "safe zone should lift text out of the bottom: above {above} vs bottom {bottom}"
+    );
+}
+
+#[test]
+fn eq_band_parametric_and_validation() {
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("tone.m4a");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.5",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    if !has_ffmpeg() || !ok {
+        return;
+    }
+    let out = dir.path().join("e.m4a");
+    let v = run_json(&[
+        "eq",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--band",
+        "800:-3",
+        "--band",
+        "5200:2:0.7",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let bad = run_json(&[
+        "eq",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("b.m4a").to_str().unwrap(),
+        "--band",
+        "50000:2",
+        "--json",
+    ]);
+    assert_eq!(bad["status"], "failed", "{bad}");
+}
+
+#[test]
+fn transcode_prores_writes_mov() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mov");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "prores",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["vcodec"], "prores");
+    assert_eq!(v["probe"]["acodec"], "pcm_s16le");
+}
+
+#[test]
+fn chapter_export_writes_ffmetadata() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("marks.txt");
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "--at",
+        "0|Intro",
+        "--at",
+        "0.4|End",
+        "-o",
+        out.to_str().unwrap(),
+        "--export",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.contains(";FFMETADATA1"), "{text}");
+    assert!(text.contains("title=Intro"), "{text}");
+    assert!(text.contains("title=End"), "{text}");
+    assert!(!out.with_extension("mp4").exists());
+}
+
+#[test]
+fn conform_crf_transcodes() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "conform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--crf",
+        "30",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.exists());
+}
+
+#[test]
+fn grid_gap_leaves_black_borders() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("g.mp4");
+    let v = run_json(&[
+        "grid",
+        src.to_str().unwrap(),
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--layout",
+        "2x1",
+        "--gap",
+        "20",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = dir.path().join("f.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let (w, h) = img.dimensions();
+    let dark = |x: u32, y: u32| -> bool {
+        let p = img.get_pixel(x, y);
+        p[0] < 40 && p[1] < 40 && p[2] < 40
+    };
+    assert!(
+        dark(w / 2, h / 2) && dark(2, 2),
+        "gap band + outer edge should be black"
+    );
+}
+
+#[test]
+fn chapter_import_reads_marks_file() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let marks = dir.path().join("marks.txt");
+    std::fs::write(&marks, "# chapters\n0|Intro\n0.4|End\n").unwrap();
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "--import",
+        marks.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["chapters"].as_array().unwrap().len(), 2);
+}
+
+fn delayed_fixture(dir: &Path, ms: u32) -> PathBuf {
+    let src = fixture(dir);
+    let out = dir.join(format!("d{ms}.mp4"));
+    let status = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&src)
+        .args([
+            "-af",
+            &format!("adelay={ms}|{ms}"),
+            "-c:v",
+            "copy",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&out)
+        .status()
+        .expect("ffmpeg delay");
+    assert!(status.success());
+    out
+}
+
+#[test]
+fn align_detects_and_shifts_offset() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let refm = fixture(dir.path());
+    let tgt = delayed_fixture(dir.path(), 300);
+    let out = dir.path().join("a.mp4");
+    let v = run_json(&[
+        "align",
+        refm.to_str().unwrap(),
+        tgt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let off = v["extra"]["offset_ms"].as_f64().unwrap();
+    assert!(
+        (off - 300.0).abs() < 120.0,
+        "expected ~300ms offset, got {off}"
+    );
+}
+
+#[test]
+fn scroll_rolls_credits() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let bg = dir.path().join("bg.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        bg.to_str().unwrap(),
+        "--dur",
+        "1",
+        "--size",
+        "320x240",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let credits = dir.path().join("credits.txt");
+    std::fs::write(&credits, "Director\nBest Boy\n").unwrap();
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "scroll",
+        bg.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--file",
+        credits.to_str().unwrap(),
+        "--dur",
+        "1",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let frame = dir.path().join("f.png");
+    let look = run_json(&[
+        "look",
+        out.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "-o",
+        frame.to_str().unwrap(),
+    ]);
+    assert_eq!(look["status"], "ok", "{look}");
+    let img = image::open(&frame).expect("frame png").to_rgb8();
+    let (w, h) = img.dimensions();
+    let mut bright = 0usize;
+    for y in (0..h).step_by(4) {
+        for x in (0..w).step_by(4) {
+            let p = img.get_pixel(x, y);
+            if p[0] > 200 && p[1] > 200 && p[2] > 200 {
+                bright += 1;
+            }
+        }
+    }
+    assert!(bright > 20, "mid-roll frame should show credit text");
+}
+
+#[test]
+fn countdown_text_labels_the_count() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "countdown",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--from",
+        "2",
+        "--each",
+        "0.3",
+        "--text",
+        "SOON",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+fn lavfi_fixture(dir: &Path, name: &str, color: &str, secs: f64) -> PathBuf {
+    let out = dir.join(name);
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            &format!("testsrc=duration={secs}:size=320x240:rate=30"),
+            "-f",
+            "lavfi",
+            "-i",
+            &format!("sine=frequency={color}:duration={secs}"),
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&out)
+        .status()
+        .expect("ffmpeg lavfi fixture");
+    assert!(status.success());
+    out
+}
+
+#[test]
+fn insert_splices_clip_mid_video() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let base = fixture(dir.path());
+    let clip = lavfi_fixture(dir.path(), "clip.mp4", "880", 0.5);
+    let out = dir.path().join("i.mp4");
+    let v = run_json(&[
+        "insert",
+        base.to_str().unwrap(),
+        "--clip",
+        clip.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let v2 = run_json(&["probe", out.to_str().unwrap()]);
+    let d = v2["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        (d - 1.5).abs() < 0.3,
+        "1s base + 0.5s insert ≈ 1.5s, got {d}"
+    );
+}
+
+#[test]
+fn multicam_switches_angles_at_cuts() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    let b = lavfi_fixture(dir.path(), "b.mp4", "880", 1.5);
+    let out = dir.path().join("mc.mp4");
+    let v = run_json(&[
+        "multicam",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["angles"], 2);
+}
+
+#[test]
+fn split_subs_writes_retimed_part_srts() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("cap.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,050 --> 00:00:00,300\nhello world\n\n2\n00:00:00,300 --> 00:00:00,550\nsecond caption line\n",
+    )
+    .unwrap();
+    let out = dir.path().join("sp.mp4");
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "--subs",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let parts = v["extra"]["parts"].as_array().unwrap();
+    let s0 = dir.path().join(
+        Path::new(parts[0].as_str().unwrap())
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .replace(".mp4", ".srt"),
+    );
+    let txt = std::fs::read_to_string(&s0).expect("part srt");
+    assert!(txt.contains("hello world"), "{txt}");
+    assert!(txt.contains("00,500"), "cue end clamped to part end: {txt}");
+}
+
+#[test]
+fn hls_ladder_writes_master_and_variants() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("hls");
+    let v = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--ladder",
+        "240,144",
+        "--seg",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let master = out.join("master.m3u8");
+    assert!(master.exists(), "master.m3u8 missing");
+    let txt = std::fs::read_to_string(&master).unwrap();
+    assert_eq!(
+        txt.matches("EXT-X-STREAM-INF").count(),
+        2,
+        "two variants in master: {txt}"
+    );
+    assert!(out.join("v0.m3u8").exists() && out.join("v1.m3u8").exists());
+}
+
+#[test]
+fn concat_level_loudnorms_each_input() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    let b = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "concat",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--level",
+        "-14",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let v2 = run_json(&["probe", out.to_str().unwrap()]);
+    let d = v2["probe"]["duration"].as_f64().unwrap();
+    assert!(d > 1.6, "two 1s clips joined ≈ 2s, got {d}");
+}
+
+#[test]
+fn loudnorm_measure_reports_without_output() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let m = run_json(&["loudnorm", src.to_str().unwrap(), "--measure"]);
+    assert_eq!(m["status"], "ok");
+    let meas = &m["extra"]["measured"];
+    assert!(meas["input_i"].as_str().unwrap().parse::<f64>().is_ok());
+    assert!(!m["commands"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn subs_convert_srt_vtt_roundtrip() {
+    let tmp = tempfile::tempdir().unwrap();
+    let srt = tmp.path().join("a.srt");
+    std::fs::write(&srt, "1\n00:00:00,050 --> 00:00:00,300\nhello\n").unwrap();
+    let vtt = tmp.path().join("a.vtt");
+    run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        vtt.to_str().unwrap(),
+        "--convert",
+    ]);
+    let body = std::fs::read_to_string(&vtt).unwrap();
+    assert!(body.starts_with("WEBVTT"));
+    assert!(body.contains("00:00:00.050 --> 00:00:00.300"));
+    let back = tmp.path().join("back.srt");
+    run_json(&[
+        "subs",
+        vtt.to_str().unwrap(),
+        "-o",
+        back.to_str().unwrap(),
+        "--convert",
+    ]);
+    assert!(std::fs::read_to_string(&back)
+        .unwrap()
+        .contains("00:00:00,050 --> 00:00:00,300"));
+}
+
+#[test]
+fn art_extract_pulls_embedded_cover() {
+    let tmp = tempfile::tempdir().unwrap();
+    let tagged = tmp.path().join("tagged.mp3");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=40x30:rate=1",
+            "-map",
+            "0:a",
+            "-map",
+            "1:v",
+            "-c:v",
+            "mjpeg",
+            "-disposition:v:0",
+            "attached_pic",
+            "-f",
+            "mp3",
+        ])
+        .arg(&tagged)
+        .status()
+        .expect("spawn ffmpeg");
+    assert!(status.success());
+    let out = tmp.path().join("cover.jpg");
+    let j = run_json(&[
+        "art",
+        tagged.to_str().unwrap(),
+        "--extract",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let head = std::fs::read(&out).unwrap();
+    assert_eq!(&head[..2], &[0xFF, 0xD8]);
+}
+
+#[test]
+fn countdown_position_moves_the_digits() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("cd.mp4");
+    let j = run_json(&[
+        "countdown",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--from",
+        "3",
+        "--position",
+        "bottom-right",
+    ]);
+    assert_eq!(j["status"], "ok");
+}
+
+#[test]
+fn insert_transition_xfades_both_joints() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let clip = tmp.path().join("clip.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1.5:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1.5",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&clip)
+        .status()
+        .expect("ffmpeg");
+    assert!(st.success());
+    let out = tmp.path().join("ins.mp4");
+    let j = run_json(&[
+        "insert",
+        src.to_str().unwrap(),
+        "--clip",
+        clip.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "--transition",
+        "fade",
+        "--duration",
+        "0.3",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    // 1.0 + 1.5 - 2*0.3 overlap = ~1.9s
+    let p = run_json(&["probe", out.to_str().unwrap()]);
+    let d = p["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.9).abs() < 0.15, "duration {d}");
+}
+
+#[test]
+fn hls_audio_only_writes_no_video_playlist() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let dir = tmp.path().join("hls");
+    let j = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        dir.to_str().unwrap(),
+        "--audio-only",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let m3u8 = std::fs::read_to_string(dir.join("index.m3u8")).unwrap();
+    assert!(m3u8.contains("#EXTINF"));
+    assert!(dir.join("seg_000.ts").is_file());
+}
+
+#[test]
+fn grid_fill_crops_tiles_to_the_cell() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("g.mp4");
+    let j = run_json(&[
+        "grid",
+        src.to_str().unwrap(),
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--layout",
+        "2x1",
+        "--size",
+        "640x240",
+        "--fill",
+    ]);
+    assert_eq!(j["status"], "ok");
+}
+
+#[test]
+fn mix_duck_sidechains_the_bed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("duck.mp4");
+    let j = run_json(&[
+        "mix",
+        src.to_str().unwrap(),
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--duck",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", out.to_str().unwrap()]);
+    assert!(p["probe"]["has_audio"].as_bool().unwrap());
+}
+
+#[test]
+fn compress_target_sizes_for_platforms() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("d.mp4");
+    let j = run_json(&[
+        "compress",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--target",
+        "discord",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert!(std::fs::metadata(&out).unwrap().len() < 8 * 1024 * 1024);
+}
+
+#[test]
+fn subs_burn_outline_widens_the_stroke() {
+    if !has_filter("subtitles") {
+        return;
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let srt = tmp.path().join("t.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,900\nHI\n").unwrap();
+    let out = tmp.path().join("b.mp4");
+    let j = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--outline",
+        "3",
+    ]);
+    assert_eq!(j["status"], "ok");
+}
+
+#[test]
+fn vocal_amount_keeps_a_partial_cancel() {
+    let tmp = tempfile::tempdir().unwrap();
+    let stereo = tmp.path().join("st.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-af",
+            "aformat=channel_layouts=stereo",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&stereo)
+        .status()
+        .expect("ffmpeg");
+    assert!(st.success());
+    let out = tmp.path().join("v.mp4");
+    let j = run_json(&[
+        "vocal",
+        stereo.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--amount",
+        "0.5",
+    ]);
+    assert_eq!(j["status"], "ok");
+}
+
+#[test]
+fn eq_tilt_warms_and_brightens() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("e.mp4");
+    let j = run_json(&[
+        "eq",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--tilt",
+        "5",
+    ]);
+    assert_eq!(j["status"], "ok");
+    // tilt maps to bass=+5 / treble=-5 in the af chain
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("bass=g=5"), "{cmd}");
+    assert!(cmd.contains("treble=g=-5"), "{cmd}");
+}
+
+#[test]
+fn deinterlace_bwdif_engine_runs() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("d.mp4");
+    let j = run_json(&[
+        "deinterlace",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--engine",
+        "bwdif",
+    ]);
+    assert_eq!(j["status"], "ok");
+}
+
+#[test]
+fn insert_dur_splices_only_part_of_the_clip() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let clip = tmp.path().join("clip.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1.5:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1.5",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&clip)
+        .status()
+        .expect("ffmpeg");
+    assert!(st.success());
+    let out = tmp.path().join("i.mp4");
+    let j = run_json(&[
+        "insert",
+        src.to_str().unwrap(),
+        "--clip",
+        clip.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "--dur",
+        "0.5",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", out.to_str().unwrap()]);
+    let d = p["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.5).abs() < 0.15, "duration {d} (1.0 + 0.5 splice)");
+}
+
+#[test]
+fn silence_detect_reports_ranges() {
+    let tmp = tempfile::tempdir().unwrap();
+    // 0.5s tone + trailing pad → one silence range near the tail
+    let gap = tmp.path().join("gap.aac");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.5",
+            "-af",
+            "apad",
+            "-t",
+            "1.2",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&gap)
+        .status()
+        .expect("ffmpeg");
+    assert!(st.success());
+    let j = run_json(&[
+        "silence",
+        gap.to_str().unwrap(),
+        "--detect",
+        "--threshold",
+        "-35",
+        "--min",
+        "0.2",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let ranges = j["extra"]["ranges"].as_array().unwrap();
+    assert_eq!(ranges.len(), 1);
+    assert!(ranges[0]["start"].as_f64().unwrap() > 0.4);
+}
+
+#[test]
+fn thumb_count_writes_n_stills() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("t.jpg");
+    let j = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--count",
+        "3",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let files = j["extra"]["files"].as_array().unwrap();
+    assert_eq!(files.len(), 3);
+    for f in files {
+        assert!(std::path::Path::new(f.as_str().unwrap()).is_file(), "{f}");
+    }
+}
+
+#[test]
+fn sheet_from_to_windows_the_samples() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("sh.png");
+    let j = run_json(&[
+        "sheet",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--cols",
+        "2",
+        "--rows",
+        "2",
+        "--from",
+        "0.2",
+        "--to",
+        "0.8",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert!(out.is_file());
+}
+
+#[test]
+fn loudnorm_dynamic_normalizes_per_frame() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("ln.mp4");
+    let j = run_json(&[
+        "loudnorm",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--dynamic",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["dynamic"], true);
+}
+
+#[test]
+fn subs_all_extracts_every_stream() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let srt = tmp.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,500\nHI\n").unwrap();
+    // mkv with two subtitle streams
+    let multi = tmp.path().join("multi.mkv");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            src.to_str().unwrap(),
+            "-i",
+            srt.to_str().unwrap(),
+            "-i",
+            srt.to_str().unwrap(),
+            "-map",
+            "0:v",
+            "-map",
+            "0:a",
+            "-map",
+            "1:s",
+            "-map",
+            "2:s",
+            "-c:v",
+            "copy",
+            "-c:a",
+            "copy",
+            "-c:s",
+            "srt",
+        ])
+        .arg(&multi)
+        .status()
+        .expect("ffmpeg");
+    assert!(st.success());
+    let out = tmp.path().join("o.srt");
+    let j = run_json(&[
+        "subs",
+        multi.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--all",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["streams"], 2);
+    for f in j["extra"]["files"].as_array().unwrap() {
+        let s = f.as_str().unwrap();
+        assert!(std::path::Path::new(s).is_file(), "{s}");
+        assert!(std::fs::read_to_string(s).unwrap().contains("HI"));
+    }
+}
+
+#[test]
+fn mix_normalize_halves_the_sum() {
+    let tmp = tempfile::tempdir().unwrap();
+    let a = fixture(tmp.path());
+    let b = tmp.path().join("b.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&b)
+        .status()
+        .expect("ffmpeg");
+    assert!(st.success());
+    let out = tmp.path().join("m.mp4");
+    let j = run_json(&[
+        "mix",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--normalize",
+    ]);
+    assert_eq!(j["status"], "ok");
+}
+
+#[test]
+fn fit_strength_dials_the_blur() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("fitted.mp4");
+    let j = run_json(&[
+        "fit",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--aspect",
+        "9:16",
+        "--fit",
+        "blur",
+        "--strength",
+        "10",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+}
+
+#[test]
+fn compress_crf_skips_the_size_math() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = fixture(tmp.path());
+    let out = tmp.path().join("c.mp4");
+    let j = run_json(&[
+        "compress",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--crf",
+        "20",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["passes"], 1);
+}
+
+#[test]
+fn remux_audio_rips_the_track() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.m4a");
+    let j = run_json(&[
+        "remux",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert!(out.exists());
+}
+
+#[test]
+fn hls_fmp4_writes_m4s_segments() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("hls_fmp4");
+    let j = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--fmp4",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let segs = std::fs::read_dir(&out)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().is_some_and(|x| x == "m4s"))
+        .count();
+    assert!(segs > 0, "no .m4s segments written");
+    assert!(out.join("index.m3u8").exists());
+}
+
+#[test]
+fn loop_fade_crossfades_the_joints() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("looped.mp4");
+    let j = run_json(&[
+        "loop",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--times",
+        "3",
+        "--fade",
+        "0.2",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let d = j["probe"]["duration"].as_f64().unwrap();
+    // 3 x 1.0s minus two 0.2s joints
+    assert!((d - 2.6).abs() < 0.25, "duration {d}");
+}
+
+#[test]
+fn compress_res_downscales_to_free_bitrate() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("resed.mp4");
+    let j = run_json(&[
+        "compress",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "1MB",
+        "--res",
+        "240",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["probe"]["height"], 240);
+    assert_eq!(j["extra"]["res"], 240);
+}
+
+#[test]
+fn meta_copy_carries_tags_and_chapters() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("tagged.mp4");
+    let j = run_json(&[
+        "meta",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--copy",
+        src.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert!(j["extra"]["copied_from"].as_str().is_some());
+    assert!(out.exists());
+}
+
+#[test]
+fn extract_gif_colors_shrinks_the_palette() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("tiny.gif");
+    let j = run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--gif",
+        "--dur",
+        "0.5",
+        "--colors",
+        "8",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert!(out.exists());
+}
+
+#[test]
+fn broll_loop_covers_a_window_longer_than_the_insert() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("br.mp4");
+    // fixture is 1s; a 0.8s window is still inside A but needs the
+    // loop filter emitted so a short insert replays instead of freezing
+    let j = run_json(&[
+        "broll",
+        src.to_str().unwrap(),
+        "--insert",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0",
+        "--duration",
+        "0.8",
+        "--loop",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("loop=loop=-1:size="), "{cmd}");
+    assert!(out.exists());
+}
+
+#[test]
+fn align_window_bounds_the_decode() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("al.mp4");
+    let j = run_json(&[
+        "align",
+        src.to_str().unwrap(),
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--window",
+        "0.8",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["window"], 0.8);
+}
+
+#[test]
+fn multicam_keep_audio_stays_on_cam_a() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    let b = dir.path().join("b.mp4");
+    std::fs::copy(&a, &b).unwrap();
+    let out = dir.path().join("mc.mp4");
+    let j = run_json(&[
+        "multicam",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "-o",
+        out.to_str().unwrap(),
+        "--keep-audio",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["keep_audio"], true);
+    assert!(out.exists());
+}
+
+#[test]
+fn conform_pad_fills_to_exact_size() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("cf.mp4");
+    let j = run_json(&[
+        "conform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "320x240",
+        "--pad",
+        "white",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["probe"]["width"], 320);
+    assert_eq!(j["probe"]["height"], 240);
+}
+
+#[test]
+fn channel_mix51_folds_surround_to_stereo() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("ch51.aac");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=channel_layout=5.1:sample_rate=44100",
+            "-t",
+            "0.5",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let out = dir.path().join("st.m4a");
+    let j = run_json(&[
+        "channel",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "mix51",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["mode"], "Mix51");
+}
+
+#[test]
+fn transcode_gif_colors_shrinks_the_palette() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("tiny.gif");
+    let j = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "gif",
+        "--colors",
+        "8",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("max_colors=8"), "{cmd}");
+}
+
+#[test]
+fn progress_bg_lays_a_track_bar() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("pg.mp4");
+    let j = run_json(&[
+        "progress",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--bg",
+        "red",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("color=c=red"), "{cmd}");
+    assert!(out.exists());
+}
+
+#[test]
+fn mix_fade_eases_the_bed_edges() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = fixture(dir.path());
+    let b = dir.path().join("b.mp4");
+    std::fs::copy(&a, &b).unwrap();
+    let out = dir.path().join("mx.m4a");
+    let j = run_json(&[
+        "mix",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--dur",
+        "0.6",
+        "--fade",
+        "0.2",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("afade=t=in:st=0.2"), "{cmd}");
+    assert!(cmd.contains("afade=t=out"), "{cmd}");
+}
+
+#[test]
+fn insert_volume_scales_the_clip_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("in.mp4");
+    let j = run_json(&[
+        "insert",
+        src.to_str().unwrap(),
+        "--clip",
+        src.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "--volume",
+        "0.3",
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("volume=0.3"), "{cmd}");
+}
+
+#[test]
+fn solid_fade_wraps_the_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("card.mp4");
+    let j = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--dur",
+        "1.0",
+        "--fade",
+        "0.3",
+        "--text",
+        "END",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("fade=t=in"), "{cmd}");
+}
+
+#[test]
+fn split_chapters_cuts_at_embedded_marks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // 1s clip with chapters at 0.4s and 0.7s → 3 parts.
+    let src = dir.path().join("chap.mp4");
+    let meta = dir.path().join("meta.txt");
+    std::fs::write(
+        &meta,
+        ";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=400\ntitle=a\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=400\nEND=700\ntitle=b\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=700\nEND=1000\ntitle=c\n",
+    )
+    .unwrap();
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-i",
+        ])
+        .arg(&meta)
+        .args([
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map_metadata",
+            "2",
+            "-map_chapters",
+            "2",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let tpl = dir.path().join("ch_%02d.mp4");
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        tpl.to_str().unwrap(),
+        "--chapters",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let parts = std::fs::read_dir(dir.path())
+        .unwrap()
+        .filter(|e| {
+            e.as_ref()
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with("ch_")
+        })
+        .count();
+    assert_eq!(parts, 3, "expected one part per chapter, got {parts}");
+}
+
+#[test]
+fn replace_at_swaps_only_the_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let newa = dir.path().join("new.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&newa)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("w.mp4");
+    let v = run_json(&[
+        "replace",
+        src.to_str().unwrap(),
+        "--audio",
+        newa.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("concat=n="), "{cmds}");
+    assert!(cmds.contains("atrim"), "{cmds}");
+    assert_eq!(v["extra"]["window"]["at"].as_f64().unwrap(), 0.3);
+    assert!((v["probe"]["duration"].as_f64().unwrap() - 1.0).abs() < 0.1);
+}
+
+#[test]
+fn overlay_loop_repeats_short_video() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // 0.3s overlay clip on a ~1s base → loops to cover.
+    let ov = lavfi_fixture(dir.path(), "short.mp4", "880", 0.3);
+    let out = dir.path().join("lv.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "--video",
+        ov.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--loop",
+        "--scale",
+        "80",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("loop=loop=-1:size="), "{cmds}");
+    assert!(cmds.contains("shortest=1"), "{cmds}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!(
+        (d - 1.0).abs() < 0.2,
+        "overlay --loop must end with the base, got {d}"
+    );
+}
+
+#[test]
+fn subs_burn_box_plates_the_lines() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("t.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,900\nBOXED\n").unwrap();
+    let out = dir.path().join("boxed.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--box",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("BorderStyle=3"), "{cmds}");
+    assert!(cmds.contains("BackColour"), "{cmds}");
+}
+
+#[test]
+fn multicam_transition_softens_the_switch() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let cam_a = fixture(dir.path());
+    let cam_b = lavfi_fixture(dir.path(), "b.mp4", "660", 1.0);
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "multicam",
+        cam_a.to_str().unwrap(),
+        cam_b.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "--transition",
+        "0.2",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("xfade=transition=fade"), "{cmds}");
+    assert!(cmds.contains("offset=0.3"), "{cmds}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 0.8).abs() < 0.15, "xfade overlaps 0.2s, got {d}");
+}
+
+#[test]
+fn title_wrap_breaks_long_hooks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "a hook that is far too long for one row of pixels",
+        "--wrap",
+        "16",
+        "--duration",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 0.8);
+}
+
+#[test]
+fn fade_dip_marks_the_scene_change() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("d.mp4");
+    let v = run_json(&[
+        "fade",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--dip",
+        "0.5",
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("fade=t=out:st=0.350"), "{cmds}");
+    assert!(cmds.contains("fade=t=in:st=0.500"), "{cmds}");
+    assert!(cmds.contains("afade=t=out:st=0.350"), "{cmds}");
+}
+
+#[test]
+fn conform_blur_fills_the_letterbox() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("sq.mp4");
+    let v = run_json(&[
+        "conform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "240x240",
+        "--blur",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("gblur=sigma=40"), "{cmds}");
+    assert!(cmds.contains("split"), "{cmds}");
+}
+
+#[test]
+fn rotate_angle_tilts_the_frame() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("tilt.mp4");
+    let v = run_json(&[
+        "rotate",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--angle",
+        "15",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("rotate=a="), "{cmds}");
+    assert_eq!(v["extra"]["angle"].as_f64().unwrap(), 15.0);
+}
+
+#[test]
+fn chapter_list_reads_embedded_marks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("ch.mp4");
+    let meta = dir.path().join("m.txt");
+    std::fs::write(
+        &meta,
+        ";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=500\ntitle=intro\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=500\nEND=1000\ntitle=outro\n",
+    )
+    .unwrap();
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-i",
+        ])
+        .arg(&meta)
+        .args([
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map_chapters",
+            "2",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let v = run_json(&["chapter", src.to_str().unwrap(), "-o", "ignored", "--list"]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let chs = v["extra"]["chapters"].as_array().unwrap();
+    assert_eq!(chs.len(), 2);
+    assert_eq!(chs[1]["title"].as_str().unwrap(), "outro");
+    assert!((chs[1]["start"].as_f64().unwrap() - 0.5).abs() < 0.01);
+}
+
+#[test]
+fn subs_burn_align_shifts_lines() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("t.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,900\nRIGHT\n").unwrap();
+    let out = dir.path().join("r.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--align",
+        "right",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("Alignment=3"), "{cmds}");
+}
+
+#[test]
+fn conform_anchor_places_the_picture() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.mp4");
+    let v = run_json(&[
+        "conform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "240x320",
+        "--pad",
+        "black",
+        "--anchor",
+        "top",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("pad=240:320:(ow-iw)/2:0:black"), "{cmds}");
+}
+
+#[test]
+fn thumb_scenes_grabs_stills_at_cuts() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("sc.mp4");
+    // three distinct color segments → two hard cuts
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=red:s=320x240:d=0.5:r=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=blue:s=320x240:d=0.5:r=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=green:s=320x240:d=0.5:r=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1.5",
+            "-filter_complex",
+            "[0][1][2]concat=n=3:v=1[v]",
+            "-map",
+            "[v]",
+            "-map",
+            "3:a",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let out = dir.path().join("t.jpg");
+    let v = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--scenes",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // frame 0 + the two cuts
+    let stills: Vec<_> = std::fs::read_dir(dir.path())
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name().to_string_lossy().starts_with("t_"))
+        .collect();
+    assert_eq!(stills.len(), 3);
+}
+
+#[test]
+fn overlay_border_rings_the_picture() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let ov = lavfi_fixture(dir.path(), "ov.mp4", "880", 0.3);
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "overlay",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--video",
+        ov.to_str().unwrap(),
+        "--position",
+        "top-right",
+        "--scale",
+        "96",
+        "--border",
+        "4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("pad=iw+8:ih+8:4:4:white"), "{cmds}");
+}
+
+#[test]
+fn audiogram_spectrum_renders_frequency_bars() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "spectrum",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("showfreqs"), "{cmds}");
+    assert_eq!(v["extra"]["mode"].as_str().unwrap(), "spectrum");
+}
+
+#[test]
+fn subs_case_rewrites_cue_text() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let srt = dir.path().join("in.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,900\nhello there\n").unwrap();
+    let out = dir.path().join("up.srt");
+    let v = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--convert",
+        "--case",
+        "upper",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.contains("HELLO THERE"), "{text}");
+}
+
+#[test]
+fn meme_wrap_folds_long_captions() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--top",
+        "this caption is far too long for one line",
+        "--wrap",
+        "10",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["tool"], "meme");
+}
+
+#[test]
+fn channel_widen_fattens_the_stereo() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("w.mp4");
+    let v = run_json(&[
+        "channel",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "widen",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("extrastereo=m=2.5"), "{cmds}");
+}
+
+#[test]
+fn transcode_av1_picks_a_versioned_encoder() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.mp4");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "av1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("libsvtav1") || cmds.contains("libaom-av1"),
+        "{cmds}"
+    );
+}
+
+#[test]
+fn scroll_ticker_crawls_the_bottom() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "scroll",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "BREAKING",
+        "--mode",
+        "ticker",
+        "--dur",
+        "1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("x=W-(W+w)"), "{cmds}");
+    assert!(cmds.contains("y=H-h-40"), "{cmds}");
+}
+
+#[test]
+fn title_align_left_shifts_the_lines() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "line one\nlonger line two",
+        "--align",
+        "left",
+        "--duration",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn timer_start_seeds_the_readout() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "timer",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--start",
+        "65",
+        "--dur",
+        "1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    // 65s start: mm field reads floor((65+t)/60)
+    assert!(
+        cmds.contains("mod(floor((65.000+(t-0.000))/60),60)"),
+        "{cmds}"
+    );
+}
+
+#[test]
+fn waveform_peak_renders_transients() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("w.png");
+    let v = run_json(&[
+        "waveform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--peak",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains(":filter=peak"), "{cmds}");
+}
+
+#[test]
+fn solid_wrap_folds_the_end_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "a long end card message that needs wrapping",
+        "--wrap",
+        "10",
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn caption_align_left_renders_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:00,800\nfirst line\nlonger second line\n",
+    )
+    .unwrap();
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--align",
+        "left",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn spectrogram_scale_maps_to_filter() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("s.png");
+    let v = run_json(&[
+        "spectrogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--scale",
+        "sqrt",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains(":scale=sqrt"), "{cmds}");
+}
+
+#[test]
+fn audiogram_scale_reaches_showwaves() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--scale",
+        "log",
+        "--mode",
+        "point",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("draw=full:scale=log"), "{cmds}");
+}
+
+#[test]
+fn subs_burn_shadow_reaches_force_style() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,500\nhi\n").unwrap();
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--shadow",
+        "4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("Shadow=4"), "{cmds}");
+}
+
+#[test]
+fn waveform_split_draws_channels() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("w.png");
+    let v = run_json(&[
+        "waveform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--split",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains(":split_channels=1"), "{cmds}");
+}
+
+#[test]
+fn spectrogram_no_legend_drops_strip() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("s.png");
+    let v = run_json(&[
+        "spectrogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--no-legend",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("legend=0"), "{cmds}");
+}
+
+#[test]
+fn dehum_freq_overrides_mains() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("d.mp4");
+    let v = run_json(&[
+        "dehum",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--freq",
+        "120",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("equalizer=f=120:t=q:w=12:g=-20"), "{cmds}");
+}
+
+#[test]
+fn meme_align_left_renders_wrapped_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--top",
+        "a left aligned meme line that wraps",
+        "--wrap",
+        "10",
+        "--align",
+        "left",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn solid_noise_adds_grain() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("n.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--noise",
+        "30",
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("noise=alls=30:allf=t"), "{cmds}");
+}
+
+#[test]
+fn countdown_tone_sets_beep_freq() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "countdown",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--beep",
+        "--tone",
+        "440",
+        "--from",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("sin(2*PI*440"), "{cmds}");
+}
+
+#[test]
+fn audiogram_split_draws_channels() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--split",
+        "--mode",
+        "cline",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("split_channels=1"), "{cmds}");
+}
+
+#[test]
+fn scroll_align_left_rolls_text() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "scroll",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "cast\ncrew\npost",
+        "--align",
+        "left",
+        "--dur",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn meter_renders_loudness_video() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&["meter", src.to_str().unwrap(), "-o", out.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("ebur128=video=1"), "{cmds}");
+}
+
+#[test]
+fn caption_wrap_folds_long_lines() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:00,800\na very long caption line that needs wrapping\n",
+    )
+    .unwrap();
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--wrap",
+        "12",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn title_opacity_renders_ghost_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "ghost",
+        "--opacity",
+        "40",
+        "--duration",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn solid_align_left_card_text() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "line one\nlonger line two",
+        "--align",
+        "left",
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn audiogram_fscale_reaches_showfreqs() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "spectrum",
+        "--fscale",
+        "log",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains(":fscale=log"), "{cmds}");
+}
+
+#[test]
+fn solid_fps_sets_rate() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "solid",
+        "-o",
+        out.to_str().unwrap(),
+        "--fps",
+        "24",
+        "--dur",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("rate=24"), "{cmds}");
+}
+
+#[test]
+fn waveform_full_draws_dense() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("w.png");
+    let v = run_json(&[
+        "waveform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--full",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains(":draw=full"), "{cmds}");
+}
+
+#[test]
+fn scroll_wrap_folds_credits() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("s.mp4");
+    let v = run_json(&[
+        "scroll",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--text",
+        "a long credit line that should wrap",
+        "--wrap",
+        "12",
+        "--dur",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+fn scene_fixture(dir: &Path) -> PathBuf {
+    let f = dir.join("scenecut.mp4");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:s=320x240:d=0.6:r=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=blue:s=320x240:d=0.6:r=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1.2",
+            "-filter_complex",
+            "[0:v][1:v]concat=n=2:v=1[v]",
+            "-map",
+            "[v]",
+            "-map",
+            "2:a",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            f.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    f
+}
+
+#[test]
+fn rough_by_scene_splits_keeps_at_cuts() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = scene_fixture(dir.path());
+    let plain = run_json(&["rough", f.to_str().unwrap()]);
+    assert_eq!(plain["status"], "ok", "{plain}");
+    assert_eq!(plain["extra"]["kept"], 1, "{plain}");
+    let v = run_json(&["rough", f.to_str().unwrap(), "--by-scene"]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let kept = v["extra"]["kept"].as_u64().unwrap();
+    assert_eq!(kept, 2, "scene cut at 0.6 should split the keep; {v}");
+}
+
+#[test]
+fn meter_window_seeks_and_caps() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = scene_fixture(dir.path());
+    let out = dir.path().join("m.mp4");
+    let v = run_json(&[
+        "meter",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-ss"), "{cmds}");
+    assert!(cmds.contains("-t"), "{cmds}");
+}
+
+#[test]
+fn remux_video_drops_audio_stream() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("v.mp4");
+    let v = run_json(&[
+        "remux",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--video",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-map 0:v"), "{cmds}");
+}
+
+#[test]
+fn chapter_remove_strips_marks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let marked = dir.path().join("marked.mp4");
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "-o",
+        marked.to_str().unwrap(),
+        "--at",
+        "0.5|Mid",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let out = dir.path().join("clean.mp4");
+    let v = run_json(&[
+        "chapter",
+        marked.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--remove",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["chapters_removed"], true, "{v}");
+    let listed = run_json(&[
+        "chapter",
+        out.to_str().unwrap(),
+        "-o",
+        dir.path().join("n.mp4").to_str().unwrap(),
+        "--list",
+    ]);
+    let n = listed["extra"]["chapters"].as_array().unwrap().len();
+    assert_eq!(n, 0, "chapters should be gone: {listed}");
+}
+
+#[test]
+fn scroll_ticker_bg_draws_bar() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("t.mp4");
+    let v = run_json(&[
+        "scroll",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--mode",
+        "ticker",
+        "--text",
+        "breaking ticker",
+        "--bg",
+        "red",
+        "--dur",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("drawbox"), "{cmds}");
+}
+
+#[test]
+fn waveform_bg_composites_on_card() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("w.png");
+    let v = run_json(&[
+        "waveform",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--bg",
+        "black",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("color=c=black"), "{cmds}");
+    assert!(cmds.contains("overlay=0:0"), "{cmds}");
+}
+
+#[test]
+fn broll_pip_border_pads_insert() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = scene_fixture(dir.path());
+    let b = lavfi_fixture(dir.path(), "ins.mp4", "520", 1.0);
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "broll",
+        a.to_str().unwrap(),
+        "--insert",
+        b.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--duration",
+        "0.4",
+        "--position",
+        "bottom-right",
+        "--border",
+        "4",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("pad=iw+8:ih+8:4:4"), "{cmds}");
+}
+
+#[test]
+fn subs_burn_window_filters_cues() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:00,400\nearly\n\n\
+         2\n00:00:00,500 --> 00:00:00,900\nkeep\n\n\
+         3\n00:00:00,950 --> 00:00:01,200\nlate\n",
+    )
+    .unwrap();
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--from",
+        "0.45",
+        "--to",
+        "0.95",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.exists());
+}
+
+#[test]
+fn subs_to_requires_from() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,500\nx\n").unwrap();
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--to",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert!(
+        v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("--to needs --from"),
+        "{v}"
+    );
+}
+
+#[test]
+fn caption_from_to_filters_cues() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:00,400\nearly\n\n\
+         2\n00:00:00,500 --> 00:00:00,900\nkeep\n\n\
+         3\n00:00:00,950 --> 00:00:01,200\nlate\n",
+    )
+    .unwrap();
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--from",
+        "0.45",
+        "--to",
+        "0.95",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["cues"], 1, "only the overlapping cue: {v}");
+}
+
+#[test]
+fn audiogram_fps_sets_showwaves_rate() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--fps",
+        "60",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains(":rate=60"), "{cmds}");
+}
+
+#[test]
+fn countdown_bg_plates_numerals() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "countdown",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--from",
+        "2",
+        "--bg",
+        "101418",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn bw_strength_partial_desat() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "bw",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--strength",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("hue=s=0.6"), "{cmds}");
+}
+
+#[test]
+fn insert_at_end_appends_near_tail() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("i.mp4");
+    let v = run_json(&[
+        "insert",
+        src.to_str().unwrap(),
+        "--clip",
+        src.to_str().unwrap(),
+        "--at",
+        "end",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let probe = run_json(&["probe", out.to_str().unwrap()]);
+    assert!(
+        probe["probe"]["duration"].as_f64().unwrap() > 1.5,
+        "insert should nearly double duration: {probe}"
+    );
+}
+
+#[test]
+fn progress_edge_right_vertical() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("p.mp4");
+    let v = run_json(&[
+        "progress",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--edge",
+        "right",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("main_h-main_h*t/"), "vertical slide: {cmds}");
+}
+
+#[test]
+fn sheet_title_header() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("s.png");
+    let v = run_json(&[
+        "sheet",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--title",
+        "MY CUT",
+        "--cols",
+        "2",
+        "--rows",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["title"], "MY CUT");
+    assert!(out.exists());
+}
+
+#[test]
+fn transcode_alpha_webm_pix_fmt() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.webm");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "webm",
+        "--alpha",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("yuva420p"), "{cmds}");
+}
+
+#[test]
+fn transcode_alpha_rejects_h264() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("x.mp4");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--alpha",
+    ]);
+    assert_eq!(v["status"], "failed");
+    assert_eq!(v["error"]["kind"], "input");
+}
+
+#[test]
+fn slideshow_volume_in_bed_chain() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let img = dir.path().join("red.png");
+    let bed = dir.path().join("bed.mp3");
+    let make_img = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:s=320x240:d=1",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&img)
+        .output()
+        .unwrap();
+    assert!(make_img.status.success());
+    let make_bed = std::process::Command::new("ffmpeg")
+        .args(["-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=3"])
+        .arg(&bed)
+        .output()
+        .unwrap();
+    assert!(make_bed.status.success());
+    let out = dir.path().join("ss.mp4");
+    let v = run_json(&[
+        "slideshow",
+        img.to_str().unwrap(),
+        img.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        bed.to_str().unwrap(),
+        "--volume",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("volume=0.5"), "{cmds}");
+}
+
+#[test]
+fn chapter_shift_moves_marks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "--at",
+        "0.6|mid",
+        "--shift",
+        "0.2",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let ff = std::process::Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_chapters",
+            "-of",
+            "json",
+            out.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    let j: serde_json::Value = serde_json::from_slice(&ff.stdout).unwrap();
+    let t: f64 = j["chapters"][0]["start_time"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+    // shift 0.2 on a sole mark: 0.8 → but mark[0] is clamped to 0 when >0.05
+    assert_eq!(t, 0.0, "{j}");
+}
+
+#[test]
+fn broll_at_end_tail_cutaway() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "broll",
+        src.to_str().unwrap(),
+        "--insert",
+        src.to_str().unwrap(),
+        "--at",
+        "end",
+        "--duration",
+        "0.4",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
+fn transcode_preset_mp3_audio_only() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.mp3");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "mp3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["audio_only"], true);
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("-vn") && cmds.contains("libmp3lame"),
+        "{cmds}"
+    );
+}
+
+#[test]
+fn transcode_preset_wav_and_opus() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let wav = dir.path().join("a.wav");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        wav.to_str().unwrap(),
+        "--preset",
+        "wav",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["audio_only"], true);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream=codec_name",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&wav)
+        .output()
+        .unwrap();
+    assert!(String::from_utf8_lossy(&o.stdout).contains("pcm_s16le"));
+    let opus = dir.path().join("a.ogg");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        opus.to_str().unwrap(),
+        "--preset",
+        "opus",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream=codec_name",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&opus)
+        .output()
+        .unwrap();
+    assert!(String::from_utf8_lossy(&o.stdout).contains("opus"));
+}
+
+#[test]
+fn audiogram_from_to_clips_segment() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = lavfi_fixture(dir.path(), "seg.mp4", "660", 1.0);
+    let out = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--from",
+        "0.2",
+        "--to",
+        "0.8",
+        "--progress",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["clip"]["from"], 0.2);
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("atrim=start=0.2:end=0.8") && cmds.contains("-map [amap]"),
+        "{cmds}"
+    );
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    let d: f64 = String::from_utf8_lossy(&o.stdout)
+        .trim()
+        .parse()
+        .unwrap_or(0.0);
+    assert!((d - 0.6).abs() < 0.15, "duration {d}");
+}
+
+#[test]
+fn slideshow_dur_spreads_across_stills() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mut imgs = vec![];
+    for (i, c) in ["red", "green", "blue"].iter().enumerate() {
+        let p = dir.path().join(format!("d{i}.png"));
+        let status = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color=c={c}:s=320x240:d=0.5"),
+                "-frames:v",
+                "1",
+            ])
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        imgs.push(p);
+    }
+    let out = dir.path().join("show.mp4");
+    let v = run_json(&[
+        "slideshow",
+        imgs[0].to_str().unwrap(),
+        imgs[1].to_str().unwrap(),
+        imgs[2].to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--dur",
+        "6",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let total = v["extra"]["expected_duration"].as_f64().unwrap();
+    assert!((total - 6.0).abs() < 0.05, "expected_duration {total}");
+    // per = (6 + 2*0.6)/3 = 2.4
+    assert_eq!(v["extra"]["per"].as_f64().unwrap().round(), 2.4_f64.round());
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 6.0).abs() < 0.4, "probe duration {d}");
+}
+
+#[test]
+fn voice_at_dur_windows_polish() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("v.mp4");
+    let v = run_json(&[
+        "voice",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("asplit") && cmds.contains("atrim=start=0.300") && cmds.contains("amix"),
+        "{cmds}"
+    );
+    let v = run_json(&[
+        "voice",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("v2.mp4").to_str().unwrap(),
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert_eq!(v["error"]["kind"], "input");
+}
+
+#[test]
+fn freeze_zoom_pushes_into_hold() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("fz.mp4");
+    let v = run_json(&[
+        "freeze",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.4",
+        "--dur",
+        "0.5",
+        "--zoom",
+        "1.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["zoom"], 1.2);
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("zoompan=z='1+(1.2000-1)*on/"), "{cmds}");
+    // --zoom on an outro freeze is rejected
+    let v = run_json(&[
+        "freeze",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("f2.mp4").to_str().unwrap(),
+        "--end",
+        "0.5",
+        "--zoom",
+        "1.2",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert_eq!(v["error"]["kind"], "input");
+}
+
+#[test]
+fn vdenoise_at_windows_nlmeans() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("vd.mp4");
+    let v = run_json(&[
+        "vdenoise",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("nlmeans=s=4.0:enable='between(t,0.300,0.700)'"),
+        "{cmds}"
+    );
+    let v = run_json(&[
+        "vdenoise",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("vd2.mp4").to_str().unwrap(),
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert_eq!(v["error"]["kind"], "input");
+}
+
+#[test]
+fn cover_size_sets_canvas() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.png");
+    let v = run_json(&[
+        "cover",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "1280x720",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["frame"], "1280x720");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "1280,720");
+}
+
+#[test]
+fn grid_bg_colors_gutters() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "ga.mp4", "440", 0.6);
+    let b = lavfi_fixture(dir.path(), "gb.mp4", "550", 0.6);
+    let out = dir.path().join("g.mp4");
+    let v = run_json(&[
+        "grid",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--layout",
+        "2x1",
+        "--gap",
+        "24",
+        "--bg",
+        "ff0000",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains(":(oh-ih)/2:0xff0000"), "{cmds}");
+}
+
+#[test]
+fn deliver_youtube_is_landscape() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("yt.mp4");
+    let v = run_json(&[
+        "deliver",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--platform",
+        "youtube",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["platform"], "youtube");
+    assert_eq!(v["extra"]["frame"], "1920x1080");
+}
+
+#[test]
+fn slideshow_bg_colors_letterbox() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    for (name, c) in [("sa.png", "red"), ("sb.png", "green")] {
+        let o = Command::new("ffmpeg")
+            .args([
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=0x333333:size=320x240",
+                "-frames:v",
+                "1",
+            ])
+            .arg(dir.path().join(name))
+            .output()
+            .unwrap();
+        assert!(o.status.success(), "{c}");
+    }
+    let out = dir.path().join("ss.mp4");
+    let v = run_json(&[
+        "slideshow",
+        dir.path().join("sa.png").to_str().unwrap(),
+        dir.path().join("sb.png").to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--per",
+        "0.5",
+        "--fade",
+        "0.1",
+        "--bg",
+        "112233",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains(":(oh-ih)/2:0x112233"), "{cmds}");
+}
+
+#[test]
+fn extract_at_end_grabs_last_frame() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("last.png");
+    let v = run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "end",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.exists());
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("-ss 00:00:00.950") || cmds.contains("-ss 0.95"),
+        "{cmds}"
+    );
+}
+
+#[test]
+fn zoom_center_offsets_punch() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("zc.mp4");
+    let v = run_json(&[
+        "zoom",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--factor",
+        "1.5",
+        "--center",
+        "25,50",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("(iw-ow)*0.2500:(ih-oh)*0.5000"), "{cmds}");
+}
+
+#[test]
+fn censor_at_end_covers_tail() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("ce.mp4");
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--region",
+        "10:10:40:40",
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("gte(t,0.600") || cmds.contains("between(t,0.600"),
+        "{cmds}"
+    );
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("ce2.mp4").to_str().unwrap(),
+        "--region",
+        "10:10:40:40",
+        "--at",
+        "end",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert_eq!(v["error"]["kind"], "input");
+}
+
+#[test]
+fn meme_at_end_windows_tail() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("me.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--top",
+        "OUTRO",
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("between(t,0.600,1.000"), "{cmds}");
+}
+
+#[test]
+fn at_end_works_across_windowed_verbs() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // blur --at end --dur 0.4 → enable covers the tail
+    let out = dir.path().join("be.mp4");
+    let v = run_json(&[
+        "blur",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("between(t,0.600") || cmds.contains("gte(t,0.600"),
+        "{cmds}"
+    );
+    // title --at end --duration 0.4 → end-card title
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("tc.mp4").to_str().unwrap(),
+        "--text",
+        "THE END",
+        "--at",
+        "end",
+        "--duration",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // volume --at end without --dur → input error
+    let v = run_json(&[
+        "volume",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("ve.mp4").to_str().unwrap(),
+        "--db",
+        "-6",
+        "--at",
+        "end",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert_eq!(v["error"]["kind"], "input");
+}
+
+#[test]
+fn at_end_works_on_speed_and_audio_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // speed --at end --dur 0.4 → retime window anchors the tail (1.0 - 0.4 = 0.6)
+    let out = dir.path().join("sp.mp4");
+    let v = run_json(&[
+        "speed",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--factor",
+        "2",
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("0.600"), "{cmds}");
+    // tempo --at end --dur 0.4 → audio window anchors the tail
+    let a = dir.path().join("a.wav");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&a)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let v = run_json(&[
+        "tempo",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("tp.mp4").to_str().unwrap(),
+        "--factor",
+        "2",
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("0.600"), "{cmds}");
+    // mix --at end gates the B track into A's tail
+    let b = lavfi_fixture(dir.path(), "b.mp4", "550", 1.0);
+    let v = run_json(&[
+        "mix",
+        src.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        dir.path().join("mx.mp4").to_str().unwrap(),
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // waveform --at end --dur 0.4 crops the wave to the tail
+    let v = run_json(&[
+        "waveform",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("wf.png").to_str().unwrap(),
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // mute --at end --dur 0.4 silences the tail
+    let v = run_json(&[
+        "mute",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("mu.mp4").to_str().unwrap(),
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("0.600"), "{cmds}");
+    // thumb --at end grabs the last frame (no --dur needed)
+    let v = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("th.jpg").to_str().unwrap(),
+        "--at",
+        "end",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-ss"), "{cmds}");
+    assert!(cmds.contains("0.95"), "{cmds}");
+}
+
+#[test]
+fn sprite_writes_sheets_and_vtt() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // 1s @ --every 0.2 → 5 thumbs, one 10x10 sheet + WebVTT cues
+    let v = run_json(&[
+        "sprite",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("sp.jpg").to_str().unwrap(),
+        "--every",
+        "0.2",
+        "--width",
+        "80",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["thumbs"], 5);
+    let sheet = dir.path().join("sp-1.jpg");
+    let vtt = dir.path().join("sp.vtt");
+    assert!(sheet.exists(), "sheet missing");
+    assert!(vtt.exists(), "vtt missing");
+    let text = std::fs::read_to_string(&vtt).unwrap();
+    assert!(text.starts_with("WEBVTT"), "{text}");
+    assert_eq!(text.matches("-->").count(), 5, "{text}");
+    assert!(text.contains("00:00:00.200 --> 00:00:00.400"), "{text}");
+    assert!(text.contains("sp-1.jpg#xywh=80,0,80,60"), "{text}");
+}
+
+#[test]
+fn chapter_yt_writes_description_format_and_imports_it_back() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // --yt → "M:SS Title" lines for the YouTube description box
+    let marks = dir.path().join("marks.txt");
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "-o",
+        marks.to_str().unwrap(),
+        "--at",
+        "0:00|Intro",
+        "--at",
+        "0.5|Demo",
+        "--yt",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["exported"], "youtube");
+    let text = std::fs::read_to_string(&marks).unwrap();
+    assert!(text.contains("0:00 Intro"), "{text}");
+    assert!(text.contains("0:01 Demo"), "{text}");
+    // --import accepts the same "H:MM:SS Title" lines back
+    std::fs::write(dir.path().join("yt.txt"), "0:00 Intro\n0:00.5 Demo\n").unwrap();
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("out.mp4").to_str().unwrap(),
+        "--import",
+        dir.path().join("yt.txt").to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let ch = v["extra"]["chapters"].as_array().unwrap();
+    assert_eq!(ch.len(), 2, "{ch:?}");
+    assert_eq!(ch[1]["title"], "Demo");
+}
+
+#[test]
+fn cut_ranges_accept_end_bounds() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // --drop end-0.3 → keeps 0..0.7 (drops the tail)
+    let v = run_json(&[
+        "cut",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("d.mp4").to_str().unwrap(),
+        "--drop",
+        "end-0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("0.700"), "{cmds}");
+    // --ranges 0.2-end → keeps 0.2..1.0
+    let v = run_json(&[
+        "cut",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("r.mp4").to_str().unwrap(),
+        "--ranges",
+        "0.2-end",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}"); // single range → needs 2+
+    let v = run_json(&[
+        "cut",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("r.mp4").to_str().unwrap(),
+        "--ranges",
+        "0-0.2,end-0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // thumb --count bounded by --from/--to
+    let v = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("tb.jpg").to_str().unwrap(),
+        "--count",
+        "3",
+        "--from",
+        "0.2",
+        "--to",
+        "0.9",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-ss"), "{cmds}");
+    assert!(cmds.contains("-t"), "{cmds}");
+    assert!(cmds.contains("0.700"), "{cmds}"); // -t span
+}
+
+#[test]
+fn sprite_from_to_bounds_window_and_vtt() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "sprite",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("sp.jpg").to_str().unwrap(),
+        "--every",
+        "0.2",
+        "--from",
+        "0.2",
+        "--to",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-ss"), "{cmds}");
+    assert!(cmds.contains("-t"), "{cmds}");
+    // VTT cues are absolute media times (offset by --from)
+    let vtt = std::fs::read_to_string(dir.path().join("sp.vtt")).unwrap();
+    assert!(vtt.contains("00:00:00.200 -->"), "{vtt}");
+    assert!(!vtt.contains("00:00:00.000 -->"), "{vtt}");
+}
+
+#[test]
+fn loop_and_frames_accept_end_bounds() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // loop --to end → full-clip section loop
+    let v = run_json(&[
+        "loop",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("lp.mp4").to_str().unwrap(),
+        "--from",
+        "0.2",
+        "--to",
+        "end",
+        "--times",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("end=1.000") || cmds.contains("end=1"),
+        "{cmds}"
+    );
+    // frames --count → N stills, fps derived from duration
+    let v = run_json(&[
+        "frames",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("f_%03d.png").to_str().unwrap(),
+        "--count",
+        "3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["count"], 3, "{v}");
+}
+
+#[test]
+fn channel_pan_and_grade_exposure() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "channel",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("pan.mp4").to_str().unwrap(),
+        "--mode",
+        "pan",
+        "--pan",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("pan=stereo"), "{cmds}");
+    assert!(cmds.contains("0.200"), "{cmds}");
+    let v = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("ev.mp4").to_str().unwrap(),
+        "--exposure",
+        "1.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("exposure=exposure=1.5"), "{cmds}");
+}
+
+#[test]
+fn end_bounds_on_subs_audiogram_bleep() {
+    if !has_ffmpeg() || !has_filter("subtitles") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,800\nhi\n").unwrap();
+    // subs --from 0.2 --to end → trims cue to the tail window
+    let v = run_json(&[
+        "subs",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("s.mp4").to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--from",
+        "0.2",
+        "--to",
+        "end",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // audiogram --from 0 --to end → whole-clip audiogram
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("ag.mp4").to_str().unwrap(),
+        "--to",
+        "end",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // bleep --at end --dur 0.4 → beep at duration-0.4
+    let v = run_json(&[
+        "bleep",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("b.mp4").to_str().unwrap(),
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("adelay=600"), "{cmds}"); // beep at duration-0.4
+}
+
+#[test]
+fn cut_fade_edges_and_deliver_square() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "cut",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("fc.mp4").to_str().unwrap(),
+        "--duration",
+        "0.8",
+        "--fade",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("fade=t=in"), "{cmds}");
+    assert!(cmds.contains("afade"), "{cmds}");
+    let v = run_json(&[
+        "deliver",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("sq.mp4").to_str().unwrap(),
+        "--platform",
+        "square",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["frame"], "1080x1080", "{v}");
+}
+
+#[test]
+fn split_fade_and_spectrogram_separate() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("sp.mp4").to_str().unwrap(),
+        "--every",
+        "0.5",
+        "--fade",
+        "0.1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("fade=t=out:st=0.400"), "{cmds}");
+    assert!(cmds.contains("afade=t=in"), "{cmds}");
+    let v = run_json(&[
+        "spectrogram",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("w.png").to_str().unwrap(),
+        "--separate",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("mode=separate"), "{cmds}");
+}
+
+#[test]
+fn thumb_from_end_and_multicam_at_end() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("t.jpg").to_str().unwrap(),
+        "--count",
+        "2",
+        "--from",
+        "end-0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-ss 0.500"), "{cmds}");
+    let b = lavfi_fixture(dir.path(), "b.mp4", "440", 1.0);
+    let v = run_json(&[
+        "multicam",
+        src.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        dir.path().join("mc.mp4").to_str().unwrap(),
+        "--at",
+        "end",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("0.940"), "{cmds}");
+}
+
+#[test]
+fn audiogram_and_caption_from_end_bounds() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("ag.mp4").to_str().unwrap(),
+        "--from",
+        "end-0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,800 --> 00:00:00,950\nTAIL\n").unwrap();
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "-o",
+        dir.path().join("cap.mp4").to_str().unwrap(),
+        "--from",
+        "end-0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "-o",
+        dir.path().join("cap2.mp4").to_str().unwrap(),
+        "--from",
+        "0.7",
+        "--to",
+        "end",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["cues"], 1, "{v}");
+}
+
+#[test]
+fn bleep_comma_list_censors_every_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "bleep",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("bl.mp4").to_str().unwrap(),
+        "--at",
+        "0.1,0.5,end",
+        "--dur",
+        "0.1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("adelay=100"), "{cmds}");
+    assert!(cmds.contains("adelay=500"), "{cmds}");
+    assert!(cmds.contains("adelay=900"), "{cmds}");
+    assert!(cmds.contains("amix=inputs=4"), "{cmds}");
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("cx.mp4").to_str().unwrap(),
+        "--region",
+        "10:10:40:40",
+        "--at",
+        "0.1,0.5",
+        "--dur",
+        "0.1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("between(t,0.100,0.200)+between(t,0.500,0.600)"),
+        "{cmds}"
+    );
+}
+
+#[test]
+fn replace_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    let voice = dir.path().join("v.wav");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=660:duration=2",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&voice)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    // new track laid across two 0.2s windows → 0..0.2 then 0.2..0.4 of it
+    let v = run_json(&[
+        "replace",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("r.mp4").to_str().unwrap(),
+        "--audio",
+        voice.to_str().unwrap(),
+        "--at",
+        "0.2,0.7",
+        "--dur",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("concat=n=5"), "{cmds}");
+    assert!(cmds.contains("atrim=0.200:0.400"), "{cmds}");
+    assert!(cmds.contains("atrim=0.400:0.700"), "{cmds}");
+}
+
+#[test]
+fn key_window_and_subs_shift_bounds() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    let bg = lavfi_fixture(dir.path(), "bg.mp4", "550", 1.0);
+    // key only inside a comma window
+    let v = run_json(&[
+        "key",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("k.mp4").to_str().unwrap(),
+        "--bg",
+        bg.to_str().unwrap(),
+        "--at",
+        "0.1,0.6",
+        "--dur",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("between(t,0.100,0.300)+between(t,0.600,0.800)"),
+        "{cmds}"
+    );
+
+    // subs --shift bounded to a cue window
+    let srt = dir.path().join("in.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,100 --> 00:00:00,300\nEARLY\n\n2\n00:00:00,600 --> 00:00:00,900\nLATE\n",
+    )
+    .unwrap();
+    let out = dir.path().join("out.srt");
+    let v = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--shift",
+        "1.0",
+        "--from",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let txt = std::fs::read_to_string(&out).unwrap();
+    assert!(txt.contains("00:00:00,100"), "{txt}");
+    assert!(txt.contains("00:00:01,600"), "{txt}");
+}
+
+#[test]
+fn freeze_and_fade_dip_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    // two freezes in one pass: 1s + 2*0.2 = 1.4
+    let v = run_json(&[
+        "freeze",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("f.mp4").to_str().unwrap(),
+        "--at",
+        "0.3,0.7",
+        "--dur",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("concat=n=5"), "{cmds}");
+    assert!(cmds.matches("tpad=stop").count() >= 2, "{cmds}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.4).abs() < 0.4, "freeze x2 ≈1.4s, got {d}; {v}");
+
+    // dip at two scene cuts
+    let v = run_json(&[
+        "fade",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("fd.mp4").to_str().unwrap(),
+        "--dip",
+        "0.3,0.7",
+        "--dur",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.matches("fade=t=out").count() >= 2, "{cmds}");
+    assert!(cmds.matches("fade=t=in:st=0.700").count() >= 1, "{cmds}");
+}
+
+#[test]
+fn deliver_fps_subs_margin_hls_poster() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    // deliver 60fps canvas
+    let v = run_json(&[
+        "deliver",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("d.mp4").to_str().unwrap(),
+        "--platform",
+        "square",
+        "--fps",
+        "60",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter().map(|x| x.as_str().unwrap()))
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("fps=60"), "{cmds}");
+
+    // subs --margin lifts the burned captions
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,800\nHELLO\n").unwrap();
+    let v = run_json(&[
+        "subs",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("s.mp4").to_str().unwrap(),
+        "--burn",
+        srt.to_str().unwrap(),
+        "--margin",
+        "120",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("MarginV=120"), "{cmds}");
+
+    // hls --poster writes a jpg next to the playlist
+    let v = run_json(&[
+        "hls",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("stream").to_str().unwrap(),
+        "--poster",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(dir.path().join("stream/poster.jpg").exists());
+}
+
+#[test]
+fn music_and_silence_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    // bed under the first and last 0.3s
+    let bed = lavfi_fixture(dir.path(), "bed.mp4", "880", 2.0);
+    let v = run_json(&[
+        "music",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("m.mp4").to_str().unwrap(),
+        "--track",
+        bed.to_str().unwrap(),
+        "--at",
+        "0,end",
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("asplit=2"), "{cmds}");
+    assert!(cmds.contains("[bg0][bg1]amix=inputs=2"), "{cmds}");
+    assert!(cmds.contains("adelay=700"), "{cmds}");
+
+    // silence pads at two points (audio-only input)
+    let wav = dir.path().join("tone.wav");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let v = run_json(&[
+        "silence",
+        wav.to_str().unwrap(),
+        "-o",
+        dir.path().join("s.wav").to_str().unwrap(),
+        "--at",
+        "0.2,0.5",
+        "--dur",
+        "0.1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("concat=n=5"), "{cmds}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.2).abs() < 0.3, "silence x2 ≈1.2s, got {d}; {v}");
+}
+
+#[test]
+fn insert_and_broll_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    let clip = lavfi_fixture(dir.path(), "c.mp4", "660", 0.3);
+    // insert the same clip at two points
+    let v = run_json(&[
+        "insert",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("i.mp4").to_str().unwrap(),
+        "--clip",
+        clip.to_str().unwrap(),
+        "--at",
+        "0.2,0.6",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("concat=n=5"), "{cmds}");
+    // 1.0 + 2*0.3 = 1.6
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.6).abs() < 0.4, "insert x2 ≈1.6s, got {d}; {v}");
+
+    // broll flashes the insert at two points
+    let v = run_json(&[
+        "broll",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("b.mp4").to_str().unwrap(),
+        "--insert",
+        clip.to_str().unwrap(),
+        "--at",
+        "0.1,0.6",
+        "--duration",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("split=2"), "{cmds}");
+    assert!(cmds.contains("between(t,0.600"), "{cmds}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.0).abs() < 0.3, "broll keeps A length, got {d}; {v}");
+}
+
+#[test]
+fn concat_transition_list_channel_split_remux_aspect() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    let b = lavfi_fixture(dir.path(), "b.mp4", "550", 1.0);
+    let c = lavfi_fixture(dir.path(), "c.mp4", "660", 1.0);
+    // per-joint transitions
+    let v = run_json(&[
+        "concat",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        c.to_str().unwrap(),
+        "-o",
+        dir.path().join("j.mp4").to_str().unwrap(),
+        "--transition",
+        "fade,wipeleft",
+        "--duration",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("xfade=transition=fade"), "{cmds}");
+    assert!(cmds.contains("xfade=transition=wipeleft"), "{cmds}");
+
+    // stereo → two mono wavs
+    let v = run_json(&[
+        "channel",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("ch.wav").to_str().unwrap(),
+        "--mode",
+        "split",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(dir.path().join("ch_L.wav").exists());
+    assert!(dir.path().join("ch_R.wav").exists());
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("channelsplit"), "{cmds}");
+
+    // remux DAR fix (stream copy)
+    let v = run_json(&[
+        "remux",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("r.mp4").to_str().unwrap(),
+        "--aspect",
+        "16:9",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-aspect 16:9"), "{cmds}");
+    assert!(
+        cmds.contains("-c copy") || cmds.contains("-c:v copy"),
+        "{cmds}"
+    );
+}
+
+#[test]
+fn boomerang_and_mix_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "boomerang",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("b.mp4").to_str().unwrap(),
+        "--at",
+        "0.1,0.6",
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("[vboom1]"), "{cmds}");
+    assert!(cmds.contains("[vboom3]"), "{cmds}");
+    assert!(cmds.contains("concat=n=5"), "{cmds}");
+
+    let bed = dir.path().join("bed.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1.5",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&bed)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "bed fixture");
+    let v = run_json(&[
+        "mix",
+        src.to_str().unwrap(),
+        bed.to_str().unwrap(),
+        "-o",
+        dir.path().join("m.mp4").to_str().unwrap(),
+        "--at",
+        "0.1,0.6",
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("between(t,0.100,0.400)+between(t,0.600,0.900)"),
+        "{cmds}"
+    );
+}
+
+#[test]
+fn speed_tempo_zoom_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    for (verb, extra) in [
+        ("speed", vec!["--factor", "2"]),
+        ("tempo", vec![]),
+        ("zoom", vec!["--factor", "2"]),
+        ("vdenoise", vec![]),
+    ] {
+        let out = dir.path().join(format!("{verb}.mp4"));
+        let input = if verb == "tempo" {
+            // tempo is audio-only — synthesize a wav
+            let wav = dir.path().join("t.wav");
+            let ok = Command::new("ffmpeg")
+                .args([
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "sine=frequency=440:duration=1.5",
+                    "-c:a",
+                    "pcm_s16le",
+                ])
+                .arg(&wav)
+                .status()
+                .unwrap()
+                .success();
+            assert!(ok, "tone fixture");
+            wav
+        } else {
+            src.clone()
+        };
+        let mut cmd = vec![
+            verb,
+            input.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--at",
+            "0.1,0.6",
+            "--dur",
+            "0.2",
+        ];
+        cmd.extend(extra);
+        let v = run_json(&cmd);
+        assert_eq!(v["status"], "ok", "{verb}: {v}");
+        let cmds = v["commands"][0]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c.as_str().unwrap())
+            .collect::<Vec<_>>()
+            .join(" ");
+        if verb == "vdenoise" {
+            assert!(
+                cmds.contains("between(t,0.100,0.300)+between(t,0.600,0.800)"),
+                "{cmds}"
+            );
+        } else {
+            // two windows → 5 alternating segments
+            assert!(cmds.contains("concat=n=5"), "{verb}: {cmds}");
+        }
+    }
+}
+
+#[test]
+fn audio_fx_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    for (verb, extra) in [
+        ("reverb", vec![]),
+        ("fx", vec!["--kind", "echo"]),
+        ("pitch", vec!["--semitones", "2"]),
+        ("denoise", vec![]),
+    ] {
+        let out = dir.path().join(format!("{verb}.mp4"));
+        let mut cmd = vec![
+            verb,
+            src.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--at",
+            "0.1,0.6",
+            "--dur",
+            "0.2",
+        ];
+        cmd.extend(extra);
+        let v = run_json(&cmd);
+        assert_eq!(v["status"], "ok", "{verb}: {v}");
+        let cmds = v["commands"][0]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c.as_str().unwrap())
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(cmds.contains("adelay=600"), "{verb}: {cmds}");
+        assert!(cmds.contains("amix=inputs=3"), "{verb}: {cmds}");
+        assert!(
+            cmds.contains("1-between(t,0.100,0.300)*1-between(t,0.600,0.800)"),
+            "{verb}: {cmds}"
+        );
+    }
+}
+
+#[test]
+fn look_verbs_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    for verb in ["invert", "blur", "bw", "sharpen", "vignette", "progress"] {
+        let out = dir.path().join(format!("{verb}.mp4"));
+        let cmd = vec![
+            verb,
+            src.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--at",
+            "0.1,0.6",
+            "--dur",
+            "0.2",
+        ];
+        let v = run_json(&cmd);
+        assert_eq!(v["status"], "ok", "{verb}: {v}");
+        let cmds = v["commands"][0]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c.as_str().unwrap())
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(
+            cmds.contains("between(t,0.100,0.300)+between(t,0.600,0.800)"),
+            "{verb}: {cmds}"
+        );
+    }
+}
+
+#[test]
+fn title_and_meme_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("t.mp4").to_str().unwrap(),
+        "--text",
+        "SUB",
+        "--at",
+        "0.1,0.6",
+        "--duration",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("between(t,0.100,0.300)+between(t,0.600,0.800)"),
+        "{cmds}"
+    );
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("m.mp4").to_str().unwrap(),
+        "--top",
+        "HI",
+        "--at",
+        "0.1,0.6",
+        "--dur",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("between(t,0.100,0.300)+between(t,0.600,0.800)"),
+        "{cmds}"
+    );
+}
+
+#[test]
+fn mute_and_volume_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "mute",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("m.mp4").to_str().unwrap(),
+        "--at",
+        "0.1,0.5",
+        "--dur",
+        "0.1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("between(t,0.100,0.200)+between(t,0.500,0.600)"),
+        "{cmds}"
+    );
+    let v = run_json(&[
+        "volume",
+        src.to_str().unwrap(),
+        "--db",
+        "-12",
+        "-o",
+        dir.path().join("v.mp4").to_str().unwrap(),
+        "--at",
+        "0.1,0.5",
+        "--dur",
+        "0.1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("volume=-12dB"), "{cmds}");
+    assert!(
+        cmds.contains("between(t,0.100,0.200)+between(t,0.500,0.600)"),
+        "{cmds}"
+    );
 }

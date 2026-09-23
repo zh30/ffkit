@@ -8,12 +8,39 @@ use crate::error::Error;
 pub fn run(args: BwArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "bw")?;
+    let sat = match args.strength {
+        Some(s) if (0.0..=1.0).contains(&s) => 1.0 - s,
+        Some(_) => return Err(Error::input("--strength must be 0..=1")),
+        None => 0.0,
+    };
 
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
     argv.extend([
-        "-vf", "hue=s=0", "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+        "-vf",
+        &{
+            match &args.at {
+                Some(s) => format!(
+                    "hue=s={sat}:enable='{}'",
+                    crate::time::enable_expr(s, args.dur, probe.duration)?
+                ),
+                None => {
+                    if args.dur.is_some() {
+                        return Err(Error::input("--dur needs --at"));
+                    }
+                    format!("hue=s={sat}")
+                }
+            }
+        },
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        "18",
+        "-pix_fmt",
+        "yuv420p",
     ]);
     if probe.has_audio {
         argv.extend(["-c:a", "copy"]);
