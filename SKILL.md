@@ -2,8 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.181.0
-
+version: 0.182.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -163,7 +162,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | stroked TikTok captions | `caption` (`--outline RRGGBB`) |
 | branded audiogram title font | `audiogram` (`--font`) |
 | name each tile in a grid | `grid` (`--labels "a,b"`), `--fill` crop-fill cells |
-| gentle logo cleanup | `delogo` (`--soft`) |
+| gentle logo cleanup | `delogo` (`--soft`; `--regions x:y:w:h,...` covers several spots) |
 | animated gradient card | `solid` (`--gradient ff0000:0000ff`) |
 | reframe / crop out an edge | `crop` (`--region x:y:w:h` or `--aspect 1:1`/`9:16` centered) |
 | motion / loop | `speed`, `reverse`, `loop`, `stabilize` (`--edge` fill), `fade` |
@@ -198,7 +197,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | animated push-in | `zoom --motion kenburns` |
 | still-image cutaway | `broll --insert img.png --still` |
 | wrong-orientation phone clip | `rotate` (`--deg`/`--flip`) |
-| burned-in logo/watermark | `delogo` (`--x --y --w --h`; `--at`/`--dur` only some of the time) |
+| burned-in logo/watermark | `delogo` (`--x --y --w --h` or `--regions x:y:w:h,...` for several; `--at`/`--dur` only some of the time) |
 | smooth slow-mo | `speed --factor 0.5 --interp` |
 | styled title text | `title --size 2 --color ff0000` |
 | lower-third placement | `title --position bottom` (or `top`/`center`) |

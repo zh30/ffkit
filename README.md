@@ -134,7 +134,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window); `end` ok, comma list = several windows |
 | `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio (`--kind`, `--strength`, `--at`/`--dur`); `end` ok, comma list = several windows |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip`, free `--angle` tilt, `--at`/`--dur` windowed tilt (comma list) |
-| `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window, `--at end` the tail (`--soft` removelogo) |
+| `delogo` | Blend out a burned-in logo box: `--x --y --w --h` or `--regions x:y:w:h,...` for several spots; `--at`/`--dur` for a window, `--at end` the tail (`--soft` removelogo) |
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
 | `subs` | Extract (`--stream`, `--all`)/burn/mux subtitles (`--shift` (±N; `--from`/`--to` bounds it)/`--merge`/`--rate`, burn style + `--outline`/`--box` plate/`--align`/`--margin` px/`--from`/`--to` window (`end`/`end-N` ok), `--safe`); `--convert` .srt↔.vtt; `--case` cue text; `--burn-si N` burns embedded track N |
 | `thumb` | One-frame cover grab (`--at` — `end` = last frame, comma `--at` = one still per time / `--frame`, `--count` N stills (`--from`/`--to` bounds the spread, `end`/`end-N` ok), `--width`) → jpg/png/webp; `--scenes` stills at cuts |

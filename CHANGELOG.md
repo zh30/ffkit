@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.182.0] — 2026-09-22
+
+### Added
+- `delogo --regions x:y:w:h,...` — remove several logos/watermarks in one pass; `--soft` masks every box. Single `--x/--y/--w/--h` still works.
+
+
 ## [0.181.0] — 2026-09-22
 
 ### Added

@@ -925,18 +925,21 @@ pub struct DelogoArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Logo box left edge (px)
+    /// Logo box left edge (px) — or use --regions for several
     #[arg(long)]
-    pub x: u32,
-    /// Logo box top edge (px)
+    pub x: Option<u32>,
+    /// Logo box top edge (px) — or use --regions for several
     #[arg(long)]
-    pub y: u32,
-    /// Logo box width (px)
+    pub y: Option<u32>,
+    /// Logo box width (px) — or use --regions for several
     #[arg(long)]
-    pub w: u32,
-    /// Logo box height (px)
+    pub w: Option<u32>,
+    /// Logo box height (px) — or use --regions for several
     #[arg(long)]
-    pub h: u32,
+    pub h: Option<u32>,
+    /// Comma list of logo boxes `x:y:w:h` — covers several logos/spots in one pass
+    #[arg(long)]
+    pub regions: Option<String>,
     /// Blur the box only inside this window — comma list for several spots (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
