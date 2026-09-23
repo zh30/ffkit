@@ -34,26 +34,23 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     if args.dur.is_some() && args.at.is_none() {
         return Err(Error::input("--dur needs --at"));
     }
-    let (at_secs, end_secs) = match &args.at {
-        Some(s) => {
-            let at = crate::time::resolve_at(s, args.dur, probe.duration)?;
-            if at < 0.0 || at >= probe.duration {
-                return Err(Error::input("--at must land inside the input"));
-            }
-            let end = match args.dur {
-                Some(d) => (at + d).min(probe.duration),
-                None => probe.duration,
-            };
-            (at, end)
-        }
-        None => (0.0, probe.duration),
+    let windows = match &args.at {
+        Some(s) => crate::time::enable_windows(s, args.dur, probe.duration)?,
+        None => vec![(0.0, probe.duration)],
     };
     let enable = if args.at.is_some() {
-        format!(":enable='between(t,{at_secs:.3},{end_secs:.3})'")
+        let expr = windows
+            .iter()
+            .map(|(s, e)| format!("between(t,{s:.3},{e:.3})"))
+            .collect::<Vec<_>>()
+            .join("+");
+        format!(":enable='{expr}'")
     } else {
         String::new()
     };
-    let fade = args.fade.clamp(0.0, ((end_secs - at_secs) / 2.0).max(0.0));
+    let fade = args
+        .fade
+        .clamp(0.0, ((windows[0].1 - windows[0].0) / 2.0).max(0.0));
     if fade > 0.0 && args.tile > 0 {
         return Err(Error::input("--fade is not supported with --tile"));
     }
@@ -128,11 +125,17 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
     };
     let (pre, ovl) = if fade > 0.0 {
         (
-            format!(
-                "[{src}]format=rgba,fade=t=in:st={at_secs:.3}:d={fade:.3}:alpha=1,fade=t=out:st={:.3}:d={fade:.3}:alpha=1[ovl];",
-                end_secs - fade,
-                src = src2
-            ),
+            {
+                let mut chain = format!("[{src}]format=rgba", src = src2);
+                for (s, e) in &windows {
+                    chain.push_str(&format!(
+                        ",fade=t=in:st={s:.3}:d={fade:.3}:alpha=1,fade=t=out:st={:.3}:d={fade:.3}:alpha=1",
+                        e - fade
+                    ));
+                }
+                chain.push_str("[ovl];");
+                chain
+            },
             "ovl",
         )
     } else if args.image.is_some() && args.opacity < 1.0 && args.mode.is_none() {
@@ -240,15 +243,12 @@ fn tiled(
     }
     let enable = match &args.at {
         Some(s) => {
-            let at = crate::time::resolve_at(s, args.dur, probe.duration)?;
-            if at < 0.0 || at >= probe.duration {
-                return Err(Error::input("--at must land inside the input"));
-            }
-            let end = match args.dur {
-                Some(d) => (at + d).min(probe.duration),
-                None => probe.duration,
-            };
-            format!(":enable='between(t,{at:.3},{end:.3})'")
+            let expr = crate::time::enable_windows(s, args.dur, probe.duration)?
+                .iter()
+                .map(|(s, e)| format!("between(t,{s:.3},{e:.3})"))
+                .collect::<Vec<_>>()
+                .join("+");
+            format!(":enable='{expr}'")
         }
         None => String::new(),
     };

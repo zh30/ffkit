@@ -237,6 +237,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 128)
+- Comma-list `--at` on every windowed look verb — `invert`, `blur`, `bw`, `sharpen`, `vignette`, `delogo`, `grade`, `progress`, `overlay` (needs `--dur`). Shared `time::enable_expr`/`enable_windows` helpers replace per-verb `between`/`gte` blocks.
+
 ## Shipped this run (round 127)
 - `title --at t1,t2 --duration N` — flash the hook card at several marks (per-window alpha fades).
 - `meme --at t1,t2 --dur N` — caption at several spots (needs `--dur`).

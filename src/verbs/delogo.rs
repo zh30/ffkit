@@ -49,16 +49,10 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
     };
     match (&args.at, args.dur) {
         (Some(at), dur) => {
-            let start = crate::time::resolve_at(at, dur, probe.duration)?;
-            if !(0.0..probe.duration).contains(&start) {
-                return Err(Error::input("--at is outside the input"));
-            }
-            match dur.map(|d| start + d) {
-                Some(e) if e < probe.duration => {
-                    vf.push_str(&format!(":enable='between(t,{start:.3},{e:.3})'"));
-                }
-                _ => vf.push_str(&format!(":enable='gte(t,{start:.3})'")),
-            }
+            vf.push_str(&format!(
+                ":enable='{}'",
+                crate::time::enable_expr(at, dur, probe.duration)?
+            ));
         }
         (None, Some(_)) => return Err(Error::input("--dur needs --at")),
         (None, None) => {}

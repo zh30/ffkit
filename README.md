@@ -174,7 +174,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
 | `frames` | Still dump every `--every`, `--at` seconds (`end` = last frame), `--count` even-spread → `stem_001.png…` (`--width`) |
 | `countdown` | Overlay a counting leader (`--from`, `--beep` + `--tone` Hz, `--text`, `--position`, `--bg` numeral plate) |
-| `invert` | Full-frame or windowed color inversion (`--at`, `--dur`) |
+| `invert` | Full-frame or windowed color inversion (`--at`, `--dur` — comma list ok) |
 | `mix` | Blend two sources (`--vol-a/--vol-b`, `--at/--dur` window, `end` ok, `--loop`, `--duck` sidechain bed under voice) , `--normalize`, `--fade` bed edges |
 | `mute` | Drop the audio track, stream-copy the rest , `--at/--dur` silences only that window (comma list covers several spots, needs `--dur`; `end` ok) |
 | `timer` | On-screen running clock (`--position`, `--format ms`, `--box-color` card)  (`--format`, `--box-color`, `--down` countdown, `--start` seed the readout) |

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.155.0] — 2026-09-22
+
+### Added
+- Comma-list `--at` (`t1,t2,...`) on every windowed look verb — `invert`, `blur`, `bw`, `sharpen`, `vignette`, `delogo`, `grade`, `progress`, `overlay`: the effect appears at several marks in one pass (requires `--dur`).
+
+### Changed
+- Window resolution now goes through shared `time::enable_windows`/`enable_expr` helpers instead of each verb hand-rolling `between(t,..)`/`gte(t,..)`.
+
 ## [0.154.0] — 2026-09-22
 
 ### Added

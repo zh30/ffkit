@@ -473,7 +473,7 @@ pub struct OverlayArgs {
     /// Blend strength 0..=1 for --mode (default 1.0)
     #[arg(long, default_value_t = 1.0)]
     pub opacity: f64,
-    /// Show the overlay only from this time (h:mm:ss or seconds)
+    /// Show the overlay only from this time — comma list for several spots (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Fade the overlay in/out over N seconds (0 = hard cut)
@@ -909,7 +909,7 @@ pub struct DelogoArgs {
     /// Logo box height (px)
     #[arg(long)]
     pub h: u32,
-    /// Blur the box only inside this window (h:mm:ss or seconds)
+    /// Blur the box only inside this window — comma list for several spots (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)
@@ -1481,7 +1481,7 @@ pub struct GradeArgs {
     /// Rotate the hue by N degrees (-180..180): white-balance rescue or color FX
     #[arg(long, default_value_t = 0.0, allow_hyphen_values = true)]
     pub hue: f64,
-    /// Grade only from this time (h:mm:ss or seconds) — dream sequences, flashbacks
+    /// Grade only from this time — dream sequences, flashbacks; comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// ..for this many seconds (default: to the end)
@@ -1930,7 +1930,7 @@ pub struct InvertArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Invert only from this time (h:mm:ss or seconds)
+    /// Invert only from this time — comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// ..for this many seconds (default: to the end)
@@ -2525,7 +2525,7 @@ pub struct SharpenArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Sharpen only from this time (h:mm:ss or seconds)
+    /// Sharpen only from this time — comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// ..for this many seconds (default: to the end)
@@ -2544,7 +2544,7 @@ pub struct VignetteArgs {
     /// vignette angle in radians (smaller = stronger; default PI/4)
     #[arg(long, default_value_t = 0.785)]
     pub angle: f64,
-    /// Vignette only from this time (h:mm:ss or seconds)
+    /// Vignette only from this time — comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// ..for this many seconds (default: to the end)
@@ -2557,7 +2557,7 @@ pub struct BwArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Desaturate only from this time (h:mm:ss or seconds)
+    /// Desaturate only from this time — comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// ..for this many seconds (default: to the end)
@@ -2604,7 +2604,7 @@ pub struct ProgressArgs {
     /// Which edge the bar rides on
     #[arg(long, value_enum, default_value_t = BarEdge::Bottom)]
     pub edge: BarEdge,
-    /// Show the bar only from this time on (h:mm:ss or seconds)
+    /// Show the bar only from this time on — comma list for several runs (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// ..for this many seconds (default: to the end)
@@ -2795,7 +2795,7 @@ pub struct BlurArgs {
     /// Gaussian sigma (0.5–20)
     #[arg(long, default_value_t = 2.0)]
     pub sigma: f64,
-    /// Blur only from this time (h:mm:ss or seconds)
+    /// Blur only from this time — comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// ..for this many seconds (default: to the end)

@@ -16,20 +16,11 @@ pub fn run(args: BlurArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
     let vf = match &args.at {
-        Some(s) => {
-            let at = crate::time::resolve_at(s, args.dur, probe.duration)?;
-            if !(0.0..probe.duration).contains(&at) {
-                return Err(Error::input("--at is outside the input"));
-            }
-            match args.dur {
-                Some(d) if at + d < probe.duration => format!(
-                    "gblur=sigma={}:enable='between(t,{at:.3},{:.3})'",
-                    args.sigma,
-                    at + d
-                ),
-                _ => format!("gblur=sigma={}:enable='gte(t,{at:.3})'", args.sigma),
-            }
-        }
+        Some(s) => format!(
+            "gblur=sigma={}:enable='{}'",
+            args.sigma,
+            crate::time::enable_expr(s, args.dur, probe.duration)?
+        ),
         None => {
             if args.dur.is_some() {
                 return Err(Error::input("--dur needs --at"));

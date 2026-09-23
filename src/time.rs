@@ -54,6 +54,41 @@ pub fn resolve_at(s: &str, dur: Option<f64>, duration: f64) -> Result<f64, Error
     parse_time(s)
 }
 
+/// Resolve a (possibly comma-separated) `--at` list into `(start, end)` windows.
+/// A comma list requires `--dur`; each entry may use `end`. Ends clamp to the
+/// media duration.
+pub fn enable_windows(at: &str, dur: Option<f64>, duration: f64) -> Result<Vec<(f64, f64)>, Error> {
+    if at.contains(',') && dur.is_none() {
+        return Err(Error::input("a comma list of --at times needs --dur"));
+    }
+    let mut out = Vec::new();
+    for part in at.split(',') {
+        let s = resolve_at(part.trim(), dur, duration)?;
+        if !(0.0..duration).contains(&s) {
+            return Err(Error::input("--at is outside the input"));
+        }
+        let e = match dur {
+            Some(d) => (s + d).min(duration),
+            None => duration,
+        };
+        out.push((s, e));
+    }
+    Ok(out)
+}
+
+/// `enable='...'` predicate for `--at`/`--dur`: `gte(t,s)` when the window runs
+/// to the tail, otherwise OR'd `between(t,s,e)` terms (comma list = several).
+pub fn enable_expr(at: &str, dur: Option<f64>, duration: f64) -> Result<String, Error> {
+    let w = enable_windows(at, dur, duration)?;
+    if w.len() == 1 && (dur.is_none() || w[0].0 + dur.unwrap() >= duration) {
+        return Ok(format!("gte(t,{:.3})", w[0].0));
+    }
+    Ok(w.iter()
+        .map(|(s, e)| format!("between(t,{s:.3},{e:.3})"))
+        .collect::<Vec<_>>()
+        .join("+"))
+}
+
 /// Resolve a `--at` for a still-frame grab: a timestamp, or `end` meaning
 /// the last frame — a small epsilon before the media's tail.
 pub fn resolve_frame_at(s: &str, duration: f64) -> Result<f64, Error> {

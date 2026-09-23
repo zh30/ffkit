@@ -15444,6 +15444,41 @@ fn bleep_comma_list_censors_every_window() {
 }
 
 #[test]
+fn look_verbs_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    for verb in ["invert", "blur", "bw", "sharpen", "vignette", "progress"] {
+        let out = dir.path().join(format!("{verb}.mp4"));
+        let cmd = vec![
+            verb,
+            src.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--at",
+            "0.1,0.6",
+            "--dur",
+            "0.2",
+        ];
+        let v = run_json(&cmd);
+        assert_eq!(v["status"], "ok", "{verb}: {v}");
+        let cmds = v["commands"][0]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c.as_str().unwrap())
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(
+            cmds.contains("between(t,0.100,0.300)+between(t,0.600,0.800)"),
+            "{verb}: {cmds}"
+        );
+    }
+}
+
+#[test]
 fn title_and_meme_comma_windows() {
     if !has_ffmpeg() {
         return;
