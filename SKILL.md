@@ -2,7 +2,8 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.186.0
+version: 0.187.0
+
 
 
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
@@ -42,9 +43,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | platform loudness | `loudnorm` (`--target`, `-I/--tp/--lra`; `--measure` report-only, `--gate N` fails when input tops N LUFS, `--dynamic` per-frame) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur --strength`), `zoom`, `--position` top/bottom/corners |
 
-| export | `deliver` (`--subs file.srt` burns captions in one pass), `transcode` (`--copy-audio`, `--vbitrate` peak cap, `--preset mp3`/`aac`/`wav`/`flac`/`opus` audio-only), `compress` (`--size 10MB` two-pass, `--crf` quality one-pass, `--res` downscale), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores`, `--target` platform sizes |
+| export | `deliver`, `transcode` (`--copy-audio`, `--vbitrate` peak cap, `--abitrate` audio bitrate, `--preset mp3`/`aac`/`wav`/`flac`/`opus` audio-only), `compress` (`--size 10MB` two-pass, `--crf` quality one-pass, `--res` downscale), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores`, `--target` platform sizes |
+| captions / mute | `caption` (`--karaoke` word reveal, `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, `--align`, `--from/--to` window, `--opacity` ghost, or `--mode mux`), `--fade` |
 
-| captions / mute | `caption` (`--karaoke` word reveal, `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, `--align`, `--from/--to` window, or `--mode mux`), `--fade` |
 | hook text | `title` (`--wrap` auto line breaks, `--align` left/right lower-thirds, `--box`/`--outline`/`--shadow`) |
 | dutch-angle tilt (full clip or windowed) | `rotate` (`--angle 15`, `--at`/`--dur` window — comma list for several tilts) |
 | chapters already in the file | `chapter` (`--list`) or `split` (`--chapters`) |
@@ -69,7 +70,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | one-click look | `grade --preset cinematic|vivid|vintage|soft` (stacks under the sliders) |
 | karaoke / keep only the vocal | `vocal` (`--at`/`--dur` window, `--mode karaoke` drops the center, `isolate` keeps it — stereo only; `--amount` partial) |
 | container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart); `--audio` rips the track, `--video` video-only, `--aspect 16:9` fixes display AR |
-| top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline`, `--at/--dur` window — `--at end` covers the tail), `--position` center/bottom, `--wrap` + `--align` multiline, `--fade` edge fades (needs --at/--dur) |
+| top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline`, `--at/--dur` window — `--at end` covers the tail), `--position` center/bottom, `--wrap` + `--align` multiline, `--fade` edge fades (needs --at/--dur), `--opacity` ghost text |
 | fix my podcast voice | `voice` — one-shot chain: gate hiss → compress swings → loudnorm `--lufs` (default −16); `--at`/`--dur` windows it |
 | slideshow that runs exactly N seconds | `slideshow` (`--dur` spreads the runtime across the stills, `--bg` letterbox color) |
 | old interlaced footage | `deinterlace` (`--mode field` doubles the rate, `frame` same rate, `--parity` field order, `--engine` yadif/bwdif) |

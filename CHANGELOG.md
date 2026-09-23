@@ -2,11 +2,17 @@
 
 ## [Unreleased]
 
+## [0.187.0] — 2026-09-22
+
+### Added
+- `meme --opacity` / `caption --opacity` — semi-transparent ghost/watermark text (1..=100).
+
 ## [0.186.0] — 2026-09-22
 
 ### Added
 - `subs --encoding LABEL` — decode .srt/.vtt in legacy charsets (gbk/big5/sjis/latin1) instead of UTF-8.
 - `deliver --subs FILE` — burn captions during the platform packaging pass.
+
 
 ## [0.185.0] — 2026-09-22
 

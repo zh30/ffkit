@@ -250,6 +250,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `subs --encoding LABEL` — decode a subtitle file in a legacy charset (gbk/big5/sjis/latin1 via encoding_rs) for convert/shift/rate/merge/case paths; phone-era and fan-sub files stop garbling. `deliver --subs file.srt` — burns captions onto the platform canvas in the same pass (captioned Reels in one command).
 
 
+## Shipped this run (round 159)
+
+- `meme --opacity` / `caption --opacity` — alpha-scale the rendered text PNGs (ghost/watermark-style captions and reaction text that don't fully cover the picture). Same 1..=100 semantics as `title --opacity`.
+
 ## Shipped this run (round 155)
 
 - `loudnorm --measure --gate N` — QC gate: fails when the input's integrated loudness exceeds N LUFS (podcast/broadcast delivery checks without opening a meter). `transcode --vbitrate R` — peak bitrate cap (`-maxrate R -bufsize 2R`) for platform specs like IG feed / YouTube recommended.
