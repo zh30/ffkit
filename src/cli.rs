@@ -233,6 +233,12 @@ pub enum Cmd {
     Scope(ScopeArgs),
     /// Anamorphic restore: stretch one axis by the lens factor
     Desqueeze(DesqueezeArgs),
+    /// Psychedelic partial invert above a luma threshold
+    Solarize(SolarizeArgs),
+    /// Breathing zoom bounce (music video)
+    Pulse(PulseArgs),
+    /// Timelapse flicker removal (temporal luma smoothing)
+    Deflicker(DeflickerArgs),
     /// Comic look: posterized base + ink outlines
     Cartoon(CartoonArgs),
     /// Thermal / false-color luma map
@@ -1037,6 +1043,51 @@ pub struct DesqueezeArgs {
     /// Stretch axis: y (vertical, classic anamorphic) | x
     #[arg(long, default_value = "y")]
     pub axis: String,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SolarizeArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Luma threshold 0-255; pixels above invert
+    #[arg(long, default_value_t = 128)]
+    pub threshold: u32,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct PulseArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Breaths per second (zoom cycles)
+    #[arg(long, default_value_t = 0.5)]
+    pub rate: f64,
+    /// Zoom amplitude 0.005-0.3
+    #[arg(long, default_value_t = 0.05)]
+    pub depth: f64,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DeflickerArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Temporal averaging window in frames (3-129)
+    #[arg(long, default_value_t = 5)]
+    pub size: u32,
 }
 
 #[derive(clap::Args, Debug)]

@@ -18699,3 +18699,112 @@ fn cartoon_heat_kaleido() {
     assert!(joined.contains("pseudocolor=preset=turbo"));
     assert!(joined.contains("enable="));
 }
+
+#[test]
+fn solarize_pulse_deflicker() {
+    if !has_ffmpeg() || !has_filter("deflicker") || !has_filter("zoompan") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("s.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=white:size=160x120:duration=1:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+
+    // solarize on pure white -> mid gray (255 -> 0 actually: 255>128 -> 0)
+    let so = dir.path().join("so.mp4");
+    let v = run_json(&[
+        "solarize",
+        src.to_str().unwrap(),
+        "-o",
+        so.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let raw = dir.path().join("so.raw");
+    let o = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-ss", "0.4", "-i"])
+        .arg(&so)
+        .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray"])
+        .arg(&raw)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let d = std::fs::read(&raw).unwrap();
+    let mean = d.iter().map(|p| *p as u64).sum::<u64>() / d.len() as u64;
+    assert!(
+        mean < 30,
+        "solarized white should be near-black, got {mean}"
+    );
+
+    // pulse: argv contains zoompan, runs windowed too
+    let pu = dir.path().join("pu.mp4");
+    let v = run_json(&[
+        "pulse",
+        src.to_str().unwrap(),
+        "-o",
+        pu.to_str().unwrap(),
+        "--rate",
+        "1",
+        "--at",
+        "0.2",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let joined: String = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|a| a.as_str().unwrap_or(""))
+        })
+        .collect();
+    assert!(joined.contains("zoompan"), "{joined}");
+    assert!(joined.contains("blend=all_expr"), "{joined}");
+
+    // deflicker on flickering clip: variance across frames drops
+    let fl = dir.path().join("fl.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=gray:size=160x120:duration=2:rate=8,eq=brightness='0.2*sin(2*PI*t*4)'",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&fl)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let df = dir.path().join("df.mp4");
+    let v = run_json(&[
+        "deflicker",
+        fl.to_str().unwrap(),
+        "-o",
+        df.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

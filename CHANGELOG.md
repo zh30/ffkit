@@ -10,6 +10,14 @@
 - `scope` — QC scope overlay (`--mode vector|wave`, corner `--position`, `--size` fraction), `--at`/`--dur` windows via overlay enable.
 - `desqueeze` — anamorphic restore: `--factor` lens ratio stretches one axis (`--axis y|x`).
 
+## [0.200.0] — 2026-09-23
+
+### Added
+
+- `solarize` — psychedelic partial invert: `lutrgb` inverts pixels above `--threshold` luma, `--at`/`--dur` windows.
+- `pulse` — breathing zoom bounce: `zoompan d=1` sine zoom (`--rate` cycles/sec, `--depth` amplitude), `--at`/`--dur` windows via blend branch.
+- `deflicker` — timelapse flicker removal: `deflicker=size=N:mode=am` temporal luma smoothing.
+
 ## [0.198.0] — 2026-09-23
 
 ### Added

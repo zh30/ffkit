@@ -164,6 +164,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `bars` | SMPTE test card: `--size`/`--dur`/`--hd`/`--tone` (1kHz bed), for QC slates and leader |
 | `scope` | QC scope overlay: `--mode vector|wave` in a corner (`--position`, `--size` fraction), `--at` windows |
 | `desqueeze` | Anamorphic restore: `--factor` lens ratio (1.33/1.5/1.8/2.0), `--axis y|x` |
+| `solarize` | Psychedelic partial invert: pixels above `--threshold` luma invert, `--at` windows |
+| `pulse` | Breathing zoom bounce: `--rate` cycles/sec, `--depth` amplitude, `--at` windows |
+| `deflicker` | Timelapse flicker fix: temporal luma smoothing `--size` frames |
 | `cartoon` | Comic look: posterized base (`--levels` 2-16) + ink outlines from edge-detect, `--at` windows |
 | `heat` | Thermal / false-color luma map: `--preset` magma|inferno|plasma|viridis|turbo|cividis|range1|range2|shadows|highlights, `--opacity`, `--at` windows |
 | `kaleido` | 2x2 mirrored mandala from the top-left quadrant, `--at` windows |
