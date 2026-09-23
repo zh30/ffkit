@@ -15,8 +15,11 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     let black_min = args.black_min.unwrap_or(0.3);
     let thresh = args.thresh.unwrap_or(32.0).clamp(0.0, 255.0);
 
+    // photosensitivity rides the same pass: bypass=1 keeps frames intact and
+    // emits lavfi.photosensitivity.* metadata; metadata=print mirrors it to the
+    // log where we count flash-flagged frames (badness > 0)
     let vf = format!(
-        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min}"
+        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,metadata=print:file=-"
     );
     let mut argv = Argv::ffmpeg();
     argv.push("-i");
@@ -24,12 +27,19 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     argv.extend(["-vf", &vf, "-an", "-f", "null", "-"]);
     let spawned = spawn::run(&argv, g.timeout, false)?;
     let spawned = spawn::require_ok(&argv, spawned)?;
-    let log = spawn::stderr_str(&spawned);
+    // detect logs land on stderr; metadata=print:file=- writes to stdout
+    let log = format!(
+        "{}\n{}",
+        spawn::stderr_str(&spawned),
+        spawn::stdout_str(&spawned).unwrap_or("")
+    );
 
     let mut black_ranges: Vec<serde_json::Value> = Vec::new();
     let mut freeze_starts: Vec<f64> = Vec::new();
     let mut freeze_ends: Vec<f64> = Vec::new();
     let mut black_frames = 0usize;
+    let mut flash_frames = 0usize;
+    let mut flash_max = 0.0f64;
     for line in log.lines() {
         if let Some(rest) = line.split("black_start:").nth(1) {
             let s = rest
@@ -59,6 +69,14 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         if line.contains("pblack:") {
             black_frames += 1;
         }
+        if let Some(rest) = line.split("lavfi.photosensitivity.badness=").nth(1) {
+            let b = rest.trim().parse::<f64>().unwrap_or(0.0);
+            // badness ~1.8 on smoothly animated content, ~3+ on real strobes
+            if b > 2.0 {
+                flash_frames += 1;
+                flash_max = flash_max.max(b);
+            }
+        }
     }
     let freeze_ranges: Vec<serde_json::Value> = freeze_starts
         .iter()
@@ -76,5 +94,9 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         "black_ranges": black_ranges,
         "freeze_ranges": freeze_ranges,
         "black_frames": black_frames,
+        // photosensitive-epilepsy QC: frames where luminance oscillates enough
+        // to flag (Harding-style heuristic; ship with a warning card if >0)
+        "flash_frames": flash_frames,
+        "flash_max_badness": flash_max,
     })))
 }

@@ -135,4 +135,5 @@ pub mod voice;
 pub mod volume;
 pub mod wave;
 pub mod waveform;
+pub mod wb;
 pub mod zoom;

@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.221.0] — RSI round 194
+
+- `wb` — auto white balance via `normalize`: per-channel histogram stretch neutralizes a cast (verified: green-cast RGB [123,190,129] → [123,127,129]). `--strength` blends, `--independence 0` keeps the grade (contrast only), `--smooth` eases frame-to-frame, `--at`/`--dur` windows.
+- `vdenoise --engine median` — salt&pepper / hot-pixel removal (radius s/3; timeline-capable so `--at` works). Flat stdev 16.1 → 3.9.
+- `vdenoise --engine chroma` — chroma-only denoise (chromanr, thres s×12): phone-sensor color speckle. U-plane stdev 14.3 → 2.6.
+- `scan` — now also flags strobe frames for photosensitive-epilepsy QC: same pass adds `photosensitivity=bypass=1` + metadata; reports `flash_frames`/`flash_max_badness` (badness>2 threshold separates real strobes from smooth motion).
+
 ## [0.220.0] — RSI round 193
 
 - `shear` — italic-style picture slant (`shear` filter): `--x`/`--y` shear factors -2..2, `--fill` edge color, `--interp nearest|bilinear`, `--at`/`--dur` windows. Dynamic-tilt look without full rotate.

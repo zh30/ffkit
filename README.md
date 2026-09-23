@@ -188,11 +188,12 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `dedup` | Drops near-duplicate frames via `mpdecimate` — shrinks static stretches, `--frac` sensitivity |
 | `audiogram --mode cqt` | Constant-Q music spectrum (`showcqt`) — piano-roll spectrum look for music clips |
 | `audiogram --mode spectro` | Scrolling spectrogram (`showspectrum`) — colour time/frequency roll |
-| `scan` | QC report: black stretches, frozen frames, black-frame hits (JSON extras; writes no media) |
+| `scan` | QC report: black stretches, frozen frames, black-frame hits + strobe `flash_frames`/`flash_max_badness` (photosensitive-epilepsy; JSON extras; writes no media) |
 | `smooth` | Edge-preserving beauty/skin blur (smartblur; `--strength`, `--at`/`--dur`) |
 | `upscale` | Up-res footage: `zscale` spline36 (better than lanczos) + light unsharp, `--factor` 1.05-4 (2 doubles dims), `--strength` edge acuity |
 | `v360` | Reframe 360 footage to flat (`--in` equirect/fisheye/dfisheye/cubemap/EAC/barrel/half-equirect, `--yaw`/`--pitch`/`--fov`, `--size`) |
 | `perspective` | Deskew a filmed screen/whiteboard: `--points x0,y0,x1,y1,x2,y2,x3,y3` (TL,TR,BL,BR quad in source, px), `--interp linear|cubic` |
+| `wb` | Auto white balance / cast removal: `--strength` 0..1, `--independence` 0 keeps the grade (contrast only), `--smooth` temporal frames, `--at`/`--dur` window |
 | `shear` | Italic-style picture slant: `--x`/`--y` shear factors -2..2, `--fill` edge color, `--interp nearest|bilinear`, `--at`/`--dur` window |
 | `gen` | Generative animated backgrounds from lavfi sources (no input): `--pattern mandelbrot` (endless zoom) `|gradients` (drifting palette — `--colors` up to 8, `--seed`, `--speed`) `|life` (cellular automaton, `--rule`), `--size`/`--fps`/`--dur` |
 | `sharpen --engine cas` | Contrast-adaptive sharpening — crisper edges without unsharp halos, `--amount` |
@@ -214,7 +215,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `glow` | Dreamy bloom: blurred copy screen-blended back (`--strength`, `--at`/`--dur` window) |
 | `vhs` | Retro tape look: `--strength` 0-3 noise + chroma shift + scanlines (`--at`/`--dur` window) |
 | `motionblur` | Shutter smear: `--frames` 2-8 temporal blend (`--at`/`--dur` window) |
-| `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30, `--engine nlmeans` (quality default) `|hqdn3d|`atadenoise|`vaguedenoise|`bm3d`/`dctdnoiz`/`owdenoise` (strongest three — no `--at` on those), `--at`/`--dur` window — comma list ok, `end` ok |
+| `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30, `--engine nlmeans` (quality default) `|hqdn3d|`atadenoise|`vaguedenoise|`bm3d`/`dctdnoiz`/`owdenoise` (strongest three — no `--at` on those), `median` (salt&pepper), `chroma` (color speckle), `--at`/`--dur` window — comma list ok, `end` ok |
 | `crop` | Crop `--region x:y:w:h`, or `--aspect` reframe with `--anchor center|top|bottom|left|right` |
 | `waveform` | Audio waveform → PNG (`--size`, `--color`, `--scale`, `--peak` transients, `--split` per-channel rows, `--full` dense draw, `--bg` opaque card) for podcast art/thumbnails (`--at/--dur` slice, `end` ok, comma `--at` renders `<stem>_N.png` per window, `--vertical` top→bottom wave) |
 | `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup (`--color` magma/viridis…, `--scale` lin/sqrt…, `--no-legend`, `--separate` per-channel bands) (`--at/--dur` slice, `end` ok, comma `--at` renders `<stem>_N.png` per window) |

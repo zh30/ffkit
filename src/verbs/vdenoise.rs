@@ -53,6 +53,18 @@ pub fn run(args: VdenoiseArgs, g: &Globals) -> Result<Contract, Error> {
             ),
             "owdenoise",
         ),
+        // median: per-pixel neighbourhood median — kills salt&pepper / hot
+        // pixels (radius s/3, small windows keep it fast)
+        crate::cli::VDenoiseEngine::Median => (
+            format!("median=radius={:.0}", (s / 3.0).clamp(1.0, 10.0)),
+            "median",
+        ),
+        // chromanr: chroma-only denoise — phone-sensor color noise; thres is a
+        // summed y+u+v distance so it needs ~80 to bite (strength × 12)
+        crate::cli::VDenoiseEngine::Chroma => (
+            format!("chromanr=thres={:.1}:sizew=15:sizeh=15", s * 12.0),
+            "chromanr",
+        ),
     };
     let vf = match &args.at {
         Some(raw) => {

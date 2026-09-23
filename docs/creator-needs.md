@@ -835,3 +835,11 @@ Dropped after probing: `dynaudnorm` is a verified passthrough on ffmpeg 4.4.8 (o
 - `channel --mode base` — `stereotools=base={pan}` (-1 mono fold / +1 wide).
 
 Not on 4.4: `earwax` (no output from `ffmpeg -h filter=earwax`).
+
+## Shipped — RSI round 194 (0.221.0)
+
+- `wb` — `normalize=independence={i}:smoothing={n}:strength={s}` auto white balance (per-channel = cast removal; i=0 keeps grade).
+- `vdenoise --engine median` (radius=s/3, timeline ok) + `--engine chroma` (chromanr thres=s*12, sizew=15 — needs thres~80 to bite).
+- `scan` — `photosensitivity=bypass=1,metadata=print:file=-` in the same pass; `file=-` writes to STDOUT (parse both streams!); badness>2 flags real strobes without false-positives on animated content.
+
+Not on 4.4: `earwax`. Already covered elsewhere: `trail --mode light` = lagfun (don't re-add).

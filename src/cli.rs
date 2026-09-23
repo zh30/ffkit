@@ -311,6 +311,8 @@ pub enum Cmd {
     Shear(ShearArgs),
     /// Reframe 360 equirect footage to a flat viewport (yaw/pitch/fov)
     V360(V360Args),
+    /// Auto white balance: remove a color cast (indoor tungsten, mixed light)
+    Wb(WbArgs),
     /// Mirror half the frame across the center axis (dance/symmetry look)
     Mirror(MirrorArgs),
     /// Chunky retro pixelation over the whole frame
@@ -3758,6 +3760,30 @@ pub struct SmoothArgs {
 }
 
 #[derive(clap::Args, Debug)]
+pub struct WbArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Correction strength 0..1 (0 = off, 1 = full neutralization)
+    #[arg(long, default_value_t = 1.0)]
+    pub strength: f64,
+    /// Per-channel vs linked normalization 0..1 (1 = white balance pick;
+    /// 0 = contrast stretch only, keeps the scene's color grade)
+    #[arg(long, default_value_t = 1.0)]
+    pub independence: f64,
+    /// Temporal smoothing in frames — correction eases instead of breathing
+    /// on cuts/brightness pops (0 = per-frame)
+    #[arg(long, default_value_t = 32)]
+    pub smooth: u32,
+    /// Timestamp(s) to start correcting — comma list allowed; `end` = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Seconds the correction lasts per --at point (default: to end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
 pub struct V360Args {
     pub input: PathBuf,
     #[arg(short, long)]
@@ -3817,6 +3843,10 @@ pub enum VDenoiseEngine {
     Dctdnoiz,
     /// owdenoise — overcomplete wavelet denoiser (very smooth result)
     Owdenoise,
+    /// median — salt&pepper / hot-pixel removal (small radius, timeline ok)
+    Median,
+    /// chroma — chroma-only noise reduction (phone-sensor color speckle)
+    Chroma,
 }
 
 #[derive(clap::Args, Debug)]

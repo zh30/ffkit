@@ -21501,3 +21501,164 @@ fn shear_denoise_engines_channel_base() {
         "base -1 should fold toward mono: {v}"
     );
 }
+
+#[test]
+fn wb_median_chroma_scan_flash() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let rgbavg = |p: &std::path::Path| -> [f64; 3] {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-vf", "select='eq(n,10)'"])
+            .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+            .output()
+            .unwrap();
+        let d = o.stdout;
+        if d.is_empty() {
+            return [0.0; 3];
+        }
+        let n = d.len() / 3;
+        let mut out = [0f64; 3];
+        for (c, slot) in out.iter_mut().enumerate() {
+            *slot = d.iter().skip(c).step_by(3).map(|v| *v as f64).sum::<f64>() / n as f64;
+        }
+        out
+    };
+    let flat_stdev = |p: &std::path::Path, vf: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-vf", vf])
+            .args(["-frames:v", "1", "-f", "rawvideo", "-"])
+            .output()
+            .unwrap();
+        let d = o.stdout;
+        if d.is_empty() {
+            return 99.0;
+        }
+        let m = d.iter().map(|v| *v as f64).sum::<f64>() / d.len() as f64;
+        (d.iter().map(|v| (*v as f64 - m).powi(2)).sum::<f64>() / d.len() as f64).sqrt()
+    };
+
+    // wb: a green-cast clip comes back with channels averaged (cast removed)
+    let cast = dir.path().join("cast.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("testsrc=size=160x90:rate=25")
+        .args(["-vf", "curves=green='0/0.6 1/0.9'", "-t", "1"])
+        .arg(&cast)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let wb = dir.path().join("wb.mp4");
+    let v = run_json(&["wb", cast.to_str().unwrap(), "-o", wb.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let (a, b) = (rgbavg(&cast), rgbavg(&wb));
+    assert!(
+        (b[1] - b[0]).abs() + (b[1] - b[2]).abs() < (a[1] - a[0]).abs() + (a[1] - a[2]).abs(),
+        "wb should reduce the green-vs-other gap: {a:?} -> {b:?}"
+    );
+
+    // vdenoise median: salt&pepper collapse on flat luma
+    let flat = dir.path().join("flat.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("color=c=gray:size=160x90:rate=25")
+        .args(["-vf", "noise=alls=25:allf=t", "-t", "1"])
+        .arg(&flat)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let med = dir.path().join("med.mp4");
+    let v = run_json(&[
+        "vdenoise",
+        flat.to_str().unwrap(),
+        "-o",
+        med.to_str().unwrap(),
+        "--engine",
+        "median",
+        "--strength",
+        "6",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let gray = "select='eq(n,10)',format=gray";
+    assert!(
+        flat_stdev(&med, gray) < flat_stdev(&flat, gray) * 0.5,
+        "median should halve flat stdev: {v}"
+    );
+    // median supports --at (timeline)
+    let v = run_json(&[
+        "vdenoise",
+        flat.to_str().unwrap(),
+        "-o",
+        dir.path().join("med2.mp4").to_str().unwrap(),
+        "--engine",
+        "median",
+        "--at",
+        "0.2",
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "median --at should work: {v}");
+
+    // vdenoise chroma: U-plane noise collapses on a chroma-noise clip
+    let cn = dir.path().join("cn.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("color=c=red:size=160x90:rate=25")
+        .args(["-vf", "noise=alls=30:allf=t", "-t", "1"])
+        .arg(&cn)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let ch = dir.path().join("ch.mp4");
+    let v = run_json(&[
+        "vdenoise",
+        cn.to_str().unwrap(),
+        "-o",
+        ch.to_str().unwrap(),
+        "--engine",
+        "chroma",
+        "--strength",
+        "6",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let uplane = "select='eq(n,5)',format=yuv420p,extractplanes=u";
+    assert!(
+        flat_stdev(&ch, uplane) < flat_stdev(&cn, uplane) * 0.5,
+        "chroma should halve U-plane stdev: {v}"
+    );
+
+    // scan: a 5Hz black/white strobe is flagged; smooth animation is not
+    let strobe = dir.path().join("strobe.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("color=c=black:size=160x90:rate=10")
+        .args(["-f", "lavfi", "-i", "color=c=white:size=160x90:rate=10"])
+        .args([
+            "-filter_complex",
+            "[0:v][1:v]blend=all_expr='if(lt(mod(T,1),0.5),B,A)'",
+            "-t",
+            "2",
+        ])
+        .arg(&strobe)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let v = run_json(&["scan", strobe.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        v["extra"]["flash_frames"].as_u64().unwrap_or(0) > 5,
+        "strobe should flag flash_frames: {v}"
+    );
+    let v = run_json(&["scan", cast.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(
+        v["extra"]["flash_frames"].as_u64().unwrap_or(99),
+        0,
+        "smooth clip should not flag: {v}"
+    );
+}
