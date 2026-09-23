@@ -259,6 +259,16 @@ pub enum Cmd {
     Diff(DiffArgs),
     /// Keep one color, desaturate the rest
     Selective(SelectiveArgs),
+    /// Impact punch: white flash + decaying shake at a moment
+    Impact(ImpactArgs),
+    /// Watery horizontal wave distortion
+    Wave(WaveArgs),
+    /// Pendulum sway: frame rotates by a slow sine
+    Spin(SpinArgs),
+    /// Spotlight circle: dim everything outside a hard-edged disc
+    Iris(IrisArgs),
+    /// Radial zoom smear: blurred blown-up copy behind the sharp frame
+    Burst(BurstArgs),
     /// Comic look: posterized base + ink outlines
     Cartoon(CartoonArgs),
     /// Thermal / false-color luma map
@@ -1226,6 +1236,92 @@ pub struct SnowArgs {
     /// Window length in seconds (required with --at)
     #[arg(long)]
     pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ImpactArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Moment of the hit in seconds (default 0.5)
+    #[arg(long)]
+    pub at: Option<f64>,
+    /// Shake amplitude 4-80 px
+    #[arg(long, default_value_t = 20)]
+    pub amp: u32,
+    /// White flash seconds 0.02-0.5
+    #[arg(long, default_value_t = 0.08)]
+    pub flash: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct WaveArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Horizontal shift 1-60 px
+    #[arg(long, default_value_t = 8)]
+    pub amp: u32,
+    /// Undulation cycles/sec 0.1-10
+    #[arg(long, default_value_t = 1.5)]
+    pub speed: f64,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SpinArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Swing amplitude in degrees 0.5-45
+    #[arg(long, default_value_t = 8.0)]
+    pub deg: f64,
+    /// Swings per second 0.05-10
+    #[arg(long, default_value_t = 0.7)]
+    pub rate: f64,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct IrisArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Circle center X as % of width
+    #[arg(long, default_value_t = 50.0)]
+    pub x: f64,
+    /// Circle center Y as % of height
+    #[arg(long, default_value_t = 50.0)]
+    pub y: f64,
+    /// Circle radius as % of width 2-100
+    #[arg(long, default_value_t = 30)]
+    pub radius: u32,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct BurstArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Smear opacity 0.05-0.9
+    #[arg(long, default_value_t = 0.35)]
+    pub strength: f64,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2245,6 +2341,10 @@ pub enum GradePreset {
     Teal,
     /// High-contrast black & white
     Noir,
+    /// Bleach bypass: crushed desat + hard contrast
+    Bleach,
+    /// Cyberpunk cyan shadows + magenta highlights
+    Neon,
 }
 
 #[derive(clap::Args, Debug)]

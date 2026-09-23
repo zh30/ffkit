@@ -10,6 +10,16 @@
 - `scope` — QC scope overlay (`--mode vector|wave`, corner `--position`, `--size` fraction), `--at`/`--dur` windows via overlay enable.
 - `desqueeze` — anamorphic restore: `--factor` lens ratio stretches one axis (`--axis y|x`).
 
+## [0.205.0] — 2026-09-23
+
+### Added
+- `iris`, `burst`, `grade --preset bleach`/`neon`.
+
+## [0.204.0] — 2026-09-23
+
+### Added
+- `impact`, `wave`, `spin` verbs.
+
 ## [0.203.0] — 2026-09-23
 
 ### Added

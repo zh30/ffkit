@@ -241,6 +241,18 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 
 - `bars` (SMPTE test card + 1kHz tone), `scope` (vectorscope/waveform corner overlay), `desqueeze` (anamorphic restore).
 
+## Shipped this run (round 178)
+
+- `iris` — hard-edged spotlight circle via `blend=all_expr` distance test (`hypot`), `--x`/`--y`/`--radius` + windowed `--at`; 4.4 `all_expr` has no `and()` — mask and window multiply instead.
+- `burst` — radial zoom smear: `scale↑ + crop + gblur` copy behind the sharp frame, `--strength` drives zoom + blur + opacity.
+- `grade --preset bleach|neon` — bleach-bypass crushed-desat contrast; cyberpunk cyan-shadow/magenta-highlight colorbalance.
+
+## Shipped this run (round 177)
+
+- `impact` — beat-synced punch: a white flash (~80ms) plus a decaying sine shake on a padded crop; one flag (`--at`) times the hit for drops/impacts.
+- `wave` — horizontal watery undulation via `geq` row resampling (`N` frame index on 4.4 — no `t`); `--at` windows blend-branch.
+- `spin` — pendulum sway via `rotate` sine angle (rotate has T → enable on the filter).
+
 ## Shipped this run (round 176)
 
 - `pick` (zone-swatch color report), `diff` (amplified two-clip difference), `selective` (keep-one-color maskedmerge).

@@ -19145,3 +19145,345 @@ fn pick_diff_selective() {
     assert!(joined.contains("maskedmerge"), "{joined}");
     assert!(joined.contains("blend=all_expr"), "{joined}");
 }
+
+#[test]
+fn impact_wave_spin() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("src.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:duration=2:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+
+    let px = |f: &Path, t: f64| -> u64 {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let o = Command::new("ffmpeg")
+            .args(["-y", "-loglevel", "error", "-ss"])
+            .arg(format!("{t:.3}"))
+            .arg("-i")
+            .arg(f)
+            .args([
+                "-vf",
+                "scale=4:4",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+            ])
+            .arg(tmp.path())
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+        std::fs::read(tmp.path())
+            .unwrap()
+            .iter()
+            .map(|p| *p as u64)
+            .sum()
+    };
+    let pxd = |a: &Path, b: &Path, t: f64| -> u64 {
+        let grab = |f: &Path| -> Vec<u8> {
+            let tmp = tempfile::NamedTempFile::new().unwrap();
+            let o = Command::new("ffmpeg")
+                .args(["-y", "-loglevel", "error", "-ss"])
+                .arg(format!("{t:.3}"))
+                .arg("-i")
+                .arg(f)
+                .args([
+                    "-vf",
+                    "scale=8:6",
+                    "-frames:v",
+                    "1",
+                    "-f",
+                    "rawvideo",
+                    "-pix_fmt",
+                    "gray",
+                ])
+                .arg(tmp.path())
+                .output()
+                .unwrap();
+            assert!(o.status.success());
+            std::fs::read(tmp.path()).unwrap()
+        };
+        grab(a)
+            .iter()
+            .zip(grab(b).iter())
+            .map(|(x, y)| (*x as i64 - *y as i64).unsigned_abs())
+            .sum()
+    };
+
+    // impact: frame right after the hit differs from source
+    let imp = dir.path().join("imp.mp4");
+    let v = run_json(&[
+        "impact",
+        src.to_str().unwrap(),
+        "-o",
+        imp.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let joined = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|s| s.as_str().unwrap())
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(joined.contains("exp(-max(t-"), "{joined}");
+    assert!(
+        px(&imp, 0.55) != px(&src, 0.55),
+        "impact should move the frame"
+    );
+
+    // wave: windowed -> shifted inside, untouched outside
+    let wav = dir.path().join("wav.mp4");
+    let v = run_json(&[
+        "wave",
+        src.to_str().unwrap(),
+        "-o",
+        wav.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "--dur",
+        "1",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let joined = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|s| s.as_str().unwrap())
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(joined.contains("geq="), "{joined}");
+    assert!(joined.contains("blend=all_expr"), "{joined}");
+    let inside = pxd(&wav, &src, 0.75);
+    assert!(
+        inside > 200,
+        "wave inside window should shift pixels, got {inside}"
+    );
+    let outside = pxd(&wav, &src, 0.1);
+    assert!(
+        outside < 120,
+        "wave outside window ~unchanged, got {outside}"
+    );
+
+    // spin: argv carries rotate sine; frame differs
+    let sp = dir.path().join("spin.mp4");
+    let v = run_json(&[
+        "spin",
+        src.to_str().unwrap(),
+        "-o",
+        sp.to_str().unwrap(),
+        "--deg",
+        "10",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let joined = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|s| s.as_str().unwrap())
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(joined.contains("rotate=a="), "{joined}");
+    assert!(
+        px(&sp, 0.35) != px(&src, 0.35),
+        "spin should tilt the frame"
+    );
+}
+
+#[test]
+fn iris_burst_and_neon_bleach_grade() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let flat = dir.path().join("flat.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=orange:size=160x120:duration=1:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&flat)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+
+    let lum = |f: &Path, t: f64, crop: &str| -> u64 {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let o = Command::new("ffmpeg")
+            .args(["-y", "-loglevel", "error", "-ss"])
+            .arg(format!("{t:.3}"))
+            .arg("-i")
+            .arg(f)
+            .args([
+                "-vf",
+                &format!("{crop},scale=4:4"),
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+            ])
+            .arg(tmp.path())
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+        std::fs::read(tmp.path())
+            .unwrap()
+            .iter()
+            .map(|p| *p as u64)
+            .sum()
+    };
+
+    // iris: center keeps source luma, corner dims
+    let ir = dir.path().join("ir.mp4");
+    let v = run_json(&[
+        "iris",
+        flat.to_str().unwrap(),
+        "-o",
+        ir.to_str().unwrap(),
+        "--radius",
+        "30",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let center_src = lum(&flat, 0.5, "crop=20:20:70:50");
+    let center_ir = lum(&ir, 0.5, "crop=20:20:70:50");
+    assert!(
+        (center_ir as i64 - center_src as i64).abs() < 60,
+        "iris center should keep the picture: {center_ir} vs {center_src}"
+    );
+    let corner_src = lum(&flat, 0.5, "crop=20:20:0:0");
+    let corner_ir = lum(&ir, 0.5, "crop=20:20:0:0");
+    assert!(
+        corner_ir + 100 < corner_src,
+        "iris should dim outside the disc: {corner_ir} vs {corner_src}"
+    );
+
+    // burst: argv carries scale+crop+gblur blend; frame changes
+    let bu = dir.path().join("bu.mp4");
+    let v = run_json(&[
+        "burst",
+        flat.to_str().unwrap(),
+        "-o",
+        bu.to_str().unwrap(),
+        "--strength",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let joined = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|s| s.as_str().unwrap())
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(joined.contains("gblur=sigma="), "{joined}");
+    assert!(joined.contains("blend=all_opacity"), "{joined}");
+
+    // grade presets parse and render
+    for p in ["bleach", "neon"] {
+        let g = dir.path().join(format!("g-{p}.mp4"));
+        let v = run_json(&[
+            "grade",
+            flat.to_str().unwrap(),
+            "-o",
+            g.to_str().unwrap(),
+            "--preset",
+            p,
+            "--json",
+        ]);
+        assert_eq!(v["status"], "ok", "{v}");
+        assert!(g.exists());
+    }
+    // bleach desaturates: chroma drops vs source
+    let sat = |f: &Path| -> u64 {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let o = Command::new("ffmpeg")
+            .args(["-y", "-loglevel", "error", "-ss", "0.5", "-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                "scale=4:4",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+            ])
+            .arg(tmp.path())
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+        let d = std::fs::read(tmp.path()).unwrap();
+        d.chunks(3)
+            .map(|c| {
+                let mx = *c.iter().max().unwrap() as i64;
+                let mn = *c.iter().min().unwrap() as i64;
+                (mx - mn) as u64
+            })
+            .sum()
+    };
+    let g = dir.path().join("g-bleach.mp4");
+    assert!(sat(&g) + 40 < sat(&flat), "bleach should drop chroma");
+}

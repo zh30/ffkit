@@ -152,7 +152,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | 把成片重复 N 遍（Shorts 循环加长）（`--from`/`--to` 只循环片段，支持 `end`，`--fade` 无缝衔接） |
 | `stabilize` | 手持防抖（deshake）——`--rx`/`--ry` 搜索半径，`--edge` 边缘填充 blank|original|clamped|mirror |
 | `reverse` | 倒放画面和声音 |
-| `grade` | `--preset` 一键风格 + 对比/饱和/亮度/`--gamma`/`--hue`/`--exposure`（EV 档）, `--at`/`--dur`/`--warm`；`--lut look.cube` 套 3D LUT | 预设 `cinematic`/`vivid`/`vintage`/`soft`/`teal`/`noir` 叠在滑杆之下 |
+| `grade` | `--preset` 一键风格 + 对比/饱和/亮度/`--gamma`/`--hue`/`--exposure`（EV 档）, `--at`/`--dur`/`--warm`；`--lut look.cube` 套 3D LUT | 预设 `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` 叠在滑杆之下 |
 | `zoom` | 推近（`--factor 1.25`、`--center X,Y` 靶点；`--at`/`--dur` 局部窗口——逗号列表可多段，支持 `end`） | `--out`
 | `sharpen` | USM 锐化，整段或定时窗口（`--amount`、`--at`、`--dur`） |
 | `vignette` | 暗角，整段或定时窗口（`--angle`、`--at`、`--dur`） |
@@ -174,6 +174,11 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `outline` | 墨线描边：检测边缘压黑，`--strength` 阈值，`--at` 窗口 |
 | `night` | 夜视效果：绿色调+噪点+暗角，`--at` 窗口 |
 | `snow` | 落雪叠加：滚动噪点色键覆盖，`--density`/`--speed`，`--at` 窗口 |
+| `impact` | 节拍冲击：白闪 + 衰减正弦晃动，`--at` 时刻，`--amp`/`--flash` |
+| `wave` | 水波横向扭曲（geq 重采样），`--amp`/`--speed`，`--at` 窗口 |
+| `spin` | 钟摆式摇摆：画面按缓正弦旋转，`--deg`/`--rate`，`--at` 窗口 |
+| `iris` | 聚光圆盘：圆外画面变暗去饱和，`--x`/`--y`/`--radius`，`--at` 窗口 |
+| `burst` | 径向变焦拖影：放大模糊副本叠在清晰画面下，`--strength` |
 | `pick` | 主色提取：某时刻均色 + 3x2 分区色板（仅 JSON 报告） |
 | `diff` | 双片视觉差异：放大差值混合，`--side` 并排参考 |
 | `selective` | 单色保留：仅留 `--color` 其余去饱和，`--similarity` 容差，`--at` 窗口 |
