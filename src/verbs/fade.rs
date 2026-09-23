@@ -28,17 +28,19 @@ pub fn run(args: FadeArgs, g: &Globals) -> Result<Contract, Error> {
         )));
     }
 
-    let dip = match args.dip {
-        Some(t) => {
-            let dl = args.dur.unwrap_or(0.8);
-            let h = dl / 2.0;
+    let mut dips = Vec::new();
+    if let Some(raw) = &args.dip {
+        let dl = args.dur.unwrap_or(0.8);
+        let h = dl / 2.0;
+        for part in raw.split(',') {
+            let t = crate::time::parse_time(part.trim())?;
             if h <= 0.0 || t - h < 0.0 || t + h > probe.duration {
                 return Err(Error::input("--dip ± --dur/2 must fit inside the input"));
             }
-            Some((t, h))
+            dips.push((t, h));
         }
-        None => None,
-    };
+        dips.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    }
     let color = args.color.as_deref().unwrap_or("black");
 
     let mut argv = ffmpeg_base(g.progress);
@@ -53,7 +55,7 @@ pub fn run(args: FadeArgs, g: &Globals) -> Result<Contract, Error> {
             let st = (probe.duration - fade_out).max(0.0);
             vf.push(format!("fade=t=out:st={st}:d={fade_out}:color={color}"));
         }
-        if let Some((t, h)) = dip {
+        for &(t, h) in &dips {
             vf.push(format!(
                 "fade=t=out:st={:.3}:d={h:.3}:color={color},fade=t=in:st={t:.3}:d={h:.3}:color={color}",
                 t - h
@@ -73,7 +75,7 @@ pub fn run(args: FadeArgs, g: &Globals) -> Result<Contract, Error> {
             let st = (probe.duration - fade_out).max(0.0);
             af.push(format!("afade=t=out:st={st}:d={fade_out}"));
         }
-        if let Some((t, h)) = dip {
+        for &(t, h) in &dips {
             af.push(format!(
                 "afade=t=out:st={:.3}:d={h:.3},afade=t=in:st={t:.3}:d={h:.3}",
                 t - h
@@ -88,6 +90,6 @@ pub fn run(args: FadeArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c.with_extra(json!({
         "fade_in": fade_in,
         "fade_out": fade_out,
-        "dip": args.dip,
+        "dip": dips.iter().map(|(t, _)| t).collect::<Vec<_>>(),
     })))
 }

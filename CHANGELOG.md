@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.163.0] — 2026-09-22
+
+### Added
+- `freeze --at a,b,...` — comma list holds a cloned frame (`--dur`) at several points in one pass; `--ease`/`--reverse`/`--zoom` still need a single `--at`.
+- `fade --dip a,b,...` — comma list dips to `--color` at every point (a dip per scene mark); `--dip` now takes a string list.
+
 ## [0.162.0] — 2026-09-22
 
 ### Added

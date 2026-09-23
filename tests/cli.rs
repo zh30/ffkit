@@ -15444,6 +15444,60 @@ fn bleep_comma_list_censors_every_window() {
 }
 
 #[test]
+fn freeze_and_fade_dip_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    // two freezes in one pass: 1s + 2*0.2 = 1.4
+    let v = run_json(&[
+        "freeze",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("f.mp4").to_str().unwrap(),
+        "--at",
+        "0.3,0.7",
+        "--dur",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("concat=n=5"), "{cmds}");
+    assert!(cmds.matches("tpad=stop").count() >= 2, "{cmds}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.4).abs() < 0.4, "freeze x2 ≈1.4s, got {d}; {v}");
+
+    // dip at two scene cuts
+    let v = run_json(&[
+        "fade",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("fd.mp4").to_str().unwrap(),
+        "--dip",
+        "0.3,0.7",
+        "--dur",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.matches("fade=t=out").count() >= 2, "{cmds}");
+    assert!(cmds.matches("fade=t=in:st=0.700").count() >= 1, "{cmds}");
+}
+
+#[test]
 fn deliver_fps_subs_margin_hls_poster() {
     if !has_ffmpeg() {
         return;

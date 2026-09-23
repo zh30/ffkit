@@ -54,15 +54,24 @@ pub fn run(args: FreezeArgs, g: &Globals) -> Result<Contract, Error> {
         extra["end"] = json!(end);
     } else {
         // Mid-clip freeze at t: [0..t] + cloned frame for dur + [t..].
-        let at = crate::time::parse_time(args.at.as_deref().unwrap())?;
+        // A comma --at list freezes at several points (plain holds only).
+        let raw = args.at.as_deref().unwrap();
+        let mut ats = Vec::new();
+        for part in raw.split(',') {
+            ats.push(crate::time::parse_time(part.trim())?);
+        }
+        ats.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let dur = args.dur.unwrap_or(1.0);
-        if !(0.0..probe.duration - 0.1).contains(&at) {
-            return Err(Error::input("--at must land inside the input"));
+        for &at in &ats {
+            if !(0.0..probe.duration - 0.1).contains(&at) {
+                return Err(Error::input("--at must land inside the input"));
+            }
         }
         if !(0.1..=30.0).contains(&dur) {
             return Err(Error::input("--dur must be 0.1..30 seconds"));
         }
         let one_frame = 1.0 / probe.fps.unwrap_or(30.0).max(1.0);
+        let at = ats[0];
         // --ease N: the N s before --at play at half-speed (swoop-in);
         // --reverse N: the N s before --at replay backwards (rewind-in).
         let ease = args.ease.unwrap_or(0.0).clamp(0.0, at);
@@ -71,6 +80,14 @@ pub fn run(args: FreezeArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--ease and --reverse are exclusive"));
         }
         let swoop = ease > 0.0 || rev > 0.0;
+        if ats.len() > 1 {
+            if swoop || zoom > 1.0 {
+                return Err(Error::input(
+                    "a comma list of --at freezes works with plain holds only (no --ease/--reverse/--zoom)",
+                ));
+            }
+            return multi_freeze(&args, &probe, &ats, dur, one_frame, g);
+        }
         let head_end = at - ease - rev;
         let mut fc = String::new();
         if ease > 0.0 {
@@ -158,4 +175,81 @@ pub fn run(args: FreezeArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     Ok(c.with_extra(extra))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn multi_freeze(
+    args: &crate::cli::FreezeArgs,
+    probe: &crate::probe::Probe,
+    ats: &[f64],
+    dur: f64,
+    one_frame: f64,
+    g: &Globals,
+) -> Result<Contract, Error> {
+    // Alternating: live slice, held frame, live slice, held frame, ...
+    let mut seg = Vec::new();
+    let mut vpins = String::new();
+    let mut apins = String::new();
+    let mut prev = 0.0f64;
+    let mut k = 0usize;
+    for &a in ats {
+        seg.push(format!(
+            "[0:v]trim={prev:.3}:{a:.3},setpts=PTS-STARTPTS[v{k}]"
+        ));
+        if probe.has_audio {
+            seg.push(format!(
+                "[0:a]atrim={prev:.3}:{a:.3},asetpts=PTS-STARTPTS[a{k}]"
+            ));
+        }
+        vpins.push_str(&format!("[v{k}]"));
+        apins.push_str(&format!("[a{k}]"));
+        k += 1;
+        seg.push(format!(
+            "[0:v]trim={a:.3}:{e:.3},setpts=PTS-STARTPTS,tpad=stop=-1:stop_duration={dur:.3}:stop_mode=clone[v{k}]",
+            e = a + one_frame
+        ));
+        if probe.has_audio {
+            seg.push(format!("anullsrc=r=48000:cl=stereo,atrim=0:{dur:.3}[a{k}]"));
+        }
+        vpins.push_str(&format!("[v{k}]"));
+        apins.push_str(&format!("[a{k}]"));
+        k += 1;
+        prev = a;
+    }
+    seg.push(format!("[0:v]trim={prev:.3}:,setpts=PTS-STARTPTS[v{k}]"));
+    if probe.has_audio {
+        seg.push(format!("[0:a]atrim={prev:.3}:,asetpts=PTS-STARTPTS[a{k}]"));
+    }
+    vpins.push_str(&format!("[v{k}]"));
+    apins.push_str(&format!("[a{k}]"));
+    let nseg = ats.len() * 2 + 1;
+    let fc = if probe.has_audio {
+        let v: Vec<String> = (0..nseg).map(|i| format!("v{i}")).collect();
+        let a: Vec<String> = (0..nseg).map(|i| format!("a{i}")).collect();
+        let mut inter = String::new();
+        for i in 0..nseg {
+            inter.push_str(&format!("[{}][{}]", v[i], a[i]));
+        }
+        seg.push(format!("{inter}concat=n={nseg}:v=1:a=1[vout][aout]"));
+        seg.join(";")
+    } else {
+        seg.push(format!("{vpins}concat=n={nseg}:v=1:a=0[vout]"));
+        seg.join(";")
+    };
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
+    if probe.has_audio {
+        argv.extend(["-map", "[aout]", "-c:a", "aac"]);
+    }
+    argv.extend([
+        "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+    ]);
+    argv.push(&args.output);
+    let c = engine::write_job("freeze", &[&args.input], &args.output, vec![argv], g)?;
+    let mut extra = serde_json::Map::new();
+    extra.insert("at".to_string(), json!(ats));
+    extra.insert("dur".to_string(), json!(dur));
+    Ok(c.with_extra(serde_json::Value::Object(extra)))
 }

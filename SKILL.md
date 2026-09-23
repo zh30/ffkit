@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.162.0
+version: 0.163.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -98,7 +98,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | split into exactly N parts | `split` (`--parts N` — equal-length grid) |
 | title that fades in/out | `title` (`--fade` secs — soft entry/exit, `--box` card) |
 | end-card title / tail-only effect | `<verb> --at end --dur N` — every `--at/--dur` window verb anchors the tail (title, speed, tempo, mix, music, mute, boomerang, zoom, blur, grade, volume, censor, meme, overlay, delogo, eq, reverb, fx, denoise, dehum, leveler, gate, vocal, voice, vdenoise, pitch, progress, waveform/spectrogram, bw/invert/sharpen/vignette). `thumb`/`cover`/`frames --at end` = last frame |
-| dip-to-black at a cut | `fade` (`--dip T --dur N` — half out, half back) |
+| dip-to-black at a cut / at every scene mark | `fade` (`--dip T --dur N` — half out, half back; comma list dips at several points) |
 | fix white balance / color cast | `grade` (`--hue` deg — rotates the hue) |
 | quiet tail on a podcast | `silence` (`--end --dur` secs — appended) |
 | logo/watermark that eases in | `overlay` (`--fade` secs — alpha in/out) |
@@ -170,7 +170,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | green screen | `key` (`--bg`, `--color`/`--similarity`/`--blend`, `--despill` for fringe) |
 | reaction / multi-cam grid | `grid` (`--layout 2x2`, `--size`, `--gap`/`--bg` gutters) |
 | watch-time progress bar | `progress` (`--color`, `--height`, `--edge`, `--bg` track) |
-| freeze a beat / outro hold | `freeze` (`--ease`/`--reverse` swoop, `--zoom` push-in, `--at T --dur D`, or `--end D`) |
+| freeze a beat / outro hold | `freeze` (`--ease`/`--reverse` swoop, `--zoom` push-in, `--at T --dur D` — comma `--at` freezes at several points, or `--end D`) |
 | blur a face / logo | `censor` (`--strength`, `--region x:y:w:h`, `--mode pixel|blur`; `--at`/`--dur` limits the window) |
 | slow-mo punch-in | `speed` (`--factor`/`--ramp`, `--at`/`--dur` for just one window) |
 | boomerang replay | `boomerang` (forward then reversed, one loop) |

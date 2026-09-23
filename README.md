@@ -119,7 +119,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`) |
 | `grid` | Multi-up collage (`--layout`, `--audio` pick, `--labels`, `--gap`, `--bg` gutter color, `--fill` crop instead of letterbox) |
 | `progress` | Progress bar on any edge, whole clip or a window (`--color`, `--height`, `--edge` bottom/top/left/right, `--at`, `--dur`) |
-| `freeze` | Hold a frame (`--at`, `--dur`, `--end`, `--ease`, `--reverse`, `--zoom` push-in) |
+| `freeze` | Hold a frame (`--at`, comma list freezes at several points, `--dur`, `--end`, `--ease`, `--reverse`, `--zoom` push-in) |
 | `censor` | Blur/mosaic a region (`--mode`, `--strength`, `--at`/`--dur` (comma list covers several spots, needs `--dur`; `end` ok)) |
 | `bleep` | Tone over a word/segment: `--at`/`--dur` (comma list censors several spots; `end` ok), `--freq`, `--level` |
 | `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) , `--at/--dur` bounces just that window — comma list for several spots (`end` ok) |
@@ -143,7 +143,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (`--merge N` merges keeps closer than N s, `--by-scene` splits keeps at scene changes) (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
 | `cover` | Cover still (`--at` — `end` = last frame, `--blur` ambient pad, `--size` canvas — default 1080x1920) |
-| `fade` | Video and audio fade (`--in` / `--out`, `--color` e.g. white, `--dip T` scene-change dip) |
+| `fade` | Video and audio fade (`--in` / `--out`, `--color` e.g. white, `--dip T` scene-change dip — comma list dips at every mark) |
 | `title` | Hook/title card (`--at` — `end` = end-card, comma list flashes at several marks, `--fade`, `--outline`, `--box` backplate, `--wrap` long hooks, `--align` lines, `--opacity` ghost) |
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section, `end` ok, `--fade` seamless joints) |
 | `stabilize` | Handheld deshake — `--rx`/`--ry` radius, `--edge` fill (blank|original|clamped|mirror) |

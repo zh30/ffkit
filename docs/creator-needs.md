@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 136)
+- `freeze --at a,b,...` — comma list freezes a frame at several points (plain holds; `--ease`/`--reverse`/`--zoom` stay single-point).
+- `fade --dip a,b,...` — comma list dips to the color at every mark (one dip per scene cut; `--dip` now takes a string list).
+
 ## Shipped this run (round 135)
 - `deliver --fps N` — output frame rate override (60 for gameplay/sport uploads; default stays 30).
 - `subs --burn --margin N` — exact `MarginV` in px (overrides `--safe`'s computed zone margin).

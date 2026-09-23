@@ -1293,9 +1293,10 @@ pub struct FadeArgs {
     /// Fade to this color (default black; e.g. white)
     #[arg(long)]
     pub color: Option<String>,
-    /// Dip to the color at this time — scene-change transition (half out, half back)
+    /// Dip to the color at this time — scene-change transition (half out, half back);
+    /// comma list dips at several points (e.g. every chapter mark)
     #[arg(long)]
-    pub dip: Option<f64>,
+    pub dip: Option<String>,
     /// Dip length in seconds (default 0.8 — needs --dip)
     #[arg(long)]
     pub dur: Option<f64>,
