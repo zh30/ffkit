@@ -72,9 +72,17 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
         return Ok(c2.with_extra(json!({"mode": "mvs"})));
     }
     let filt = match args.mode {
-        ScopeMode::Vector => "vectorscope=m=color2",
-        ScopeMode::Wave => "waveform=mode=column:display=parade:intensity=0.5",
-        ScopeMode::Hist => "thistogram=display_mode=overlay",
+        ScopeMode::Vector => "vectorscope=m=color2".to_string(),
+        ScopeMode::Wave => "waveform=mode=column:display=parade:intensity=0.5".to_string(),
+        ScopeMode::Hist => "thistogram=display_mode=overlay".to_string(),
+        ScopeMode::Qp => "qp".to_string(),
+        ScopeMode::Pix => {
+            let fw = probe.width.unwrap_or(1280) as f64;
+            let fh = probe.height.unwrap_or(720) as f64;
+            let fx = args.x.map(|px| px as f64 / fw).unwrap_or(0.5);
+            let fy = args.y.map(|px| px as f64 / fh).unwrap_or(0.5);
+            format!("pixscope=x={fx:.3}:y={fy:.3}:w=17:h=17:o=0.9")
+        }
         ScopeMode::Mvs | ScopeMode::Data => unreachable!(),
     };
     let (x, y) = match args.position.as_str() {
@@ -96,11 +104,19 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    let fc =
+    // pixscope needs ≥640x480: upsample (nearest — keep pixel edges crisp),
+    // run it there, then shrink the viz to the tile
+    let fc = if matches!(args.mode, ScopeMode::Pix) {
+        format!(
+            "[0:v]split[a][b];[b]scale='max(iw,640)':'max(ih,480)':flags=neighbor,format=rgb24,{filt},scale={sw}:{sh}[sc];[a][sc]overlay={x}:{y}{en}[v]",
+            filt = filt, x = x, y = y, en = en
+        )
+    } else {
         format!(
         "[0:v]split[a][b];[b]scale={sw}:{sh},format=rgb24,{filt}[sc];[a][sc]overlay={x}:{y}{en}[v]",
         filt = filt, x = x, y = y, en = en
-    );
+        )
+    };
     argv.extend(["-filter_complex", &fc, "-map", "[v]", "-map", "0:a?"]);
     argv.extend([
         "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",

@@ -62,7 +62,9 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
         FxKind::Autopan => format!("apulsator=hz={:.2}:mode=sine", 0.4 + 2.6 * s),
         // ring-mod robot voice: a fast tremolo carrier (~30-70Hz) reads as AM
         // synthesis — Dalek / sci-fi comm channel
-        FxKind::Ringmod => format!("tremolo=f={:.1}:d=0.9", 25.0 + 45.0 * s),
+        // true ring modulation is a multi-input graph (amultiply + sine
+        // carrier) — handled below as a filter_complex, not an -af chain
+        FxKind::Ringmod => String::new(),
         // acrusher: bit-depth + sample-rate destruction — digital lo-fi dirt
         FxKind::Crush => format!(
             "acrusher=bits={:.0}:samples={:.0}:mode=log:mix=0.9",
@@ -72,18 +74,38 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
     };
     // --at/--dur: duck the dry feed to 0 inside the window, add the FX in its place.
     // (on ffmpeg 4.4 none of these filters accept a timeline `enable` option)
-    let fc = match &args.at {
-        Some(raw) => Some(engine::audio_window_for(
-            &af,
-            raw,
-            args.dur,
-            probe.duration,
-        )?),
-        None => {
-            if args.dur.is_some() {
-                return Err(Error::input("--dur needs --at"));
+    let fc = if matches!(args.kind, FxKind::Ringmod) {
+        let carrier = 25.0 + 475.0 * s;
+        match &args.at {
+            Some(raw) => {
+                let en = crate::time::enable_expr(raw, args.dur, probe.duration)?;
+                Some(format!(
+                    "[0:a]asplit[d][w];sine=frequency={carrier:.1}:sample_rate=48000[c];[w][c]amultiply[m];[m]volume=1:enable='{en}'[mg];[d]volume=0:enable='{en}'[dg];[dg][mg]amix=inputs=2:normalize=0[aout]"
+                ))
             }
-            None
+            None => {
+                if args.dur.is_some() {
+                    return Err(Error::input("--dur needs --at"));
+                }
+                Some(format!(
+                    "[0:a]asplit[d][w];sine=frequency={carrier:.1}:sample_rate=48000[c];[w][c]amultiply[m];[d][m]amix=inputs=2:normalize=0:weights='0.15 0.85'[aout]"
+                ))
+            }
+        }
+    } else {
+        match &args.at {
+            Some(raw) => Some(engine::audio_window_for(
+                &af,
+                raw,
+                args.dur,
+                probe.duration,
+            )?),
+            None => {
+                if args.dur.is_some() {
+                    return Err(Error::input("--dur needs --at"));
+                }
+                None
+            }
         }
     };
 
@@ -110,6 +132,10 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c.with_extra(json!({
         "effect": format!("{:?}", args.kind).to_lowercase(),
         "strength": s,
-        "filter": af,
+        "filter": if matches!(args.kind, FxKind::Ringmod) {
+            format!("amultiply+sine(carrier {:.0}Hz)", 25.0 + 475.0 * s)
+        } else {
+            af.clone()
+        },
     })))
 }

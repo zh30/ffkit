@@ -256,5 +256,6 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         "match": args.match_,
         "color_from": args.color_from,
         "hue": args.hue,
+        "mix": args.mix,
     })))
 }

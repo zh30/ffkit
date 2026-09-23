@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.246.0] — 2026-09-23
+
+### Added
+
+- `fx --kind ringmod` now TRUE ring modulation — `amultiply` multiplies the
+  signal by a lavfi `sine` carrier (`--strength` sweeps 25→500Hz); replaces
+  the tremolo approximation. `--at` windows gate the modulated leg.
+- `scope --mode qp` — per-macroblock QP overlay (encoding QC).
+- `scope --mode pix` — pixscope magnified pixel grid at `--x`/`--y`.
+- `grade --mix "rr,rg,rb,gr,gg,gb,br,bg,bb"` — colorchannelmixer 3x3
+  channel matrix (channel swaps, custom split-tones).
+- `deinterlace --engine separate` — separatefields: every field becomes a
+  frame (25i→50p, 29.97i→59.94p), a smooth slow-mo/sports source.
+
 ## [0.245.0] — 2026-09-23
 
 ### Added

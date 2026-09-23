@@ -1208,6 +1208,11 @@ pub enum ScopeMode {
     /// datascope — hex pixel values around --x/--y (full-frame readout: find
     /// the exact luma at the logo edge, verify a clipped highlight value)
     Data,
+    /// qp — per-macroblock quantization overlay (compression QC: uniform
+    /// blocks = clean encode, speckled blocks = starved bitrate)
+    Qp,
+    /// pixscope — magnified pixel-grid window at --x/--y
+    Pix,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2926,6 +2931,10 @@ pub struct GradeArgs {
     /// matching / "grade it like that film". Second input, scaled to fit
     #[arg(long)]
     pub match_: Option<PathBuf>,
+    /// Channel mixer — 9 gains rr,rg,rb,gr,gg,gb,br,bg,bb (0..2 each;
+    /// identity = 1,0,0,0,1,0,0,0,1). Swap channels, custom orange/teal
+    #[arg(long)]
+    pub mix: Option<String>,
     /// Borrow the chroma (U/V) of another clip — mergeplanes: your luma,
     /// their color grade. Incompatible with --match / HALD --lut / --at
     #[arg(long, value_name = "REF")]
@@ -3430,6 +3439,9 @@ pub enum DeintEngine {
     Mcdeint,
     /// w3fdif — Martin Weston three-field filter (sharp diagonal edges, SD archives)
     W3fdif,
+    /// separatefields — split each field into its own frame: 25i/29.97i
+    /// becomes 50p/59.94p (smooth slow-mo source, sports frame stepping)
+    Separate,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -4810,7 +4822,8 @@ pub enum FxKind {
     Crossfeed,
     /// Left-right autopan sweep (apulsator)
     Autopan,
-    /// Robot/Dalek ring-modulation-ish voice (fast tremolo as AM synthesis)
+    /// Robot/Dalek voice — TRUE ring modulation (amultiply with a sine
+    /// carrier; strength sweeps the carrier 25→500Hz)
     Ringmod,
     /// crush — acrusher bitcrusher (bit depth + sample-rate destruction, lo-fi digital)
     Crush,

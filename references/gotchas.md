@@ -251,3 +251,10 @@ an atempo'd whole-file render would shift the window.
 - `spectrumsynth` needs TWO video inputs (magnitude + phase); feed a `nullsrc` of matching WxH/fps as the phase leg, `slide=scroll` + a `scroll`-animated magnitude = continuous left→right scan. For still images `-loop 1` before `-i`.
 - `shufflepixels` block width must stay positive — scale it off the strength range (glitch uses 0.5..20, not 0..1).
 - When resolving merge conflicts in CHANGELOG.md, taking "ours" on `## [Unreleased]` drops the just-bumped version heading — entries stay under Unreleased forever. Always keep the `## [x.y.z]` heading line.
+
+- **pixscope needs ≥640x480 input.** Feeding it a small tile errors with
+  "min supported resolution is 640x480". For corner-overlay use, upscale the
+  leg first with `scale='max(iw,640)':'max(ih,480)':flags=neighbor`, run
+  pixscope at full-res, then scale the viz back down to the tile.
+- **`separatefields` halves the height, doubles the rate** — 25i→50p frames
+  at half vertical res; that is the point (each field becomes a frame).

@@ -24561,3 +24561,110 @@ fn sonify_fx_crush_gen_sierpinski_glitch_pixels() {
     assert!(px.exists());
     assert_eq!(v["extra"]["filter"], "shufflepixels");
 }
+
+#[test]
+fn fx_ringmod_scope_qp_pix_grade_mix_deint_separate() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let v = fixture(dir.path());
+    // ringmod → true AM (amultiply × sine carrier)
+    let tone = dir.path().join("tone.wav");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=2",
+            &tone.to_string_lossy(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let out = dir.path().join("ring.m4a");
+    let j = run_json(&[
+        "fx",
+        &tone.to_string_lossy(),
+        "-o",
+        &out.to_string_lossy(),
+        "--kind",
+        "ringmod",
+        "--strength",
+        "0.9",
+    ]);
+    assert!(out.exists());
+    assert_eq!(j["extra"]["effect"], "ringmod");
+    // sidebands exist: output spectrally differs from a plain copy —
+    // verify non-silent
+    let vd = std::process::Command::new("ffmpeg")
+        .args([
+            "-i",
+            &out.to_string_lossy(),
+            "-af",
+            "volumedetect",
+            "-f",
+            "null",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let log = String::from_utf8_lossy(&vd.stderr);
+    assert!(log.contains("max_volume") && !log.contains("max_volume: -91"));
+    // scope qp + pix
+    for (mode, expect) in [("qp", "qp"), ("pix", "pix")] {
+        let o = dir.path().join(format!("sc_{mode}.mp4"));
+        let j = run_json(&[
+            "scope",
+            &v.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--mode",
+            mode,
+        ]);
+        assert!(o.exists(), "scope {mode} failed");
+        assert_eq!(j["extra"]["mode"].as_str().unwrap().to_lowercase(), expect);
+    }
+    // grade --mix channel swap
+    let o = dir.path().join("mix.mp4");
+    let j = run_json(&[
+        "grade",
+        &v.to_string_lossy(),
+        "-o",
+        &o.to_string_lossy(),
+        "--mix",
+        "0,0,1,0,1,0,1,0,0",
+    ]);
+    assert!(o.exists());
+    assert_eq!(j["extra"]["mix"], "0,0,1,0,1,0,1,0,0");
+    // deinterlace separate → fps doubles, height halves (field frames)
+    let o = dir.path().join("sep.mp4");
+    let j = run_json(&[
+        "deinterlace",
+        &v.to_string_lossy(),
+        "-o",
+        &o.to_string_lossy(),
+        "--engine",
+        "separate",
+    ]);
+    assert!(o.exists());
+    assert_eq!(j["extra"]["engine"], "separate");
+    let pr = std::process::Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=r_frame_rate,height",
+            "-of",
+            "csv=p=0",
+            &o.to_string_lossy(),
+        ])
+        .output()
+        .unwrap();
+    let line = String::from_utf8_lossy(&pr.stdout);
+    assert!(line.contains("60"), "expected 60fps field rate: {line}");
+    assert!(line.contains("120"), "expected field height 120: {line}");
+}
