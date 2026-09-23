@@ -211,6 +211,12 @@ pub enum Cmd {
     /// Convert between color matrices (fix SD-601 footage gone green in a 709
     /// timeline; bt2020 deliveries)
     Matrix(MatrixArgs),
+    /// Clamp luma to broadcast-safe levels (limiter 16-235)
+    Legalize(LegalizeArgs),
+    /// Photoshop-style levels (colorlevels in/out black/white points)
+    Levels(LevelsArgs),
+    /// Chromatic aberration fringe (rgbashift) — cheap-lens / glitch edge look
+    Aberrate(AberrateArgs),
     /// Straight ↔ premultiplied alpha conversion for graphics handoffs
     Premult(PremultArgs),
     /// Stretch edge pixels to fill border strips (chroma-key rims, leftover letterbox)
@@ -3404,6 +3410,67 @@ pub struct MatrixArgs {
     #[arg(long, value_enum, default_value_t = ColorMatrix::Bt709)]
     pub to: ColorMatrix,
     /// Convert only from this time (needs --dur)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct LegalizeArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Luma floor (default 16, broadcast-safe)
+    #[arg(long, default_value_t = 16)]
+    pub min: u32,
+    /// Luma ceiling (default 235, broadcast-safe)
+    #[arg(long, default_value_t = 235)]
+    pub max: u32,
+    /// Clamp only from this time (needs --dur)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct LevelsArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Input black point 0-1 (everything darker → output black; crush rescue
+    /// for lifted web rips uses ~0.06)
+    #[arg(long, default_value_t = 0.0)]
+    pub in_min: f64,
+    /// Input white point 0-1 (everything brighter → output white)
+    #[arg(long, default_value_t = 1.0)]
+    pub in_max: f64,
+    /// Output black point 0-1 (raise for matte/film fade)
+    #[arg(long, default_value_t = 0.0)]
+    pub out_min: f64,
+    /// Output white point 0-1
+    #[arg(long, default_value_t = 1.0)]
+    pub out_max: f64,
+    /// Remap only from this time (needs --dur)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct AberrateArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Fringe width in px (red goes left, blue right)
+    #[arg(long, default_value_t = 3)]
+    pub amount: i32,
+    /// Aberrate only from this time — comma list works (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// ..for this many seconds

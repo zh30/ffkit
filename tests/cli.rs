@@ -23253,3 +23253,101 @@ fn matrix_bw_weights_grade_split() {
         assert!(b >= r, "teal shadows expected: r={r} b={b}");
     }
 }
+
+#[test]
+fn legalize_levels_aberrate() {
+    if !has_ffmpeg() || !has_filter("limiter") || !has_filter("colorlevels") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // over-range flat fixture (Y hits 255)
+    let over = dir.path().join("over.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=white:size=128x128:rate=25",
+            "-vf",
+            "lutyuv=y='min(val+30,255)'",
+            "-t",
+            "1",
+            "-y",
+        ])
+        .arg(&over)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let ymax = |f: &Path| -> u8 {
+        let out = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-i"])
+            .arg(f)
+            .args(["-f", "rawvideo", "-pix_fmt", "yuv420p", "-y", "-"])
+            .output()
+            .unwrap();
+        out.stdout[..128 * 128].iter().max().copied().unwrap_or(0)
+    };
+    assert_eq!(ymax(&over), 255, "fixture must be over-range");
+
+    let leg = dir.path().join("leg.mp4");
+    let v = run_json(&[
+        "legalize",
+        over.to_str().unwrap(),
+        "-o",
+        leg.to_str().unwrap(),
+    ]);
+    assert!(v["extra"]["filter"].as_str().unwrap().contains("limiter"));
+    assert!(ymax(&leg) <= 240, "flat region must clamp near 235");
+
+    // levels --in-min lifts the black floor
+    let src = dir.path().join("c.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=rate=25:size=128x128",
+            "-t",
+            "1",
+            "-y",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let lv = dir.path().join("lv.mp4");
+    run_json(&[
+        "levels",
+        src.to_str().unwrap(),
+        "-o",
+        lv.to_str().unwrap(),
+        "--out-min",
+        "0.5",
+    ]);
+    let out = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-i"])
+        .arg(&lv)
+        .args(["-f", "rawvideo", "-pix_fmt", "gray", "-y", "-"])
+        .output()
+        .unwrap();
+    let mn = out.stdout.iter().min().copied().unwrap_or(0);
+    assert!(mn > 60, "out-min 0.5 must lift blacks: min={mn}");
+
+    // aberrate runs and fringes
+    let ab = dir.path().join("ab.mp4");
+    run_json(&[
+        "aberrate",
+        src.to_str().unwrap(),
+        "-o",
+        ab.to_str().unwrap(),
+        "--amount",
+        "5",
+    ]);
+    assert!(ab.exists());
+}

@@ -247,6 +247,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `despill` | Remove green/blue screen spill from keyed edges (`--type`, `--mix`, `--expand`, `--at`/`--dur`) | - |
 | `interp` | Motion-compensated interpolation: `--fps 60` upres, `--slow 0.5` smooth slow-mo | - |
 | `matrix` | Convert color matrices (`--from bt601 --to bt709` — fixes SD-gone-green; auto-detects source) | - |
+| `legalize` | Clamp luma to broadcast-safe 16-235 (`--min`/`--max`, `--at`/`--dur`) | - |
+| `levels` | Photoshop levels: `--in-min/--in-max/--out-min/--out-max` (crush rescue, matte fade) | - |
+| `aberrate` | Chromatic aberration fringe — `--amount` px (VHS / glitch edge look) | - |
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
 | `frames` | Still dump every `--every`, `--at` seconds (`end` = last frame), `--count` even-spread → `stem_001.png…` (`--width`) |

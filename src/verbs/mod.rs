@@ -1,3 +1,4 @@
+pub mod aberrate;
 pub mod accent;
 pub mod align;
 pub mod amplify;
@@ -71,8 +72,10 @@ pub mod iris;
 pub mod jumpcut;
 pub mod kaleido;
 pub mod key;
+pub mod legalize;
 pub mod lens;
 pub mod leveler;
+pub mod levels;
 pub mod r#loop;
 pub mod loudnorm;
 pub mod matrix;

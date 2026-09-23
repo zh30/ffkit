@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- `legalize` — clamp luma to broadcast-safe levels (limiter, planes=1 luma-only; `--min`/`--max`, timeline `--at`/`--dur`)
+- `levels` — Photoshop-style levels (colorlevels): `--in-min/--in-max` input points, `--out-min/--out-max` output range — crush rescue, matte film fade
+- `aberrate` — chromatic aberration fringe (rgbashift): `--amount` px splits red left / blue right (VHS, cheap-lens, glitch edge)
+
+### Added
 - `matrix` — convert between color matrices (colormatrix): `--from bt601 --to bt709` fixes SD-601 footage gone green in a 709 timeline; `--from auto` reads the stream tag; timeline `--at`/`--dur`
 - `bw --weights r,g,b` — film-photographer channel weights for B&W (1.5,0.3,0.1 darkens blue skies like a red filter); replaces the 601 luma mix
 - `grade --split -1..1` — split-tone: teal shadows + orange highlights (blockbuster grade); negative flips to warm shadows / cool highlights
