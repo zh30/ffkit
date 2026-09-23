@@ -232,7 +232,19 @@ an atempo'd whole-file render would shift the window.
 - `maskedmax`/`maskedmin` take NO `inputs=` option (framesync auto-detects) — only xmedian wants the count.
 - `spawn::run` waits for process exit BEFORE draining stdout — any filter emitting >64KB on stdout deadlocks until timeout. Route large raw output (PCM extraction) through a temp file instead.
 
-- `aphasemeter` outputs TWO pads (audio out0, video out1) — both must be consumed or the graph stalls; map the audio pad as the output audio instead of anullsink (which hangs). dither/morpho/earwax are absent on ffmpeg 4.4.
+- `aphasemeter` outputs TWO pads (audio out0, video out1) — both must be consumed or the graph stalls; map the audio pad as the output audio instead of anullsink (which hangs). dither/morpho are absent on ffmpeg 4.4.
+
+- `earwax` DOES exist on ffmpeg 4.4 (earlier note said absent — checked on ffmpeg 9). It hard-requires 44.1kHz STEREO input: pin `aformat=channel_layouts=stereo:sample_rates=44100` before it or it fails silently inside a graph.
+
+- `vfrdet` prints ONE line at EOF on stderr: `VFR:<ratio> (<n>/<N>)` — no lavfi.* metadata keys; parse the stderr line (a `select`+`-vsync vfr` clip scores ~0.97; concat-joined CFR segments score ~0.01 — flag at >0.05).
+
+- `vidstabdetect` writes a BINARY `.trf` file (`TRF1` header + packed records) — not text; a tempfile between the two passes is the way (NamedTempFile kept alive until the transform job returns).
+
+- `drawgraph`/`adrawgraph` render their own canvas (default 900x256) — the input picture is discarded, so run it on the scaled corner branch. `fgN` takes `0xRRGGBB`/`0xAARRGGBB` — a bare color name like `red` errors "Undefined constant".
+
+- `mptestsrc` has NO `size` option on 4.4 (fixed-canvas MPEG encoder test pattern; test enum names are `dc_luma`, `freq_luma`… not `dc`) — skipped for `gen` since it can't be sized.
+
+- `removegrain` modes are categorical algorithms, not a smooth strength dial (1 = softest neighbour-avg, 11 = median-of-8 strongest). `deconvolve`/`freezeframes`/`maskedthreshold`/`replaygain`/`alphamerge`/`signature`/`untile`/`stereowiden`/`acontrast`/`asupercut`/`hdcd`/`bbox` all exist on 4.4 — verified present, not yet wired.
 
 - `limiter` without `planes=` applies luma numbers to chroma too — pass `planes=1` for luma-only legalization. Codec ringing can push encoded luma a few points past the clamp; that's inherent, not a clamp failure.
 

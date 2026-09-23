@@ -19,8 +19,11 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     // emits lavfi.photosensitivity.* metadata; metadata=print mirrors it to the
     // log where we count flash-flagged frames (badness > 0)
     let scdet_leg = if args.scenes { ",scdet=t=8" } else { "" };
+    // vfrdet closes the chain: it consumes every frame's timestamps and
+    // prints one `VFR:<ratio> (<n>/<N>)` line to stderr at EOF — screen
+    // recordings / edit-joined captures come back nonzero
     let vf = format!(
-        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,idet,signalstats,entropy=mode=diff,bitplanenoise{scdet_leg},readeia608,cropdetect=limit=24:round=2,metadata=print:file=-"
+        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,idet,signalstats,entropy=mode=diff,bitplanenoise{scdet_leg},readeia608,cropdetect=limit=24:round=2,metadata=print:file=-,vfrdet"
     );
     let mut argv = Argv::ffmpeg();
     argv.push("-i");
@@ -48,8 +51,23 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     let mut scene_cuts: Vec<f64> = Vec::new();
     let mut noise_vals: Vec<f64> = Vec::new();
     let mut cc_lines = 0usize;
+    let mut vfr_ratio: Option<f64> = None;
+    let mut vfr_frames = 0usize;
     let (mut cd_x1, mut cd_x2, mut cd_y1, mut cd_y2) = (-1i64, -1i64, -1i64, -1i64);
     for line in log.lines() {
+        if let Some(rest) = line.split("VFR:").nth(1) {
+            // `VFR:0.013514 (1/73)` — fraction of frames at non-CFR intervals
+            vfr_ratio = rest
+                .split_whitespace()
+                .next()
+                .and_then(|t| t.parse::<f64>().ok());
+            vfr_frames = rest
+                .split('(')
+                .nth(1)
+                .and_then(|r| r.split('/').next())
+                .and_then(|t| t.trim().parse::<usize>().ok())
+                .unwrap_or(0);
+        }
         if let Some(rest) = line.split("black_start:").nth(1) {
             let s = rest
                 .split_whitespace()
@@ -327,6 +345,12 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         // delivery specs that require CC on air masters)
         "has_cc": cc_lines > 0,
         "cc_lines": cc_lines,
+        // VFR QC: fraction of frames arriving at variable intervals — >0.05
+        // means a real variable-rate source (screen captures ~0.5); a few
+        // stray frames just flag the container boundary
+        "vfr": vfr_ratio.map(|r| r > 0.05).unwrap_or(false),
+        "vfr_ratio": vfr_ratio,
+        "vfr_frames": vfr_frames,
         // letterbox QC: inner content bounds from cropdetect — a clip that
         // is letterboxed has a hint smaller than the frame (crop it, or
         // deliver --platform which re-pads cleanly)

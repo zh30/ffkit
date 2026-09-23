@@ -83,6 +83,16 @@ pub fn run(args: VdenoiseArgs, g: &Globals) -> Result<Contract, Error> {
             format!("fftdnoiz=sigma={:.1}:amount=1:prev=1:next=1", s.min(30.0)),
             "fftdnoiz",
         ),
+        // removegrain: VLC/AviSynth per-plane modes — strength maps to mode
+        // (2 = soft median of 4, 11 = strongest median of 8). Very fast; a
+        // good 'just clean it' middle ground between hqdn3d and nlmeans.
+        crate::cli::VDenoiseEngine::Rg => {
+            let m = (s / 30.0 * 9.0 + 2.0).round().clamp(1.0, 11.0) as u32;
+            (
+                format!("removegrain=m0={m}:m1={m}:m2={m}:m3={m}"),
+                "removegrain",
+            )
+        }
     };
     let edge_merge = matches!(filter_name, "edge");
     let vf = match &args.at {

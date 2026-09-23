@@ -42,6 +42,13 @@ pub fn run(args: UpscaleArgs, g: &Globals) -> Result<Contract, Error> {
             let n = args.factor.round().clamp(2.0, 4.0) as u32;
             format!("hqx=n={n}")
         }
+        // EPX: original emulation pixel scaler — 2x/3x only, softer diagonals
+        // than hqx (good for low-res game captures with dithered sprites)
+        crate::cli::UpscaleEngine::Epx => {
+            engine_name = "epx";
+            let n = args.factor.round().clamp(2.0, 3.0) as u32;
+            format!("epx=n={n}")
+        }
     };
     if args.strength > 0.0 {
         vf.push_str(&format!(",unsharp=5:5:{:.2}", args.strength));

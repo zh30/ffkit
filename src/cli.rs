@@ -1221,6 +1221,9 @@ pub enum ScopeMode {
     /// osc — oscilloscope XY plot of the video signal (broadcast-style
     /// waveform XY; diagonal spread = luma range coverage)
     Osc,
+    /// drift — drawgraph luma-drift curve in the corner (exposure-ramp QC:
+    /// flat line = constant exposure, slope = gradual ramp/flicker source)
+    Drift,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2868,6 +2871,23 @@ pub struct StabilizeArgs {
     /// How to fill the frame edge exposed by stabilization
     #[arg(long, value_enum)]
     pub edge: Option<StabilizeEdge>,
+    /// Engine: deshake (default, single-pass) | vidstab (two-pass vid.stab —
+    /// professional-grade; analyzes then transforms, steadier on real shake)
+    #[arg(long, value_enum)]
+    pub engine: Option<StabilizeEngine>,
+    /// vidstab smoothing window in frames (default 15 = 2*N+1 past/future
+    /// frames averaged; larger = smoother but slower to adapt to pans)
+    #[arg(long)]
+    pub smoothing: Option<u32>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug, PartialEq)]
+pub enum StabilizeEngine {
+    /// deshake — single-pass block matching, fast
+    Deshake,
+    /// vidstab — vid.stab two-pass (detect transform then correct); the
+    /// stabilizer pro NLEs wrap, steadier on handheld walking shots
+    Vidstab,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -3195,6 +3215,9 @@ pub enum ChannelMode {
     /// Delay one side by mic distance to fix two-mic comb-filtering on one
     /// source: --side left|right (default right) delayed by --cm (34cm ≈ 1ms)
     Sync,
+    /// earwax — headphone-oriented stereo widening (crossfeed delay); makes
+    /// podcasts/videos feel less "inside the skull" on earbuds
+    Earwax,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4452,6 +4475,9 @@ pub enum UpscaleEngine {
     TwoXsai,
     /// hqx — hq2x/hq3x/hq4x pixel-art scaler (cleanest sprite/text upscale)
     Hqx,
+    /// epx — EPX pixel scaler 2x/3x (classic emulation-style pixel upscale;
+    /// softer diagonals than hqx)
+    Epx,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4489,12 +4515,26 @@ pub struct WbArgs {
     /// on cuts/brightness pops (0 = per-frame)
     #[arg(long, default_value_t = 32)]
     pub smooth: u32,
+    /// Engine: normalize (default, per-channel histogram stretch) | greyedge
+    /// (grey-edge illuminant estimation — corrects a color cast while keeping
+    /// saturation direction; gentler on graded footage)
+    #[arg(long, value_enum)]
+    pub engine: Option<WbEngine>,
     /// Timestamp(s) to start correcting — comma list allowed; `end` = tail
     #[arg(long)]
     pub at: Option<String>,
     /// Seconds the correction lasts per --at point (default: to end)
     #[arg(long)]
     pub dur: Option<f64>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug, PartialEq)]
+pub enum WbEngine {
+    /// normalize — per-channel histogram stretch (classic WB pick)
+    Normalize,
+    /// greyedge — grey-edge illuminant estimation (minknorm), softer on
+    /// already-graded footage than histogram stretch
+    Greyedge,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4569,6 +4609,9 @@ pub enum VDenoiseEngine {
     Dotcrawl,
     /// fftdnoiz — FFT-domain denoise (film grain); prev/next add temporal
     Fftdnoiz,
+    /// removegrain — VLC/AviSynth per-plane grain remover (fast spatial
+    /// median/blur modes; --strength maps to mode 2..11)
+    Rg,
 }
 
 #[derive(clap::Args, Debug)]

@@ -84,6 +84,11 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
             format!("pixscope=x={fx:.3}:y={fy:.3}:w=17:h=17:o=0.9")
         }
         ScopeMode::Osc => "oscilloscope=x=0.5:y=0.5:s=0.85:t=0.5:o=1:g=1:st=1".to_string(),
+        // drift: signalstats feeds YAVG per frame; drawgraph plots it in the
+        // corner tile — flat = locked exposure, slope = ramp/flicker source
+        ScopeMode::Drift => format!(
+            "signalstats,drawgraph=m1=lavfi.signalstats.YAVG:fg1=0xFF2020:min=0:max=255:bg=0x202020@0.7:slide=scroll:size={sw}x{sh}"
+        ),
         ScopeMode::Mvs | ScopeMode::Data => unreachable!(),
     };
     let (x, y) = match args.position.as_str() {

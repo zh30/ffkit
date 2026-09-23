@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.249.0
+version: 0.250.0
 
 
 
@@ -59,7 +59,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | cover still | `cover` (`--blur` ambient pad, `--size` canvas, comma `--at` = one cover per time) |
 
 | speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--at`/`--dur` windowed swap (comma `--at` lays the new track across several windows), `--mix` keep the original under it, `--video` swap the picture and keep the audio), `loudnorm` (`--target` platform preset), `volume` |
-| grainy low-light footage | `vdenoise` (`--strength`, `--engine` nlmeans/hqdn3d/atadenoise/vaguedenoise/bm3d/dctdnoiz/owdenoise/median/chroma) |
+| grainy low-light footage | `vdenoise` (`--strength`, `--engine` nlmeans/hqdn3d/atadenoise/vaguedenoise/bm3d/dctdnoiz/owdenoise/median/chroma/rg/fftdnoiz/dotcrawl/edge) |
 | blocky re-uploaded/screen-rec footage | `deblock` (`--strength` 0.05-0.95, `--at` window) |
 | colored halo on tape/capture | `chromashift` (`--x`/`--y` px, `--edge` wrap/smear) |
 | moving people/cars on a tripod shot, rain streaks | `tmedian` (temporal median; `--radius` frames of history, `--percentile`, `--at` window; drops 2*radius edge frames) |
@@ -145,6 +145,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | relief emboss | `emboss` (`--amount` mix, `--at` window) |
 | tilt-shift miniature | `tilt` (`--band` sharp strip, `--blur`) |
 | handheld drift | `sway` (`--rate`/`--px`, `--at` window) |
+| shaky walking / handheld shot | `stabilize --engine vidstab` (two-pass vid.stab — steadier than single-pass deshake; `--smoothing` frames) |
 | rack-focus breathing | `rack` (`--rate`/`--blur`) |
 | ink the edges | `outline` (`--strength`, `--at` window) |
 | night-vision look | `night` (`--grain`, `--at` window) |
@@ -166,7 +167,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | drop duplicate frames | `dedup` (`--frac`, VFR out) |
 | audiogram CQT music spectrum | `audiogram --mode cqt` |
 | audiogram scrolling spectrogram | `audiogram --mode spectro` |
-| find black/frozen stretches (QC) | `scan` (JSON extras; no -o) — also `interlaced`/frames_* from idet, `has_cc`/`cc_lines` EIA-608 closed captions, `crop_hint`/`letterboxed` cropdetect letterbox QC |
+| find black/frozen stretches (QC) | `scan` (JSON extras; no -o) — also `interlaced`/frames_* from idet, `has_cc`/`cc_lines` EIA-608 closed captions, `crop_hint`/`letterboxed` cropdetect letterbox QC, `vfr`/`vfr_ratio` variable-frame-rate QC |
 | dust specks / hot pixels | `dedust` (`--size` 1-4, `--dark` for dark specks; morphology, not blur) |
 | inverse telecine | `deinterlace --engine fieldmatch` (film 29.97i → 23.976p) |
 | denoise without melting detail | `vdenoise --engine edge` (nlmeans masked to flat areas) |
@@ -195,7 +196,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | heat ripple / liquid warp | `displace` --map clip.mp4 (warp by another clip's luma; `--edge` wrap/mirror/smear/blank, `--at` window) |
 | sharpen without halos | `sharpen --engine halo` (unsharp clamped to blurred base — strongest option, zero overshoot) |
 | EQ applied + curve shown | `eqviz` --bands "f=200 w=100 g=10 t=h" (EQ'd audio + its response curve as video — mix QC card) |
-| pixel-art / retro upscale | `upscale --engine xbr|two-xsai` (integer-scale sprite edges, no ringing; factor snaps to 2/3/4) |
+| pixel-art / retro upscale | `upscale --engine xbr|two-xsai|hqx|epx` (integer-scale sprite edges, no ringing; factor snaps) |
 | smarter saturation | `grade --vibrance -1..1` (boosts muted colors, protects saturated skin — safer than --saturation on faces) |
 | crunchy edge outlines | `edge --engine sobel|kirsch|roberts|prewitt` (classic convolution kernels vs Canny-style edgedetect) |
 | real noise-cancel | `denoise --ref roomtone.wav` (anlms adaptive cancel — a second mic's noise ref gets subtracted; podcast lav+room rigs) |
@@ -246,7 +247,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | magnify subtle motion | `amplify` (`--amount` factor, `--radius` frames, `--threshold` diff cap, `--at` window) |
 | keep one color | `selective` (`--color C`/`--similarity`/`--blend` edge feather, `--at` window) |
 | test card | `bars` (`--size`/`--dur`/`--hd`/`--tone` 1kHz) |
-| QC scope overlay | `scope` (`--mode vector|wave|hist|mvs|data|qp|pix|osc`, `--position` corner, `--at` window) |
+| QC scope overlay | `scope` (`--mode vector|wave|hist|mvs|data|qp|pix|osc|drift` — drift = luma-ramp curve for exposure QC, `--position` corner, `--at` window) |
 | anamorphic restore | `desqueeze` (`--factor` lens ratio, `--axis`) |
 | comic look | `cartoon` (`--levels` posterize, `--at` window) |
 | thermal luma map | `heat` (`--preset` pseudocolor, `--at` window) |
@@ -330,10 +331,10 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | draw a freehand EQ curve | `eq --curve "80,0;3000,-6;8000,4"` (freq,gain dB points, interpolated) or `eq --graphic` 18-band classic EQ |
 | animated backdrop for a music/text card | `gen` `--pattern mandelbrot\|gradients\|life\|sierpinski` (no input file; `--size`/`--dur`/`--colors`/`--seed`) — audio patterns `noise` (`--color white/pink/brown/blue/violet/velvet`), `tone --freq`, `sweep` |
 | italic-style slant / dynamic tilt | `shear` `--x`/`--y` (-2..2; `--fill` edge color, `--interp`) — `--at`/`--dur` windows |
-| fix a color cast / white balance | `wb` (auto per-channel normalization; `--strength`, `--independence 0` keeps grade, `--smooth` frames) |
+| fix a color cast / white balance | `wb` (auto per-channel normalization; `--strength`, `--independence 0` keeps grade, `--smooth` frames, `--engine greyedge` gentler cast fix) |
 | QC a clip for strobes before posting | `scan` — also reports `flash_frames`/`flash_max_badness` (photosensitive-epilepsy check) |
 | stereo too wide / phase issues | `channel` `--mode base --pan -1..1` (-1 folds to mono, +1 widens) |
-| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `bal --pan -1..1` rebalance lopsided stereo, `split` → `_L/_R.wav` host/guest stems, `mid`/`side` M/S extract, `haas` stereo widening, `surround` stereo→5.1 upmix, `bands --freqs 300,3000` → `<stem>_bandN.wav` frequency-band stems for remixes, `sync --side right --cm 34` delay the closer mic by its distance to fix two-mic comb-filtering) |
+| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `bal --pan -1..1` rebalance lopsided stereo, `split` → `_L/_R.wav` host/guest stems, `mid`/`side` M/S extract, `haas` stereo widening, `surround` stereo→5.1 upmix, `bands --freqs 300,3000` → `<stem>_bandN.wav` frequency-band stems for remixes, `sync --side right --cm 34` delay the closer mic by its distance to fix two-mic comb-filtering, `earwax` headphone widening) |
 | loop to a length | `loop --until SEC` |
 | text draft watermark | `title --tile N` |
 | audio EQ polish | `eq` (`--bass`/`--treble`/`--presence` dB) |

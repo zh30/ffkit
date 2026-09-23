@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::cli::{Globals, WbArgs};
+use crate::cli::{Globals, WbArgs, WbEngine};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -18,11 +18,18 @@ pub fn run(args: WbArgs, g: &Globals) -> Result<Contract, Error> {
     // normalize stretches each channel's histogram to full range — with
     // independence=1 that is per-channel, which removes color casts exactly
     // like a white-balance pick on neutral gray; smoothing temporal-averages
-    // the range so the correction doesn't breathe frame to frame
-    let chain = format!(
-        "normalize=blackpt=black:whitept=white:smoothing={}:independence={:.3}:strength={:.3}",
-        args.smooth, args.independence, args.strength
-    );
+    // the range so the correction doesn't breathe frame to frame.
+    // greyedge instead estimates the illuminant with a minkowski-normed
+    // edge/derivative mean — it rescales channels toward the assumed neutral
+    // illuminant rather than stretching histograms, so graded footage keeps
+    // more of its look while the cast still disappears.
+    let chain = match args.engine.unwrap_or(WbEngine::Normalize) {
+        WbEngine::Normalize => format!(
+            "normalize=blackpt=black:whitept=white:smoothing={}:independence={:.3}:strength={:.3}",
+            args.smooth, args.independence, args.strength
+        ),
+        WbEngine::Greyedge => format!("greyedge=minknorm={:.0}", 1.0 + args.strength * 4.0),
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
@@ -53,6 +60,7 @@ pub fn run(args: WbArgs, g: &Globals) -> Result<Contract, Error> {
         "strength": args.strength,
         "independence": args.independence,
         "smooth": args.smooth,
-        "filter": "normalize",
+        "engine": format!("{:?}", args.engine.unwrap_or(WbEngine::Normalize)).to_lowercase(),
+        "filter": chain.split('=').next().unwrap_or("normalize"),
     })))
 }

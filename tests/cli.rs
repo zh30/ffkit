@@ -25152,3 +25152,231 @@ fn channel_bands_sync_delogo_find_scan_cc_crop_gen_color_glitch_random() {
     assert!(o.exists());
     assert_eq!(j["extra"]["filter"], "random");
 }
+
+#[test]
+fn stabilize_vidstab_vdenoise_rg_wb_greyedge_scan_vfr_epx_earwax_scope_drift() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let v = fixture(dir.path());
+
+    // stabilize --engine vidstab — two-pass vid.stab stabilization
+    if has_filter("vidstabdetect") && has_filter("vidstabtransform") {
+        let o = dir.path().join("stab_vs.mp4");
+        let j = run_json(&[
+            "stabilize",
+            &v.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--engine",
+            "vidstab",
+            "--smoothing",
+            "10",
+        ]);
+        assert!(o.exists());
+        assert_eq!(j["extra"]["engine"], "vidstab");
+        assert_eq!(j["extra"]["smoothing"], 10);
+    }
+
+    // vdenoise --engine rg — removegrain cuts flat noise
+    if has_filter("removegrain") {
+        let n = dir.path().join("flatn.mp4");
+        let st = Command::new("ffmpeg")
+            .args([
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=gray:size=160x120:rate=10:duration=1,noise=alls=25:allf=t",
+                "-pix_fmt",
+                "yuv420p",
+            ])
+            .arg(&n)
+            .status()
+            .unwrap();
+        assert!(st.success());
+        let dn = dir.path().join("n_rg.mp4");
+        let j = run_json(&[
+            "vdenoise",
+            &n.to_string_lossy(),
+            "-o",
+            &dn.to_string_lossy(),
+            "--engine",
+            "rg",
+        ]);
+        assert!(dn.exists());
+        assert_eq!(j["extra"]["filter"], "removegrain");
+        let stdev = |p: &std::path::Path| -> f64 {
+            let o = Command::new("ffmpeg")
+                .args(["-i"])
+                .arg(p)
+                .args(["-vf", "select='eq(n,5)',format=gray"])
+                .args(["-frames:v", "1", "-f", "rawvideo", "-"])
+                .output()
+                .unwrap();
+            let d = o.stdout;
+            if d.is_empty() {
+                return 99.0;
+            }
+            let m = d.iter().map(|v| *v as f64).sum::<f64>() / d.len() as f64;
+            (d.iter().map(|v| (*v as f64 - m).powi(2)).sum::<f64>() / d.len() as f64).sqrt()
+        };
+        let (a, b) = (stdev(&dn), stdev(&n));
+        assert!(
+            a < b * 0.65,
+            "removegrain should cut flat noise: {a} vs {b}"
+        );
+    }
+
+    // wb --engine greyedge — grey-edge illuminant neutralizes a color cast
+    if has_filter("greyedge") {
+        let cast = dir.path().join("cast.mp4");
+        let st = Command::new("ffmpeg")
+            .args([
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=0x208020:size=160x120:rate=10:d=1",
+                "-vf",
+                "geq=r='r(X,Y)+120':g='g(X,Y)':b='b(X,Y)'",
+                "-pix_fmt",
+                "yuv420p",
+            ])
+            .arg(&cast)
+            .status()
+            .unwrap();
+        assert!(st.success());
+        let w = dir.path().join("wb_ge.mp4");
+        let j = run_json(&[
+            "wb",
+            &cast.to_string_lossy(),
+            "-o",
+            &w.to_string_lossy(),
+            "--engine",
+            "greyedge",
+        ]);
+        assert!(w.exists());
+        assert_eq!(j["extra"]["filter"], "greyedge");
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&w)
+            .args([
+                "-vf",
+                "select='eq(n,5)',scale=1:1",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let rgb: Vec<i64> = o.stdout.iter().take(3).map(|v| *v as i64).collect();
+        assert!(
+            (rgb[0] - rgb[1]).abs() < 12 && (rgb[1] - rgb[2]).abs() < 12,
+            "greyedge should neutralize the cast: {rgb:?}"
+        );
+    }
+
+    // scan — vfrdet reports variable-rate frames on a VFR source
+    if has_filter("vfrdet") {
+        let vfr = dir.path().join("vfr.mp4");
+        let st = Command::new("ffmpeg")
+            .args([
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=size=160x120:rate=30:duration=2",
+                "-vf",
+                "select=lt(mod(n\\,3)\\,2)",
+                "-vsync",
+                "vfr",
+                "-pix_fmt",
+                "yuv420p",
+            ])
+            .arg(&vfr)
+            .status()
+            .unwrap();
+        assert!(st.success());
+        let j = run_json(&["scan", &vfr.to_string_lossy()]);
+        assert!(
+            j["extra"]["vfr_ratio"].as_f64().unwrap_or(0.0) > 0.5,
+            "expected a strong VFR ratio: {}",
+            j["extra"]["vfr_ratio"]
+        );
+        assert_eq!(j["extra"]["vfr"], true);
+        assert!(j["extra"]["vfr_frames"].as_u64().unwrap_or(0) >= 10);
+    }
+
+    // upscale --engine epx — EPX pixel scaler triples dimensions
+    if has_filter("epx") {
+        let o = dir.path().join("up_epx.mp4");
+        let j = run_json(&[
+            "upscale",
+            &v.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--engine",
+            "epx",
+            "--factor",
+            "3",
+        ]);
+        assert!(o.exists());
+        assert_eq!(j["extra"]["engine"], "epx");
+        assert!(j["extra"]["filter"].as_str().unwrap().contains("epx=n=3"));
+    }
+
+    // channel --mode earwax — headphone stereo widen
+    if has_filter("earwax") {
+        let st = dir.path().join("wide.wav");
+        let st0 = Command::new("ffmpeg")
+            .args([
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=1",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=660:duration=1",
+                "-filter_complex",
+                "[0:a][1:a]amerge=inputs=2",
+            ])
+            .arg(&st)
+            .status()
+            .unwrap();
+        assert!(st0.success());
+        let o = dir.path().join("ear.mp4");
+        let j = run_json(&[
+            "channel",
+            &st.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--mode",
+            "earwax",
+        ]);
+        assert!(o.exists());
+        assert_eq!(j["extra"]["mode"], "Earwax");
+    }
+
+    // scope --mode drift — drawgraph luma-drift curve overlay
+    if has_filter("drawgraph") && has_filter("signalstats") {
+        let o = dir.path().join("drift.mp4");
+        let j = run_json(&[
+            "scope",
+            &v.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--mode",
+            "drift",
+        ]);
+        assert!(o.exists());
+        assert_eq!(j["extra"]["mode"], "Drift");
+    }
+}

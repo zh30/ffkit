@@ -215,6 +215,11 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
             }
             format!("stereotools=base={p:.3}")
         }
+        // earwax: headphone-oriented crossfeed delay widener — it insists on
+        // 44.1kHz stereo so aformat pins the format first
+        ChannelMode::Earwax => {
+            "aformat=channel_layouts=stereo:sample_rates=44100,earwax".to_string()
+        }
         ChannelMode::Split | ChannelMode::Bands | ChannelMode::Sync => {
             unreachable!("handled above")
         }

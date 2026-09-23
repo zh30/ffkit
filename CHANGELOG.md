@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+## [0.250.0] — 2026-09-23
+
+### Added
+
+- `stabilize --engine vidstab` — two-pass vid.stab stabilization (the
+  pro-grade engine NLEs wrap): pass 1 analyzes motion into a temp `.trf`,
+  pass 2 renders. `--smoothing` frames (default 15) widens the history it
+  averages; measurably steadier than single-pass deshake on real shake.
+- `vdenoise --engine rg` — `removegrain` per-plane modes (VLC/AviSynth
+  style); `--strength` maps to mode 2..11 (flat-noise luma stdev ~halved
+  at default) — a fast middle ground between hqdn3d and nlmeans.
+- `wb --engine greyedge` — grey-edge illuminant estimation removes a color
+  cast while keeping more of an existing grade than histogram stretch
+  (green-cast frame → neutral r≈g≈b).
+- `scan` — new `vfrdet` leg: `vfr` (ratio > 0.05), `vfr_ratio`,
+  `vfr_frames` extras — screen-recording / edit-joined variable-frame-rate
+  sources flag in the QC pass.
+- `upscale --engine epx` — EPX pixel scaler (2x/3x, softer diagonals than
+  hqx — dithered retro captures).
+- `channel --mode earwax` — headphone-oriented stereo widening (earwax
+  crossfeed; aformat pins 44.1kHz stereo first — it refuses anything else).
+- `scope --mode drift` — `signalstats`+`drawgraph` luma-drift curve in the
+  corner tile: flat = locked exposure, slope = ramp/flicker source.
+
 ## [0.249.0] — 2026-09-23
 
 ### Added
