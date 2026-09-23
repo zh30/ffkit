@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.178.0] — 2026-09-22
+
+### Added
+- `scroll --at` comma list + `end` — replay the credits/ticker at several marks (`extra.windows` lists each window).
+
 ## [0.174.0] — 2026-09-22
 
 ### Added

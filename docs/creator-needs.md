@@ -237,6 +237,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 150)
+- `scroll --at` — comma list replays the roll/ticker at several marks (per-window overlay chain, `extra.windows`); `end` resolves via `resolve_at` (needs --dur). Last `parse_time` `--at` straggler gone.
+
 ## Shipped this run (round 146)
 - `audiogram --at a,b,... --dur N` — the podcast→clips play in one call: each point starts an N-second audiogram written as `<stem>_N.mp4` (`extra.files`); single `--at`/`--from` + `--dur` bounds one clip. Rendering refactored to `render_clip(from, to, out)` per window.
 
