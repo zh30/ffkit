@@ -2288,9 +2288,10 @@ pub struct SilenceArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: Option<PathBuf>,
-    /// Insert silence at this position, seconds (default 0 = leading pad)
+    /// Insert silence at this position, seconds (default 0 = leading pad) —
+    /// comma list pads several points at once
     #[arg(long)]
-    pub at: Option<f64>,
+    pub at: Option<String>,
     /// Append the silence at the end instead (overrides --at)
     #[arg(long)]
     pub end: bool,

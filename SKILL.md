@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.160.0
+version: 0.161.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -62,7 +62,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | faster/slower podcast | `tempo` (`--factor 1.5` — pitch held; video inputs: use `speed`), `--at/--dur` window |
 | voice all over the place | `leveler` (`--at`/`--dur` window, `--threshold`/`--ratio`/`--makeup` — `acompressor`) |
 | hiss between sentences | `gate` (`--threshold`, `--preset`, `--at/--dur` — `agate` closes on quiet parts) |
-| pad in room tone / breath | `silence` (`--at`, `--dur` inserts quiet; `--detect` reports ranges; video holds: `freeze`) |
+| pad in room tone / breath | `silence` (`--at`, comma list pads several points, `--dur` inserts quiet; `--detect` reports ranges; video holds: `freeze`) |
 | one-click look | `grade --preset cinematic|vivid|vintage|soft` (stacks under the sliders) |
 | karaoke / keep only the vocal | `vocal` (`--at`/`--dur` window, `--mode karaoke` drops the center, `isolate` keeps it — stereo only; `--amount` partial) |
 | container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart); `--audio` rips the track, `--video` video-only, `--aspect 16:9` fixes display AR |
@@ -141,7 +141,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | countdown with tick beeps | `countdown` (`--beep`, `--text` label during the count) |
 | one-word compressor curve | `leveler` (`--preset`) |
 | spectrogram in brand colors | `spectrogram` (`--color`) |
-| music kicks in after the intro | `music` (`--at`/`--dur`) |
+| music kicks in after the intro / sting at both ends | `music` (`--at`/`--dur`, comma `--at 0,end` = intro+outro stings) |
 | fix an out-of-phase mic | `channel` (`--mode invert --side`) |
 | rescue dark or blown footage | `grade` (`--exposure -3..3` — real EV stops, not a brightness slide) |
 | contact-sheet breathing room | `sheet` (`--pad`/`--margin`) |

@@ -38,16 +38,24 @@ pub fn run(args: SilenceArgs, g: &Globals) -> Result<Contract, Error> {
             "silence pads audio only — use `freeze` to hold video frames",
         ));
     }
-    let at = if args.end {
-        probe.duration
+    let mut ats = Vec::new();
+    if args.end {
+        ats.push(probe.duration);
+    } else if let Some(raw) = &args.at {
+        for part in raw.split(',') {
+            ats.push(crate::time::parse_time(part.trim())?);
+        }
     } else {
-        args.at.unwrap_or(0.0)
-    };
+        ats.push(0.0);
+    }
+    ats.sort_by(|a, b| a.partial_cmp(b).unwrap());
     if dur <= 0.0 {
         return Err(Error::input("--dur must be > 0"));
     }
-    if at < 0.0 {
-        return Err(Error::input("--at must be >= 0"));
+    for &at in &ats {
+        if at < 0.0 {
+            return Err(Error::input("--at must be >= 0"));
+        }
     }
 
     // anullsrc must match the input layout for concat to chain.
@@ -57,12 +65,30 @@ pub fn run(args: SilenceArgs, g: &Globals) -> Result<Contract, Error> {
         "stereo"
     };
     let sr = probe.sample_rate.unwrap_or(48000);
-    let fc = format!(
-        "[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[a0];\
-         anullsrc=r={sr}:cl={cl},atrim=0:{dur:.3},asetpts=PTS-STARTPTS[a1];\
-         [0:a]atrim={at:.3},asetpts=PTS-STARTPTS[a2];\
-         [a0][a1][a2]concat=n=3:v=0:a=1[aout]"
-    );
+    // Alternating segments: audio slice, silent pad, audio slice, pad, ...
+    // one anullsrc pad per --at point.
+    let mut seg = Vec::new();
+    let mut pins = String::new();
+    let mut prev = 0.0f64;
+    let mut k = 0usize;
+    for &a in &ats {
+        seg.push(format!(
+            "[0:a]atrim={prev:.3}:{a:.3},asetpts=PTS-STARTPTS[a{k}]"
+        ));
+        pins.push_str(&format!("[a{k}]"));
+        k += 1;
+        seg.push(format!(
+            "anullsrc=r={sr}:cl={cl},atrim=0:{dur:.3},asetpts=PTS-STARTPTS[a{k}]"
+        ));
+        pins.push_str(&format!("[a{k}]"));
+        k += 1;
+        prev = a;
+    }
+    seg.push(format!("[0:a]atrim={prev:.3}:,asetpts=PTS-STARTPTS[a{k}]"));
+    pins.push_str(&format!("[a{k}]"));
+    let nseg = ats.len() * 2 + 1;
+    seg.push(format!("{pins}concat=n={nseg}:v=0:a=1[aout]"));
+    let fc = seg.join(";");
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
@@ -71,7 +97,7 @@ pub fn run(args: SilenceArgs, g: &Globals) -> Result<Contract, Error> {
 
     let c = engine::write_job("silence", &[&args.input], output, vec![argv], g)?;
     Ok(c.with_extra(json!({
-        "at": at,
+        "at": if ats.len() == 1 { json!(ats[0]) } else { json!(ats) },
         "dur": dur,
     })))
 }

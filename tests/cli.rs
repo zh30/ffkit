@@ -15444,6 +15444,81 @@ fn bleep_comma_list_censors_every_window() {
 }
 
 #[test]
+fn music_and_silence_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    // bed under the first and last 0.3s
+    let bed = lavfi_fixture(dir.path(), "bed.mp4", "880", 2.0);
+    let v = run_json(&[
+        "music",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("m.mp4").to_str().unwrap(),
+        "--track",
+        bed.to_str().unwrap(),
+        "--at",
+        "0,end",
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("asplit=2"), "{cmds}");
+    assert!(cmds.contains("[bg0][bg1]amix=inputs=2"), "{cmds}");
+    assert!(cmds.contains("adelay=700"), "{cmds}");
+
+    // silence pads at two points (audio-only input)
+    let wav = dir.path().join("tone.wav");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let v = run_json(&[
+        "silence",
+        wav.to_str().unwrap(),
+        "-o",
+        dir.path().join("s.wav").to_str().unwrap(),
+        "--at",
+        "0.2,0.5",
+        "--dur",
+        "0.1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("concat=n=5"), "{cmds}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.2).abs() < 0.3, "silence x2 ≈1.2s, got {d}; {v}");
+}
+
+#[test]
 fn insert_and_broll_comma_windows() {
     if !has_ffmpeg() {
         return;

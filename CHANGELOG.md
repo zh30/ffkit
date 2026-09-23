@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.161.0] — 2026-09-22
+
+### Added
+- `music --at a,b,...` — multi-entrance bed: each comma `--at` point gets its own delayed wet branch (`end` ok), amixed into one bed before ducking — intro sting + outro sting in one command.
+- `silence --at a,b,...` — comma list pads `--dur` of quiet at several points (pause beats between scenes); `--at` now takes a string list (still accepts a bare number).
+
 ## [0.160.0] — 2026-09-22
 
 ### Added
