@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- `despill` — remove green/blue screen spill from a keyed edge without keying (`--type`, `--mix`, `--expand`; timeline `--at`/`--dur`)
+- `deinterlace --engine detelecine` — deterministic inverse telecine for a known 3:2 cadence (pattern=23; frame-exact when the cadence is clean, vs fieldmatch's per-frame comb analysis)
+- `audiogram --mode phase` — aphasemeter mono-compat scope (thin line = mono, wide cloud = decorrelated); output video carries the audio track
+
+### Added
 - `stack --mode max|min` — maskedmax composites every input's brightest pixels (star trails, light painting); maskedmin = darkest composite. median keeps the object-removal default
 - `dejudder` — remove pullup judder from fps-converted footage (`--cycle 4` for 3:2 telecine)
 - `smooth --engine deflate|inflate` — morphological texture smoothing (pore/grain), zero blur halo; `--strength` maps to pass count

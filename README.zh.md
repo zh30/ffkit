@@ -114,7 +114,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | 压到目标体积（`--size 10MB` 两遍、`--target discord|whatsapp|gmail` 平台预设）；`--crf` 画质单遍、`--res` 缩分辨率腾码率 |
 | `deliver` | 一键平台成片（Reels / TikTok / Shorts 为 9:16，`square` 为 1:1，`youtube` 为 16:9；−14 LUFS；`--fps 60` 高帧率，`--crf` 画质，`--subs file.srt` 成片一步烧字幕） |
 
-| `audiogram` | 波形视频 | `--mode`、`--scale` 幅度、`--split` 分声道、`--fscale` 频率轴（spectrum）、`--fps` 帧率、`--text`、`--bg`、`--progress` 进度条 ，`--subs` 烧字幕、`--from`/`--to` 只取一段（`--to` 可用 `end`），`--at a,b --dur N` 每点一条（`stem_N.mp4`）；`--mode spectrum` 频谱条、`--mode scope` 李萨如矢量示波、`--mode cqt` 钢琴卷帘频谱、`--mode spectro` 滚动频谱图 |
+| `audiogram` | 波形视频 ，`--mode phase`（aphasemeter 相位表）| `--mode`、`--scale` 幅度、`--split` 分声道、`--fscale` 频率轴（spectrum）、`--fps` 帧率、`--text`、`--bg`、`--progress` 进度条 ，`--subs` 烧字幕、`--from`/`--to` 只取一段（`--to` 可用 `end`），`--at a,b --dur N` 每点一条（`stem_N.mp4`）；`--mode spectrum` 频谱条、`--mode scope` 李萨如矢量示波、`--mode cqt` 钢琴卷帘频谱、`--mode spectro` 滚动频谱图 |
 
 | `split` | 按 `--every`/`--at`/`--scenes`/`--size`/`--parts`/`--silence`/`--chapters` 内嵌章节切分；`--subs` 输出重定时分段 .srt；`--fade N` 每段首尾淡化 |
 | `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数或 `--dur` 总时长、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐 + `--volume` 音量、`--size` 画布、`--bg` 底边色） |
@@ -237,13 +237,14 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `remux` | 换容器不重编码（`-c copy` + faststart）；`--audio` 只提音轨，`--video` 只留视频，`--aspect 16:9` 修显示宽高比 |
 | `meme` | 上下说明文字梗图（`--outline`、`--at/--dur` 时间窗，逗号列表可打多处；`--at end` 片尾） ，`--position` 文字块上/中/下；`--wrap` 折行、`--align` 行对齐、`--fade` 窗口边缘淡入淡出（配 --at/--dur）、`--opacity` 半透明文字 |
 | `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`、`--at`/`--dur` 只处理一段，支持 `end`，逗号列表可多段） |
-| `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序、`--engine` yadif/bwdif/estdif/kerndeint） |
+| `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序、`--engine` yadif/bwdif/estdif/kerndeint） ，`--engine` 含 `detelecine`（确定节奏反电视电影）|
 | `dedust` | 去尘埃斑点/坏点：`--size` 1-4，默认去亮点，`--dark` 去暗点；形态学腐蚀/膨胀，不是模糊 | `--at`/`--dur` |
 | `extend` | 边缘像素拉伸填充边条：`--left/--right/--top/--bottom` px，`--mode smear|mirror|fixed|reflect|wrap|fade` | - |
 | `tonemap` | HDR → SDR：zscale 转线性光 → 色调映射曲线 → bt709（`--algo hable|reinhard|gamma|clip|linear`，`--peak` nits） | - |
 | `telecine` | 24p 胶片转 NTSC 隔行场（`--pattern 23` 3:2 下拉，`--field tff|bff`）— fieldmatch 的逆操作 | - |
 | `premult` | 直通 α ↔ 预乘 α 就地转换（`--mode premultiply|unpremultiply`）；输出保留 α 的 prores4444 | - |
 | `dejudder` | 消除电视电影抖动（`--cycle 4` 对应 3:2 下拉） | - |
+| `despill` | 去除抠像边缘绿/蓝溢色（`--type`、`--mix`、`--expand`、`--at`/`--dur`） | - |
 | `crossfade` | 两段音频淡接，`--dur` 秒重叠（`acrossfade`） |
 | `strip` | 去掉全部元数据/章节（发片前隐私清理），无损 `-c copy` |
 | `frames` | 每 `--every`、`--at` 秒抽一帧（`end` = 最后一帧）、`--count` 均布 N 帧 → `stem_001.png…`（`--width` 缩放） |

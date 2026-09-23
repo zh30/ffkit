@@ -231,3 +231,5 @@ an atempo'd whole-file render would shift the window.
 
 - `maskedmax`/`maskedmin` take NO `inputs=` option (framesync auto-detects) — only xmedian wants the count.
 - `spawn::run` waits for process exit BEFORE draining stdout — any filter emitting >64KB on stdout deadlocks until timeout. Route large raw output (PCM extraction) through a temp file instead.
+
+- `aphasemeter` outputs TWO pads (audio out0, video out1) — both must be consumed or the graph stalls; map the audio pad as the output audio instead of anullsink (which hangs). dither/morpho/earwax are absent on ffmpeg 4.4.

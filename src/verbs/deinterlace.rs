@@ -31,6 +31,13 @@ pub fn run(args: DeinterlaceArgs, g: &Globals) -> Result<Contract, Error> {
         crate::cli::DeintEngine::Fieldmatch => {
             "fieldmatch=order=auto:combmatch=full,decimate=dupthresh=1.1".to_string()
         }
+        crate::cli::DeintEngine::Detelecine => {
+            let field = match args.parity {
+                crate::cli::FieldParity::Bff => "bottom",
+                _ => "top",
+            };
+            format!("detelecine=pattern=23:first_field={field}")
+        }
     };
     argv.extend(["-vf", &vf]);
     if probe.has_audio {

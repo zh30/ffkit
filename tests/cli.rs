@@ -22809,3 +22809,168 @@ fn dejudder_stack_modes_scan_phase() {
     let v = run_json(&["scan", anti.to_str().unwrap()]);
     assert_eq!(v["extra"]["phase_corr"], -1.0);
 }
+
+#[test]
+fn despill_audiogram_phase_detelecine() {
+    if !has_ffmpeg() || !has_filter("despill") || !has_filter("aphasemeter") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // green-dominant patch → despill neutralises it
+    let spill = dir.path().join("spill.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=gray:size=128x128:rate=25",
+            "-vf",
+            "drawbox=x=40:y=40:w=48:h=48:c=0x40c040:t=fill",
+            "-t",
+            "1",
+            "-y",
+        ])
+        .arg(&spill)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let px = |f: &Path| -> Vec<i64> {
+        let out = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-i"])
+            .arg(f)
+            .args([
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-y",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let i = (60 * 128 + 60) * 3;
+        vec![
+            out.stdout[i] as i64,
+            out.stdout[i + 1] as i64,
+            out.stdout[i + 2] as i64,
+        ]
+    };
+    let before = px(&spill);
+    assert!(before[1] > before[0] + 20, "fixture must be green-dominant");
+    let dsp = dir.path().join("dsp.mp4");
+    run_json(&[
+        "despill",
+        spill.to_str().unwrap(),
+        "-o",
+        dsp.to_str().unwrap(),
+    ]);
+    let after = px(&dsp);
+    assert!(
+        after[1] - after[0] < 10,
+        "green channel must drop near luma: {after:?}"
+    );
+
+    // audiogram --mode phase: meter video + audio track
+    let wav = dir.path().join("st.wav");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=660",
+            "-filter_complex",
+            "[0][1]amerge",
+            "-t",
+            "2",
+            "-y",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let ph = dir.path().join("ph.mp4");
+    let v = run_json(&[
+        "audiogram",
+        wav.to_str().unwrap(),
+        "-o",
+        ph.to_str().unwrap(),
+        "--mode",
+        "phase",
+    ]);
+    assert_eq!(v["extra"]["mode"], "phase");
+    let out = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&ph)
+        .output()
+        .unwrap();
+    let streams = String::from_utf8_lossy(&out.stdout);
+    assert!(streams.contains("video") && streams.contains("audio"));
+
+    // deinterlace --engine detelecine: 30fps telecined → 24fps
+    if has_filter("detelecine") {
+        let tele = dir.path().join("tele.mp4");
+        let st = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=rate=24",
+                "-vf",
+                "telecine=pattern=23",
+                "-t",
+                "2",
+                "-y",
+            ])
+            .arg(&tele)
+            .status()
+            .unwrap();
+        assert!(st.success());
+        let det = dir.path().join("det.mp4");
+        run_json(&[
+            "deinterlace",
+            tele.to_str().unwrap(),
+            "-o",
+            det.to_str().unwrap(),
+            "--engine",
+            "detelecine",
+        ]);
+        let out = Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-select_streams",
+                "v",
+                "-show_entries",
+                "stream=r_frame_rate",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(&det)
+            .output()
+            .unwrap();
+        let fps = String::from_utf8_lossy(&out.stdout);
+        assert!(fps.contains("24"), "expected 24fps out, got {fps}");
+    }
+}

@@ -76,6 +76,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Sync(args) => verbs::sync::run(args, &g),
         Cmd::Art(args) => verbs::art::run(args, &g),
         Cmd::Dedust(args) => verbs::dedust::run(args, &g),
+        Cmd::Despill(args) => verbs::despill::run(args, &g),
         Cmd::Tonemap(args) => verbs::tonemap::run(args, &g),
         Cmd::Telecine(args) => verbs::telecine::run(args, &g),
         Cmd::Premult(args) => verbs::premult::run(args, &g),

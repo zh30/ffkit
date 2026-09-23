@@ -198,6 +198,8 @@ pub enum Cmd {
     Art(ArtArgs),
     /// Remove dust specks / hot pixels (morphology, no blur of the rest)
     Dedust(DedustArgs),
+    /// Remove green/blue screen spill from a keyed edge (no keying — just despill)
+    Despill(DespillArgs),
     /// HDR → SDR tone mapping (zscale linear + tonemap + back to bt709)
     Tonemap(TonemapArgs),
     /// Telecine — pull 24p film content up to interlaced NTSC fields
@@ -911,6 +913,9 @@ pub enum WaveMode {
     Cqt,
     /// Scrolling spectrogram (showspectrum) — colour time/frequency roll
     Spectro,
+    /// Phase meter (aphasemeter) — stereo scope: razor-thin line = mono,
+    /// wide cloud = decorrelated. Mono-compat QC + looks
+    Phase,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -3254,6 +3259,9 @@ pub enum DeintEngine {
     /// fieldmatch + decimate — inverse telecine: 29.97i film content back to
     /// 23.976p (anime/film transfers). Not a per-field deinterlacer.
     Fieldmatch,
+    /// detelecine — deterministic inverse telecine for a known 3:2 cadence
+    /// (pattern=23, no comb analysis: frame-exact when the cadence is clean)
+    Detelecine,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -3287,6 +3295,35 @@ pub struct DedustArgs {
     #[arg(long, default_value_t = false)]
     pub dark: bool,
     /// Dedust only from this time (needs --dur)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum SpillType {
+    #[default]
+    Green,
+    Blue,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DespillArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Screen colour being removed
+    #[arg(long, value_enum, default_value_t = SpillType::Green)]
+    pub kind: SpillType,
+    /// Spillmap mix 0-1 (higher removes more spill, may desaturate edges)
+    #[arg(long, default_value_t = 0.5)]
+    pub mix: f64,
+    /// Expand the spill map 0-1 (catch fringe pixels)
+    #[arg(long, default_value_t = 0.0)]
+    pub expand: f64,
+    /// Despill only from this time (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// ..for this many seconds

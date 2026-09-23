@@ -39,6 +39,7 @@ pub mod dejudder;
 pub mod deliver;
 pub mod delogo;
 pub mod denoise;
+pub mod despill;
 pub mod desqueeze;
 pub mod diff;
 pub mod duotone;

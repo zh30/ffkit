@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.229.0
+version: 0.230.0
 
 
 
@@ -178,6 +178,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | pullup judder wobble | `dejudder` (`--cycle 4` for 3:2 telecine) |
 | texture smooth, no blur | `smooth --engine deflate|inflate` (morphological — pores/texture, zero halo) |
 | mono-collapse check | `scan` `phase_corr` extra: ~-1 = channels cancel on mono speakers |
+| keyed edge still green | `despill` (`--type green|blue`, `--mix`, `--expand` — recolour fringe, no keying) |
+| clean 3:2 cadence | `deinterlace --engine detelecine` (deterministic inverse telecine; fieldmatch still picks its own) |
+| mono-compat visual | `audiogram --mode phase` (aphasemeter scope — thin line = mono, cloud = decorrelated) |
 | beauty/skin smoothing | `smooth` (`--engine` smartblur/bilateral — bilateral keeps edges sharper; `--strength`, `--at`/`--dur` window) |
 | reframe 360/equirect footage | `v360` (`--yaw`/`--pitch`/`--fov`, `--in` projection, `--size`) |
 | noisy clip, pick denoiser | `vdenoise --engine nlmeans\|hqdn3d\|atadenoise\|vaguedenoise\|bm3d` (bm3d/dctdnoiz/owdenoise strongest, no --at; `median` salt&pepper, `chroma` color speckle), `denoise --engine auto\|wavel\|fftdn` |

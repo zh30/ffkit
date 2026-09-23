@@ -188,6 +188,14 @@ fn render_clip(
             format!("{awave}showspectrum=s={{ww}}x{{wh}}:slide=scroll:scale=log[wv];"),
             "spectro",
         ),
+        // aphasemeter outputs two pads — audio out0, video out1: label both
+        // and map the audio pad (unconnected output pads stall the graph).
+        WaveMode::Phase => (
+            format!(
+                "{awave}aphasemeter=size={{ww}}x{{wh}}:rate={fps}[pam][wvx];[wvx]format=rgb24[wv];"
+            ),
+            "phase",
+        ),
         WaveMode::Scope => {
             let [r, g2, b] = crate::color::rgb(&args.color)?;
             (
@@ -203,9 +211,11 @@ fn render_clip(
                 WaveMode::Line => "line",
                 WaveMode::P2p => "p2p",
                 WaveMode::Cline => "cline",
-                WaveMode::Spectrum | WaveMode::Scope | WaveMode::Cqt | WaveMode::Spectro => {
-                    unreachable!()
-                }
+                WaveMode::Spectrum
+                | WaveMode::Scope
+                | WaveMode::Cqt
+                | WaveMode::Spectro
+                | WaveMode::Phase => unreachable!(),
             };
             (
                 {
@@ -337,6 +347,11 @@ fn render_clip(
             ),
         yf = yf,
     );
+    let amap = if matches!(args.mode, WaveMode::Phase) {
+        "[pam]"
+    } else {
+        amap
+    };
     argv.extend(["-filter_complex", &fc, "-map", "[vout]", "-map", amap]);
     argv.extend([
         "-c:v",

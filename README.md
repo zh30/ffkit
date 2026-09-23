@@ -114,7 +114,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | Fit a size budget (`--size 10MB` two-pass, `--target discord|whatsapp|gmail`); `--crf` quality one-pass, `--res` downscale to free bitrate |
 | `deliver` | One-shot platform pack (Reels / TikTok / Shorts 9:16, `square` 1:1 grid, `youtube` 16:9; −14 LUFS; `--fps 60` high-frame-rate uploads, `--crf` quality, `--subs file.srt` burns captions in one pass) |
 
-| `audiogram` | Waveform video | `--mode`, `--scale`, `--split` channels, `--fscale` freq axis (spectrum), `--fps` rate, `--text`, `--bg`, `--progress` bar , `--subs` burn an .srt on it, `--from`/`--to` clip a segment (`end`/`end-N` ok), `--at a,b --dur N` one clip per point (`stem_N.mp4`); `--mode spectrum` bars, `--mode scope` lissajous vectorscope, `--mode cqt` piano-roll spectrum, `--mode spectro` scrolling spectrogram |
+| `audiogram` | Waveform video ，`--mode phase`（aphasemeter 相位表）| `--mode`, `--scale`, `--split` channels, `--fscale` freq axis (spectrum), `--fps` rate, `--text`, `--bg`, `--progress` bar , `--subs` burn an .srt on it, `--from`/`--to` clip a segment (`end`/`end-N` ok), `--at a,b --dur N` one clip per point (`stem_N.mp4`); `--mode spectrum` bars, `--mode scope` lissajous vectorscope, `--mode cqt` piano-roll spectrum, `--mode spectro` scrolling spectrogram |
 
 | `split` | Split by `--every`/`--at`/`--scenes`/`--size`/`--parts`/`--silence`/`--chapters`; `--subs` writes re-timed per-part .srt; `--fade N` softens each part's edges |
 | `slideshow` | Still images → video montage (`--per` or `--dur` total runtime, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed + `--volume`, `--size` canvas, `--bg` letterbox) |
@@ -237,13 +237,14 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov); `--audio` rips the track, `--video` video-only repack, `--aspect 16:9` display-AR fix |
 | `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window — comma list for several spots; `--at end` tail) , `--position` text block top/center/bottom; `--wrap` folds, `--align` line alignment, `--fade` edge fades with --at/--dur, `--opacity` ghost text |
 | `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`, `--at`/`--dur` window, `end` ok, comma list = several windows) |
-| `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order, `--engine` yadif/bwdif/estdif/kerndeint) |
+| `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order, `--engine` yadif/bwdif/estdif/kerndeint) ，`--engine` 含 `detelecine`（确定节奏反电视电影）|
 | `dedust` | Remove dust specks / hot pixels: `--size` 1-4, bright specks by default, `--dark` for dark ones; morphology (erosion/dilation), not a blur | `--at`/`--dur` |
 | `extend` | Stretch edge pixels to fill border strips: `--left/--right/--top/--bottom` px, `--mode smear|mirror|fixed|reflect|wrap|fade` | - |
 | `tonemap` | HDR → SDR: zscale → linear light → tonemap curve → bt709 (`--algo hable|reinhard|gamma|clip|linear`, `--peak` nits) | - |
 | `telecine` | Pull 24p film up to interlaced NTSC fields (`--pattern 23` 3:2 pulldown, `--field tff|bff`) — inverse of fieldmatch | - |
 | `premult` | Straight ↔ premultiplied alpha in place (`--mode premultiply|unpremultiply`); writes alpha-safe prores4444 | - |
 | `dejudder` | Remove pullup judder (`--cycle 4` for 3:2 pulldown wobble) | - |
+| `despill` | Remove green/blue screen spill from keyed edges (`--type`, `--mix`, `--expand`, `--at`/`--dur`) | - |
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
 | `frames` | Still dump every `--every`, `--at` seconds (`end` = last frame), `--count` even-spread → `stem_001.png…` (`--width`) |
