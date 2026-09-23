@@ -2022,6 +2022,9 @@ pub struct CountdownArgs {
     /// Beep frequency in Hz (default 880)
     #[arg(long)]
     pub tone: Option<f64>,
+    /// Digit format: `s` seconds (default), `mm:ss`, `h:mm:ss` — long countdowns
+    #[arg(long, default_value = "s")]
+    pub format: String,
     /// Label shown above the digits for the whole count ("STARTING SOON")
     #[arg(long)]
     pub text: Option<String>,
@@ -2272,6 +2275,9 @@ pub struct ScrollArgs {
     /// Roll mode: up (end credits) | ticker (bottom news crawl)
     #[arg(long, value_enum, default_value_t = ScrollMode::Up)]
     pub mode: ScrollMode,
+    /// Scroll speed in px/s — sets each window's pacing (conflicts --dur)
+    #[arg(long)]
+    pub speed: Option<f64>,
     /// Opaque bar behind ticker text (name or RRGGBB; ticker only)
     #[arg(long)]
     pub bg: Option<String>,

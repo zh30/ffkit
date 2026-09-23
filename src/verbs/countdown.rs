@@ -47,8 +47,19 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
         None => [255, 255, 255],
     };
 
+    let fmt = |n: u32| -> String {
+        match args.format.as_str() {
+            "mm:ss" => format!("{}:{:02}", n / 60, n % 60),
+            "h:mm:ss" => format!("{}:{:02}:{:02}", n / 3600, (n % 3600) / 60, n % 60),
+            "s" => n.to_string(),
+            other => other.to_string(),
+        }
+    };
+    if !matches!(args.format.as_str(), "s" | "mm:ss" | "h:mm:ss") {
+        return Err(Error::input("--format must be s, mm:ss or h:mm:ss"));
+    }
     // Text runs: countdown digits, then optional GO.
-    let mut runs: Vec<String> = (1..=args.from).rev().map(|n| n.to_string()).collect();
+    let mut runs: Vec<String> = (1..=args.from).rev().map(&fmt).collect();
     if let Some(go) = &args.go {
         runs.push(go.clone());
     }

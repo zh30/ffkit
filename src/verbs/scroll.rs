@@ -40,6 +40,14 @@ pub fn run(args: ScrollArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--dur must be > 0.5 seconds"));
         }
     }
+    if let Some(sp) = args.speed {
+        if args.dur.is_some() {
+            return Err(Error::input("--speed sets the pacing itself — drop --dur"));
+        }
+        if sp <= 1.0 {
+            return Err(Error::input("--speed is px/s — must be > 1"));
+        }
+    }
     // --at takes a comma list: replay the roll at several marks (`end` ok).
     let mut windows: Vec<(f64, f64)> = Vec::new();
     match &args.at {
@@ -104,7 +112,9 @@ pub fn run(args: ScrollArgs, g: &Globals) -> Result<Contract, Error> {
     let mut fc = String::new();
     let mut prev = "0:v".to_string();
     if let Some(b) = &args.bg {
+        let travel = vw as f64 + img.width() as f64;
         for (i, (at, dur)) in windows.iter().enumerate() {
+            let dur = args.speed.map(|sp| (travel / sp).min(*dur)).unwrap_or(*dur);
             fc.push_str(&format!(
                 "[{prev}]drawbox=x=0:y=ih-{bar}:w=iw:h={bar}:color={c}@0.85:t=fill:enable='between(t,{at:.3},{end:.3})'[bg{i}];",
                 bar = img.height() + 20,
@@ -120,6 +130,12 @@ pub fn run(args: ScrollArgs, g: &Globals) -> Result<Contract, Error> {
         } else {
             format!("v{i}")
         };
+        let travel = if ticker {
+            vw as f64 + img.width() as f64
+        } else {
+            probe.height.unwrap_or(720) as f64 + img.height() as f64
+        };
+        let dur = args.speed.map(|sp| (travel / sp).min(*dur)).unwrap_or(*dur);
         if ticker {
             fc.push_str(&format!(
                 "[{prev}][1:v]overlay=x=W-(W+w)*((t-{at:.3})/{dur:.3}):y=H-h-40:enable='between(t,{at:.3},{end:.3})'[{out}];",
