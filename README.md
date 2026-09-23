@@ -124,7 +124,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `grid` | Multi-up collage (`--layout`, `--audio` pick, `--labels`, `--gap`, `--bg` gutter color, `--fill` crop instead of letterbox, `--time` mm:ss stamp on every tile) |
 | `progress` | Progress bar on any edge, whole clip or a window (`--color`, `--height`, `--edge` bottom/top/left/right, `--at`, `--dur`, `--reverse` countdown-deplete, `--opacity` ghost) |
 | `freeze` | Hold a frame (`--at`, comma list freezes at several points, `--dur`, `--end`, `--ease`, `--reverse`, `--zoom` push-in) |
-| `censor` | Blur/mosaic a region (`--region x:y:w:h`, comma list for several spots; `--mode`, `--strength`, `--at`/`--dur` (comma list, needs `--dur`; `end` ok), `--shape circle` ellipse mask) |
+| `censor` | Blur/mosaic a region (`--region x:y:w:h`, comma list for several spots; `--mode` pixel|blur|solid (black-bar redact), `--strength`, `--at`/`--dur` (comma list, needs `--dur`; `end` ok), `--shape circle` ellipse mask) |
 | `bleep` | Tone over a word/segment: `--at`/`--dur` (comma list censors several spots; `end` ok), `--freq`, `--level` |
 | `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) , `--at/--dur` bounces just that window — comma list for several spots (`end` ok) |
 | `chapter` | Embed chapter marks at `TIME|TITLE` or `--import` a marks file (YouTube `H:MM:SS Title` lines ok); `--auto` / `--export` ffmeta / `--yt` description lines; `--list`; `--remove`; `--shift` re-times marks |
@@ -152,7 +152,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section, `end` ok, `--fade` seamless joints) |
 | `stabilize` | Handheld deshake — `--rx`/`--ry` radius, `--edge` fill (blank|original|clamped|mirror) |
 | `reverse` | Play picture and sound backwards |
-| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops) | Presets `cinematic`/`vivid`/`vintage`/`soft` stack under the sliders; `--lut look.cube` applies a 3D LUT | `--at`/`--dur`
+| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops) | Presets `cinematic`/`vivid`/`vintage`/`soft`/`teal`/`noir` stack under the sliders; `--lut look.cube` applies a 3D LUT | `--at`/`--dur`
 | `zoom` | Punch-in (`--factor 1.25`, `--center X,Y` target; `--at`/`--dur` window — comma list for several, `end` ok) | `--out`
 | `sharpen` | Unsharp mask, whole clip or a window (`--amount`, `--at`, `--dur`) |
 | `vignette` | Corner darkening, whole clip or a window (`--angle`, `--at`, `--dur`) |

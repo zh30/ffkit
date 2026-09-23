@@ -620,6 +620,9 @@ pub struct CaptionArgs {
     /// Word-wrap each cue line at N columns (≥4, burn only)
     #[arg(long)]
     pub wrap: Option<u32>,
+    /// Pixels from the chosen edge (overrides the percent offset)
+    #[arg(long)]
+    pub margin: Option<u32>,
     /// Karaoke sung-word color as RRGGBB (needs --karaoke)
     #[arg(long)]
     pub highlight: Option<String>,
@@ -1680,6 +1683,10 @@ pub enum GradePreset {
     Vintage,
     Soft,
     Sepia,
+    /// Orange-and-teal blockbuster look
+    Teal,
+    /// High-contrast black & white
+    Noir,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3005,6 +3012,8 @@ pub enum CensorMode {
     #[default]
     Pixel,
     Blur,
+    /// Solid black bar — the "CLASSIFIED" redact look
+    Solid,
 }
 
 #[derive(clap::Args, Debug)]

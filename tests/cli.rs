@@ -17828,6 +17828,127 @@ fn mirror_pix_sepia() {
 }
 
 #[test]
+fn censor_solid_caption_margin_grade_presets() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let blk = dir.path().join("blk.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=black:size=320x180:duration=2:rate=24",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=2",
+            "-shortest",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&blk)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    // censor --mode solid draws a black bar
+    let cs = dir.path().join("cs.mp4");
+    let v = run_json(&[
+        "censor",
+        blk.to_str().unwrap(),
+        "-o",
+        cs.to_str().unwrap(),
+        "--region",
+        "40:40:80:40",
+        "--mode",
+        "solid",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let db = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter())
+        .any(|a| a.as_str().unwrap_or("").contains("drawbox=c=black:t=fill"));
+    assert!(db, "solid mode missing: {}", v["commands"]);
+    // caption --margin pins pixel offset
+    let srt = dir.path().join("t.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:01,000\nhi there\n").unwrap();
+    let cm = dir.path().join("cm.mp4");
+    let v = run_json(&[
+        "caption",
+        blk.to_str().unwrap(),
+        "-o",
+        cm.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--margin",
+        "30",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let mg = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter())
+        .any(|a| a.as_str().unwrap_or("").contains("H-h-30"));
+    assert!(mg, "margin offset missing: {}", v["commands"]);
+    // grade presets: teal colorbalance + noir tail desaturation
+    let gt = dir.path().join("gt.mp4");
+    let v = run_json(&[
+        "grade",
+        blk.to_str().unwrap(),
+        "-o",
+        gt.to_str().unwrap(),
+        "--preset",
+        "teal",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cb = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter())
+        .any(|a| {
+            a.as_str()
+                .unwrap_or("")
+                .contains("colorbalance=bs=0.10:bm=-0.06")
+        });
+    assert!(cb, "teal preset missing: {}", v["commands"]);
+    let gn = dir.path().join("gn.mp4");
+    let v = run_json(&[
+        "grade",
+        blk.to_str().unwrap(),
+        "-o",
+        gn.to_str().unwrap(),
+        "--preset",
+        "noir",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let vf = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter())
+        .map(|a| a.as_str().unwrap_or(""))
+        .find(|a| a.contains("hue=s=0"))
+        .expect("noir desat missing");
+    // desat must come AFTER the default eq sliders so saturation isn't re-added
+    assert!(
+        vf.find("hue=s=0").unwrap() > vf.rfind("eq=").unwrap(),
+        "hue=s=0 should be last in {vf}"
+    );
+}
+
+#[test]
 fn waveform_vertical_broll_opacity_title_margin() {
     if !has_ffmpeg() {
         return;

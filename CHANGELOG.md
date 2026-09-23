@@ -10,6 +10,14 @@
 - `pix` — full-frame retro pixelation (`--strength` 2-64 block divisor, `--at`/`--dur` window)
 - `grade --preset sepia` — classic sepia `colorchannelmixer` matrix
 
+## [0.193.0] — 2026-09-23
+
+### Added
+
+- `censor --mode solid` — black-bar redact (drawbox=t=fill; combines with --shape circle)
+- `caption --margin N` — pixel offset from the caption edge
+- `grade --preset teal` / `noir` — orange-and-teal look; true B&W (tail desaturation)
+
 ## [0.192.0] — 2026-09-23
 
 ### Added

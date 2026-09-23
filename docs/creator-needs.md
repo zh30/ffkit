@@ -683,6 +683,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `censor --shape circle` — elliptical alpha mask inside each `--region` via `format=rgba,geq=…:a='if(lte(hypot(X-W/2,Y-H/2),min(W,H)/2),255,0)'` (circular face censor; corners of the box stay untouched). Verified: center diff large, corner diff ≤ codec noise.
 - `progress --opacity` — ghost progress bar (`format=rgba,colorchannelmixer=aa=N` on the bar's lavfi source; `--bg` track inherits the same alpha).
 
+## Shipped this run (round 166)
+
+- `censor --mode solid` — black-bar redact look (drawbox=t=fill per region; combines with --shape circle for black ellipses).
+- `caption --margin N` — pixel offset from the chosen edge (overrides the safe-zone percent placement).
+- `grade --preset teal` — orange-and-teal (colorbalance bs/bm only; 4.4 lacks ms). `grade --preset noir` — true B&W (hue=s=0 appended at chain tail so default eq sliders can't re-add saturation).
+
 ## Shipped this run (round 165)
 
 - `waveform --vertical` — `transpose=1` on the final output stage (wave runs top→bottom for reels/vertical art; PNG comes out h×w). Works with `--bg` (transpose lands on the composited card) and comma `--at` (each window transposed).
