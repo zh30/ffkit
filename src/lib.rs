@@ -81,6 +81,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Telecine(args) => verbs::telecine::run(args, &g),
         Cmd::Premult(args) => verbs::premult::run(args, &g),
         Cmd::Dejudder(args) => verbs::dejudder::run(args, &g),
+        Cmd::Interp(args) => verbs::interp::run(args, &g),
         Cmd::Extend(args) => verbs::extend::run(args, &g),
         Cmd::Leveler(args) => verbs::leveler::run(args, &g),
         Cmd::Gate(args) => verbs::gate::run(args, &g),

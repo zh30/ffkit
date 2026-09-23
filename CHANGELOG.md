@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- `interp` — motion-compensated frame interpolation (minterpolate): `--fps 60` upres for high-refresh delivery, `--slow 0.5` smooth slow-mo from normal-rate footage (`--mode mci|blend|dup`)
+- `deinterlace --engine mcdeint` — motion-compensated deinterlacer (archive quality, slow)
+- `grade --kelvin 1000-40000` — direct white-balance dial in Kelvin (tungsten 2700 / daylight 5500 / cool 9000); exclusive with `--warm`
+
+### Added
 - `despill` — remove green/blue screen spill from a keyed edge without keying (`--type`, `--mix`, `--expand`; timeline `--at`/`--dur`)
 - `deinterlace --engine detelecine` — deterministic inverse telecine for a known 3:2 cadence (pattern=23; frame-exact when the cadence is clean, vs fieldmatch's per-frame comb analysis)
 - `audiogram --mode phase` — aphasemeter mono-compat scope (thin line = mono, wide cloud = decorrelated); output video carries the audio track

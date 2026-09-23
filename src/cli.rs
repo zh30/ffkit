@@ -206,6 +206,8 @@ pub enum Cmd {
     Telecine(TelecineArgs),
     /// Remove pullup judder from frame-rate-converted footage
     Dejudder(DejudderArgs),
+    /// Motion-compensated frame interpolation — 60fps upres or smooth slow-mo
+    Interp(InterpArgs),
     /// Straight ↔ premultiplied alpha conversion for graphics handoffs
     Premult(PremultArgs),
     /// Stretch edge pixels to fill border strips (chroma-key rims, leftover letterbox)
@@ -2783,6 +2785,10 @@ pub struct GradeArgs {
     /// faces without touching the rest of the grade
     #[arg(long, default_value_t = 0.0, allow_hyphen_values = true)]
     pub skin: f64,
+    /// White balance by Kelvin (1000-40000): 2700 tungsten, 5500 daylight,
+    /// 9000 cool — direct dial when --warm's -1..1 slide isn't enough
+    #[arg(long)]
+    pub kelvin: Option<f64>,
     /// Grade only from this time — dream sequences, flashbacks; comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
@@ -3262,6 +3268,8 @@ pub enum DeintEngine {
     /// detelecine — deterministic inverse telecine for a known 3:2 cadence
     /// (pattern=23, no comb analysis: frame-exact when the cadence is clean)
     Detelecine,
+    /// mcdeint — motion-compensated deinterlacer (archive-quality, slow)
+    Mcdeint,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -3351,6 +3359,34 @@ pub struct ExtendArgs {
     /// Fill mode: smear (default edge-stretch), mirror, fixed, reflect, wrap, fade
     #[arg(long, value_enum, default_value_t = ExtendMode::Smear)]
     pub mode: ExtendMode,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum InterpMode {
+    /// Motion-compensated interpolation (best quality, slowest)
+    #[default]
+    Mci,
+    /// Cheap frame blending
+    Blend,
+    /// Duplicate frames (convert fps only, no smoothing)
+    Dup,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct InterpArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Output frame rate (default 60; use --fps 120 for high-refresh delivery)
+    #[arg(long)]
+    pub fps: Option<f64>,
+    /// Smooth slow-mo instead of upfps: factor 0-1 (0.5 = half speed at the
+    /// source frame rate, motion-compensated in-betweens)
+    #[arg(long)]
+    pub slow: Option<f64>,
+    /// Interpolation engine
+    #[arg(long, value_enum, default_value_t = InterpMode::Mci)]
+    pub mode: InterpMode,
 }
 
 #[derive(clap::Args, Debug)]

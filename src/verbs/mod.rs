@@ -65,6 +65,7 @@ pub mod heat;
 pub mod hls;
 pub mod impact;
 pub mod insert;
+pub mod interp;
 pub mod invert;
 pub mod iris;
 pub mod jumpcut;

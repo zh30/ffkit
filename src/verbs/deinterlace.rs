@@ -31,6 +31,13 @@ pub fn run(args: DeinterlaceArgs, g: &Globals) -> Result<Contract, Error> {
         crate::cli::DeintEngine::Fieldmatch => {
             "fieldmatch=order=auto:combmatch=full,decimate=dupthresh=1.1".to_string()
         }
+        crate::cli::DeintEngine::Mcdeint => {
+            let par = match args.parity {
+                crate::cli::FieldParity::Tff => "tff",
+                _ => "bff",
+            };
+            format!("mcdeint=parity={par}")
+        }
         crate::cli::DeintEngine::Detelecine => {
             let field = match args.parity {
                 crate::cli::FieldParity::Bff => "bottom",

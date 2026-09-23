@@ -22974,3 +22974,170 @@ fn despill_audiogram_phase_detelecine() {
         assert!(fps.contains("24"), "expected 24fps out, got {fps}");
     }
 }
+
+#[test]
+fn interp_mcdeint_grade_kelvin() {
+    if !has_ffmpeg() || !has_filter("minterpolate") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("s25.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=rate=25:size=160x120",
+            "-t",
+            "2",
+            "-y",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let fps_of = |f: &Path| -> String {
+        let out = Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-select_streams",
+                "v",
+                "-show_entries",
+                "stream=r_frame_rate",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(f)
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&out.stdout).to_string()
+    };
+
+    // --fps 60: 25fps → 60fps
+    let up = dir.path().join("up.mp4");
+    let v = run_json(&[
+        "interp",
+        src.to_str().unwrap(),
+        "-o",
+        up.to_str().unwrap(),
+        "--fps",
+        "60",
+    ]);
+    assert_eq!(v["extra"]["mode"], "mci");
+    assert!(fps_of(&up).contains("60"));
+
+    // --slow 0.5: ~2x duration at source fps
+    let sl = dir.path().join("sl.mp4");
+    run_json(&[
+        "interp",
+        src.to_str().unwrap(),
+        "-o",
+        sl.to_str().unwrap(),
+        "--slow",
+        "0.5",
+    ]);
+    let out = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&sl)
+        .output()
+        .unwrap();
+    let dur: f64 = String::from_utf8_lossy(&out.stdout)
+        .trim()
+        .parse()
+        .unwrap_or(0.0);
+    assert!(dur > 3.0, "half-speed must ~double duration, got {dur}");
+
+    // mcdeint runs on interlaced input
+    if has_filter("mcdeint") {
+        let il = dir.path().join("il.mp4");
+        let st = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=rate=25",
+                "-vf",
+                "tinterlace",
+                "-t",
+                "1",
+                "-y",
+            ])
+            .arg(&il)
+            .status()
+            .unwrap();
+        assert!(st.success());
+        let md = dir.path().join("md.mp4");
+        run_json(&[
+            "deinterlace",
+            il.to_str().unwrap(),
+            "-o",
+            md.to_str().unwrap(),
+            "--engine",
+            "mcdeint",
+        ]);
+        assert!(md.exists());
+    }
+
+    // grade --kelvin warms a grey fixture toward orange
+    let gr = dir.path().join("gray.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=gray:size=64x64:rate=25",
+            "-t",
+            "1",
+            "-y",
+        ])
+        .arg(&gr)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let kl = dir.path().join("kl.mp4");
+    run_json(&[
+        "grade",
+        gr.to_str().unwrap(),
+        "-o",
+        kl.to_str().unwrap(),
+        "--kelvin",
+        "3000",
+    ]);
+    let out = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-i"])
+        .arg(&kl)
+        .args([
+            "-frames:v",
+            "1",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "-y",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let i = (32 * 64 + 32) * 3;
+    let (r, b) = (out.stdout[i] as i64, out.stdout[i + 2] as i64);
+    assert!(r > b + 10, "3000K must warm: r={r} b={b}");
+}

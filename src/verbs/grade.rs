@@ -108,7 +108,15 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
             0.25 * w
         ));
     }
-    if args.warm != 0.0 {
+    if args.kelvin.is_some() && args.warm != 0.0 {
+        return Err(Error::input(
+            "--kelvin and --warm are two dials for the same knob — pick one",
+        ));
+    }
+    if let Some(k) = args.kelvin {
+        let k = k.clamp(1000.0, 40000.0);
+        vf.push_str(&format!(",colortemperature=temperature={k:.0}"));
+    } else if args.warm != 0.0 {
         let k = 6500.0 - args.warm * 3500.0;
         vf.push_str(&format!(",colortemperature=temperature={k:.0}"));
     }
