@@ -2006,7 +2006,7 @@ pub struct MixArgs {
     /// Let amix normalize the sum (halves level for two hot tracks)
     #[arg(long)]
     pub normalize: bool,
-    /// Bring B in only from this time (h:mm:ss or seconds)
+    /// Bring B in only from this time — comma list for several entrances (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Fade B in/out over N seconds at the window edges (needs --at)
@@ -2629,8 +2629,8 @@ pub struct BoomerangArgs {
     /// Repeat the forward-backward cycle N times total (default 1)
     #[arg(long, default_value_t = 1)]
     pub times: u32,
-    /// Boomerang only this window — the rest of the clip plays straight
-    /// (h:mm:ss or seconds)
+    /// Boomerang only this window — the rest of the clip plays straight;
+    /// comma list boomerangs several spots (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)

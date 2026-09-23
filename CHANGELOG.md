@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.158.0] — 2026-09-22
+
+### Added
+- Comma-list `--at` on `boomerang` — boomerang several windows in one pass (each gets its own split/reverse/`--times` loop chain inside an alternating trim+concat graph).
+- Comma-list `--at` on `mix` — the bed enters at several spots (OR'd `between` gate + per-window `afade` when `--fade` is set). Requires `--dur`.
+
 ## [0.157.0] — 2026-09-22
 
 ### Added

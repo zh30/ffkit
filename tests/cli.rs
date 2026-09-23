@@ -15444,6 +15444,79 @@ fn bleep_comma_list_censors_every_window() {
 }
 
 #[test]
+fn boomerang_and_mix_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "boomerang",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("b.mp4").to_str().unwrap(),
+        "--at",
+        "0.1,0.6",
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("[vboom1]"), "{cmds}");
+    assert!(cmds.contains("[vboom3]"), "{cmds}");
+    assert!(cmds.contains("concat=n=5"), "{cmds}");
+
+    let bed = dir.path().join("bed.wav");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1.5",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&bed)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok, "bed fixture");
+    let v = run_json(&[
+        "mix",
+        src.to_str().unwrap(),
+        bed.to_str().unwrap(),
+        "-o",
+        dir.path().join("m.mp4").to_str().unwrap(),
+        "--at",
+        "0.1,0.6",
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("between(t,0.100,0.400)+between(t,0.600,0.900)"),
+        "{cmds}"
+    );
+}
+
+#[test]
 fn speed_tempo_zoom_comma_windows() {
     if !has_ffmpeg() {
         return;

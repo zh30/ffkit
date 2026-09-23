@@ -26,22 +26,27 @@ pub fn run(args: MixArgs, g: &Globals) -> Result<Contract, Error> {
     // --at/--dur: gate the B track into the window (outside it, A alone).
     let gate = match &args.at {
         Some(raw) => {
-            let at = crate::time::resolve_at(raw, args.dur, pa.duration)?;
-            if !(0.0..pa.duration).contains(&at) {
-                return Err(Error::input("--at is outside the A input"));
-            }
-            let end = args.dur.map(|d| at + d).unwrap_or(pa.duration);
+            let windows = crate::time::window_list(raw, args.dur, pa.duration)?;
+            let expr = windows
+                .iter()
+                .map(|(s, e)| format!("between(t,{s:.3},{e:.3})"))
+                .collect::<Vec<_>>()
+                .join("+");
             let fade = match args.fade {
                 Some(f) if f > 0.0 => {
-                    let f = f.min((end - at) / 2.0);
-                    format!(
-                        ",afade=t=in:st={at:.3}:d={f:.3},afade=t=out:st={:.3}:d={f:.3}",
-                        end - f
-                    )
+                    let mut chain = String::new();
+                    for (s, e) in &windows {
+                        let f = f.min((e - s) / 2.0);
+                        chain.push_str(&format!(
+                            ",afade=t=in:st={s:.3}:d={f:.3},afade=t=out:st={:.3}:d={f:.3}",
+                            e - f
+                        ));
+                    }
+                    chain
                 }
                 _ => String::new(),
             };
-            format!(",volume='between(t,{at:.3},{end:.3})':eval=frame{fade}")
+            format!(",volume='{expr}':eval=frame{fade}")
         }
         None => {
             if args.dur.is_some() {

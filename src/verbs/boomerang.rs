@@ -18,77 +18,124 @@ pub fn run(args: BoomerangArgs, g: &Globals) -> Result<Contract, Error> {
     if args.dur.is_some() && args.at.is_none() {
         return Err(Error::input("--dur requires --at"));
     }
-    let (ms, me) = match &args.at {
+    let windows = match &args.at {
         Some(raw) => {
-            let at = crate::time::resolve_at(raw, args.dur, probe.duration)?;
-            if at >= probe.duration - 0.05 {
-                return Err(Error::input("--at is past the end of the input"));
+            let w = crate::time::window_list(raw, args.dur, probe.duration)?;
+            for (s, e) in &w {
+                if e - s < 0.2 {
+                    return Err(Error::input("a boomerang window needs at least 0.2s"));
+                }
             }
-            let end = (at + args.dur.unwrap_or(probe.duration - at)).min(probe.duration);
-            if end - at < 0.2 {
-                return Err(Error::input("boomerang window needs at least 0.2s"));
-            }
-            (at, end)
+            w
         }
-        None => (0.0, probe.duration),
+        None => vec![(0.0, probe.duration)],
     };
     let win = args.at.is_some();
 
-    let mut seg: Vec<String> = vec![];
-    if win {
-        // head + mid + tail; only the mid segment is boomeranged.
-        seg.push(format!("[0:v]trim=0:{ms:.3},setpts=PTS-STARTPTS[vhead]"));
-        seg.push(format!(
-            "[0:v]trim={ms:.3}:{me:.3},setpts=PTS-STARTPTS,split[vf][vr]"
-        ));
-        seg.push(format!("[0:v]trim={me:.3}:,setpts=PTS-STARTPTS[vtail]"));
-        if probe.has_audio {
-            seg.push(format!("[0:a]atrim=0:{ms:.3},asetpts=PTS-STARTPTS[aahead]"));
-            seg.push(format!(
-                "[0:a]atrim={ms:.3}:{me:.3},asetpts=PTS-STARTPTS,asplit[af][ar]"
-            ));
-            seg.push(format!("[0:a]atrim={me:.3}:,asetpts=PTS-STARTPTS[aatail]"));
-        }
-    } else {
+    let mut seg: Vec<String> = Vec::new();
+    if !win {
         seg.push("[0:v]split[vf][vr]".to_string());
         if probe.has_audio {
             seg.push("[0:a]asplit[af][ar]".to_string());
         }
-    }
-    seg.push("[vr]reverse[vrev]".to_string());
-    if probe.has_audio {
-        seg.push("[ar]areverse[arev]".to_string());
-    }
-    // --times loops the mid segment in place (loop=size=0 is a no-op).
-    let mid_dur = me - ms;
-    if args.times > 1 {
-        let n = args.times - 1;
-        let frames = ((mid_dur * 2.0 * probe.fps.unwrap_or(30.0)).ceil() as u32) + 2;
-        seg.push(format!(
-            "[vf][vrev]concat=n=2:v=1:a=0[vb0];[vb0]loop=loop={n}:size={frames}[vboom]"
-        ));
+        seg.push("[vr]reverse[vrev]".to_string());
         if probe.has_audio {
-            let samples =
-                ((mid_dur * 2.0 * probe.sample_rate.unwrap_or(44100) as f64).ceil() as u32) + 2;
+            seg.push("[ar]areverse[arev]".to_string());
+        }
+        let mid_dur = probe.duration;
+        if args.times > 1 {
+            let n = args.times - 1;
+            let frames = ((mid_dur * 2.0 * probe.fps.unwrap_or(30.0)).ceil() as u32) + 2;
             seg.push(format!(
-                "[af][arev]concat=n=2:v=0:a=1[ab0];[ab0]aloop=loop={n}:size={samples}[aboom]"
+                "[vf][vrev]concat=n=2:v=1:a=0[vb0];[vb0]loop=loop={n}:size={frames}[vboom]"
             ));
+            if probe.has_audio {
+                let samples =
+                    ((mid_dur * 2.0 * probe.sample_rate.unwrap_or(44100) as f64).ceil() as u32) + 2;
+                seg.push(format!(
+                    "[af][arev]concat=n=2:v=0:a=1[ab0];[ab0]aloop=loop={n}:size={samples}[aboom]"
+                ));
+            }
+        } else {
+            seg.push("[vf][vrev]concat=n=2:v=1:a=0[vboom]".to_string());
+            if probe.has_audio {
+                seg.push("[af][arev]concat=n=2:v=0:a=1[aboom]".to_string());
+            }
         }
-    } else {
-        seg.push("[vf][vrev]concat=n=2:v=1:a=0[vboom]".to_string());
-        if probe.has_audio {
-            seg.push("[af][arev]concat=n=2:v=0:a=1[aboom]".to_string());
-        }
-    }
-    if win {
-        seg.push("[vhead][vboom][vtail]concat=n=3:v=1:a=0[vout]".to_string());
-        if probe.has_audio {
-            seg.push("[aahead][aboom][aatail]concat=n=3:v=0:a=1[aout]".to_string());
-        }
-    } else {
         seg.push("[vboom]null[vout]".to_string());
         if probe.has_audio {
             seg.push("[aboom]anull[aout]".to_string());
+        }
+    } else {
+        // alternating normal/boomeranged segments per window
+        let mut bounds = vec![0.0];
+        for (s, e) in &windows {
+            bounds.push(*s);
+            bounds.push(*e);
+        }
+        bounds.push(probe.duration);
+        let mut vins = String::new();
+        let mut ains = String::new();
+        let mut nseg = 0usize;
+        for i in 0..bounds.len() - 1 {
+            let (s, e) = (bounds[i], bounds[i + 1]);
+            if e - s < 0.01 {
+                continue;
+            }
+            if i % 2 == 0 {
+                seg.push(format!(
+                    "[0:v]trim=start={s:.3}:end={e:.3},setpts=PTS-STARTPTS[v{i}]"
+                ));
+                vins.push_str(&format!("[v{i}]"));
+                if probe.has_audio {
+                    seg.push(format!(
+                        "[0:a]atrim=start={s:.3}:end={e:.3},asetpts=PTS-STARTPTS[a{i}]"
+                    ));
+                    ains.push_str(&format!("[a{i}]"));
+                }
+            } else {
+                let mid_dur = e - s;
+                seg.push(format!(
+                    "[0:v]trim=start={s:.3}:end={e:.3},setpts=PTS-STARTPTS,split[vf{i}][vr{i}]"
+                ));
+                seg.push(format!("[vr{i}]reverse[vrev{i}]"));
+                if args.times > 1 {
+                    let n = args.times - 1;
+                    let frames = ((mid_dur * 2.0 * probe.fps.unwrap_or(30.0)).ceil() as u32) + 2;
+                    seg.push(format!(
+                        "[vf{i}][vrev{i}]concat=n=2:v=1:a=0[vb{i}];[vb{i}]loop=loop={n}:size={frames}[vboom{i}]"
+                    ));
+                } else {
+                    seg.push(format!("[vf{i}][vrev{i}]concat=n=2:v=1:a=0[vboom{i}]"));
+                }
+                vins.push_str(&format!("[vboom{i}]"));
+                if probe.has_audio {
+                    seg.push(format!(
+                        "[0:a]atrim=start={s:.3}:end={e:.3},asetpts=PTS-STARTPTS,asplit[af{i}][ar{i}]"
+                    ));
+                    seg.push(format!("[ar{i}]areverse[arev{i}]"));
+                    if args.times > 1 {
+                        let n = args.times - 1;
+                        let samples = ((mid_dur * 2.0 * probe.sample_rate.unwrap_or(44100) as f64)
+                            .ceil() as u32)
+                            + 2;
+                        seg.push(format!(
+                            "[af{i}][arev{i}]concat=n=2:v=0:a=1[ab{i}];[ab{i}]aloop=loop={n}:size={samples}[aboom{i}]"
+                        ));
+                    } else {
+                        seg.push(format!("[af{i}][arev{i}]concat=n=2:v=0:a=1[aboom{i}]"));
+                    }
+                    ains.push_str(&format!("[aboom{i}]"));
+                }
+            }
+            nseg += 1;
+        }
+        if probe.has_audio {
+            seg.push(format!(
+                "{vins}concat=n={nseg}:v=1:a=0[vout];{ains}concat=n={nseg}:v=0:a=1[aout]"
+            ));
+        } else {
+            seg.push(format!("{vins}concat=n={nseg}:v=1:a=0[vout]"));
         }
     }
     let mut fc = seg.join(";");
