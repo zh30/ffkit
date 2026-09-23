@@ -161,10 +161,10 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `volume` | 音量 ±dB；`--at/--dur` 局部增益，逗号列表可作用多处（需 `--dur`）（平台响度请用 `loudnorm`） |
 | `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`/`--dur`；`--at end` = 片尾） | `--engine directional` 速度线 |
 | `trail` | 运动拖影：`--mode echo` 跟随残影（`--frames` 2-16、`--at`/`--dur` 窗口），`--mode light` 亮部拖尾（`--decay` 0.5-0.99） | `--mode diff` 运动残影 |
-| `glitch` | 故障风 RGB 错位：`--strength` 0.5-20 控制通道偏移+噪点强度 | `--engine planes` 通道轮换 | `--engine swapuv` 色度翻转 | `--engine stutter` 抽帧抖动 | `--engine pixels` 像素块打散 |
+| `glitch` | 故障风 RGB 错位：`--strength` 0.5-20 控制通道偏移+噪点强度 | `--engine planes` 通道轮换 | `--engine swapuv` 色度翻转 | `--engine stutter` 抽帧抖动 | `--engine pixels` 像素块打散 | `--engine swaprect` 象限互换 |
 | `bars` | SMPTE 测试卡：`--size`/`--dur`/`--hd`/`--tone`（1kHz 音床），用于质检片头 |
 | `scope --mode hist` | 亮度时间直方图——检查长时间曝光/色彩漂移 |
-| `scope` | QC 示波器叠加：`--mode vector|wave` 角落小窗（`--position`、`--size` 占比）、`--at` 窗口 | `--mode mvs` 运动矢量 | `--mode data` 十六进制读数 | `--mode qp` 宏块量化叠加 | `--mode pix` 像素放大网格 |
+| `scope` | QC 示波器叠加：`--mode vector|wave` 角落小窗（`--position`、`--size` 占比）、`--at` 窗口 | `--mode mvs` 运动矢量 | `--mode data` 十六进制读数 | `--mode qp` 宏块量化叠加 | `--mode pix` 像素放大网格 | `--mode osc` XY 视频示波器 |
 | `desqueeze` | 变形宽银幕还原：`--factor` 镜头倍率（1.33/1.5/1.8/2.0）、`--axis y|x` |
 | `solarize` | 迷幻局部反色：高于 `--threshold` 亮度的像素反色，`--at` 窗口 |
 | `pulse` | 呼吸变焦：`--rate` 每秒周期、`--depth` 幅度、`--at` 窗口 |
@@ -196,9 +196,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `dedup` | `mpdecimate` 丢弃近似重复帧——压缩静态片段，`--frac` 灵敏度 |
 | `audiogram --mode cqt` | 恒 Q 音乐频谱（`showcqt`）——钢琴卷帘式频谱，适合音乐片段 |
 | `audiogram --mode spectro` | 滚动频谱图（`showspectrum`）——彩色时频滚动 |
-| `scan` | 质检报告：黑场/冻结帧/黑帧计数 + 频闪 `flash_frames`/`flash_max_badness` + 隔行判定 `interlaced`/`frames_tff`/`frames_bff`/`frames_progressive` + 立体声 `phase_corr`（≈-1 表示单声道抵消）（idet；JSON extras；不写媒体）  `audio_max_db`/`audio_mean_db` 峰值/平均电平 | +模糊质检 | `--scenes` 剪切点时间戳 |
+| `scan` | 质检报告：黑场/冻结帧/黑帧计数 + 频闪 `flash_frames`/`flash_max_badness` + 隔行判定 `interlaced`/`frames_tff`/`frames_bff`/`frames_progressive` + 立体声 `phase_corr`（≈-1 表示单声道抵消）（idet；JSON extras；不写媒体）  `audio_max_db`/`audio_mean_db` 峰值/平均电平 | +模糊质检 | `--scenes` 剪切点时间戳 | `luma_min/max` + `illegal_luma`（signalstats 广播范围质检） |
 | `smooth` | 边缘保留美颜/皮肤模糊（`--engine` smartblur/bilateral——bilateral 边缘更锐利；`--strength`、`--at/--dur` 窗口） ，含 `deflate`/`inflate` 形态学平滑 | `--engine uspp` 后处理去块 | `--engine pp7` 轻量后处理 | `--engine yaep` 边缘保留 | `--engine spp/fspp` 轻量去块 |
-| `upscale` | 老素材升分辨率：`zscale` spline36（优于 lanczos）+ 轻度锐化，`--factor` 1.05-4（2 = 宽高翻倍），`--strength` 边缘锐度 | `--engine spline|xbr|two-xsai`（像素画整数倍缩放） |
+| `upscale` | 老素材升分辨率：`zscale` spline36（优于 lanczos）+ 轻度锐化，`--factor` 1.05-4（2 = 宽高翻倍），`--strength` 边缘锐度 | `--engine spline|xbr|two-xsai`（像素画整数倍缩放） | `--engine hqx` hq2x/3x/4x 像素画放大 |
 | `v360` | 360° 画面重取景为平面（`--in` 支持 equirect/fisheye/dfisheye/cubemap/EAC/barrel/半等距，`--yaw`/`--pitch`/`--fov`、`--size`） |
 | `perspective` | 斜拍屏幕/白板矫正：`--points x0,y0,x1,y1,x2,y2,x3,y3`（源画面四角 TL,TR,BL,BR，像素），`--interp linear|cubic` |
 | `wb` | 自动白平衡/去色偏：`--strength` 0..1，`--independence 0` 只调对比保色调，`--smooth` 时间平滑帧，`--at`/`--dur` 局部 |
@@ -239,7 +239,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `remux` | 换容器不重编码（`-c copy` + faststart）；`--audio` 只提音轨，`--video` 只留视频，`--aspect 16:9` 修显示宽高比 |
 | `meme` | 上下说明文字梗图（`--outline`、`--at/--dur` 时间窗，逗号列表可打多处；`--at end` 片尾） ，`--position` 文字块上/中/下；`--wrap` 折行、`--align` 行对齐、`--fade` 窗口边缘淡入淡出（配 --at/--dur）、`--opacity` 半透明文字 |
 | `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`、`--at`/`--dur` 只处理一段，支持 `end`，逗号列表可多段） |
-| `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序、`--engine` yadif/bwdif/estdif/kerndeint） ，`--engine` 含 `detelecine`（确定节奏反电视电影）、`mcdeint`（运动补偿）| `--engine w3fdif` 三场去隔行 | `--engine separate` 场拆帧 50i→50p（顺滑慢动作源） |
+| `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序、`--engine` yadif/bwdif/estdif/kerndeint） ，`--engine` 含 `detelecine`（确定节奏反电视电影）、`mcdeint`（运动补偿）| `--engine w3fdif` 三场去隔行 | `--engine separate` 场拆帧 50i→50p（顺滑慢动作源） | `--engine pullup` 反电视电影 IVTC |
 | `dedust` | 去尘埃斑点/坏点：`--size` 1-4，默认去亮点，`--dark` 去暗点；形态学腐蚀/膨胀，不是模糊 | `--at`/`--dur` |
 | `extend` | 边缘像素拉伸填充边条：`--left/--right/--top/--bottom` px，`--mode smear|mirror|fixed|reflect|wrap|fade` | - |
 | `tonemap` | HDR → SDR：zscale 转线性光 → 色调映射曲线 → bt709（`--algo hable|reinhard|gamma|clip|linear`，`--peak` nits） | - |

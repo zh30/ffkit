@@ -84,8 +84,23 @@ pub fn run(argv: &Argv, timeout: Duration, progress: bool) -> Result<Spawned, Er
         }
     })?;
 
-    let mut stdout_pipe = child.stdout.take();
-    let mut stderr_pipe = child.stderr.take();
+    // Drain both pipes on reader threads while the child runs: waiting for
+    // exit first deadlocks any filter that emits >64KB (macOS pipe buffer)
+    // — e.g. signalstats metadata on a long clip stalls ffmpeg on write.
+    let stdout_reader = child.stdout.take().map(|mut p| {
+        std::thread::spawn(move || {
+            let mut buf = Vec::new();
+            let _ = p.read_to_end(&mut buf);
+            buf
+        })
+    });
+    let stderr_reader = child.stderr.take().map(|mut p| {
+        std::thread::spawn(move || {
+            let mut buf = Vec::new();
+            let _ = p.read_to_end(&mut buf);
+            buf
+        })
+    });
 
     let status = match child.wait_timeout(timeout).map_err(Error::from)? {
         Some(st) => st,
@@ -100,14 +115,12 @@ pub fn run(argv: &Argv, timeout: Duration, progress: bool) -> Result<Spawned, Er
         }
     };
 
-    let mut stdout = Vec::new();
-    let mut stderr = Vec::new();
-    if let Some(mut p) = stdout_pipe.take() {
-        let _ = p.read_to_end(&mut stdout);
-    }
-    if let Some(mut p) = stderr_pipe.take() {
-        let _ = p.read_to_end(&mut stderr);
-    }
+    let stdout = stdout_reader
+        .map(|t| t.join().unwrap_or_default())
+        .unwrap_or_default();
+    let stderr = stderr_reader
+        .map(|t| t.join().unwrap_or_default())
+        .unwrap_or_default();
 
     Ok(Spawned {
         status_ok: status.success(),

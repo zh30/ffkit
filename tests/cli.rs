@@ -24668,3 +24668,83 @@ fn fx_ringmod_scope_qp_pix_grade_mix_deint_separate() {
     assert!(line.contains("60"), "expected 60fps field rate: {line}");
     assert!(line.contains("120"), "expected field height 120: {line}");
 }
+
+#[test]
+fn upscale_hqx_deint_pullup_glitch_swaprect_scope_osc_scan_luma() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let v = fixture(dir.path());
+    // hqx 3x: 320x240 → 960x720
+    let o = dir.path().join("hqx.mp4");
+    let j = run_json(&[
+        "upscale",
+        &v.to_string_lossy(),
+        "-o",
+        &o.to_string_lossy(),
+        "--engine",
+        "hqx",
+        "--factor",
+        "3",
+    ]);
+    assert!(o.exists());
+    assert_eq!(j["extra"]["engine"], "hqx");
+    let pr = std::process::Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width",
+            "-of",
+            "csv=p=0",
+            &o.to_string_lossy(),
+        ])
+        .output()
+        .unwrap();
+    assert!(String::from_utf8_lossy(&pr.stdout).contains("960"));
+    // pullup runs on progressive input (IVTC is a no-op there)
+    let o = dir.path().join("pu.mp4");
+    let j = run_json(&[
+        "deinterlace",
+        &v.to_string_lossy(),
+        "-o",
+        &o.to_string_lossy(),
+        "--engine",
+        "pullup",
+    ]);
+    assert!(o.exists());
+    assert_eq!(j["extra"]["engine"], "pullup");
+    // swaprect quadrant swap
+    let o = dir.path().join("sr.mp4");
+    let j = run_json(&[
+        "glitch",
+        &v.to_string_lossy(),
+        "-o",
+        &o.to_string_lossy(),
+        "--engine",
+        "swaprect",
+    ]);
+    assert!(o.exists());
+    assert_eq!(j["extra"]["filter"], "swaprect");
+    // scope osc
+    let o = dir.path().join("osc.mp4");
+    let j = run_json(&[
+        "scope",
+        &v.to_string_lossy(),
+        "-o",
+        &o.to_string_lossy(),
+        "--mode",
+        "osc",
+    ]);
+    assert!(o.exists());
+    assert_eq!(j["extra"]["mode"].as_str().unwrap().to_lowercase(), "osc");
+    // scan luma QC — signalstats keys present (spawn pipe-drain fix keeps
+    // the >64KB metadata stream from deadlocking)
+    let j = run_json(&["scan", &v.to_string_lossy()]);
+    assert!(j["extra"]["luma_min"].is_number());
+    assert!(j["extra"]["luma_max"].is_number());
+    assert_eq!(j["extra"]["illegal_luma"], false);
+}

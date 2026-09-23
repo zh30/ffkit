@@ -32,6 +32,7 @@ pub fn run(args: DeinterlaceArgs, g: &Globals) -> Result<Contract, Error> {
             "fieldmatch=order=auto:combmatch=full,decimate=dupthresh=1.1".to_string()
         }
         // w3fdif: Martin Weston three-field — sharp diagonals on SD archives
+        crate::cli::DeintEngine::Pullup => "pullup".to_string(),
         crate::cli::DeintEngine::Separate => "separatefields".to_string(),
         crate::cli::DeintEngine::W3fdif => {
             let par = match args.parity {

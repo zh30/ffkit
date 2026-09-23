@@ -37,6 +37,11 @@ pub fn run(args: UpscaleArgs, g: &Globals) -> Result<Contract, Error> {
             engine_name = "2xsai";
             String::from("super2xsai")
         }
+        crate::cli::UpscaleEngine::Hqx => {
+            engine_name = "hqx";
+            let n = args.factor.round().clamp(2.0, 4.0) as u32;
+            format!("hqx=n={n}")
+        }
     };
     if args.strength > 0.0 {
         vf.push_str(&format!(",unsharp=5:5:{:.2}", args.strength));

@@ -258,3 +258,13 @@ an atempo'd whole-file render would shift the window.
   pixscope at full-res, then scale the viz back down to the tile.
 - **`separatefields` halves the height, doubles the rate** — 25i→50p frames
   at half vertical res; that is the point (each field becomes a frame).
+
+- **`spawn::run` must drain pipes on threads.** It used to `wait_timeout`
+  before reading stdout/stderr — any filter emitting >64KB (macOS pipe
+  buffer) deadlocked the child on write (signalstats metadata output
+  tripped it; PCM decode hit the same trap earlier via a temp-file
+  workaround). Both pipes now have reader threads — do not regress this.
+- **`swaprect` takes literal pixel ints on 4.x** — `w=iw/2` errors with
+  "Undefined constant". Compute w/h/x/y from probed dims in Rust.
+- **`oscilloscope` is a VIDEO scope on 4.x** (XY plot of video input),
+  not an audio viz — it belongs on `scope`, not `audiogram`.

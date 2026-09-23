@@ -161,10 +161,10 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `volume` | Gain ±dB; `--at/--dur` limits it to a window — comma list covers several spots (needs `--dur`) (platform loudness is `loudnorm`) |
 | `blur` | Full-frame or windowed gaussian blur (`--sigma`, `--at`/`--dur`; `--at end` = tail) | `--engine directional --angle` streaks |
 | `trail` | Motion trails: `--mode echo` ghost smear behind movement (`--frames` 2-16, `--at`/`--dur` window), `--mode light` bright-pixel persistence (`--decay` 0.5-0.99) | `--mode diff` motion ghost |
-| `glitch` | Datamosh-style glitch: `--strength` 0.5-20 drives RGB channel shift + temporal noise | `--engine planes` channel rotation | `--engine swapuv` chroma flip | `--engine stutter` frame jitter | `--engine pixels` block scatter |
+| `glitch` | Datamosh-style glitch: `--strength` 0.5-20 drives RGB channel shift + temporal noise | `--engine planes` channel rotation | `--engine swapuv` chroma flip | `--engine stutter` frame jitter | `--engine pixels` block scatter | `--engine swaprect` quadrant swap |
 | `bars` | SMPTE test card: `--size`/`--dur`/`--hd`/`--tone` (1kHz bed), for QC slates and leader |
 | `scope --mode hist` | Rolling temporal histogram of luma — color/exposure drift QC over time |
-| `scope` | QC scope overlay: `--mode vector|wave` in a corner (`--position`, `--size` fraction), `--at` windows | `--mode mvs` MV overlay | `--mode data --x/--y` hex readout | `--mode qp` macroblock QP overlay | `--mode pix` magnified pixel grid |
+| `scope` | QC scope overlay: `--mode vector|wave` in a corner (`--position`, `--size` fraction), `--at` windows | `--mode mvs` MV overlay | `--mode data --x/--y` hex readout | `--mode qp` macroblock QP overlay | `--mode pix` magnified pixel grid | `--mode osc` XY video oscilloscope |
 | `desqueeze` | Anamorphic restore: `--factor` lens ratio (1.33/1.5/1.8/2.0), `--axis y|x` |
 | `solarize` | Psychedelic partial invert: pixels above `--threshold` luma invert, `--at` windows |
 | `pulse` | Breathing zoom bounce: `--rate` cycles/sec, `--depth` amplitude, `--at` windows |
@@ -196,9 +196,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `dedup` | Drops near-duplicate frames via `mpdecimate` — shrinks static stretches, `--frac` sensitivity |
 | `audiogram --mode cqt` | Constant-Q music spectrum (`showcqt`) — piano-roll spectrum look for music clips |
 | `audiogram --mode spectro` | Scrolling spectrogram (`showspectrum`) — colour time/frequency roll |
-| `scan` | QC report: black stretches, frozen frames, black-frame hits + strobe `flash_frames`/`flash_max_badness` + interlace verdict (idet) + stereo `phase_corr` (~-1 = mono-collapse) — JSON extras; writes no media , audio peak/mean dB (`audio_max_db`, `audio_mean_db`) | +blur QC | `--scenes` scene-cut timestamps |
+| `scan` | QC report: black stretches, frozen frames, black-frame hits + strobe `flash_frames`/`flash_max_badness` + interlace verdict (idet) + stereo `phase_corr` (~-1 = mono-collapse) — JSON extras; writes no media , audio peak/mean dB (`audio_max_db`, `audio_mean_db`) | +blur QC | `--scenes` scene-cut timestamps | `luma_min/max` + `illegal_luma` (signalstats broadcast-range QC) |
 | `smooth` | Edge-preserving beauty/skin blur (`--engine` smartblur/bilateral; `--strength`, `--at`/`--dur`) | `--engine uspp` postproc deblock | `--engine pp7` light postproc | `--engine yaep` edge-preserving | `--engine spp/fspp` light deblock |
-| `upscale` | Up-res footage: `zscale` spline36 (better than lanczos) + light unsharp, `--factor` 1.05-4 (2 doubles dims), `--strength` edge acuity | `--engine spline|xbr|two-xsai` (pixel-art integer scalers) |
+| `upscale` | Up-res footage: `zscale` spline36 (better than lanczos) + light unsharp, `--factor` 1.05-4 (2 doubles dims), `--strength` edge acuity | `--engine spline|xbr|two-xsai` (pixel-art integer scalers) | `--engine hqx` hq2x/3x/4x pixel-art scaler |
 | `v360` | Reframe 360 footage to flat (`--in` equirect/fisheye/dfisheye/cubemap/EAC/barrel/half-equirect, `--yaw`/`--pitch`/`--fov`, `--size`) |
 | `perspective` | Deskew a filmed screen/whiteboard: `--points x0,y0,x1,y1,x2,y2,x3,y3` (TL,TR,BL,BR quad in source, px), `--interp linear|cubic` |
 | `wb` | Auto white balance / cast removal: `--strength` 0..1, `--independence` 0 keeps the grade (contrast only), `--smooth` temporal frames, `--at`/`--dur` window |
@@ -239,7 +239,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov); `--audio` rips the track, `--video` video-only repack, `--aspect 16:9` display-AR fix |
 | `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window — comma list for several spots; `--at end` tail) , `--position` text block top/center/bottom; `--wrap` folds, `--align` line alignment, `--fade` edge fades with --at/--dur, `--opacity` ghost text |
 | `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`, `--at`/`--dur` window, `end` ok, comma list = several windows) |
-| `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order, `--engine` yadif/bwdif/estdif/kerndeint) ，`--engine` 含 `detelecine`（确定节奏反电视电影）、`mcdeint`（运动补偿）| `--engine w3fdif` Weston 3-field | `--engine separate` 50i→50p field-per-frame (smooth slow-mo source) |
+| `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order, `--engine` yadif/bwdif/estdif/kerndeint) ，`--engine` 含 `detelecine`（确定节奏反电视电影）、`mcdeint`（运动补偿）| `--engine w3fdif` Weston 3-field | `--engine separate` 50i→50p field-per-frame (smooth slow-mo source) | `--engine pullup` IVTC telecine reversal |
 | `dedust` | Remove dust specks / hot pixels: `--size` 1-4, bright specks by default, `--dark` for dark ones; morphology (erosion/dilation), not a blur | `--at`/`--dur` |
 | `extend` | Stretch edge pixels to fill border strips: `--left/--right/--top/--bottom` px, `--mode smear|mirror|fixed|reflect|wrap|fade` | - |
 | `tonemap` | HDR → SDR: zscale → linear light → tonemap curve → bt709 (`--algo hable|reinhard|gamma|clip|linear`, `--peak` nits) | - |

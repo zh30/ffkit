@@ -83,6 +83,7 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
             let fy = args.y.map(|px| px as f64 / fh).unwrap_or(0.5);
             format!("pixscope=x={fx:.3}:y={fy:.3}:w=17:h=17:o=0.9")
         }
+        ScopeMode::Osc => "oscilloscope=x=0.5:y=0.5:s=0.85:t=0.5:o=1:g=1:st=1".to_string(),
         ScopeMode::Mvs | ScopeMode::Data => unreachable!(),
     };
     let (x, y) = match args.position.as_str() {

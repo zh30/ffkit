@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [0.247.0] — 2026-09-23
+
+### Added
+
+- `upscale --engine hqx` — hq2x/hq3x/hq4x pixel-art scaler (`--factor`
+  snaps to 2/3/4); the cleanest sprite/text upscale of the set.
+- `deinterlace --engine pullup` — inverse-telecine (3:2 pulldown IVTC);
+  on a progressive source it passes through harmlessly.
+- `glitch --engine swaprect` — swaps the frame's quadrants (surreal
+  mirror-shuffle).
+- `scope --mode osc` — oscilloscope XY plot of the video signal.
+- `scan` — signalstats pass adds `luma_min`/`luma_max` + `illegal_luma`
+  broadcast-range QC (16-235 legal).
+
+### Fixed
+
+- `spawn::run` drained the child's pipes only AFTER waiting for exit —
+  any ffmpeg writing >64KB (macOS pipe buffer) deadlocked. The new
+  signalstats scan leg tripped it immediately. Both pipes now drain on
+  reader threads while the child runs; this fixes every current and
+  future heavy-output filter.
+
 ## [0.246.0] — 2026-09-23
 
 ### Added

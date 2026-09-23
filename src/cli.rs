@@ -1174,6 +1174,8 @@ pub enum GlitchEngine {
     Stutter,
     /// pixels — shufflepixels block scatter (digital corruption bursts)
     Pixels,
+    /// swaprect — swaps frame quadrants (surreal mirror-shuffle)
+    Swaprect,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1213,6 +1215,9 @@ pub enum ScopeMode {
     Qp,
     /// pixscope — magnified pixel-grid window at --x/--y
     Pix,
+    /// osc — oscilloscope XY plot of the video signal (broadcast-style
+    /// waveform XY; diagonal spread = luma range coverage)
+    Osc,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3442,6 +3447,8 @@ pub enum DeintEngine {
     /// separatefields — split each field into its own frame: 25i/29.97i
     /// becomes 50p/59.94p (smooth slow-mo source, sports frame stepping)
     Separate,
+    /// pullup — inverse 3:2 pulldown IVTC (telecined NTSC → progressive)
+    Pullup,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -4412,6 +4419,8 @@ pub enum UpscaleEngine {
     Spline,
     Xbr,
     TwoXsai,
+    /// hqx — hq2x/hq3x/hq4x pixel-art scaler (cleanest sprite/text upscale)
+    Hqx,
 }
 
 #[derive(clap::Args, Debug)]
