@@ -16063,6 +16063,78 @@ fn scroll_comma_at_and_end_replays_windows() {
 }
 
 #[test]
+fn censor_multi_region_and_subs_burn_si() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = lavfi_fixture(dir.path(), "cr.mp4", "440", 2.0);
+    let out = dir.path().join("cr_out.mp4");
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--region",
+        "10:10:60:40,150:150:60:40",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["regions"].as_array().unwrap().len(), 2, "{v}");
+    assert!(out.is_file());
+    let bad = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("cr_bad.mp4").to_str().unwrap(),
+        "--region",
+        "10:10:60:40,9999:9999:60:40",
+    ]);
+    assert_eq!(bad["status"], "failed", "{bad}");
+
+    // Burn the input's second embedded subtitle stream.
+    let a = dir.path().join("a.srt");
+    std::fs::write(&a, "1\n00:00:00,200 --> 00:00:01,000\nHello\n").unwrap();
+    let b = dir.path().join("b.srt");
+    std::fs::write(&b, "1\n00:00:00,200 --> 00:00:01,000\nHola\n").unwrap();
+    let multi = dir.path().join("multi.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-i"])
+        .arg(&src)
+        .args(["-i"])
+        .arg(&a)
+        .args(["-i"])
+        .arg(&b)
+        .args([
+            "-map", "0", "-map", "1", "-map", "2", "-c:v", "copy", "-c:a", "copy", "-c:s",
+            "mov_text",
+        ])
+        .arg(&multi)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let burned = dir.path().join("burned.mp4");
+    let v = run_json(&[
+        "subs",
+        multi.to_str().unwrap(),
+        "-o",
+        burned.to_str().unwrap(),
+        "--burn-si",
+        "1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(burned.is_file());
+    let oob = run_json(&[
+        "subs",
+        multi.to_str().unwrap(),
+        "-o",
+        dir.path().join("oob.mp4").to_str().unwrap(),
+        "--burn-si",
+        "9",
+    ]);
+    assert_eq!(oob["status"], "failed", "{oob}");
+}
+
+#[test]
 fn timer_countdown_meter_at_end() {
     if !has_ffmpeg() {
         return;
