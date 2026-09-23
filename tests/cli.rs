@@ -17086,3 +17086,83 @@ fn scroll_speed_paces_roll_and_countdown_formats() {
     ]);
     assert_eq!(badfmt["status"], "failed", "{badfmt}");
 }
+
+#[test]
+fn meme_caption_opacity_ghost_text() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // black frame: text is the only bright content, so peak tracks opacity
+    let src = dir.path().join("black.mp4");
+    let o = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-f", "lavfi", "-i"])
+        .arg("color=c=black:size=320x240:duration=1:rate=24")
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let ghost = dir.path().join("g50.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        ghost.to_str().unwrap(),
+        "--top",
+        "GHOST",
+        "--opacity",
+        "50",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let full = dir.path().join("g100.mp4");
+    let v = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        full.to_str().unwrap(),
+        "--top",
+        "GHOST",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // 50% text peaks roughly half as bright as full-opacity text
+    let peak = |f: &Path| -> u8 {
+        let o = Command::new("ffmpeg")
+            .args(["-y", "-loglevel", "error", "-ss", "0.4", "-i"])
+            .arg(f)
+            .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"])
+            .output()
+            .unwrap();
+        o.stdout.iter().copied().max().unwrap_or(0)
+    };
+    let (p50, p100) = (peak(&ghost), peak(&full));
+    assert!(
+        p50 < p100.saturating_sub(60),
+        "ghost text dimmer: {p50} vs {p100}"
+    );
+    let bad = run_json(&[
+        "meme",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("bad.mp4").to_str().unwrap(),
+        "--top",
+        "X",
+        "--opacity",
+        "0",
+    ]);
+    assert_eq!(bad["status"], "failed", "{bad}");
+
+    // caption --opacity applies the same alpha curve
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,800\nHI THERE\n").unwrap();
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "-o",
+        dir.path().join("cap.mp4").to_str().unwrap(),
+        "--opacity",
+        "60",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

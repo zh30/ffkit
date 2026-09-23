@@ -588,6 +588,9 @@ pub struct CaptionArgs {
     /// Filled card behind each caption: RRGGBB hex or color name
     #[arg(long)]
     pub box_color: Option<String>,
+    /// Draw captions at this % opacity (0-100 — ghost/watermark captions)
+    #[arg(long)]
+    pub opacity: Option<f64>,
     /// Burn-in placement: bottom (default) or top of frame
     #[arg(long, value_enum, default_value_t = CaptionPosition::Bottom)]
     pub position: CaptionPosition,
@@ -1865,6 +1868,9 @@ pub struct MemeArgs {
     /// Classic meme outline thickness in px (0 = off). Black outline, white text.
     #[arg(long, default_value_t = 0)]
     pub outline: u32,
+    /// Draw the meme text at this % opacity (0-100 — ghost/watermark text)
+    #[arg(long)]
+    pub opacity: Option<f64>,
     /// Show the text only inside this window — comma list for several spots (needs --dur)
     #[arg(long)]
     pub at: Option<String>,

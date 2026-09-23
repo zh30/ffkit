@@ -246,6 +246,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `scroll --speed N` — px/s pacing for end-credit rolls and tickers (sets each window's duration from travel distance; conflicts `--dur`). `countdown --format` — `s`/`mm:ss`/`h:mm:ss` digit formats + `--from` cap raised to 600 for livestream "starting soon" counters.
 
 
+## Shipped this run (round 159)
+
+- `meme --opacity` / `caption --opacity` — alpha-scale the rendered text PNGs (ghost/watermark-style captions and reaction text that don't fully cover the picture). Same 1..=100 semantics as `title --opacity`.
+
 ## Shipped this run (round 155)
 
 - `loudnorm --measure --gate N` — QC gate: fails when the input's integrated loudness exceeds N LUFS (podcast/broadcast delivery checks without opening a meter). `transcode --vbitrate R` — peak bitrate cap (`-maxrate R -bufsize 2R`) for platform specs like IG feed / YouTube recommended.

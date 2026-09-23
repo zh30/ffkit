@@ -74,7 +74,7 @@ pub fn run(args: MemeArgs, g: &Globals) -> Result<Contract, Error> {
     let mut renders: Vec<(u32, image::RgbaImage)> = Vec::new();
     for text in texts.iter().flatten() {
         let text = text.as_str();
-        let img = if args.outline > 0 {
+        let mut img = if args.outline > 0 {
             crate::raster::render_title_outlined(
                 text,
                 &font_bytes,
@@ -98,6 +98,14 @@ pub fn run(args: MemeArgs, g: &Globals) -> Result<Contract, Error> {
                 }
             }
         };
+        if let Some(op) = args.opacity {
+            if !(1.0..=100.0).contains(&op) {
+                return Err(Error::input("--opacity must be 1..=100"));
+            }
+            for px in img.pixels_mut() {
+                px.0[3] = (px.0[3] as f64 * op / 100.0).round() as u8;
+            }
+        }
         renders.push((img.height(), img));
     }
     // y per rendered PNG, in render order (top text first).

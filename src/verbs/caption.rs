@@ -198,6 +198,14 @@ fn burn_overlay(
             image::imageops::overlay(&mut card, &img, pad as i64, (pad / 2) as i64);
             img = card;
         }
+        if let Some(op) = args.opacity {
+            if !(1.0..=100.0).contains(&op) {
+                return Err(Error::input("--opacity must be 1..=100"));
+            }
+            for px in img.pixels_mut() {
+                px.0[3] = (px.0[3] as f64 * op / 100.0).round() as u8;
+            }
+        }
         let png = tmp.path().join(format!("c{i}.png"));
         img.save(&png)
             .map_err(|e| Error::output(format!("write caption png: {e}")))?;
