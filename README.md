@@ -104,9 +104,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `overlay` | Image/video overlay; position/scale/`--tile`, `--fade`, `--angle`, `--at`/`--dur`, `--mode`, `--opacity` blend composite, `--loop` repeat short clips | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture; `--border` PiP ring |
 | `broll` | Cutaway insert (`--insert` video, `--still` image, `--motion kenburns`) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay , `--audio` hear the insert (`--volume` its level) , `--position` PiP corner + `--scale`, `--border` ring the insert; `--at end` = tail cutaway, comma `--at` re-flashes it at several points |
 | `caption` | Burn subtitles (`--srt`, `--chunk`, `--karaoke`, `--box-color` card, `--wrap` folds, `--from/--to` cue window, `end`/`end-N` ok) , `--fade` soft in/out |
-| `loudnorm` | EBU R128 two-pass normalization (`--target spotify|podcast|broadcast`, `-I/--tp/--lra`); `--measure` reports loudness without writing; `--dynamic` per-frame gain |
+| `loudnorm` | EBU R128 two-pass normalization (`--target spotify|podcast|broadcast`, `-I/--tp/--lra`); `--measure` reports loudness without writing (`--gate N` fails over N LUFS); `--dynamic` per-frame gain |
 | `denoise` | Audio cleanup (`--strength`, `--highpass`, `--at/--dur` window); `end` ok, comma list = several windows |
-| `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`/`--colors`) | Presets `h264` / `webm` / `gif` / `hevc` / `mp3` / `aac` / `wav` / `flac` / `opus`; `--fps` retimes video too , `--preset prores` FCP delivery; `av1` preset; `--alpha` keeps transparency (webm/prores) |
+| `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`/`--colors`) | Presets `h264` / `webm` / `gif` / `hevc` / `mp3` / `aac` / `wav` / `flac` / `opus` / `av1` / `prores`; `--fps` retimes video too; `--vbitrate` peak bitrate cap , `--preset prores` FCP delivery; `av1` preset; `--alpha` keeps transparency (webm/prores) |
 | `compress` | Fit a size budget (`--size 10MB` two-pass, `--target discord|whatsapp|gmail`); `--crf` quality one-pass, `--res` downscale to free bitrate |
 | `deliver` | One-shot platform pack (Reels / TikTok / Shorts 9:16, `square` 1:1 grid, `youtube` 16:9; −14 LUFS; `--fps 60` high-frame-rate uploads, `--crf` quality) |
 

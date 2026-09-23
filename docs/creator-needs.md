@@ -237,6 +237,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 155)
+
+- `loudnorm --measure --gate N` — QC gate: fails when the input's integrated loudness exceeds N LUFS (podcast/broadcast delivery checks without opening a meter). `transcode --vbitrate R` — peak bitrate cap (`-maxrate R -bufsize 2R`) for platform specs like IG feed / YouTube recommended.
+
+
 ## Shipped this run (round 154)
 
 - `delogo --regions x:y:w:h,...` — one pass covers several logos/watermarks (comma list); `--soft` draws every box into the removelogo mask. Membership/course footage with dual watermarks.

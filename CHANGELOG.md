@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.183.0] — 2026-09-22
+
+### Added
+- `loudnorm --gate N` — `--measure` fails when input loudness tops N LUFS (delivery QC gate).
+- `transcode --vbitrate RATE` — peak bitrate cap (`-maxrate R -bufsize 2R`) on h264/hevc/webm/av1.
+
+
 ## [0.182.0] — 2026-09-22
 
 ### Added

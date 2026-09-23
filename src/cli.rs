@@ -771,6 +771,9 @@ pub struct LoudnormArgs {
     /// Measure-only: report I/TP/LRA in extras without writing a file
     #[arg(long)]
     pub measure: bool,
+    /// Fail when the measured integrated loudness exceeds N LUFS (needs --measure)
+    #[arg(long, allow_hyphen_values = true)]
+    pub gate: Option<f64>,
     /// Dynamic normalization (per-frame gain) instead of the default linear offset
     #[arg(long)]
     pub dynamic: bool,
@@ -823,6 +826,9 @@ pub struct TranscodeArgs {
     /// exported for editors); h264/hevc can't carry transparency
     #[arg(long)]
     pub alpha: bool,
+    /// Peak video bitrate cap like `8M`/`3500k` — sets -maxrate R -bufsize 2R
+    #[arg(long)]
+    pub vbitrate: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
