@@ -2,7 +2,7 @@
 name = "ffkit"
 
 
-version = "0.176.0"
+version = "0.179.0"
 
 edition = "2021"
 rust-version = "1.80"

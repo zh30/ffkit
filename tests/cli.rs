@@ -15953,6 +15953,45 @@ fn freeze_and_fade_dip_comma_windows() {
 }
 
 #[test]
+fn hls_encrypt_writes_key_and_tagged_playlist() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = lavfi_fixture(dir.path(), "enc.mp4", "440", 2.0);
+    let out = dir.path().join("hls_enc");
+    let v = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--encrypt",
+        "--seg",
+        "1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(out.join("key.bin").is_file(), "key.bin missing");
+    assert!(out.join("key.info").is_file(), "key.info missing");
+    let pl = std::fs::read_to_string(out.join("index.m3u8")).unwrap();
+    assert!(
+        pl.contains("#EXT-X-KEY:METHOD=AES-128"),
+        "playlist missing AES-128 key tag: {pl}"
+    );
+    assert!(pl.contains("key.bin"), "key URI not in playlist: {pl}");
+    // And the explicit --key path rejects bad hex.
+    let out2 = dir.path().join("hls_enc2");
+    let err = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        out2.to_str().unwrap(),
+        "--key",
+        "nothex",
+    ]);
+    assert_eq!(err["status"], "failed");
+}
+
+#[test]
 fn hls_poster_at_and_deliver_crf() {
     if !has_ffmpeg() {
         return;

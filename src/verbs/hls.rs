@@ -39,6 +39,41 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         dir.join(format!("seg_%03d.{seg_ext}"))
     };
 
+    // --encrypt/--key: AES-128 segment encryption via -hls_key_info_file.
+    let key_info = if args.encrypt || args.key.is_some() {
+        let key_hex = match &args.key {
+            Some(k) => {
+                let k = k.trim().to_lowercase();
+                if k.len() != 32 || !k.chars().all(|c| c.is_ascii_hexdigit()) {
+                    return Err(Error::input("--key must be 32 hex chars"));
+                }
+                k
+            }
+            None => random_key()?,
+        };
+        let key_path = dir.join("key.bin");
+        let raw = hex_decode(&key_hex)?;
+        std::fs::write(&key_path, &raw)
+            .map_err(|e| Error::output(format!("write {}: {e}", paths::display(&key_path))))?;
+        let info_path = dir.join("key.info");
+        let uri = args.key_uri.as_deref().unwrap_or("key.bin");
+        std::fs::write(
+            &info_path,
+            format!("{uri}\n{}\n", paths::display(&key_path)),
+        )
+        .map_err(|e| Error::output(format!("write {}: {e}", paths::display(&info_path))))?;
+        Some((info_path, uri.to_string()))
+    } else {
+        if args.key_uri.is_some() {
+            return Err(Error::input("--key-uri needs --encrypt or --key"));
+        }
+        None
+    };
+    let key_args: Vec<String> = key_info
+        .as_ref()
+        .map(|(p, _)| vec!["-hls_key_info_file".to_string(), p.display().to_string()])
+        .unwrap_or_default();
+
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
     if args.audio_only {
@@ -151,6 +186,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "-var_stream_map".to_string(),
             varmap,
         ]);
+        argv.extend(key_args.iter().cloned());
         argv.push(dir.join("v%v.m3u8").display().to_string());
 
         let commands = engine::commands_of(std::slice::from_ref(&argv));
@@ -187,6 +223,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "variants": variants,
             "segment_seconds": args.seg,
         }));
+        if let Some((p, uri)) = &key_info {
+            c = c.with_extra(json!({"key_uri": uri, "key_info": paths::display(p)}));
+        }
         return Ok(c);
     }
     if args.copy {
@@ -242,6 +281,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.fmp4 {
         argv.extend(["-hls_segment_type".to_string(), "fmp4".to_string()]);
     }
+    argv.extend(key_args.iter().cloned());
     argv.push(playlist.display().to_string());
 
     if args.poster_at.is_some() && !args.poster {
@@ -312,5 +352,27 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "segments": nseg,
         "segment_seconds": args.seg,
     }));
+    if let Some((p, uri)) = &key_info {
+        c = c.with_extra(json!({"key_uri": uri, "key_info": paths::display(p)}));
+    }
     Ok(c)
+}
+
+fn random_key() -> Result<String, Error> {
+    use std::io::Read;
+    let mut buf = [0u8; 16];
+    std::fs::File::open("/dev/urandom")
+        .and_then(|mut f| f.read_exact(&mut buf))
+        .map_err(|e| Error::output(format!("--encrypt cannot read /dev/urandom: {e}")))?;
+    Ok(buf.iter().map(|b| format!("{b:02x}")).collect())
+}
+
+fn hex_decode(s: &str) -> Result<Vec<u8>, Error> {
+    (0..s.len())
+        .step_by(2)
+        .map(|i| {
+            u8::from_str_radix(&s[i..i + 2], 16)
+                .map_err(|_| Error::input("--key must be 32 hex chars"))
+        })
+        .collect()
 }
