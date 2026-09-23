@@ -86,6 +86,18 @@ pub fn run(args: ProgressArgs, g: &Globals) -> Result<Contract, Error> {
         h = sh,
         d = probe.duration,
     );
+    let bar_src = match args.opacity {
+        Some(op) => {
+            if !(1.0..=100.0).contains(&op) {
+                return Err(Error::input("--opacity must be 1..=100"));
+            }
+            format!(
+                "{bar_src},format=rgba,colorchannelmixer=aa={:.3}",
+                op / 100.0
+            )
+        }
+        None => bar_src,
+    };
     argv.push(&bar_src);
     if let Some(bg) = &args.bg {
         argv.push("-f");

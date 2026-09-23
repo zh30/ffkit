@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::cli::{CensorArgs, CensorMode, Globals};
+use crate::cli::{CensorArgs, CensorMode, CensorShape, Globals};
 use crate::contract::{Contract, Status};
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -105,9 +105,15 @@ pub fn run(args: CensorArgs, g: &Globals) -> Result<Contract, Error> {
         } else {
             format!("v{i}")
         };
+        let mask = match args.shape {
+            CensorShape::Box => String::new(),
+            // elliptical alpha mask so pixelated faces read as circles
+            CensorShape::Circle => ",format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lte(hypot(X-W/2,Y-H/2),min(W\\,H)/2),255,0)'".to_string(),
+        };
         fc.push_str(&format!(
-            "[{prev}]split[b{i}][t{i}];             [t{i}]crop={w}:{h}:{x}:{y},{eff}[c{i}];             [b{i}][c{i}]overlay={x}:{y}:shortest=1{en}[{out}];",
+            "[{prev}]split[b{i}][t{i}];             [t{i}]crop={w}:{h}:{x}:{y},{eff}{mask}[c{i}];             [b{i}][c{i}]overlay={x}:{y}:shortest=1{en}[{out}];",
             eff = effect_of(*w, *h),
+            mask = mask,
             en = enable,
         ));
         prev = out;

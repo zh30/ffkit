@@ -17598,3 +17598,85 @@ fn karaoke_highlight_scope_and_delogo_circle() {
         .any(|a| a.as_str().unwrap_or("").contains("removelogo"));
     assert!(rm, "circle should use removelogo mask: {}", v["commands"]);
 }
+
+#[test]
+fn censor_circle_mask_and_progress_opacity() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("s.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:duration=1:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let px = |f: &Path, x: usize, y: usize| -> [u8; 3] {
+        let out = Command::new("ffmpeg")
+            .args(["-y", "-loglevel", "error", "-ss", "0.5", "-i"])
+            .arg(f)
+            .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+            .output()
+            .unwrap();
+        let i = (y * 160 + x) * 3;
+        [out.stdout[i], out.stdout[i + 1], out.stdout[i + 2]]
+    };
+    // circular mask: center pixelated, corners untouched
+    let cc = dir.path().join("cc.mp4");
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        cc.to_str().unwrap(),
+        "--region",
+        "40:40:80:40",
+        "--shape",
+        "circle",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let diff = |a: [u8; 3], b: [u8; 3]| -> i32 {
+        a.iter()
+            .zip(b.iter())
+            .map(|(x, y)| (*x as i32 - *y as i32).abs())
+            .sum()
+    };
+    let corner = diff(px(&src, 43, 43), px(&cc, 43, 43));
+    let center = diff(px(&src, 80, 60), px(&cc, 80, 60));
+    assert!(corner <= 15, "corner should be untouched: {corner}");
+    assert!(center > 15, "center should be masked: {center}");
+    // --opacity lands colorchannelmixer on the bar source
+    let po = dir.path().join("po.mp4");
+    let v = run_json(&[
+        "progress",
+        src.to_str().unwrap(),
+        "-o",
+        po.to_str().unwrap(),
+        "--opacity",
+        "40",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let bar_ok = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter())
+        .any(|a| {
+            a.as_str()
+                .unwrap_or("")
+                .contains("colorchannelmixer=aa=0.400")
+        });
+    assert!(bar_ok, "opacity missing from bar source: {}", v["commands"]);
+}

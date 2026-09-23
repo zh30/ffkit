@@ -141,7 +141,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | grade only the dream sequence | `grade` (`--at`/`--dur`) |
 | hear the b-roll under me | `broll` (`--audio`) |
 | captions in my brand font | `subs` (`--burn --font`) |
-| progress bar only in the back half | `progress` (`--at`/`--dur`) |
+| progress bar only in the back half | `progress` (`--at`/`--dur`, `--opacity` ghost bar) |
 | waveform band at the top | `audiogram` (`--position`) |
 | pull OUT of a shot (reveal) | `zoom` (`--out`, `--center X,Y` punch target) |
 | title with a soft shadow | `title` (`--shadow`) |
@@ -179,7 +179,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | reaction / multi-cam grid | `grid` (`--layout 2x2`, `--size`, `--gap`/`--bg` gutters, `--time` stamps every tile) |
 | watch-time progress bar | `progress` (`--color`, `--height`, `--edge`, `--bg` track, `--reverse` depletes the bar) |
 | freeze a beat / outro hold | `freeze` (`--ease`/`--reverse` swoop, `--zoom` push-in, `--at T --dur D` — comma `--at` freezes at several points, or `--end D`) |
-| blur a face / logo | `censor` (`--region x:y:w:h` — comma list covers several spots, `--mode pixel|blur`, `--strength`; `--at`/`--dur` limits the window) |
+| blur a face / logo | `censor` (`--region x:y:w:h` — comma list covers several spots, `--mode pixel|blur`, `--strength`, `--shape circle` ellipse mask; `--at`/`--dur` limits the window) |
 | slow-mo punch-in | `speed` (`--factor`/`--ramp`, `--at`/`--dur` for just one window) |
 | boomerang replay | `boomerang` (forward then reversed, one loop) |
 | YouTube/player chapters | `chapter` (`--at T|TITLE` repeatable, `--auto` silence gaps, `--remove` strips; lossless; `--yt` export/`--import` YouTube `H:MM:SS Title` lines) |
