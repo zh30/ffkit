@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.139.0
+version: 0.140.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -97,7 +97,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | burn an .srt/.ass into pixels | `subs` (`--burn subs.srt` — libass), `--box` plate, `--shadow` depth, `--rate` drift fix, `--from/--to` cue window, `--safe` social zone; `--convert` srt↔vtt |
 | split into exactly N parts | `split` (`--parts N` — equal-length grid) |
 | title that fades in/out | `title` (`--fade` secs — soft entry/exit, `--box` card) |
-| end-card title / tail-only effect | `<verb> --at end --dur N` — windowed verbs anchor the tail (title, blur, censor, meme, overlay, delogo, grade, volume, progress, bw/invert/sharpen/vignette) |
+| end-card title / tail-only effect | `<verb> --at end --dur N` — every `--at/--dur` window verb anchors the tail (title, speed, tempo, mix, music, blur, grade, volume, censor, meme, overlay, delogo, eq, reverb, fx, denoise, leveler, gate, vocal, pitch, progress, bw/invert/sharpen/vignette) |
 | dip-to-black at a cut | `fade` (`--dip T --dur N` — half out, half back) |
 | fix white balance / color cast | `grade` (`--hue` deg — rotates the hue) |
 | quiet tail on a podcast | `silence` (`--end --dur` secs — appended) |

@@ -79,7 +79,7 @@ fn windowed(
     probe: &crate::probe::Probe,
     g: &Globals,
 ) -> Result<Contract, Error> {
-    let at = crate::time::parse_time(args.at.as_deref().unwrap())?;
+    let at = crate::time::resolve_at(args.at.as_deref().unwrap(), args.dur, probe.duration)?;
     if !(0.0..probe.duration - 0.1).contains(&at) {
         return Err(Error::input("--at must land inside the input"));
     }
@@ -172,7 +172,7 @@ fn ramp(args: SpeedArgs, probe: &crate::probe::Probe, g: &Globals) -> Result<Con
         }
     }
     let (w0, w1) = if let Some(at) = &args.at {
-        let s = crate::time::parse_time(at)?;
+        let s = crate::time::resolve_at(at, args.dur, probe.duration)?;
         if !(0.0..probe.duration - 0.1).contains(&s) {
             return Err(Error::input("--at must land inside the input"));
         }

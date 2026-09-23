@@ -237,6 +237,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 113)
+- `--at end` closes out the window family — `speed` (outro slow-mo), `tempo`, `mix` (B track into A's tail), `music` (bed ends with the talk), `eq`, `reverb`, `fx`, `denoise`, `leveler`, `gate`, `vocal`, `pitch` — every `--at/--dur` verb now tail-anchors.
+
 ## Shipped this run (round 112)
 - `--at end` on every windowed look/gain verb — title (end-cards), blur, bw, invert, sharpen, vignette, grade, delogo, volume, progress — one shared `time::resolve_at`.
 

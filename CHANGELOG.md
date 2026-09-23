@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.140.0] — 2026-09-22
+
+### Added
+- `--at end --dur N` on the remaining windowed verbs — `speed`, `tempo`, `mix`, `music`, `eq`, `reverb`, `fx`, `denoise`, `leveler`, `gate`, `vocal`, `pitch` — every `--at/--dur` verb now tail-anchors via `time::resolve_at`.
+
 ## [0.139.0] — 2026-09-22
 
 ### Added

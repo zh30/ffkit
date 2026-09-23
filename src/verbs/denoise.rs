@@ -42,7 +42,7 @@ pub fn run(args: DenoiseArgs, g: &Globals) -> Result<Contract, Error> {
     // --at/--dur: windowed denoise via the shared dry/wet splitter
     let fc = match &args.at {
         Some(raw) => {
-            let at = crate::time::parse_time(raw)?;
+            let at = crate::time::resolve_at(raw, args.dur, probe.duration)?;
             if !(0.0..probe.duration).contains(&at) {
                 return Err(Error::input("--at is outside the input"));
             }

@@ -14751,3 +14751,89 @@ fn at_end_works_across_windowed_verbs() {
     assert_eq!(v["status"], "failed", "{v}");
     assert_eq!(v["error"]["kind"], "input");
 }
+
+#[test]
+fn at_end_works_on_speed_and_audio_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // speed --at end --dur 0.4 → retime window anchors the tail (1.0 - 0.4 = 0.6)
+    let out = dir.path().join("sp.mp4");
+    let v = run_json(&[
+        "speed",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--factor",
+        "2",
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("0.600"), "{cmds}");
+    // tempo --at end --dur 0.4 → audio window anchors the tail
+    let a = dir.path().join("a.wav");
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&a)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let v = run_json(&[
+        "tempo",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("tp.mp4").to_str().unwrap(),
+        "--factor",
+        "2",
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("0.600"), "{cmds}");
+    // mix --at end gates the B track into A's tail
+    let b = lavfi_fixture(dir.path(), "b.mp4", "550", 1.0);
+    let v = run_json(&[
+        "mix",
+        src.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        dir.path().join("mx.mp4").to_str().unwrap(),
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

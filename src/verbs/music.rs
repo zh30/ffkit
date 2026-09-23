@@ -23,7 +23,7 @@ pub fn run(args: MusicArgs, g: &Globals) -> Result<Contract, Error> {
     // will not insert the converter (Homebrew 9 does).
     // --fade: afade in/out on the bed itself (fade-out end = the talk's length).
     let at = match &args.at {
-        Some(s) => crate::time::parse_time(s)?,
+        Some(s) => crate::time::resolve_at(s, args.dur, talk.duration)?,
         None => 0.0,
     };
     if at < 0.0 || at >= talk.duration {

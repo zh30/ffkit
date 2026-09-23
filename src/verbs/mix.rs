@@ -26,7 +26,7 @@ pub fn run(args: MixArgs, g: &Globals) -> Result<Contract, Error> {
     // --at/--dur: gate the B track into the window (outside it, A alone).
     let gate = match &args.at {
         Some(raw) => {
-            let at = crate::time::parse_time(raw)?;
+            let at = crate::time::resolve_at(raw, args.dur, pa.duration)?;
             if !(0.0..pa.duration).contains(&at) {
                 return Err(Error::input("--at is outside the A input"));
             }

@@ -34,7 +34,7 @@ pub fn run(args: LevelerArgs, g: &Globals) -> Result<Contract, Error> {
         format!("acompressor=threshold={pt}dB:ratio={pr}:attack={pa}:release={prel}:makeup={pm}dB");
     let fc = match &args.at {
         Some(raw) => {
-            let at = crate::time::parse_time(raw)?;
+            let at = crate::time::resolve_at(raw, args.dur, probe.duration)?;
             if !(0.0..probe.duration).contains(&at) {
                 return Err(Error::input("--at is outside the input"));
             }
