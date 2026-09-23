@@ -109,7 +109,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `broll` | Cutaway insert (`--insert` video, `--still` image, `--motion kenburns`) | Full-frame cutaway (`--insert --at --duration`); A-roll audio and length stay , `--audio` hear the insert (`--volume` its level) , `--position` PiP corner + `--scale`, `--border` ring the insert; `--at end` = tail cutaway, comma `--at` re-flashes it at several points |
 | `caption` | Burn subtitles (`--srt`, `--chunk`, `--karaoke` (`--highlight` sung color), `--box-color` card, `--wrap` folds, `--from/--to` cue window, `end`/`end-N` ok) , `--fade` soft in/out, `--opacity` ghost captions |
 | `loudnorm` | EBU R128 two-pass normalization (`--target spotify|podcast|broadcast`, `-I/--tp/--lra`); `--measure` reports loudness without writing (`--gate N` fails over N LUFS); `--dynamic` per-frame gain |
-| `denoise` | Audio cleanup (`--strength`, `--highpass`, `--at/--dur` window); `end` ok, comma list = several windows |
+| `denoise` | Audio cleanup (`--strength`, `--highpass`, `--engine auto|wavel|fftdn` pick the denoiser, `--at/--dur` window); `end` ok, comma list = several windows |
 | `transcode` | h264/webm/`--preset gif` (`--fps`/`--width`/`--copy-audio`/`--colors`) | Presets `h264` / `webm` / `gif` / `hevc` / `mp3` / `aac` / `wav` / `flac` / `opus` / `av1` / `prores` / `dnxhd`; `--fps` retimes video too; `--vbitrate` peak bitrate cap, `--abitrate` audio bitrate (voice → 64k), `--preset prores`/`dnxhd` NLE delivery; `av1` preset; `--alpha` keeps transparency (webm/prores); `--range limited\|full` tags colour range |
 | `compress` | Fit a size budget (`--size 10MB` two-pass, `--target discord|whatsapp|gmail`); `--crf` quality one-pass, `--res` downscale to free bitrate |
 | `deliver` | One-shot platform pack (Reels / TikTok / Shorts 9:16, `square` 1:1 grid, `youtube` 16:9; −14 LUFS; `--fps 60` high-frame-rate uploads, `--crf` quality, `--subs file.srt` burns captions in one pass) |
@@ -133,7 +133,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sprite` | Seek-preview sprite sheets + WebVTT (`--every` secs, `--width` tile px, `--cols`x`--rows` per sheet, `--vtt` path, `--from`/`--to` bounds -- `end` ok) — hover thumbnails for video players |
 | `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window, comma list); `--formant` keeps the voice timbre (librubberband) |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
-| `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51|pan|widen|split|ambience|mid|side` (stereo→`_L/_R.wav` stems, M/S extract); `--pan -1..1` pan |
+| `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51|pan|widen|split|ambience|mid|side|haas` (stereo→`_L/_R.wav` stems, M/S extract, haas widening); `--pan -1..1` pan |
 | `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--tilt` warm↔bright; `end` ok, comma list = several windows |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window); `end` ok, comma list = several windows |
 | `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio/saturate/excite/bass/muffled/crystal (`--kind`, `--strength`, `--at`/`--dur`); `end` ok, comma list = several windows |
@@ -143,7 +143,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `subs` | Extract (`--stream`, `--all`)/burn/mux subtitles (`--shift` (±N; `--from`/`--to` bounds it)/`--merge`/`--rate`, burn style + `--outline`/`--box` plate/`--align`/`--margin` px/`--from`/`--to` window (`end`/`end-N` ok), `--safe`); `--convert` .srt↔.vtt; `--case` cue text; `--burn-si N` burns embedded track N; `--encoding gbk` legacy charsets |
 | `thumb` | One-frame cover grab (`--at` — `end` = last frame, comma `--at` = one still per time / `--frame`, `--count` N stills (`--from`/`--to` bounds the spread, `end`/`end-N` ok), `--width`) → jpg/png/webp; `--scenes` stills at cuts |
 | `solid` | Solid-color clip card (`--color`, `--size`, `--dur`, `--fps` rate; silent stereo optional) (`--gradient` animated, `--noise` grain) , `--text` end-card text (`--wrap` folds, `--align` lines) |
-| `replace` | Swap the audio track (`--mix`, `--duck`, `--fade`, `--loop` short beds, `--at`/`--dur` window — comma `--at` several) |
+| `replace` | Swap the audio track (`--mix`, `--duck`, `--fade`, `--loop` short beds, `--at`/`--dur` window — comma `--at` several) — or `--video` to swap the picture and keep the audio |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (`--merge N` merges keeps closer than N s, `--by-scene` splits keeps at scene changes) (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
 | `cover` | Cover still (`--at` — `end` = last frame, comma = one per beat, `--blur` ambient pad, `--size` canvas — default 1080x1920) |

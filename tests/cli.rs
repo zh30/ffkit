@@ -20676,3 +20676,135 @@ fn dnxhd_mid_side_warm_air() {
         "air should lift the top shelf: {v}"
     );
 }
+
+#[test]
+fn replace_video_haas_denoise_engine() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+
+    // replace --video: keep the source audio, show the new clip's frames —
+    // a 0.4s picture loops across the source and the audio stays the master
+    let newpic = dir.path().join("newpic.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("testsrc=size=640x360:rate=25")
+        .args(["-t", "0.4"])
+        .arg(&newpic)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let out = dir.path().join("swapped.mp4");
+    let v = run_json(&[
+        "replace",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--video",
+        newpic.to_str().unwrap(),
+        "--loop",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["duration"], 1.0, "{v}");
+    assert_eq!(v["probe"]["has_audio"], true, "{v}");
+    // without --loop a shorter picture is rejected
+    let out2 = dir.path().join("swapped2.mp4");
+    let v = run_json(&[
+        "replace",
+        src.to_str().unwrap(),
+        "-o",
+        out2.to_str().unwrap(),
+        "--video",
+        newpic.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert_eq!(v["error"]["kind"], "input", "{v}");
+
+    // haas: a correlated (dual-mono) stereo input gains L/R difference
+    let corr = dir.path().join("corr.m4a");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("sine=frequency=440:duration=1")
+        .args(["-f", "lavfi", "-i"])
+        .arg("sine=frequency=440:duration=1")
+        .args([
+            "-filter_complex",
+            "[0:a][1:a]join=inputs=2:channel_layout=stereo",
+        ])
+        .arg(&corr)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let diff_level = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-af", "pan=mono|c0=c0-c1,volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find(|l| l.contains("mean_volume"))
+            .and_then(|l| l.split("mean_volume:").nth(1))
+            .and_then(|s| s.trim().trim_end_matches(" dB").parse().ok())
+            .unwrap_or(-91.0)
+    };
+    let haas = dir.path().join("haas.m4a");
+    let v = run_json(&[
+        "channel",
+        corr.to_str().unwrap(),
+        "-o",
+        haas.to_str().unwrap(),
+        "--mode",
+        "haas",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        diff_level(&haas) > diff_level(&corr) + 20.0,
+        "haas should decorrelate a correlated stereo pair: {v}"
+    );
+
+    // denoise --engine fftdn: explicit spectral engine cuts broadband noise
+    let noise = dir.path().join("noise.m4a");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("anoisesrc=color=pink:amplitude=0.3:duration=1")
+        .arg(&noise)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let level = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-af", "volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find(|l| l.contains("mean_volume"))
+            .and_then(|l| l.split("mean_volume:").nth(1))
+            .and_then(|s| s.trim().trim_end_matches(" dB").parse().ok())
+            .unwrap_or(-91.0)
+    };
+    let dn = dir.path().join("dn.m4a");
+    let v = run_json(&[
+        "denoise",
+        noise.to_str().unwrap(),
+        "-o",
+        dn.to_str().unwrap(),
+        "--engine",
+        "fftdn",
+        "--strength",
+        "1",
+        "--highpass",
+        "0",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        level(&dn) < level(&noise) - 1.0,
+        "fftdn should cut broadband noise: {v}"
+    );
+}

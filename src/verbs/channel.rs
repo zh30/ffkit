@@ -88,6 +88,15 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
         // flips on the right ear, which is what makes side ambience-only
         ChannelMode::Mid => "pan=stereo|FL<0.5*FL+0.5*FR|FR<0.5*FL+0.5*FR".to_string(),
         ChannelMode::Side => "pan=stereo|FL<0.5*FL-0.5*FR|FR<-0.5*FL+0.5*FR".to_string(),
+        // Haas effect: micro L/R delays + polarity flip — mono-safe width.
+        // --amount scales the side gain 0.5..3.0 (default 1.75)
+        ChannelMode::Haas => {
+            let a = args.amount.unwrap_or(0.5);
+            if !(0.0..=1.0).contains(&a) {
+                return Err(Error::input("--amount must be 0..1"));
+            }
+            format!("haas=side_gain={:.2}", 0.5 + 2.5 * a)
+        }
         ChannelMode::Split => unreachable!("split returns early"),
     };
     let mut argv = ffmpeg_base(g.progress);

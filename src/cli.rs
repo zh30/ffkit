@@ -751,12 +751,27 @@ pub struct DenoiseArgs {
     /// Also run hqdn3d on the picture (grainy footage)
     #[arg(long)]
     pub video: bool,
+    /// Engine: auto (wavelet if built, else fft), wavel (afwtdn), fftdn
+    /// (afftdn spectral). Auto picks the strongest available.
+    #[arg(long, value_enum, default_value_t = DenoiseEngine::Auto)]
+    pub engine: DenoiseEngine,
     /// Denoise only inside this window — comma list for several (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+}
+
+#[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
+pub enum DenoiseEngine {
+    /// afwtdn wavelet when built (ffmpeg ≥5.1), else afftdn nf=-20
+    #[default]
+    Auto,
+    /// afwtdn wavelet — strongest broadband cut (errors when not built)
+    Wavel,
+    /// afftdn spectral — works on every ffmpeg build
+    Fftdn,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2067,8 +2082,12 @@ pub struct ReplaceArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Replacement audio file (lav mic, clean voice, music)
+    #[arg(long, required_unless_present = "video")]
+    pub audio: Option<PathBuf>,
+    /// Swap the PICTURE instead: keep this video's audio, show this file's
+    /// frames (music video / retake — audio is the master clock)
     #[arg(long)]
-    pub audio: PathBuf,
+    pub video: Option<PathBuf>,
     /// Shift the new audio in seconds: positive delays, negative trims its start
     #[arg(long, allow_hyphen_values = true, default_value_t = 0.0)]
     pub audio_offset: f64,
@@ -2682,6 +2701,9 @@ pub enum ChannelMode {
     Mid,
     /// Keep only the side (difference) channel — room tone / ambience capture
     Side,
+    /// Haas-effect stereo widening (short L/R delays) — mono-safe width;
+    /// --amount 0..1 scales side gain 0.5..3.0
+    Haas,
 }
 
 #[derive(clap::Args, Debug)]

@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.214.0
+version: 0.215.0
 
 
 
@@ -58,7 +58,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | audiogram of just the best bit(s) | `audiogram` (`--from/--to` one segment; `--at a,b --dur 30` = one clip per point → `stem_N.mp4`) |
 | cover still | `cover` (`--blur` ambient pad, `--size` canvas, comma `--at` = one cover per time) |
 
-| speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--at`/`--dur` windowed swap (comma `--at` lays the new track across several windows), `--mix` keep the original under it), `loudnorm` (`--target` platform preset), `volume` |
+| speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--at`/`--dur` windowed swap (comma `--at` lays the new track across several windows), `--mix` keep the original under it, `--video` swap the picture and keep the audio), `loudnorm` (`--target` platform preset), `volume` |
 | grainy low-light footage | `vdenoise` (`--strength`, nlmeans — slow; `--at`/`--dur` windows it) |
 | waveform PNG of audio | `waveform` (`--size`, `--color`, `--scale`, `--bg` card, `--at/--dur`, comma `--at` = one PNG per window, `--vertical` = wave runs top→bottom) — podcast art, thumbnails |
 | audio spectrogram PNG | `spectrogram` (`--size`, `--color`, `--separate` per-channel, `--at/--dur`, comma `--at` = one PNG per window) — inspect hum/noise before cleanup |
@@ -159,7 +159,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | find black/frozen stretches (QC) | `scan` (JSON extras; no -o) |
 | beauty/skin smoothing | `smooth` (`--strength`, `--at`/`--dur` window) |
 | reframe 360/equirect footage | `v360` (`--yaw`/`--pitch`/`--fov`, `--in` projection, `--size`) |
-| noisy clip, pick denoiser | `vdenoise --engine nlmeans\|hqdn3d\|atadenoise` |
+| noisy clip, pick denoiser | `vdenoise --engine nlmeans\|hqdn3d\|atadenoise`, `denoise --engine auto\|wavel\|fftdn` |
 | broadcast range tag | `transcode --range limited` |
 | halo-free sharpening | `sharpen --engine cas` (`--amount`) |
 | auto-contrast flat footage | `equalize` (`--strength`/window) |
@@ -247,7 +247,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | draft/tiled watermark | `overlay --tile N` (diagonal watermark pass) |
 | shift subtitle timing | `caption --shift SEC` |
 | gif tuning | `transcode --preset gif --fps --width`, `extract --gif --bounce` (palindrome loop), `extract --colors` palette size |
-| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `split` → `_L/_R.wav` host/guest stems, `mid`/`side` M/S extract) |
+| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `split` → `_L/_R.wav` host/guest stems, `mid`/`side` M/S extract, `haas` stereo widening) |
 | loop to a length | `loop --until SEC` |
 | text draft watermark | `title --tile N` |
 | audio EQ polish | `eq` (`--bass`/`--treble`/`--presence` dB) |

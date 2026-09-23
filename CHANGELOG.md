@@ -1,6 +1,13 @@
 # Changelog
 
 ## [Unreleased]
+
+## [0.215.0] — RSI round 188
+
+- `replace --video` — the converse swap: keep this video's audio, show another file's frames (retake/音乐换画面). The audio is the master clock; a shorter picture needs `--loop`, a longer one is trimmed.
+- `channel --mode haas` — Haas-effect stereo widening (micro L/R delays + polarity flip, mono-safe); `--amount` scales side gain 0.5..3.0.
+- `denoise --engine` — explicit denoiser pick: `auto` (afwtdn if built, else afftdn — old default), `wavel` (errors when afwtdn isn't in this build), `fftdn` (works everywhere).
+
 ## [0.214.0] — RSI round 187
 
 - `transcode --preset dnxhd` — DNxHR HQ + PCM in .mov, the Avid/Resolve-side edit handoff (ProRes covers the Apple side).

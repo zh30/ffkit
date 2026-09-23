@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde_json::json;
 
@@ -17,8 +17,15 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "replace")?;
-    paths::ensure_input(&args.audio)?;
-    let audio_probe = engine::probe_or_err(&args.audio, g)?;
+    if let Some(video) = &args.video {
+        return replace_video(&args, g, &probe, video.clone());
+    }
+    let audio = args
+        .audio
+        .as_ref()
+        .ok_or_else(|| Error::input("replace needs --audio or --video"))?;
+    paths::ensure_input(audio)?;
+    let audio_probe = engine::probe_or_err(audio, g)?;
     if !audio_probe.has_audio {
         return Err(Error::input("replace: --audio file has no audio stream"));
     }
@@ -34,7 +41,7 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-stream_loop", "-1"]);
     }
     argv.extend(["-i"]);
-    argv.push(&args.audio);
+    argv.push(audio);
 
     if args.mix != 0.0 && !(0.0..=1.0).contains(&args.mix) {
         return Err(Error::input("--mix must be a linear gain 0..=1"));
@@ -175,10 +182,10 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
     ]);
     argv.push(&args.output);
 
-    let inputs: Vec<&Path> = vec![&args.input, &args.audio];
+    let inputs: Vec<&Path> = vec![&args.input, audio];
     let mut c = engine::write_job("replace", &inputs, &args.output, vec![argv], g)?;
     c = c.with_extra(json!({
-        "audio": args.audio,
+        "audio": audio,
         "audio_offset": args.audio_offset,
         "window": if windows.is_empty() {
             json!(null)
@@ -193,4 +200,76 @@ pub fn run(args: ReplaceArgs, g: &Globals) -> Result<Contract, Error> {
         "loop": args.loop_track,
     }));
     Ok(c)
+}
+
+/// The converse swap: keep this video's audio, show another file's frames.
+/// The audio is the master clock — output length follows the input. A
+/// shorter replacement picture needs `--loop`; a longer one is trimmed.
+fn replace_video(
+    args: &ReplaceArgs,
+    g: &Globals,
+    probe: &crate::probe::Probe,
+    video: PathBuf,
+) -> Result<Contract, Error> {
+    if args.mix != 0.0
+        || args.duck
+        || args.at.is_some()
+        || args.dur.is_some()
+        || args.fade != 0.0
+        || args.audio_offset != 0.0
+    {
+        return Err(Error::input(
+            "replace --video: --audio-offset/--fade/--mix/--duck/--at/--dur are audio-swap options",
+        ));
+    }
+    paths::ensure_input(&video)?;
+    let vp = engine::probe_or_err(&video, g)?;
+    engine::need_video(&vp, "replace --video")?;
+    if !args.loop_track && vp.duration < probe.duration - 0.1 {
+        return Err(Error::input(
+            "replace --video: the new picture is shorter than the audio — pass --loop to repeat it",
+        ));
+    }
+
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    if args.loop_track {
+        argv.extend(["-stream_loop", "-1"]);
+    }
+    argv.extend(["-i"]);
+    argv.push(&video);
+    argv.extend(["-map", "1:v"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a"]);
+    }
+    argv.extend([
+        "-t",
+        &format!("{:.3}", probe.duration),
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        "18",
+        "-pix_fmt",
+        "yuv420p",
+    ]);
+    if probe.has_audio {
+        argv.extend(["-c:a", "copy"]);
+    }
+    argv.push(&args.output);
+
+    let c = engine::write_job(
+        "replace",
+        &[&args.input, &video],
+        &args.output,
+        vec![argv],
+        g,
+    )?;
+    Ok(c.with_extra(json!({
+        "video": video,
+        "audio_copy": probe.has_audio,
+        "loop": args.loop_track,
+    })))
 }

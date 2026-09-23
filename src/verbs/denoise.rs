@@ -25,10 +25,22 @@ pub fn run(args: DenoiseArgs, g: &Globals) -> Result<Contract, Error> {
     // stronger on paper but segfaults in this build. afwtdn only exists in
     // ffmpeg ≥5.1 — older builds fall back to afftdn with the noise floor
     // raised (nf=-20, ~12 dB measured).
-    let mut af = if doctor::list_filters()
+    let has_wavel = doctor::list_filters()
         .map(|f| f.contains("afwtdn"))
-        .unwrap_or(false)
-    {
+        .unwrap_or(false);
+    let use_wavel = match args.engine {
+        crate::cli::DenoiseEngine::Auto => has_wavel,
+        crate::cli::DenoiseEngine::Wavel => {
+            if !has_wavel {
+                return Err(Error::input(
+                    "denoise --engine wavel needs afwtdn (ffmpeg ≥5.1; this build lacks it)",
+                ));
+            }
+            true
+        }
+        crate::cli::DenoiseEngine::Fftdn => false,
+    };
+    let mut af = if use_wavel {
         let sigma = 0.02 + 0.06 * args.strength;
         format!("afwtdn=sigma={sigma:.3}")
     } else {

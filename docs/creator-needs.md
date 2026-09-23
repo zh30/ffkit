@@ -793,3 +793,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `channel --mode mid|side` — M/S extraction via pan matrix: `mid` keeps the correlated center (−21dB kept on dual-mono), `side` keeps the difference (cancels to −91dB on correlated input).
 - `eq --preset warm|air` — warm (+3dB lows, −2 presence, −1.5 treble) and air (+6dB top shelf, +1 presence).
 - Note: `anlmdn` engine skipped — it segfaults on the brew ffmpeg 4.4 build (noted in denoise.rs).
+
+## Shipped — RSI round 188 (0.215.0)
+
+- `replace --video` — keep this video's audio, show another file's frames (retake / music-video recut). Audio is the master clock; short picture needs `--loop`, long is trimmed. Re-encodes to H.264 so any source container works.
+- `channel --mode haas` — Haas-effect widening: micro L/R delays + polarity flip. Mono-safe width (unlike extrastereo which cancels to mono). `--amount` scales side gain.
+- `denoise --engine` — deterministic pick: `auto` (afwtdn if built else afftdn), `wavel` (hard error if afwtdn missing — ffmpeg ≥5.1), `fftdn` (works everywhere). Trap note: anlmdn stays excluded — segfaults on brew ffmpeg 4.4.
