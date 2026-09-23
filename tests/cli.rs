@@ -16939,3 +16939,86 @@ fn delogo_regions_multi_box() {
     ]);
     assert_eq!(bad2["status"], "failed", "{bad2}");
 }
+
+#[test]
+fn pitch_formant_rubberband_and_transcode_abitrate() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("formant.m4a");
+    let v = run_json(&[
+        "pitch",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--semitones",
+        "-3",
+        "--formant",
+    ]);
+    // rubberband is an optional build — when missing the verb must fail clean
+    if v["status"] == "ok" {
+        let cmd = v["commands"][0]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|a| a.as_str().unwrap_or(""))
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(
+            cmd.contains("rubberband=pitch=") && cmd.contains("formant=preserved"),
+            "{cmd}"
+        );
+        let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+        assert!((d - 1.0).abs() < 0.3, "formant keeps duration ~1s, got {d}");
+    } else {
+        assert_eq!(v["status"], "failed", "{v}");
+        assert!(
+            v["error"]["message"]
+                .as_str()
+                .unwrap_or("")
+                .contains("librubberband"),
+            "{v}"
+        );
+    }
+
+    let mp3 = dir.path().join("s64.mp3");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        mp3.to_str().unwrap(),
+        "--preset",
+        "mp3",
+        "--abitrate",
+        "64k",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmd = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a.as_str().unwrap_or(""))
+        .collect::<Vec<_>>();
+    let i = cmd.iter().position(|a| *a == "-b:a").unwrap();
+    assert_eq!(cmd[i + 1], "64k");
+
+    // default still applies when the flag is absent
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("sdef.mp3").to_str().unwrap(),
+        "--preset",
+        "mp3",
+    ]);
+    let cmd = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a.as_str().unwrap_or(""))
+        .collect::<Vec<_>>();
+    let i = cmd.iter().position(|a| *a == "-b:a").unwrap();
+    assert_eq!(cmd[i + 1], "192k");
+}

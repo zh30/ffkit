@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.185.0] — 2026-09-22
+
+### Added
+- `pitch --formant` — timbre-preserving pitch shift via librubberband (natural voice, not chipmunk).
+- `transcode --abitrate RATE` — audio bitrate on every encode path (voice posts → 64k frees video bitrate).
+
 ## [0.183.0] — 2026-09-22
 
 ### Added
