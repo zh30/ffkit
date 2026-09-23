@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- `tonemap` — HDR → SDR: zscale to linear light, tonemap curve (`--algo hable|reinhard|gamma|clip|linear`, `--peak` nits), back to bt709. PQ/HLG phone footage for SDR platforms
+- `telecine` — pull 24p film up to interlaced NTSC fields (`--pattern 23` 3:2 pulldown, `--field`) — inverse of `deinterlace --engine fieldmatch`
+- `premult` — straight ↔ premultiplied alpha in place (`--mode premultiply|unpremultiply`); alpha-safe prores4444 output for AE/Motion handoffs
+
+### Added
 - `dedust` — remove dust specks / hot pixels by morphology (luma erosion/dilation); `--size` 1-4, `--dark` for dark specks, `--at`/`--dur` window
 - `deinterlace --engine fieldmatch` — inverse telecine: fieldmatch+decimate reconstructs 23.976p film frames from 29.97i transfers
 - `vdenoise --engine edge` — nlmeans masked to flat areas via edgedetect+negate+maskedmerge; denoise without melting detail

@@ -198,6 +198,12 @@ pub enum Cmd {
     Art(ArtArgs),
     /// Remove dust specks / hot pixels (morphology, no blur of the rest)
     Dedust(DedustArgs),
+    /// HDR → SDR tone mapping (zscale linear + tonemap + back to bt709)
+    Tonemap(TonemapArgs),
+    /// Telecine — pull 24p film content up to interlaced NTSC fields
+    Telecine(TelecineArgs),
+    /// Straight ↔ premultiplied alpha conversion for graphics handoffs
+    Premult(PremultArgs),
     /// Stretch edge pixels to fill border strips (chroma-key rims, leftover letterbox)
     Extend(ExtendArgs),
     /// Even out voice dynamic range (compressor)
@@ -3290,6 +3296,59 @@ pub struct ExtendArgs {
     /// Fill mode: smear (default edge-stretch), mirror, fixed, reflect, wrap, fade
     #[arg(long, value_enum, default_value_t = ExtendMode::Smear)]
     pub mode: ExtendMode,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct TonemapArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Tone curve: hable (default filmic S-curve), reinhard, gamma, clip, linear
+    #[arg(long, value_enum, default_value_t = TonemapAlgo::Hable)]
+    pub algo: TonemapAlgo,
+    /// HDR peak in nits the curve maps from (default 100 = SDR-normalized)
+    #[arg(long, default_value_t = 100.0)]
+    pub peak: f64,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum TonemapAlgo {
+    #[default]
+    Hable,
+    Reinhard,
+    Gamma,
+    Clip,
+    Linear,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct TelecineArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Field pattern string — "23" = 3:2 NTSC pulldown (default)
+    #[arg(long, default_value = "23")]
+    pub pattern: String,
+    /// First field emitted
+    #[arg(long, value_enum, default_value_t = FieldParity::Tff)]
+    pub field: FieldParity,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct PremultArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Straight → premultiplied, or back with unpremultiply
+    #[arg(long, value_enum, default_value_t = PremultMode::Premultiply)]
+    pub mode: PremultMode,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum PremultMode {
+    #[default]
+    Premultiply,
+    Unpremultiply,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]

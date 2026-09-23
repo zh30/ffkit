@@ -22572,3 +22572,107 @@ fn dedust_extend_vdenoise_edge_fieldmatch() {
         assert!(fps < 25.0, "decimate should drop dup frames: {rate}");
     }
 }
+
+#[test]
+fn tonemap_telecine_premult() {
+    if !has_ffmpeg() || !has_filter("tonemap") || !has_filter("zscale") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // PQ-tagged HDR fixture (bt2020/smpte2084, 10-bit)
+    let hdr = dir.path().join("hdr.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=rate=25",
+            "-frames:v",
+            "5",
+            "-color_primaries",
+            "bt2020",
+            "-color_trc",
+            "smpte2084",
+            "-colorspace",
+            "bt2020nc",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p10le",
+            "-y",
+        ])
+        .arg(&hdr)
+        .status()
+        .unwrap();
+    assert!(st.success());
+
+    // tonemap → SDR bt709 yuv420p
+    let sdr = dir.path().join("sdr.mp4");
+    let v = run_json(&[
+        "tonemap",
+        hdr.to_str().unwrap(),
+        "-o",
+        sdr.to_str().unwrap(),
+    ]);
+    assert_eq!(v["extra"]["algorithm"], "hable");
+    let out = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "stream=pix_fmt,color_transfer",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&sdr)
+        .output()
+        .unwrap();
+    let line = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        line.contains("yuv420p") && line.contains("bt709"),
+        "sdr out: {line}"
+    );
+
+    // telecine lifts fps (fields generated)
+    if has_filter("telecine") {
+        let nt = dir.path().join("ntsc.mp4");
+        run_json(&[
+            "telecine",
+            sdr.to_str().unwrap(),
+            "-o",
+            nt.to_str().unwrap(),
+        ]);
+        let out = Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-select_streams",
+                "v",
+                "-show_entries",
+                "stream=avg_frame_rate",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(&nt)
+            .output()
+            .unwrap();
+        let rate = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        let mut it = rate.split('/');
+        let num: f64 = it.next().unwrap().parse().unwrap();
+        let den: f64 = it.next().unwrap_or("1").parse().unwrap();
+        assert!(num / den > 25.0, "telecine should lift fps: {rate}");
+    }
+
+    // premult → alpha-safe prores4444 output
+    if has_filter("premultiply") {
+        let pr = dir.path().join("pr.mov");
+        let v = run_json(&["premult", sdr.to_str().unwrap(), "-o", pr.to_str().unwrap()]);
+        assert_eq!(v["extra"]["mode"], "premultiply=inplace=1");
+        assert!(pr.exists());
+    }
+}

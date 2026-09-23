@@ -226,3 +226,5 @@ an atempo'd whole-file render would shift the window.
 - `erosion`/`dilation` thresholds are per-plane (`threshold0..3`), not a bare `threshold` — set threshold1/2/3=0 to leave chroma untouched.
 - `maskedmerge` graph pads are consumed once: split the source into 3 branches (orig → merge base, orig → denoise leg, orig → edgedetect mask leg).
 - `fieldmatch`+`decimate` drops duplicate frames so output fps falls (25→20 on uniform testsrc, 29.97→23.976 on real telecine) — assert fps < input in tests, not a fixed rate.
+
+- `asdr` does not exist on ffmpeg 4.4. `tonemap` needs `format=gbrpf32le` before it; the zscale pre/post legs only work when input carries HDR tags (PQ/HLG) — SDR input with explicit tin/pin fails ("Generic error in an external library").

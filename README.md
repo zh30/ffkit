@@ -240,6 +240,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order, `--engine` yadif/bwdif/estdif/kerndeint) |
 | `dedust` | Remove dust specks / hot pixels: `--size` 1-4, bright specks by default, `--dark` for dark ones; morphology (erosion/dilation), not a blur | `--at`/`--dur` |
 | `extend` | Stretch edge pixels to fill border strips: `--left/--right/--top/--bottom` px, `--mode smear|mirror|fixed|reflect|wrap|fade` | - |
+| `tonemap` | HDR → SDR: zscale → linear light → tonemap curve → bt709 (`--algo hable|reinhard|gamma|clip|linear`, `--peak` nits) | - |
+| `telecine` | Pull 24p film up to interlaced NTSC fields (`--pattern 23` 3:2 pulldown, `--field tff|bff`) — inverse of fieldmatch | - |
+| `premult` | Straight ↔ premultiplied alpha in place (`--mode premultiply|unpremultiply`); writes alpha-safe prores4444 | - |
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
 | `frames` | Still dump every `--every`, `--at` seconds (`end` = last frame), `--count` even-spread → `stem_001.png…` (`--width`) |
