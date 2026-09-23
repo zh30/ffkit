@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.172.0] — 2026-09-22
+
+### Added
+- `extract`/`cover --at` comma lists — one still/cover per timepoint (`<stem>_N.<ext>`); cover keeps the same canvas/`--blur`/`--size` per output, `extra.files` lists them.
+
 ## [0.171.0] — 2026-09-22
 
 ### Added
