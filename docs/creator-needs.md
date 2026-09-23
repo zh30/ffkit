@@ -240,8 +240,6 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 ## Shipped this run (round 148)
 - `hls --poster-at` — poster frame time for the player card (sec or `end`, clamped inside the stream); errors without `--poster`. `deliver --crf` — H.264 quality knob on platform delivery (default 20).
 
->>>>>>> origin/devin/rsi-round148
-
 ## Shipped this run (round 146)
 - `audiogram --at a,b,... --dur N` — the podcast→clips play in one call: each point starts an N-second audiogram written as `<stem>_N.mp4` (`extra.files`); single `--at`/`--from` + `--dur` bounds one clip. Rendering refactored to `render_clip(from, to, out)` per window.
 

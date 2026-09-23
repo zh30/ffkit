@@ -8,8 +8,6 @@
 - `hls --poster-at` — pick the poster.jpg frame time (sec or `end`, clamped inside the stream); errors without `--poster`.
 - `deliver --crf` — H.264 quality level for platform delivery (default 20).
 
->>>>>>> origin/devin/rsi-round148
-
 ## [0.174.0] — 2026-09-22
 
 ### Added
