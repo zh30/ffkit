@@ -682,3 +682,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `censor --mode solid` — black-bar redact look (drawbox=t=fill per region; combines with --shape circle for black ellipses).
 - `caption --margin N` — pixel offset from the chosen edge (overrides the safe-zone percent placement).
 - `grade --preset teal` — orange-and-teal (colorbalance bs/bm only; 4.4 lacks ms). `grade --preset noir` — true B&W (hue=s=0 appended at chain tail so default eq sliders can't re-add saturation).
+
+## Shipped this run (round 165)
+
+- `waveform --vertical` — `transpose=1` on the final output stage (wave runs top→bottom for reels/vertical art; PNG comes out h×w). Works with `--bg` (transpose lands on the composited card) and comma `--at` (each window transposed).
+- `broll --opacity` — `format=rgba,colorchannelmixer=aa=N` on the insert branch before the overlay (ghost b-roll; works in PiP and full-frame modes).
+- `title --margin N` — pixel corner insets replacing the 6%/10% defaults (`W-w-N`/`H-h-N`); handy for platform safe-zone margins.

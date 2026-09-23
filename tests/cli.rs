@@ -17801,3 +17801,134 @@ fn censor_solid_caption_margin_grade_presets() {
         "hue=s=0 should be last in {vf}"
     );
 }
+
+#[test]
+fn waveform_vertical_broll_opacity_title_margin() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("tone.wav");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1:sample_rate=44100",
+        ])
+        .arg(&wav)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let blk = dir.path().join("blk.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=black:size=320x180:duration=2:rate=24",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=2",
+            "-shortest",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&blk)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    // --vertical transposes the wave PNG (taller than wide)
+    let wv = dir.path().join("wv.png");
+    let v = run_json(&[
+        "waveform",
+        wav.to_str().unwrap(),
+        "-o",
+        wv.to_str().unwrap(),
+        "--vertical",
+        "--size",
+        "640x360",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let tr = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter())
+        .any(|a| a.as_str().unwrap_or("").contains("transpose=1"));
+    assert!(tr, "transpose missing: {}", v["commands"]);
+    let dim = Command::new("ffprobe")
+        .args([
+            "-v",
+            "quiet",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&wv)
+        .output()
+        .unwrap();
+    let wh = String::from_utf8_lossy(&dim.stdout);
+    assert_eq!(wh.trim(), "360,640", "vertical wave should be h×w: {wh}");
+    // broll --opacity lands colorchannelmixer on the insert branch
+    let br = dir.path().join("br.mp4");
+    let v = run_json(&[
+        "broll",
+        blk.to_str().unwrap(),
+        "-o",
+        br.to_str().unwrap(),
+        "--insert",
+        blk.to_str().unwrap(),
+        "--at",
+        "1",
+        "--duration",
+        "0.5",
+        "--opacity",
+        "50",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let aa = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter())
+        .any(|a| {
+            a.as_str()
+                .unwrap_or("")
+                .contains("colorchannelmixer=aa=0.500")
+        });
+    assert!(aa, "opacity missing on insert branch: {}", v["commands"]);
+    // title --margin pins corner insets in pixels
+    let ti = dir.path().join("ti.mp4");
+    let v = run_json(&[
+        "title",
+        blk.to_str().unwrap(),
+        "-o",
+        ti.to_str().unwrap(),
+        "--text",
+        "hi",
+        "--position",
+        "top-right",
+        "--margin",
+        "12",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let mg = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter())
+        .any(|a| a.as_str().unwrap_or("").contains("W-w-12"));
+    assert!(mg, "margin inset missing: {}", v["commands"]);
+}
