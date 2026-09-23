@@ -25,6 +25,10 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
         paths::ensure_input(img)?;
     }
     let from = match &args.from {
+        Some(s) if s.trim().eq_ignore_ascii_case("end") => probe.duration,
+        Some(s) if s.trim().to_ascii_lowercase().starts_with("end-") => {
+            probe.duration - crate::time::parse_time(&s.trim()[4..])?
+        }
         Some(s) => crate::time::parse_time(s)?,
         None => 0.0,
     };

@@ -15342,3 +15342,48 @@ fn thumb_from_end_and_multicam_at_end() {
         .join(" ");
     assert!(cmds.contains("0.940"), "{cmds}");
 }
+
+#[test]
+fn audiogram_and_caption_from_end_bounds() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("ag.mp4").to_str().unwrap(),
+        "--from",
+        "end-0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let srt = dir.path().join("c.srt");
+    std::fs::write(&srt, "1\n00:00:00,800 --> 00:00:00,950\nTAIL\n").unwrap();
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "-o",
+        dir.path().join("cap.mp4").to_str().unwrap(),
+        "--from",
+        "end-0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let v = run_json(&[
+        "caption",
+        src.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "-o",
+        dir.path().join("cap2.mp4").to_str().unwrap(),
+        "--from",
+        "0.7",
+        "--to",
+        "end",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["cues"], 1, "{v}");
+}

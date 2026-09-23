@@ -64,8 +64,15 @@ fn burn_overlay(
     let raw = std::fs::read_to_string(&args.srt)?;
     let mut cues = srt::parse_srt(&raw)?;
     if let Some(f) = &args.from {
-        let from = crate::time::parse_time(f)?;
+        let from = if f.trim().eq_ignore_ascii_case("end") {
+            probe.duration
+        } else if f.trim().to_ascii_lowercase().starts_with("end-") {
+            probe.duration - crate::time::parse_time(&f.trim()[4..])?
+        } else {
+            crate::time::parse_time(f)?
+        };
         let to = match &args.to {
+            Some(t) if t.trim().eq_ignore_ascii_case("end") => probe.duration,
             Some(t) => crate::time::parse_time(t)?,
             None => f64::MAX,
         };

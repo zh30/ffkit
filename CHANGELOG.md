@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.151.0] — 2026-09-22
+
+### Added
+- `audiogram --from end` / `end-N` — tail-anchored segment clip.
+- `caption --from end` / `end-N`, `--to end` — tail-anchored cue window.
+
 ## [0.150.0] — 2026-09-22
 
 ### Added
