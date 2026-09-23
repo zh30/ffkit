@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::cli::{DiffArgs, Globals};
+use crate::cli::{DiffArgs, DiffMode, Globals};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -12,16 +12,30 @@ pub fn run(args: DiffArgs, g: &Globals) -> Result<Contract, Error> {
     engine::need_video(&p2, "diff")?;
     let dur = p1.duration.min(p2.duration.max(0.0));
 
+    let mode = args.mode.unwrap_or(DiffMode::Blend);
     // amplified difference: |a-b| gamma-boosted for readability; a scaled to b's spec
-    let fc = if args.side {
-        "[0:v][1:v]scale2ref[a][b];[b]split[b1][b2];\
-         [b1][a]blend=all_mode=difference,eq=brightness=0.1:gamma=1.5[d];\
-         [b2][d]hstack[v]"
-            .to_string()
-    } else {
-        "[0:v][1:v]scale2ref[a][b];\
-         [b][a]blend=all_mode=difference,eq=brightness=0.1:gamma=1.5[v]"
-            .to_string()
+    let fc = match mode {
+        DiffMode::Mask => {
+            let t = args.threshold.unwrap_or(0.1);
+            if !(0.0..=1.0).contains(&t) {
+                return Err(Error::input("--threshold must be 0..=1"));
+            }
+            // maskedthreshold keeps only pixels whose |diff| beats the
+            // threshold — a binary-ish change mask for QC overlays
+            format!("[0:v][1:v]scale2ref[a][b];[b][a]maskedthreshold=threshold={t:.3}[v]")
+        }
+        DiffMode::Blend => {
+            if args.side {
+                "[0:v][1:v]scale2ref[a][b];[b]split[b1][b2];\
+                 [b1][a]blend=all_mode=difference,eq=brightness=0.1:gamma=1.5[d];\
+                 [b2][d]hstack[v]"
+                    .to_string()
+            } else {
+                "[0:v][1:v]scale2ref[a][b];\
+                 [b][a]blend=all_mode=difference,eq=brightness=0.1:gamma=1.5[v]"
+                    .to_string()
+            }
+        }
     };
 
     let mut argv = ffmpeg_base(g.progress);
@@ -37,5 +51,8 @@ pub fn run(args: DiffArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
 
     let c2 = engine::write_job("diff", &[&args.a, &args.b], &args.output, vec![argv], g)?;
-    Ok(c2.with_extra(json!({ "side": args.side })))
+    Ok(c2.with_extra(json!({
+        "side": args.side,
+        "mode": match mode { DiffMode::Blend => "blend", DiffMode::Mask => "mask" },
+    })))
 }

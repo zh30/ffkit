@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [0.251.0] — 2026-09-23
+
+### Added
+
+- `repair` — swap a stretch of bad/glitched frames for one clean frame
+  from a reference take (`freezeframes`): `--ref` the other take, `--at`/
+  `--dur` mark the damage, `--ref-at` picks the clean frame (seconds
+  mapped to frame indices per clip fps; verified frame-exact swap).
+- `diff --mode mask --threshold` — `maskedthreshold` change-mask view:
+  keeps only pixels whose |diff| beats the threshold (QC overlays, spot
+  the one corrupt region in a re-render).
+- `key --mode matte --mask` — `alphamerge`: an external grayscale matte's
+  luma becomes the alpha channel; encodes prores_ks `yuva444p10le` so the
+  channel survives to an editor (hand-drawn masks, roto handoffs).
+- `fx --kind contrast` — `acontrast` dynamics tilt: `--strength` >0.5
+  expands punch, <0.5 compresses toward level (measured: mean -21→-14 dB
+  at 0.8).
+- `scope --mode loud` — loudness-over-time corner tile via
+  `ebur128`+`adrawgraph` (momentary LUFS curve; dips = quiet stretches,
+  pinned top = ceiling drive).
+- `frames --untile CxR` — `untile` splits every frame into a COLSxROWS
+  tile sequence (contact-sheet/mosaic → per-tile stills).
+
 ## [0.250.0] — 2026-09-23
 
 ### Added

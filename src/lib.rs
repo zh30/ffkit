@@ -165,6 +165,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Declip(args) => verbs::declip::run(args, &g),
         Cmd::Deband(args) => verbs::deband::run(args, &g),
         Cmd::Dedup(args) => verbs::dedup::run(args, &g),
+        Cmd::Repair(args) => verbs::repair::run(args, &g),
         Cmd::Equalize(args) => verbs::equalize::run(args, &g),
         Cmd::Scan(args) => verbs::scan::run(args, &g),
         Cmd::Smooth(args) => verbs::smooth::run(args, &g),

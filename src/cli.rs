@@ -310,6 +310,8 @@ pub enum Cmd {
     Deband(DebandArgs),
     /// Drop near-duplicate frames (screen recordings, slide decks)
     Dedup(DedupArgs),
+    /// Swap bad/glitched frames for a frame from a reference take
+    Repair(RepairArgs),
     /// Auto-contrast for flat/washed footage (histeq)
     Equalize(EqualizeArgs),
     /// QC scan: report black/frozen stretches, writes no media
@@ -1224,6 +1226,9 @@ pub enum ScopeMode {
     /// drift — drawgraph luma-drift curve in the corner (exposure-ramp QC:
     /// flat line = constant exposure, slope = gradual ramp/flicker source)
     Drift,
+    /// loud — adrawgraph loudness-over-time curve (ebur128 momentary LUFS;
+    /// podcast/voice QC: dips = quiet stretches, flat-top = clipping drive)
+    Loud,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1640,6 +1645,26 @@ pub struct DedupArgs {
 }
 
 #[derive(clap::Args, Debug)]
+pub struct RepairArgs {
+    /// Clip with bad/glitched frames
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Reference take to borrow a clean frame from
+    #[arg(long = "ref")]
+    pub ref_file: PathBuf,
+    /// Start of the damaged stretch (seconds or mm:ss; 'end' = last frame)
+    #[arg(long)]
+    pub at: String,
+    /// Length of the damaged stretch in seconds (default: one frame)
+    #[arg(long)]
+    pub dur: Option<f64>,
+    /// Which frame of --ref to paste in (seconds; default: same as --at)
+    #[arg(long)]
+    pub ref_at: Option<String>,
+}
+
+#[derive(clap::Args, Debug)]
 pub struct IrisArgs {
     pub input: PathBuf,
     #[arg(short, long)]
@@ -1690,6 +1715,21 @@ pub struct DiffArgs {
     /// Show second clip beside the diff
     #[arg(long)]
     pub side: bool,
+    /// Diff mode: blend (amplified difference, default) | mask (only the
+    /// pixels that changed — maskedthreshold change mask)
+    #[arg(long, value_enum)]
+    pub mode: Option<DiffMode>,
+    /// Change threshold 0..1 for --mode mask (default 0.1)
+    #[arg(long)]
+    pub threshold: Option<f64>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum DiffMode {
+    /// Amplified difference view (blend=difference + gamma boost)
+    Blend,
+    /// Bare change mask: only pixels whose diff exceeds --threshold
+    Mask,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1720,6 +1760,9 @@ pub enum KeyMode {
     Color,
     /// Luma key — remove a brightness band around --threshold
     Luma,
+    /// External matte — copy --mask's luma into the alpha channel
+    /// (alphamerge; outputs prores 4444 with alpha)
+    Matte,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -2568,9 +2611,13 @@ pub struct KeyArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Background image or video (sized to the foreground canvas)
+    /// Background image or video (sized to the foreground canvas);
+    /// not needed for --mode matte
     #[arg(long)]
-    pub bg: PathBuf,
+    pub bg: Option<PathBuf>,
+    /// Grayscale matte clip for --mode matte (luma becomes the alpha)
+    #[arg(long)]
+    pub mask: Option<PathBuf>,
     /// Hex color to remove, e.g. 0x00ff00 or 00ff00
     #[arg(long, default_value = "0x00ff00")]
     pub color: String,
@@ -3835,6 +3882,10 @@ pub struct FramesArgs {
     /// N evenly-spaced stills across the clip (overrides --every)
     #[arg(long)]
     pub count: Option<u32>,
+    /// Split every frame into a COLSxROWS tile sequence instead —
+    /// breaks a contact-sheet/mosaic back into per-tile stills (untile)
+    #[arg(long)]
+    pub untile: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4914,6 +4965,9 @@ pub enum FxKind {
     /// strength sweeps the shift 50→2000Hz (not pitch-shift — harmonic
     /// relationships warp deliberately)
     Fshift,
+    /// contrast — acontrast dynamics tilt: strength >0.5 expands punch,
+    /// <0.5 compresses toward level
+    Contrast,
 }
 
 #[derive(clap::Args, Debug)]

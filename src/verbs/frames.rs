@@ -38,7 +38,31 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
             .join(format!("{stem}_%03d.{ext}"))
     };
 
-    let mut vf = format!("fps=1/{}", args.every);
+    if args.untile.is_some() && (!args.at.is_empty() || args.count.is_some()) {
+        return Err(Error::input(
+            "--untile splits every frame (no --at/--count)",
+        ));
+    }
+    let mut vf = match &args.untile {
+        Some(u) => {
+            let (c, r) = u
+                .split_once('x')
+                .ok_or_else(|| Error::input("--untile wants COLSxROWS (e.g. 4x3)"))?;
+            let cols: u32 = c
+                .parse()
+                .map_err(|_| Error::input("--untile wants COLSxROWS (e.g. 4x3)"))?;
+            let rows: u32 = r
+                .parse()
+                .map_err(|_| Error::input("--untile wants COLSxROWS (e.g. 4x3)"))?;
+            if !(1..=64).contains(&cols) || !(1..=64).contains(&rows) {
+                return Err(Error::input("--untile tiles must be 1..=64"));
+            }
+            // each source frame bursts into cols*rows tile frames — the way
+            // to break a contact sheet or mosaic clip back into stills
+            format!("untile=layout={cols}x{rows}")
+        }
+        None => format!("fps=1/{}", args.every),
+    };
     if !args.at.is_empty() {
         // --at: N seek+grab jobs, each its own output file
         let probe = engine::probe_or_err(&args.input, g)?;
@@ -171,6 +195,7 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
         .with_commands(commands)
         .with_extra(json!({
             "every": args.every,
+            "untile": args.untile,
             "count": parts.len(),
             "files": names,
         }));

@@ -120,7 +120,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `slideshow` | Still images → video montage (`--per` or `--dur` total runtime, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed + `--volume`, `--size` canvas, `--bg` letterbox) |
 | `speed` | Change playback speed (`--factor`, `--at/--dur` (comma list = several windows), `--ramp` FROM,TO); `end` ok |
 | `music` | Bed under speech with ducking (`--track`, `--at`/`--dur` window, `end` ok; comma `--at` = multi-entrance bed) |
-| `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`, `--mode luma` keys a luma band around `--threshold` for white-sky/dark-backdrop shots, `--at`/`--dur` window — comma list ok) |
+| `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`, `--mode luma` keys a luma band around `--threshold` for white-sky/dark-backdrop shots, `--at`/`--dur` window — comma list ok) | `--mode matte --mask` external grayscale matte → alpha (prores 4444) |
 | `grid` | Multi-up collage (`--layout`, `--audio` pick, `--labels`, `--gap`, `--bg` gutter color, `--fill` crop instead of letterbox, `--time` mm:ss stamp on every tile) |
 | `progress` | Progress bar on any edge, whole clip or a window (`--color`, `--height`, `--edge` bottom/top/left/right, `--at`, `--dur`, `--reverse` countdown-deplete, `--opacity` ghost) |
 | `freeze` | Hold a frame (`--at`, comma list freezes at several points, `--dur`, `--end`, `--ease`, `--reverse`, `--zoom` push-in) |
@@ -137,7 +137,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51|pan|widen|split|ambience|mid|side|haas|surround|base|bal|bands|sync|earwax` (stereo→`_L/_R.wav` stems, M/S extract, haas widening, stereo→5.1 upmix); `--pan -1..1` pan / `bal` rebalance lopsided stereo / `base` stereo base (-1 mono fold, +1 wide) | `bands --freqs 300,3000` → `<stem>_bandN.wav` frequency-band stems (acrossover) | `sync --side right --cm 34` delay one side by mic distance (two-mic comb-filter fix, compensationdelay) | `earwax` headphone-oriented stereo widening |
 | `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--curve` freehand F,G;F,G line (firequalizer), `--graphic` 18-band classic EQ, `--tilt` warm↔bright; `end` ok, comma list = several windows |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window); `end` ok, comma list = several windows. `--ir file.wav` = convolution reverb from impulse-response packs (cathedral/plate), `--tail` rings past the end |
-| `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio/saturate/excite/bass/muffled/crystal/sub/crossfeed/autopan (`--kind`, `--strength`, `--at`/`--dur`); `end` ok, comma list = several windows | `--kind ringmod` TRUE ring modulation (amultiply + sine carrier, `--strength` sweeps 25-500Hz) | `--kind crush` bitcrusher (bits+sample-rate destruction) | `--kind fshift` frequency shifter (metallic alien voice, 50→2000Hz) |
+| `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio/saturate/excite/bass/muffled/crystal/sub/crossfeed/autopan (`--kind`, `--strength`, `--at`/`--dur`); `end` ok, comma list = several windows | `--kind ringmod` TRUE ring modulation (amultiply + sine carrier, `--strength` sweeps 25-500Hz) | `--kind crush` bitcrusher (bits+sample-rate destruction) | `--kind fshift` frequency shifter (metallic alien voice, 50→2000Hz) | `--kind contrast` dynamics tilt (>0.5 punch, <0.5 level) |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip`, free `--angle` tilt, `--at`/`--dur` windowed tilt (comma list) |
 | `delogo` | Blend out a burned-in logo box: `--x --y --w --h` or `--regions x:y:w:h,...` for several spots; `--at`/`--dur` for a window, `--at end` the tail (`--soft` removelogo, `--shape circle` elliptical mask) | `--image mask.png` drawn-mask removal | `--find logo.png` auto-locates it (find_rect, first 15s) — no coordinates |
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
@@ -164,7 +164,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `glitch` | Datamosh-style glitch: `--strength` 0.5-20 drives RGB channel shift + temporal noise | `--engine planes` channel rotation | `--engine swapuv` chroma flip | `--engine stutter` frame jitter | `--engine pixels` block scatter | `--engine swaprect` quadrant swap | `--engine random` frame-order scramble |
 | `bars` | SMPTE test card: `--size`/`--dur`/`--hd`/`--tone` (1kHz bed), for QC slates and leader |
 | `scope --mode hist` | Rolling temporal histogram of luma — color/exposure drift QC over time |
-| `scope` | QC scope overlay: `--mode vector|wave` in a corner (`--position`, `--size` fraction), `--at` windows | `--mode mvs` MV overlay | `--mode data --x/--y` hex readout | `--mode qp` macroblock QP overlay | `--mode pix` magnified pixel grid | `--mode osc` XY video oscilloscope | `--mode drift` luma-drift curve (exposure-ramp QC) |
+| `scope` | QC scope overlay: `--mode vector|wave` in a corner (`--position`, `--size` fraction), `--at` windows | `--mode mvs` MV overlay | `--mode data --x/--y` hex readout | `--mode qp` macroblock QP overlay | `--mode pix` magnified pixel grid | `--mode osc` XY video oscilloscope | `--mode drift` luma-drift curve (exposure-ramp QC) | `--mode loud` loudness-over-time curve (ebur128+adrawgraph) |
 | `desqueeze` | Anamorphic restore: `--factor` lens ratio (1.33/1.5/1.8/2.0), `--axis y|x` |
 | `solarize` | Psychedelic partial invert: pixels above `--threshold` luma invert, `--at` windows |
 | `pulse` | Breathing zoom bounce: `--rate` cycles/sec, `--depth` amplitude, `--at` windows |
@@ -194,6 +194,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sonify` | Play an image/video as sound — spectrumsynth scans it like a spectrogram (bright pixels = loud harmonics); `--dur`/`--speed`/`--sample-rate` |
 | `tmedian` | Temporal median — erase anything visible <half the window: moving people/cars on tripod shots, rain streaks (`--radius` history frames, `--percentile`, `--at` window; output loses 2*radius edge frames) |
 | `dedup` | Drops near-duplicate frames via `mpdecimate` — shrinks static stretches, `--frac` sensitivity |
+| `repair` | Swap bad/glitched frames for a frame from a reference take (`--ref`, `--at`/`--dur` damaged stretch, `--ref-at` clean frame — freezeframes) |
 | `audiogram --mode cqt` | Constant-Q music spectrum (`showcqt`) — piano-roll spectrum look for music clips |
 | `audiogram --mode spectro` | Scrolling spectrogram (`showspectrum`) — colour time/frequency roll |
 | `scan` | QC report: black stretches, frozen frames, black-frame hits + strobe `flash_frames`/`flash_max_badness` + interlace verdict (idet) + stereo `phase_corr` (~-1 = mono-collapse) — JSON extras; writes no media , audio peak/mean dB (`audio_max_db`, `audio_mean_db`) | +blur QC | `--scenes` scene-cut timestamps | `luma_min/max` + `illegal_luma` (signalstats broadcast-range QC) | `noise_floor`/`noisy` bit-plane noise budget QC | `has_cc`/`cc_lines` EIA-608 closed captions | `crop_hint`/`letterboxed` cropdetect letterbox QC | `vfr`/`vfr_ratio`/`vfr_frames` variable-frame-rate QC |
@@ -207,7 +208,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sharpen --engine cas` | Contrast-adaptive sharpening — crisper edges without unsharp halos, `--amount` |
 | `equalize` | Auto-contrast via `histeq` for flat/washed footage, `--strength`/`--intensity`/`--at` window |
 | `pick` | Dominant-color report at a timestamp: mean hex + 3x2 zone swatches (JSON only) |
-| `diff` | Visual diff between two clips: amplified difference blend, `--side` shows reference |
+| `diff` | Visual diff between two clips: amplified difference blend, `--side` shows reference | `--mode mask --threshold` bare change-mask QC |
 | `selective` | Keep one color, desaturate the rest: `--color` + `--similarity`, `--blend` edge feather, `--at` windows |
 | `amplify` | Motion magnification — subtle change becomes visible (`--amount` factor, `--radius` frames, `--threshold` diff cap, `--at` windows) |
 | `cartoon` | Comic look: posterized base (`--levels` 2-16) + ink outlines from edge-detect, `--at` windows |
@@ -256,7 +257,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `eqviz` | Apply EQ bands and render the response curve as video: `--bands "f=200 w=100 g=10 t=h"` (t=h/l/p shelf/peak), `--size` | - |
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
-| `frames` | Still dump every `--every`, `--at` seconds (`end` = last frame), `--count` even-spread → `stem_001.png…` (`--width`) |
+| `frames` | Still dump every `--every`, `--at` seconds (`end` = last frame), `--count` even-spread → `stem_001.png…` (`--width`); `--untile CxR` splits each frame into tile stills (reverse a contact sheet) |
 | `countdown` | Overlay a counting leader (`--from` up to 600, `--beep` + `--tone` Hz, `--text`, `--position`, `--bg` numeral plate, `--format` mm:ss/h:mm:ss, `--opacity` ghost) |
 | `invert` | Full-frame or windowed color inversion (`--at`, `--dur` — comma list ok) |
 | `mix` | Blend two sources (`--vol-a/--vol-b`, `--at/--dur` window — comma list for several entrances, `end` ok, `--loop`, `--duck` sidechain bed under voice) , `--normalize`, `--fade` bed edges |

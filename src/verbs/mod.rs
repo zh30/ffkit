@@ -104,6 +104,7 @@ pub mod pulse;
 pub mod qa;
 pub mod rack;
 pub mod remux;
+pub mod repair;
 pub mod replace;
 pub mod reverb;
 pub mod reverse;

@@ -14,6 +14,9 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "scope")?;
+    if matches!(args.mode, ScopeMode::Loud) && !probe.has_audio {
+        return Err(Error::input("scope --mode loud needs an audio track"));
+    }
     let w = probe.width.unwrap_or(0) as f64;
     let sw = (w * args.size) as u32 & !1;
     let sh = sw;
@@ -72,6 +75,7 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
         return Ok(c2.with_extra(json!({"mode": "mvs"})));
     }
     let filt = match args.mode {
+        ScopeMode::Loud => String::new(),
         ScopeMode::Vector => "vectorscope=m=color2".to_string(),
         ScopeMode::Wave => "waveform=mode=column:display=parade:intensity=0.5".to_string(),
         ScopeMode::Hist => "thistogram=display_mode=overlay".to_string(),
@@ -112,7 +116,15 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.input);
     // pixscope needs ≥640x480: upsample (nearest — keep pixel edges crisp),
     // run it there, then shrink the viz to the tile
-    let fc = if matches!(args.mode, ScopeMode::Pix) {
+    let fc = if matches!(args.mode, ScopeMode::Loud) {
+        // loudness-over-time tile: ebur128 tags each frame's momentary LUFS,
+        // adrawgraph renders it — dips mark quiet stretches, a pinned top
+        // means the track is driving into the ceiling
+        format!(
+            "[0:a]ebur128=metadata=1,adrawgraph=m1=lavfi.r128.M:fg1=0xFFFF00:min=-70:max=0:bg=0x202020@0.7:slide=scroll:size={sw}x{sh}[sc];[0:v][sc]overlay={x}:{y}{en}[v]",
+            sw = sw, sh = sh, x = x, y = y, en = en
+        )
+    } else if matches!(args.mode, ScopeMode::Pix) {
         format!(
             "[0:v]split[a][b];[b]scale='max(iw,640)':'max(ih,480)':flags=neighbor,format=rgb24,{filt},scale={sw}:{sh}[sc];[a][sc]overlay={x}:{y}{en}[v]",
             filt = filt, x = x, y = y, en = en

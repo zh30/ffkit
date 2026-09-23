@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.250.0
+version: 0.251.0
 
 
 
@@ -84,7 +84,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | fade to white | `fade --color white` (`--in`/`--out` seconds as usual) |
 | blend two audio files | `crossfade` (`--second`, `--dur` overlap — acrossfade) |
 | strip location/device tags | `strip` — drops all container metadata + chapters, stream copy |
-| stills every N seconds | `frames` (`--every`, `--width`) → `stem_001.png…` |
+| stills every N seconds | `frames` (`--every`, `--width`) → `stem_001.png…` (`--untile 4x3` splits every frame into tiles — reverse a contact sheet) |
 | 3-2-1 intro countdown | `countdown` (`--from` up to 600, `--each`, `--go`, `--at`, `--text`, `--position`, `--bg` plate, `--beep` + `--tone` Hz, `--format` mm:ss/h:mm:ss long counts, `--opacity` ghost) |
 | invert / negative look | `invert` — `negate` the picture |
 | split to fit a size cap | `split --size 9MB` — even grid aimed at Discord/WhatsApp caps |
@@ -243,11 +243,12 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | halo-free sharpening | `sharpen --engine cas` (`--amount`) |
 | auto-contrast flat footage | `equalize` (`--strength`/window) |
 | dominant colors | `pick` (mean + 6-zone swatch, `--at`) |
-| visual diff | `diff` (`--side` reference beside diff) |
+| visual diff | `diff` (`--side` reference beside diff; `--mode mask --threshold` bare change-mask QC) |
+| glitched/dropped frames | `repair` (`--ref` another take, `--at`/`--dur` the bad stretch, `--ref-at` the clean frame to paste in — freezeframes) |
 | magnify subtle motion | `amplify` (`--amount` factor, `--radius` frames, `--threshold` diff cap, `--at` window) |
 | keep one color | `selective` (`--color C`/`--similarity`/`--blend` edge feather, `--at` window) |
 | test card | `bars` (`--size`/`--dur`/`--hd`/`--tone` 1kHz) |
-| QC scope overlay | `scope` (`--mode vector|wave|hist|mvs|data|qp|pix|osc|drift` — drift = luma-ramp curve for exposure QC, `--position` corner, `--at` window) |
+| QC scope overlay | `scope` (`--mode vector|wave|hist|mvs|data|qp|pix|osc|drift|loud` — drift = luma-ramp curve, loud = loudness-over-time curve, `--position` corner, `--at` window) |
 | anamorphic restore | `desqueeze` (`--factor` lens ratio, `--axis`) |
 | comic look | `cartoon` (`--levels` posterize, `--at` window) |
 | thermal luma map | `heat` (`--preset` pseudocolor, `--at` window) |
@@ -287,7 +288,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | short overlay clip repeats | `overlay` (`--loop` — covers the base) |
 | waveform showing quiet detail | `waveform` (`--scale log`) |
 | split on longer pauses | `split` (`--silence --min-silence`) |
-| wobble/sci-fi/echo/lofi/telephone voice | `fx` (`--kind` 20 effects, incl. `saturate` warmth, `excite` air, `crush` bitcrusher, `ringmod` true AM robot, `fshift` metallic alien) |
+| wobble/sci-fi/echo/lofi/telephone voice | `fx` (`--kind` 21 effects, incl. `saturate` warmth, `excite` air, `crush` bitcrusher, `ringmod` true AM robot, `fshift` metallic alien, `contrast` dynamics tilt) |
 | effect only in the drop | `fx` (`--at`/`--dur`) |
 | boomerang that loops 3x | `boomerang` (`--times`), `--at/--dur` window |
 | H.265 for Apple / smaller archive | `transcode` (`--preset hevc`) |
@@ -306,6 +307,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | picture | `grade` (+ `--lut` .cube/.png), `bw`, `vignette`, `sharpen`, `blur` |
 | logo / PiP | `overlay` |
 | green screen | `key` (`--bg`, `--color`/`--similarity`/`--blend`, `--despill` for fringe, `--mode luma` keys a brightness band (`--threshold` pivot) instead of a color, `--at`/`--dur` window — comma list ok) |
+| hand-drawn matte → alpha | `key --mode matte --mask` (mask luma becomes alpha → prores 4444) |
 | reaction / multi-cam grid | `grid` (`--layout 2x2`, `--size`, `--gap`/`--bg` gutters, `--time` stamps every tile) |
 | watch-time progress bar | `progress` (`--color`, `--height`, `--edge`, `--bg` track, `--reverse` depletes the bar) |
 | freeze a beat / outro hold | `freeze` (`--ease`/`--reverse` swoop, `--zoom` push-in, `--at T --dur D` — comma `--at` freezes at several points, or `--end D`) |
@@ -348,7 +350,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | container metadata tags | `meta` (`--title`/`--artist`/`--comment`, `--copy` pulls tags+chapters from another file) |
 | fix display rotation flag | `meta --rotate 90` (lossless; clears with `--rotate 0`) |
 | room tone on a voice | `reverb` (`--size room|hall|cave`, `--wet 0..0.9`, `--ir file.wav` convolution reverb from IR packs, `--tail`) |
-| wobble/sci-fi/echo/lofi/telephone/saturate/excite/crush audio | `fx` (`--kind`, `--strength`, `--at`/`--dur`) |
+| wobble/sci-fi/echo/lofi/telephone/saturate/excite/crush audio | `fx` (`--kind`, `--strength`, `--at`/`--dur`; `contrast` expands/compresses dynamics) |
 | Ken Burns on a photo cutaway | `broll --insert img.png --still --motion kenburns` |
 | styled captions | `caption --color ff0000 --size 1.5` |
 | logo only for part of the clip | `overlay --at 2 --dur 5` |

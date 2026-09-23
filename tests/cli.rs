@@ -25380,3 +25380,267 @@ fn stabilize_vidstab_vdenoise_rg_wb_greyedge_scan_vfr_epx_earwax_scope_drift() {
         assert_eq!(j["extra"]["mode"], "Drift");
     }
 }
+
+#[test]
+fn repair_diffmask_matte_contrast_loud_untile() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+
+    // two takes at 10fps: damaged a.mp4, clean ref b.mp4 (smptebars)
+    let a = dir.path().join("a.mp4");
+    assert!(Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:rate=10:duration=2",
+        ])
+        .arg(&a)
+        .status()
+        .unwrap()
+        .success());
+    let b = dir.path().join("b.mp4");
+    assert!(Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "smptebars=size=160x120:rate=10:duration=2",
+        ])
+        .arg(&b)
+        .status()
+        .unwrap()
+        .success());
+
+    // repair: frames 5..9 of a become frame 3 of b (freezeframes)
+    if has_filter("freezeframes") {
+        let o = dir.path().join("rep.mp4");
+        let j = run_json(&[
+            "repair",
+            &a.to_string_lossy(),
+            "--ref",
+            &b.to_string_lossy(),
+            "--at",
+            "0.5",
+            "--dur",
+            "0.5",
+            "--ref-at",
+            "0.3",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["first_frame"], 5);
+        assert_eq!(j["extra"]["last_frame"], 9);
+        assert_eq!(j["extra"]["replace_frame"], 3);
+        // output frame 7 should now be ~identical to ref frame 3 (codec noise only)
+        let psnr = Command::new("ffmpeg")
+            .args([
+                "-i",
+                &o.to_string_lossy(),
+                "-i",
+                &b.to_string_lossy(),
+                "-filter_complex",
+                "[0:v]select='eq(n,7)'[s];[1:v]select='eq(n,3)'[r];[s][r]psnr",
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let err = String::from_utf8_lossy(&psnr.stderr);
+        let v: f64 = err
+            .split("average:")
+            .nth(1)
+            .and_then(|s| s.split_whitespace().next())
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.0);
+        assert!(v > 25.0, "repaired frame should match the ref frame: {v}dB");
+    }
+
+    // diff --mode mask — maskedthreshold change mask
+    if has_filter("maskedthreshold") {
+        let o = dir.path().join("dm.mp4");
+        let j = run_json(&[
+            "diff",
+            &a.to_string_lossy(),
+            &b.to_string_lossy(),
+            "--mode",
+            "mask",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["extra"]["mode"], "mask");
+        assert!(o.exists());
+    }
+
+    // key --mode matte — alphamerge grayscale mask → prores alpha
+    if has_filter("alphamerge") {
+        let m = dir.path().join("mask.mp4");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "gradients=size=160x120:duration=1:rate=10",
+            ])
+            .arg(&m)
+            .status()
+            .unwrap()
+            .success());
+        let o = dir.path().join("km.mov");
+        let j = run_json(&[
+            "key",
+            &a.to_string_lossy(),
+            "--mode",
+            "matte",
+            "--mask",
+            &m.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["mode"], "matte");
+        let pf = Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-show_entries",
+                "stream=pix_fmt",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(&o)
+            .output()
+            .unwrap();
+        assert!(String::from_utf8_lossy(&pf.stdout).contains("yuva444"));
+    }
+
+    // fx --kind contrast — acontrast expansion lifts the level
+    if has_filter("acontrast") {
+        let st = dir.path().join("st.wav");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=1",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=660:duration=1",
+                "-filter_complex",
+                "[0:a][1:a]amerge=inputs=2",
+            ])
+            .arg(&st)
+            .status()
+            .unwrap()
+            .success());
+        let maxvol = |p: &Path| -> f64 {
+            let vd = Command::new("ffmpeg")
+                .args(["-i"])
+                .arg(p)
+                .args(["-af", "volumedetect", "-f", "null", "-"])
+                .output()
+                .unwrap();
+            String::from_utf8_lossy(&vd.stderr)
+                .split("max_volume:")
+                .nth(1)
+                .and_then(|s| s.split_whitespace().next())
+                .and_then(|s| s.trim_end_matches(" dB").parse().ok())
+                .unwrap_or(-99.0)
+        };
+        let before = maxvol(&st);
+        let o = dir.path().join("ac.m4a");
+        let j = run_json(&[
+            "fx",
+            &st.to_string_lossy(),
+            "--kind",
+            "contrast",
+            "--strength",
+            "0.8",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+        let after = maxvol(&o);
+        assert!(
+            after > before + 2.0,
+            "contrast should expand: {before} -> {after}"
+        );
+    }
+
+    // scope --mode loud — adrawgraph loudness curve tile (needs audio)
+    if has_filter("adrawgraph") && has_filter("ebur128") {
+        let av = dir.path().join("av.mp4");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc2=size=160x120:rate=10:duration=2",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=2",
+                "-shortest",
+                "-c:a",
+                "aac",
+            ])
+            .arg(&av)
+            .status()
+            .unwrap()
+            .success());
+        let o = dir.path().join("loud.mp4");
+        let j = run_json(&[
+            "scope",
+            &av.to_string_lossy(),
+            "--mode",
+            "loud",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["extra"]["mode"], "Loud");
+        assert!(o.exists());
+    }
+
+    // frames --untile 4x3 — contact-sheet video bursts into tile stills
+    if has_filter("untile") {
+        let o = dir.path().join("tile.png");
+        let j = run_json(&[
+            "frames",
+            &a.to_string_lossy(),
+            "--untile",
+            "4x3",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["untile"], "4x3");
+        assert_eq!(j["extra"]["count"], 240); // 20 frames x 12 tiles
+                                              // first tile should be 40x40 (160x120 split 4x3)
+        assert_eq!(j["probe"]["width"], 40);
+    }
+}

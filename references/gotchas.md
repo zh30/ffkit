@@ -311,3 +311,17 @@ an atempo'd whole-file render would shift the window.
   `lavfi.cropdetect.{x1,x2,y1,y2}` (w = x2-x1+1, h = y2-y1+1).
 - **`acrossover` pad order is low→high** — output pads follow the split
   list order; `split=500 2000` → b1<500, b2=500-2000, b3>2000 (24dB/oct).
+- **`freezeframes` wants frame INDICES, not seconds** — `first`/`last` are
+  on the clip, `replace` on the ref input; `repair` converts --at/--dur
+  seconds via each clip's own fps. Verified frame-exact on 4.4.
+- **`alphamerge` keeps alpha only if the encoder does** — libx264 yuv420p
+  silently drops it; `key --mode matte` must encode prores_ks
+  `yuva444p10le` (same as `premult`).
+- **`untile` turns EVERY frame into cols*rows frames** — a 20-frame
+  4x3-tiled clip → 240 outputs; chain it before any fps cap.
+- **`asupercut` is ultrasonic-only** on 4.4 (cutoff range 20000–192000Hz)
+  — useless below 192kHz sources; skipped, not a hiss remover.
+- **`acontrast` >33 expands dynamics AND lifts level** (mean -21→-14dB at
+  contrast=80) — it is a tilt, not transparent expansion.
+- **`maskedthreshold` threshold is 0..1 of full-scale** (0.2 works as a
+  change mask) — both inputs must share dims (`scale2ref` first).
