@@ -237,6 +237,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 104)
+
+- `transcode --alpha` — keeps the alpha channel for overlay/lower-third exports: `yuva420p` on webm, ProRes 4444 (`-profile:v 4`, `yuva444p10le`, `apl0` vendor tag); errors on h264/hevc/av1 which can't carry alpha.
+- `slideshow --volume` — linear gain on the `--audio` bed (0..=4) so beds sit under narration.
+
 ## Shipped this run (round 103)
 
 - `progress --edge left|right` — vertical progress bar (bottom-up fill) for 9:16 shorts; `--bg` track works on the vertical edges too.

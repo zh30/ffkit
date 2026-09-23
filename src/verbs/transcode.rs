@@ -15,6 +15,12 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         _ => TranscodePreset::H264,
     });
 
+    if args.alpha && !matches!(preset, TranscodePreset::Webm | TranscodePreset::Prores) {
+        return Err(Error::input(
+            "--alpha needs a webm or prores output (h264/hevc/av1 can't carry alpha)",
+        ));
+    }
+
     match preset {
         TranscodePreset::Gif => gif(&args, g),
         TranscodePreset::H264 => h264(&args, g),
@@ -112,7 +118,7 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "-crf",
             &crf.to_string(),
             "-pix_fmt",
-            "yuv420p",
+            if args.alpha { "yuva420p" } else { "yuv420p" },
         ]);
         let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
         if let Some(fps) = args.fps {
@@ -225,14 +231,27 @@ fn prores(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
     if probe.has_video {
-        argv.extend([
-            "-c:v",
-            "prores_ks",
-            "-profile:v",
-            "3",
-            "-pix_fmt",
-            "yuv422p10le",
-        ]);
+        if args.alpha {
+            argv.extend([
+                "-c:v",
+                "prores_ks",
+                "-profile:v",
+                "4",
+                "-pix_fmt",
+                "yuva444p10le",
+                "-vendor",
+                "apl0",
+            ]);
+        } else {
+            argv.extend([
+                "-c:v",
+                "prores_ks",
+                "-profile:v",
+                "3",
+                "-pix_fmt",
+                "yuv422p10le",
+            ]);
+        }
         if let Some(fps) = args.fps {
             argv.extend(["-vf", &format!("fps={fps}")]);
         }

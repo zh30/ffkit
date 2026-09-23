@@ -32,6 +32,14 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     for p in &args.inputs {
         paths::ensure_input(p)?;
     }
+    if args.volume.is_some() && args.audio.is_none() {
+        return Err(Error::input("--volume needs --audio"));
+    }
+    let bed_vol = match args.volume {
+        Some(v) if (0.0..=4.0).contains(&v) => v,
+        Some(_) => return Err(Error::input("--volume must be 0..=4")),
+        None => 1.0,
+    };
     if let Some(bed) = &args.audio {
         paths::ensure_input(bed)?;
         let bed_probe = engine::probe_or_err(bed, g)?;
@@ -117,12 +125,12 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     if bed_idx.is_some() {
         // Bed: pad/trim to the montage length, fade the last 0.8s.
         fc.push_str(&format!(
-            "[{audio_in}:a]apad,atrim=duration={total:.3},afade=t=out:st={:.3}:d=0.8,aresample=48000[aout]",
+            "[{audio_in}:a]apad,atrim=duration={total:.3},volume={bed_vol:.3},afade=t=out:st={:.3}:d=0.8,aresample=48000[aout]",
             total - 0.8
         ));
     } else {
         fc.push_str(&format!(
-            "[{audio_in}:a]atrim=duration={total:.3},aresample=48000[aout]"
+            "[{audio_in}:a]atrim=duration={total:.3},volume={bed_vol:.3},aresample=48000[aout]"
         ));
     }
 

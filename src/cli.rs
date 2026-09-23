@@ -788,6 +788,10 @@ pub struct TranscodeArgs {
     /// GIF-only: palette size 2–256 (smaller = tinier file, banding)
     #[arg(long)]
     pub colors: Option<u32>,
+    /// Keep the alpha channel (webm/prores only — overlays & lower thirds
+    /// exported for editors); h264/hevc can't carry transparency
+    #[arg(long)]
+    pub alpha: bool,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1099,6 +1103,10 @@ pub struct SlideshowArgs {
     /// Output frame rate
     #[arg(long, default_value_t = 30.0)]
     pub fps: f64,
+    /// Linear gain on the music bed 0..=4 (with --audio; default 1.0 —
+    /// drop to ~0.5 under narration)
+    #[arg(long)]
+    pub volume: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

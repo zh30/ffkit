@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.131.0] — 2026-09-22
+
+### Added
+
+- `transcode --alpha` — keep the alpha channel: yuva420p on webm, ProRes 4444 on .mov (overlays/lower thirds for editors)
+- `slideshow --volume` — linear gain on the music bed (0..=4)
+
 ## [0.130.0] — 2026-09-22
 
 ### Added

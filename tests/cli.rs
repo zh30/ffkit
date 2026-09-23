@@ -13936,3 +13936,101 @@ fn sheet_title_header() {
     assert_eq!(v["extra"]["title"], "MY CUT");
     assert!(out.exists());
 }
+
+#[test]
+fn transcode_alpha_webm_pix_fmt() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.webm");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--preset",
+        "webm",
+        "--alpha",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("yuva420p"), "{cmds}");
+}
+
+#[test]
+fn transcode_alpha_rejects_h264() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("x.mp4");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--alpha",
+    ]);
+    assert_eq!(v["status"], "failed");
+    assert_eq!(v["error"]["kind"], "input");
+}
+
+#[test]
+fn slideshow_volume_in_bed_chain() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let img = dir.path().join("red.png");
+    let bed = dir.path().join("bed.mp3");
+    let make_img = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:s=320x240:d=1",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&img)
+        .output()
+        .unwrap();
+    assert!(make_img.status.success());
+    let make_bed = std::process::Command::new("ffmpeg")
+        .args(["-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=3"])
+        .arg(&bed)
+        .output()
+        .unwrap();
+    assert!(make_bed.status.success());
+    let out = dir.path().join("ss.mp4");
+    let v = run_json(&[
+        "slideshow",
+        img.to_str().unwrap(),
+        img.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio",
+        bed.to_str().unwrap(),
+        "--volume",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("volume=0.5"), "{cmds}");
+}
