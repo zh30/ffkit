@@ -18490,3 +18490,117 @@ fn glow_vhs_motionblur() {
         "{fc}"
     );
 }
+
+#[test]
+fn cartoon_heat_kaleido() {
+    if !has_ffmpeg() || !has_filter("edgedetect") || !has_filter("pseudocolor") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("s.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:duration=2:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let frame_rgb = |mp4: &Path, t: &str| -> Vec<u8> {
+        let raw = dir.path().join(format!(
+            "{}_{}.raw",
+            mp4.file_stem().unwrap().to_string_lossy(),
+            t.replace('.', "_")
+        ));
+        let o = Command::new("ffmpeg")
+            .args(["-y", "-loglevel", "error", "-ss", t, "-i"])
+            .arg(mp4)
+            .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24"])
+            .arg(&raw)
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+        std::fs::read(&raw).unwrap()
+    };
+
+    // kaleido: perfect x+y mirror symmetry inside window
+    let ka = dir.path().join("ka.mp4");
+    let v = run_json(&[
+        "kaleido",
+        src.to_str().unwrap(),
+        "-o",
+        ka.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = frame_rgb(&ka, "0.5");
+    let (w, h) = (160usize, 120usize);
+    let px = |x: usize, y: usize| -> &[u8] { &d[(y * w + x) * 3..(y * w + x) * 3 + 3] };
+    let xsym = (0..h)
+        .flat_map(|y| (0..w / 2).map(move |x| (x, y)))
+        .filter(|&(x, y)| (px(x, y)[0] as i16 - px(w - 1 - x, y)[0] as i16).abs() < 30)
+        .count();
+    assert!(
+        xsym as f64 / (h * w / 2) as f64 > 0.9,
+        "x-mirror missing: {xsym}"
+    );
+
+    // cartoon: ink outlines => measurable dark pixels
+    let ca = dir.path().join("ca.mp4");
+    let v = run_json(&[
+        "cartoon",
+        src.to_str().unwrap(),
+        "-o",
+        ca.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = frame_rgb(&ca, "0.5");
+    let dark = d
+        .chunks(3)
+        .filter(|p| (p[0] as u32 + p[1] as u32 + p[2] as u32) < 60)
+        .count();
+    assert!(dark > 100, "ink outlines missing: {dark}");
+
+    // heat argv + runs
+    let he = dir.path().join("he.mp4");
+    let v = run_json(&[
+        "heat",
+        src.to_str().unwrap(),
+        "-o",
+        he.to_str().unwrap(),
+        "--preset",
+        "turbo",
+        "--at",
+        "0.2",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let joined: String = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|a| a.as_str().unwrap_or(""))
+        })
+        .collect();
+    assert!(joined.contains("pseudocolor=preset=turbo"));
+    assert!(joined.contains("enable="));
+}

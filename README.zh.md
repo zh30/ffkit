@@ -161,6 +161,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`/`--dur`；`--at end` = 片尾） |
 | `trail` | 运动拖影：`--mode echo` 跟随残影（`--frames` 2-16、`--at`/`--dur` 窗口），`--mode light` 亮部拖尾（`--decay` 0.5-0.99） |
 | `glitch` | 故障风 RGB 错位：`--strength` 0.5-20 控制通道偏移+噪点强度 |
+| `cartoon` | 漫画效果：色块化（`--levels` 2-16）+ 边缘墨线，`--at` 窗口 |
+| `heat` | 热成像伪彩：`--preset` magma|inferno|plasma|viridis|turbo|cividis|range1|range2|shadows|highlights、`--opacity`、`--at` 窗口 |
+| `kaleido` | 左上象限镜像成 2x2 曼陀罗，`--at` 窗口 |
 | `strobe` | MV 频闪剪切：`--rate` 每秒闪数、`--duty` 占空比、`--color`、`--at` 窗口 |
 | `edge` | 霓虹描边：`--mode wires|colormix`、`--low`/`--high` 阈值、`--at` 窗口 |
 | `lens` | 镜头畸变：`--k1`/`--k2` —— 负值鱼眼效果，正值运动相机去鱼眼；`--at` 窗口 |
