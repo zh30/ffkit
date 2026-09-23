@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.206.0
+version: 0.207.0
 
 
 
@@ -151,6 +151,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | sub-bass drop | `thump` (`--at`/`--freq`/`--gain`) |
 | rising chirp to a hit | `riser` (`--at` lands, `--dur`/`--gain`) |
 | airy whoosh swell | `whoosh` (`--at` lands, `--dur`/`--gain`) |
+| voice sibilance tamer | `deesser` (`--amount`/`--freq`/window) |
+| sky/gradient banding fix | `deband` (`--strength`/`--radius`/window) |
+| drop duplicate frames | `dedup` (`--frac`, VFR out) |
 | dominant colors | `pick` (mean + 6-zone swatch, `--at`) |
 | visual diff | `diff` (`--side` reference beside diff) |
 | keep one color | `selective` (`--color C`/`--similarity`, `--at` window) |

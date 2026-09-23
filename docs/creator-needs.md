@@ -237,6 +237,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 180)
+
+- `deesser` — voice sibilance: `deesser=i=amount:f=freq` through `audio_window_for` (comma `--at` windows); verified −13.7dB on a gated 7kHz ess burst, low band intact.
+- `deband` — `gradfun` gradient smoothing (`--strength` 0-1 → 0.51-8); measured max-step 8→5 / distinct 52→80 on a banded ramp.
+- `dedup` — `mpdecimate` drops near-dup frames; output is VFR so the stream ends at the last surviving frame (static tails are cut, not just slimmed). 20→5 frames on a 0.4s-motion+1.6s-static fixture.
+
 ## Shipped this run (round 179)
 
 - `thump` — sub-bass drop: `sine` 55Hz × `volume` exp decay, `adelay` to `--at`, amix normalize=0. (4.4 `sine` has no `amplitude` — its 1/8 level is compensated inside the volume envelope.)

@@ -275,6 +275,12 @@ pub enum Cmd {
     Riser(RiserArgs),
     /// Airy noise swell that lands on --at
     Whoosh(WhooshArgs),
+    /// De-ess voice: tame 4-8kHz sibilance band
+    Deesser(DeesserArgs),
+    /// Smooth gradient banding (skies, backdrops) windowed
+    Deband(DebandArgs),
+    /// Drop near-duplicate frames (screen recordings, slide decks)
+    Dedup(DedupArgs),
     /// Comic look: posterized base + ink outlines
     Cartoon(CartoonArgs),
     /// Thermal / false-color luma map
@@ -1347,6 +1353,54 @@ pub struct WhooshArgs {
     /// Swell level 0.05-1.0
     #[arg(long, default_value_t = 0.4)]
     pub gain: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DeesserArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Essing strength 0.05-1.0
+    #[arg(long, default_value_t = 0.5)]
+    pub amount: f64,
+    /// Sibilance band position 0.2-0.9 (0.5 ≈ 4-8kHz)
+    #[arg(long, default_value_t = 0.5)]
+    pub freq: f64,
+    /// Only de-ess inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length per --at, seconds
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DebandArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Smoothing strength 0.05-1.0
+    #[arg(long, default_value_t = 0.5)]
+    pub strength: f64,
+    /// Neighborhood radius 4-32 px
+    #[arg(long, default_value_t = 16)]
+    pub radius: i32,
+    /// Only de-band inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length per --at, seconds
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DedupArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Changed-pixel fraction needed to keep a frame 0.01-1.0
+    #[arg(long, default_value_t = 0.33)]
+    pub frac: f64,
 }
 
 #[derive(clap::Args, Debug)]

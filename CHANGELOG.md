@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.207.0] — 2026-09-23
+
+### Added
+- `deesser`, `deband`, `dedup`.
+
 ## [0.206.0] — 2026-09-23
 
 ### Added

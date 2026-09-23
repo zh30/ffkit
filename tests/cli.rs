@@ -19561,3 +19561,201 @@ fn thump_riser_whoosh_accents() {
         );
     }
 }
+
+#[test]
+fn deesser_deband_dedup() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+
+    // dedup: 4 moving frames + 16 static → mpdecimate keeps ~5
+    let dup = dir.path().join("dup.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=160x120:rate=10:duration=0.4",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=green:size=160x120:rate=10:duration=1.6",
+            "-filter_complex",
+            "[0:v][1:v]concat=n=2:v=1",
+        ])
+        .arg(&dup)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let out = dir.path().join("dedup.mp4");
+    let j = run_json(&[
+        "dedup",
+        dup.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let frames = |f: &Path| -> i64 {
+        let o = Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-count_frames",
+                "-show_entries",
+                "stream=nb_read_frames",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(f)
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stdout)
+            .trim()
+            .parse()
+            .unwrap_or(0)
+    };
+    assert!(
+        frames(&out) < frames(&dup) / 2,
+        "dedup should drop static frames"
+    );
+
+    // deband: banded gray ramp — max per-pixel step should shrink
+    let grad = dir.path().join("grad.mp4");
+    let ramp = dir.path().join("ramp.png");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=black:size=320x240",
+            "-vf",
+            "geq=lum='X*255/W'",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&ramp)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let o = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-loop", "1", "-i"])
+        .arg(&ramp)
+        .args(["-vf", "format=gray,lut=y='trunc(val/6)*6+3'", "-t", "2"])
+        .arg(&grad)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let db = dir.path().join("deband.mp4");
+    let j = run_json(&[
+        "deband",
+        grad.to_str().unwrap(),
+        "-o",
+        db.to_str().unwrap(),
+        "--strength",
+        "0.8",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let max_step = |f: &Path| -> i64 {
+        let o = Command::new("ffmpeg")
+            .args(["-v", "error", "-ss", "0", "-i"])
+            .arg(f)
+            .args([
+                "-frames:v",
+                "1",
+                "-vf",
+                "crop=320:1:0:120,format=gray",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let d = o.stdout;
+        (0..d.len().saturating_sub(1))
+            .map(|i| (d[i + 1] as i64 - d[i] as i64).abs())
+            .max()
+            .unwrap_or(0)
+    };
+    assert!(
+        max_step(&db) < max_step(&grad),
+        "deband should soften band edges: {} vs {}",
+        max_step(&db),
+        max_step(&grad)
+    );
+
+    // deesser: gated 7kHz ess burst drops; low band untouched
+    let voice = dir.path().join("voice.wav");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=7000:duration=2:sample_rate=44100",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=300:duration=2:sample_rate=44100",
+            "-filter_complex",
+            "[0:a]volume=eval=frame:volume='0.8*between(t,0.4,1.4)'[s];\
+             [1:a]volume=0.4[b];[b][s]amix=inputs=2:normalize=0",
+        ])
+        .arg(&voice)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let de = dir.path().join("deess.m4a");
+    let j = run_json(&[
+        "deesser",
+        voice.to_str().unwrap(),
+        "-o",
+        de.to_str().unwrap(),
+        "--amount",
+        "1.0",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let band_db = |f: &Path, ss: f64, af: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-v", "info", "-ss"])
+            .arg(format!("{ss:.2}"))
+            .args(["-t", "0.6", "-i"])
+            .arg(f)
+            .args(["-af", af, "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let err = String::from_utf8_lossy(&o.stderr);
+        let m = err.split("max_volume:").nth(1).unwrap_or("");
+        m.trim_start()
+            .split(' ')
+            .next()
+            .unwrap_or("0")
+            .parse::<f64>()
+            .unwrap_or(0.0)
+    };
+    let hi_before = band_db(&voice, 0.6, "highpass=f=5000,volumedetect");
+    let hi_after = band_db(&de, 0.6, "highpass=f=5000,volumedetect");
+    assert!(
+        hi_after < hi_before - 5.0,
+        "ess band should drop: {hi_before} -> {hi_after}"
+    );
+    let lo_before = band_db(&voice, 0.6, "lowpass=f=1000,volumedetect");
+    let lo_after = band_db(&de, 0.6, "lowpass=f=1000,volumedetect");
+    assert!(
+        (lo_after - lo_before).abs() < 4.0,
+        "low band should survive: {lo_before} -> {lo_after}"
+    );
+}
