@@ -5327,8 +5327,6 @@ fn thumb_comma_at_grabs_one_still_each() {
 }
 
 #[test]
-||||||| 505b0f5
-#[test]
 fn extract_cover_comma_at_grab_one_still_each() {
     if !has_ffmpeg() {
         return;
