@@ -139,7 +139,13 @@ fn render_clip(
     if (args.scale.is_some() || args.split)
         && matches!(
             args.mode,
-            WaveMode::Spectrum | WaveMode::Scope | WaveMode::Cqt | WaveMode::Spectro
+            WaveMode::Spectrum
+                | WaveMode::Scope
+                | WaveMode::Cqt
+                | WaveMode::Spectro
+                | WaveMode::Spatial
+                | WaveMode::Volume
+                | WaveMode::Bitscope,
         )
     {
         return Err(Error::input(
@@ -196,6 +202,26 @@ fn render_clip(
             ),
             "phase",
         ),
+        // showspatial stamps per-window like showspectrum — no rate arg.
+        WaveMode::Spatial => (
+            format!("{awave}showspatial=s={{ww}}x{{wh}}[wv];"),
+            "spatial",
+        ),
+        // w is per-channel; stereo needs half the strip each so the pair
+        // lands on the {ww}-wide box.
+        WaveMode::Volume => (
+            format!("{awave}showvolume=r={fps}:w={{vw}}:h={{wh}}:o=h[wv];"),
+            "volume",
+        ),
+        WaveMode::Bitscope => (
+            {
+                let c = crate::color::lavfi(&args.color);
+                format!(
+                    "{awave}abitscope=s={{ww}}x{{wh}}:r={fps}:colors={c}|{c}|{c}|{c}|{c}|{c}|{c}|{c}[wv];"
+                )
+            },
+            "bitscope",
+        ),
         WaveMode::Scope => {
             let [r, g2, b] = crate::color::rgb(&args.color)?;
             (
@@ -215,7 +241,10 @@ fn render_clip(
                 | WaveMode::Scope
                 | WaveMode::Cqt
                 | WaveMode::Spectro
-                | WaveMode::Phase => unreachable!(),
+                | WaveMode::Phase
+                | WaveMode::Spatial
+                | WaveMode::Volume
+                | WaveMode::Bitscope => unreachable!(),
             };
             (
                 {
@@ -344,6 +373,10 @@ fn render_clip(
             .replace(
                 "{wh}",
                 &(((h as f64) / 6.0).round().max(40.0) as u32 & !1).to_string()
+            )
+            .replace(
+                "{vw}",
+                &(((w as f64 * 0.87).round() as u32 / 2).max(80) & !1).to_string()
             ),
         yf = yf,
     );

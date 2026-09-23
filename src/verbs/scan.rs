@@ -19,7 +19,7 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     // emits lavfi.photosensitivity.* metadata; metadata=print mirrors it to the
     // log where we count flash-flagged frames (badness > 0)
     let vf = format!(
-        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,idet,metadata=print:file=-"
+        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,idet,entropy=mode=diff,metadata=print:file=-"
     );
     let mut argv = Argv::ffmpeg();
     argv.push("-i");
@@ -41,6 +41,7 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     let mut flash_frames = 0usize;
     let mut idet_counts = (0usize, 0usize, 0usize, 0usize); // tff, bff, prog, undet
     let mut flash_max = 0.0f64;
+    let mut entropy_vals: Vec<f64> = Vec::new();
     for line in log.lines() {
         if let Some(rest) = line.split("black_start:").nth(1) {
             let s = rest
@@ -65,6 +66,11 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(rest) = line.split("freeze_end:").nth(1) {
             if let Ok(v) = rest.trim().parse::<f64>() {
                 freeze_ends.push(v);
+            }
+        }
+        if let Some(rest) = line.split("normalized_entropy.diff.Y=").nth(1) {
+            if let Ok(v) = rest.trim().split(' ').next().unwrap_or("").parse::<f64>() {
+                entropy_vals.push(v);
             }
         }
         if line.contains("pblack:") {
@@ -172,6 +178,16 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         })
         .collect();
 
+    // blur QC: entropy diff-mode normalized Y < threshold reads as soft/OOF.
+    let blur_th = args.blur.unwrap_or(0.45).clamp(0.0, 1.0);
+    let blur_frames = entropy_vals.iter().filter(|&&v| v < blur_th).count();
+    let blur_mean = if entropy_vals.is_empty() {
+        None
+    } else {
+        Some(entropy_vals.iter().sum::<f64>() / entropy_vals.len() as f64)
+    };
+    let blur_min = entropy_vals.iter().cloned().reduce(f64::min);
+
     // volumedetect pass: peak + mean dB (clip check + cheap loudness read)
     let (mut audio_max_db, mut audio_mean_db): (Option<f64>, Option<f64>) = (None, None);
     if probe.has_audio {
@@ -214,5 +230,11 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         // peak level (>= -0.5 dB clips on most encoders) + programme mean
         "audio_max_db": audio_max_db,
         "audio_mean_db": audio_mean_db,
+        // entropy blur QC: normalized luma-diff entropy per frame —
+        // soft/out-of-focus stretches sink under blur_threshold
+        "blur_threshold": blur_th,
+        "blur_frames": blur_frames,
+        "blur_mean": blur_mean,
+        "blur_min": blur_min,
     })))
 }

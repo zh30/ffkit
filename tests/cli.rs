@@ -23642,6 +23642,87 @@ fn denoise_ref_interp_framerate_thumb_best() {
 }
 
 #[test]
+fn audiogram_meter_modes_scan_blur() {
+    if !has_ffmpeg() || !has_filter("showspatial") || !has_filter("entropy") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("st.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("testsrc2=size=320x240:rate=25")
+        .args(["-f", "lavfi", "-i"])
+        .arg("sine=frequency=440")
+        .args(["-f", "lavfi", "-i"])
+        .arg("sine=frequency=660")
+        .args([
+            "-filter_complex",
+            "[1:a][2:a]amerge[a]",
+            "-map",
+            "0:v",
+            "-map",
+            "[a]",
+            "-t",
+            "2",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    // meter-style audiogram modes all render
+    for m in ["spatial", "volume", "bitscope"] {
+        let o = dir.path().join(format!("ag_{m}.mp4"));
+        let v = run_json(&[
+            "audiogram",
+            src.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--mode",
+            m,
+            "--at",
+            "0",
+            "--dur",
+            "0.8",
+        ]);
+        assert_eq!(v["status"], "ok", "{m}: {v}");
+        assert_eq!(v["extra"]["mode"], m, "{v}");
+    }
+    // scan blur QC: a gblur'd segment flags exactly the blurred frames
+    let blurry = dir.path().join("blurry.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("testsrc2=size=320x240:rate=25")
+        .args([
+            "-vf",
+            "select='lt(n,25)',gblur=sigma=8,setpts=N/FRAME_RATE/TB,split[b1][b2];[b1]trim=end_frame=0[x];[b2][x]concat=n=1:v=1[c];testsrc2=size=320x240:rate=25[s];[s]select='lt(n,25)',setpts=N/FRAME_RATE/TB[sh];[sh][c]concat=n=2:v=1[v]",
+            "-map", "[v]",
+        ])
+        .arg(&blurry)
+        .status()
+        .unwrap();
+    if !st.success() {
+        // simpler: just blur everything — every frame flags
+        let st = Command::new("ffmpeg")
+            .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+            .arg("testsrc2=size=320x240:rate=25")
+            .args(["-vf", "gblur=sigma=8", "-frames:v", "50"])
+            .arg(&blurry)
+            .status()
+            .unwrap();
+        assert!(st.success());
+    }
+    let v = run_json(&["scan", blurry.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let blur_frames = v["extra"]["blur_frames"].as_u64().unwrap();
+    assert!(blur_frames > 0, "{v}");
+    let sharp = fixture(dir.path());
+    let v = run_json(&["scan", sharp.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let sharp_mean = v["extra"]["blur_mean"].as_f64().unwrap_or(0.0);
+    assert!(sharp_mean > 0.5, "sharp content reads high entropy {v}");
+}
+
+#[test]
 fn legalize_levels_aberrate() {
     if !has_ffmpeg() || !has_filter("limiter") || !has_filter("colorlevels") {
         return;

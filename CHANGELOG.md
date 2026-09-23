@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- `audiogram --mode spatial` — showspatial stereo-field spectrogram (the field drawn as a moving image over time)
+- `audiogram --mode volume` — showvolume per-channel VU bars (broadcast meter-bridge look)
+- `audiogram --mode bitscope` — abitscope bit-pattern scope (audio bit-depth visualiser)
+- `scan` blur QC — `blur_frames`/`blur_mean`/`blur_min` from diff-mode frame entropy: out-of-focus stretches read well under `blur_threshold` (default 0.45, tunable with `--blur`)
+
+### Added
 - `denoise --ref noise.wav` — anlms adaptive noise cancellation with a reference recording (room-tone mic, second recorder): learns ref→mix then subtracts the estimate; ~9dB broadband cut while the voice survives (the naive single-graph reading cancels the voice too — documented in gotchas)
 - `interp --engine framerate` — scene-aware frame blending for high-fps delivery: ~10x faster than minterpolate's motion estimation at the cost of slight ghosting on fast motion
 - `thumb --best` — let ffmpeg pick the most representative frame (`thumbnail` scores each 100-frame batch by average similarity): a clean typical still from shaky footage, no manual timestamp needed

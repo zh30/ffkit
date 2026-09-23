@@ -937,6 +937,12 @@ pub enum WaveMode {
     /// Phase meter (aphasemeter) — stereo scope: razor-thin line = mono,
     /// wide cloud = decorrelated. Mono-compat QC + looks
     Phase,
+    /// Spatial spectrogram (showspatial) — stereo field mapped over time
+    Spatial,
+    /// Per-channel VU bars (showvolume) — broadcast meter-bridge look
+    Volume,
+    /// Bit-pattern scope (abitscope) — bit-depth/gauge visualiser
+    Bitscope,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -4416,6 +4422,10 @@ pub struct ScanArgs {
     /// Pixel luma below this counts as black, 0-255 (default 32)
     #[arg(long)]
     pub thresh: Option<f64>,
+    /// Frame counts as blurry below this normalized diff-entropy 0..1
+    /// (default 0.45 — out-of-focus shots sit well under it)
+    #[arg(long)]
+    pub blur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

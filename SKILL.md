@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.237.0
+version: 0.238.0
 
 
 
@@ -200,6 +200,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | real noise-cancel | `denoise --ref roomtone.wav` (anlms adaptive cancel — a second mic's noise ref gets subtracted; podcast lav+room rigs) |
 | cheap 60fps | `interp --engine framerate` (scene-aware frame blending ~10x faster than minterpolate; slight ghost on fast motion) |
 | pick a good still | `thumb --best` (thumbnail filter scores each 100-frame batch — a clean typical frame from shaky footage) |
+| meter-bridge audiogram | `audiogram --mode volume` (per-channel VU bars) |
+| stereo-field audiogram | `audiogram --mode spatial` (showspatial image), `audiogram --mode bitscope` (bit-pattern scope) |
+| blur QC | `scan` now reports `blur_frames`/`blur_mean`/`blur_min` (diff-entropy reads out-of-focus stretches; `--blur` tunes the cut) |
 | cheap-lens fringe | `aberrate` --amount 5 (rgbashift: red left/blue right — VHS/glitch edge) |
 | mono-compat visual | `audiogram --mode phase` (aphasemeter scope — thin line = mono, cloud = decorrelated) |
 | beauty/skin smoothing | `smooth` (`--engine` smartblur/bilateral — bilateral keeps edges sharper; `--strength`, `--at`/`--dur` window) |
