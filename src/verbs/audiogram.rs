@@ -214,9 +214,11 @@ fn render_clip(
             "monitor",
         ),
         // ahistogram stamps one line per audio frame — slide=scroll keeps
-        // it moving like showspectrum; needs no rate resample either
+        // it moving like showspectrum; needs no rate resample either.
+        // It emits yuva444p: convert to rgb24 before colorkey — older 4.x
+        // builds (Ubuntu 4.4.2) fail format negotiation on the alpha fmt.
         WaveMode::Hist => (
-            format!("{awave}ahistogram=s={{ww}}x{{wh}}:slide=scroll[wv];"),
+            format!("{awave}ahistogram=s={{ww}}x{{wh}}:slide=scroll,format=rgb24[wv];"),
             "hist",
         ),
         // w is per-channel; stereo needs half the strip each so the pair
