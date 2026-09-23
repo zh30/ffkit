@@ -24,7 +24,7 @@ pub fn run(args: MuteArgs, g: &Globals) -> Result<Contract, Error> {
     match &args.at {
         // Silence inside the window, keep the rest of the track.
         Some(raw) => {
-            let at = crate::time::parse_time(raw)?;
+            let at = crate::time::resolve_at(raw, args.dur, probe.duration)?;
             if at >= probe.duration {
                 return Err(Error::input("--at is past the end of the input"));
             }

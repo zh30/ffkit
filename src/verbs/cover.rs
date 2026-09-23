@@ -4,7 +4,7 @@ use crate::cli::{CoverArgs, Globals};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
-use crate::time::{fmt_time, parse_time};
+use crate::time::fmt_time;
 
 pub fn run(args: CoverArgs, g: &Globals) -> Result<Contract, Error> {
     let (frame_w, frame_h) = match &args.size {
@@ -18,7 +18,7 @@ pub fn run(args: CoverArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "cover")?;
     let at = match &args.at {
-        Some(s) => parse_time(s)?,
+        Some(s) => crate::time::resolve_frame_at(s, probe.duration)?,
         None => 0.0,
     };
     if at > probe.duration && probe.duration > 0.0 {

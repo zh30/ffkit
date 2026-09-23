@@ -54,6 +54,15 @@ pub fn resolve_at(s: &str, dur: Option<f64>, duration: f64) -> Result<f64, Error
     parse_time(s)
 }
 
+/// Resolve a `--at` for a still-frame grab: a timestamp, or `end` meaning
+/// the last frame — a small epsilon before the media's tail.
+pub fn resolve_frame_at(s: &str, duration: f64) -> Result<f64, Error> {
+    if s.trim().eq_ignore_ascii_case("end") {
+        return Ok((duration - 0.05).max(0.0));
+    }
+    parse_time(s)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

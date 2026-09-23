@@ -6,7 +6,7 @@ use crate::cli::{Globals, ThumbArgs};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
-use crate::time::{fmt_time, parse_time};
+use crate::time::fmt_time;
 
 pub fn run(args: ThumbArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
@@ -107,7 +107,7 @@ pub fn run(args: ThumbArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     match (args.at.as_deref(), args.frame) {
         (Some(at), None) => {
-            let secs = parse_time(at)?;
+            let secs = crate::time::resolve_frame_at(at, probe.duration)?;
             // seek before input: fast + frame-accurate enough for a cover grab
             argv.extend(["-ss", &fmt_time(secs)]);
             argv.push("-i");

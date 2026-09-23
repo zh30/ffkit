@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.143.0] — 2026-09-22
+
+### Added
+- `--at end --dur N` on `boomerang`, `mute`, `dehum`, `voice`, `vdenoise`, `zoom` — completing `time::resolve_at` across every windowed verb.
+- `--at end` on `thumb`, `cover`, `frames` — grabs the last frame (new `time::resolve_frame_at`, no `--dur` needed).
+
 ## [0.142.0] — 2026-09-22
 
 ### Added

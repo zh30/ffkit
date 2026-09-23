@@ -237,6 +237,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 116)
+- `end` sweep completed: `--at end` on `boomerang`, `mute`, `dehum`, `voice`, `vdenoise`, `zoom` (via `time::resolve_at`) and `--at end` = last frame on `thumb`, `cover`, `frames` (new `time::resolve_frame_at`, duration − 0.05s, no `--dur` needed).
+
 ## Shipped this run (round 115)
 - `chapter --yt` — export marks as YouTube description lines ("0:00 Intro") that paste into a video description for platform seek chapters; `--import` accepts the same `H:MM:SS Title` lines back (round-trip).
 - `waveform`/`spectrogram --at end --dur N` — visualize just the tail slice.

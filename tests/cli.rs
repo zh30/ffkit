@@ -14848,6 +14848,45 @@ fn at_end_works_on_speed_and_audio_windows() {
         "0.4",
     ]);
     assert_eq!(v["status"], "ok", "{v}");
+    // mute --at end --dur 0.4 silences the tail
+    let v = run_json(&[
+        "mute",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("mu.mp4").to_str().unwrap(),
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("0.600"), "{cmds}");
+    // thumb --at end grabs the last frame (no --dur needed)
+    let v = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("th.jpg").to_str().unwrap(),
+        "--at",
+        "end",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-ss"), "{cmds}");
+    assert!(cmds.contains("0.95"), "{cmds}");
 }
 
 #[test]

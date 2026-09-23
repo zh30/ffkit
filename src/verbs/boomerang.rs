@@ -20,7 +20,7 @@ pub fn run(args: BoomerangArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let (ms, me) = match &args.at {
         Some(raw) => {
-            let at = crate::time::parse_time(raw)?;
+            let at = crate::time::resolve_at(raw, args.dur, probe.duration)?;
             if at >= probe.duration - 0.05 {
                 return Err(Error::input("--at is past the end of the input"));
             }

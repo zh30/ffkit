@@ -55,7 +55,7 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
         let mut cmds = Vec::new();
         let mut outs = Vec::new();
         for (i, s) in args.at.iter().enumerate() {
-            let t = crate::time::parse_time(s)?;
+            let t = crate::time::resolve_frame_at(s, probe.duration)?;
             if !(0.0..probe.duration).contains(&t) {
                 return Err(Error::input(format!(
                     "frames --at {s} is outside the {:.2}s source",

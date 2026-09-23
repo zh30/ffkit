@@ -102,7 +102,7 @@ fn windowed(
     probe: &crate::probe::Probe,
     g: &Globals,
 ) -> Result<Contract, Error> {
-    let at = crate::time::parse_time(args.at.as_deref().unwrap())?;
+    let at = crate::time::resolve_at(args.at.as_deref().unwrap(), args.dur, probe.duration)?;
     if !(0.0..probe.duration - 0.1).contains(&at) {
         return Err(Error::input("--at must land inside the input"));
     }

@@ -17,7 +17,7 @@ pub fn run(args: VdenoiseArgs, g: &Globals) -> Result<Contract, Error> {
     // on the filter, not a split graph — cheap to keep the rest untouched.
     let vf = match &args.at {
         Some(raw) => {
-            let at = crate::time::parse_time(raw)?;
+            let at = crate::time::resolve_at(raw, args.dur, probe.duration)?;
             if !(0.0..probe.duration).contains(&at) {
                 return Err(Error::input("--at is outside the input"));
             }
