@@ -49,6 +49,17 @@ pub fn render_caption_outlined(
     )
 }
 
+/// Scale every pixel's alpha by pct/100 — ghost/watermark text cards.
+pub fn alpha_scale(img: &mut RgbaImage, pct: f64) -> Result<(), Error> {
+    if !(1.0..=100.0).contains(&pct) {
+        return Err(Error::input("--opacity must be 1..=100"));
+    }
+    for px in img.pixels_mut() {
+        px.0[3] = (px.0[3] as f64 * pct / 100.0).round() as u8;
+    }
+    Ok(())
+}
+
 pub fn render_title_styled(
     text: &str,
     font_bytes: &[u8],
