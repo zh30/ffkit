@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.204.0] — 2026-09-23
+
+### Added
+- `impact`, `wave`, `spin` verbs.
+
 ## [0.203.0] — 2026-09-23
 
 ### Added

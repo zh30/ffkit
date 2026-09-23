@@ -237,6 +237,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 177)
+
+- `impact` — beat-synced punch: a white flash (~80ms) plus a decaying sine shake on a padded crop; one flag (`--at`) times the hit for drops/impacts.
+- `wave` — horizontal watery undulation via `geq` row resampling (`N` frame index on 4.4 — no `t`); `--at` windows blend-branch.
+- `spin` — pendulum sway via `rotate` sine angle (rotate has T → enable on the filter).
+
 ## Shipped this run (round 176)
 
 - `pick` (zone-swatch color report), `diff` (amplified two-clip difference), `selective` (keep-one-color maskedmerge).

@@ -171,6 +171,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `outline` | Ink detected edges black over footage: `--strength` threshold, `--at` windows |
 | `night` | Night-vision look: green tint + grain + vignette, `--at` windows |
 | `snow` | Falling snow overlay: scrolling noise keyed over video, `--density`/`--speed`, `--at` windows |
+| `impact` | Beat-hit punch: white flash + decaying sine shake at `--at`, `--amp`/`--flash` |
+| `wave` | Watery horizontal wave distortion (`geq` resample), `--amp`/`--speed`, `--at` windows |
+| `spin` | Pendulum sway: frame rotates by a slow sine, `--deg`/`--rate`, `--at` windows |
 | `pick` | Dominant-color report at a timestamp: mean hex + 3x2 zone swatches (JSON only) |
 | `diff` | Visual diff between two clips: amplified difference blend, `--side` shows reference |
 | `selective` | Keep one color, desaturate the rest: `--color` + `--similarity`, `--at` windows |
