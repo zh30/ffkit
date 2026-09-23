@@ -286,3 +286,16 @@ an atempo'd whole-file render would shift the window.
   (LSB); mean >0.8 flags a noisy source (grain ≈0.9, clean ≈0.3).
 - **`stereotools balance_in=+0.5` attenuates LEFT ~6dB** (image shifts
   right) — maps `channel --mode bal --pan` directly.
+- **`nnedi` is a dead end on ffmpeg 4.4** — exists in the filter list but
+  aborts with "No weights file provided, aborting!" (needs an external
+  nnedi weights blob none of the builds ship). ffmpeg 9 dropped it.
+- **`colorcorrect` on 4.4 has no `analyze` mode** — only manual rl/bl/rh/bh
+  region sliders (auto-WB arrived later); `wb`/`grade --split` cover it.
+- **`find_rect` wants a GRAYSCALE object image** — a color PNG errors
+  "object image is not a grayscale image"; run `format=gray` on the ref.
+  Its box lands in `lavfi.rect.{x,y,w,h}` frame metadata.
+- **`readeia608`/`cropdetect` ride the scan pass cheaply** — keys are
+  `lavfi.readeia608.*` (any = a CC line decoded) and
+  `lavfi.cropdetect.{x1,x2,y1,y2}` (w = x2-x1+1, h = y2-y1+1).
+- **`acrossover` pad order is low→high** — output pads follow the split
+  list order; `split=500 2000` → b1<500, b2=500-2000, b3>2000 (24dB/oct).

@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [0.249.0] — 2026-09-23
+
+### Added
+
+- `channel --mode bands --freqs` — `acrossover` frequency-band stems:
+  `--freqs 500,2000` writes `<stem>_band1..3.wav` (low/mid/high splits
+  for remixes); measured 60dB rejection outside each band.
+- `channel --mode sync --side --cm` — `compensationdelay` per-channel
+  mic-distance delay: two mics on one source at different distances
+  comb-filter when summed; 34cm ≈ 1ms at 20°C.
+- `delogo --find logo.png` — `find_rect` auto-locates the watermark in
+  the first 15s and removes the found box (no coordinates needed).
+- `scan` — `readeia608` leg adds `has_cc`/`cc_lines` (EIA-608 closed
+  captions for broadcast QC); `cropdetect` leg adds `crop_hint` +
+  `letterboxed` (black-border detection with the inner crop box).
+- `gen --pattern noise --color` — noise colour selectable:
+  white/pink/brown/blue/violet/velvet (`anoisesrc`).
+- `glitch --engine random` — `random` frame-order scramble inside a
+  rolling frame cache; `--strength` scales the cache depth.
+
 ## [0.248.0] — 2026-09-23
 
 ### Added

@@ -1176,6 +1176,9 @@ pub enum GlitchEngine {
     Pixels,
     /// swaprect — swaps frame quadrants (surreal mirror-shuffle)
     Swaprect,
+    /// random — frame-order scramble within a rolling cache (digital chaos;
+    /// --strength scales the cache depth 2..200)
+    Random,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2169,6 +2172,9 @@ pub struct GenArgs {
     /// Tone frequency Hz for --pattern tone (default 440)
     #[arg(long)]
     pub freq: Option<f64>,
+    /// With --pattern noise: noise colour white|pink|brown|blue|violet|velvet (default pink)
+    #[arg(long)]
+    pub color: Option<String>,
     /// Gradient drift speed 0.001-1
     #[arg(long, default_value_t = 0.01)]
     pub speed: f64,
@@ -2287,6 +2293,10 @@ pub struct DelogoArgs {
     /// logo isn't rectangular. Mask must be the video's size
     #[arg(long)]
     pub image: Option<PathBuf>,
+    /// Auto-locate the logo from a reference bitmap (find_rect hunts it in
+    /// the first 15s, then removes the found box) — no coordinates needed
+    #[arg(long)]
+    pub find: Option<PathBuf>,
     /// Feathered removal via removelogo mask instead of the hard delogo box
     #[arg(long)]
     pub soft: bool,
@@ -3138,6 +3148,12 @@ pub struct ChannelArgs {
     /// With --mode ambience: side-channel keep ratio 0..1 (room/reverb cut)
     #[arg(long)]
     pub amount: Option<f64>,
+    /// With --mode bands: crossover frequencies Hz comma list (default "300,3000")
+    #[arg(long)]
+    pub freqs: Option<String>,
+    /// With --mode sync: cm the --side mic sat closer to the source (0-100)
+    #[arg(long)]
+    pub cm: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
@@ -3173,6 +3189,12 @@ pub enum ChannelMode {
     /// Balance correction for lopsided stereo (tape drift, mismatched mics):
     /// --pan -1..1 (positive pushes the image toward the right channel)
     Bal,
+    /// Frequency-band stems via acrossover: writes <stem>_band1..N.wav
+    /// (low/mid/high splits for remixes); --freqs comma crossover Hz
+    Bands,
+    /// Delay one side by mic distance to fix two-mic comb-filtering on one
+    /// source: --side left|right (default right) delayed by --cm (34cm ≈ 1ms)
+    Sync,
 }
 
 #[derive(clap::Args, Debug)]

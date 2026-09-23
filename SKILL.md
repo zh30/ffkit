@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.248.0
+version: 0.249.0
 
 
 
@@ -138,7 +138,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | inverted flash/accent | `invert` (`--at`/`--dur`) |
 | blur just a moment | `blur` (`--at`/`--dur`) |
 | motion trails / ghost smears | `trail` (`--mode echo` tmix smear, `--frames`, `--at`/`--dur`; `--mode light` bright-pixel persistence via lagfun, `--decay`) |
-| datamosh glitch | `glitch` (`--strength` channel-shift + noise; `--engine planes|swapuv|stutter|pixels` variants) |
+| datamosh glitch | `glitch` (`--strength` channel-shift + noise; `--engine planes|swapuv|stutter|pixels|swaprect|random` variants) |
 | partial invert | `solarize` (`--threshold`, `--at` window) |
 | breathing zoom | `pulse` (`--rate`/`--depth`, `--at` window) |
 | timelapse flicker fix | `deflicker` (`--size` frames) |
@@ -166,7 +166,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | drop duplicate frames | `dedup` (`--frac`, VFR out) |
 | audiogram CQT music spectrum | `audiogram --mode cqt` |
 | audiogram scrolling spectrogram | `audiogram --mode spectro` |
-| find black/frozen stretches (QC) | `scan` (JSON extras; no -o) — also `interlaced`/frames_* from idet |
+| find black/frozen stretches (QC) | `scan` (JSON extras; no -o) — also `interlaced`/frames_* from idet, `has_cc`/`cc_lines` EIA-608 closed captions, `crop_hint`/`letterboxed` cropdetect letterbox QC |
 | dust specks / hot pixels | `dedust` (`--size` 1-4, `--dark` for dark specks; morphology, not blur) |
 | inverse telecine | `deinterlace --engine fieldmatch` (film 29.97i → 23.976p) |
 | denoise without melting detail | `vdenoise --engine edge` (nlmeans masked to flat areas) |
@@ -328,19 +328,19 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | gif tuning | `transcode --preset gif --fps --width`, `extract --gif --bounce` (palindrome loop), `extract --colors` palette size |
 | headphone fatigue on long audio | `fx --kind crossfeed` (`--strength` 0..1 ear bleed); `fx --kind sub` adds a synthesized low octave; `fx --kind autopan` sweeps L-R |
 | draw a freehand EQ curve | `eq --curve "80,0;3000,-6;8000,4"` (freq,gain dB points, interpolated) or `eq --graphic` 18-band classic EQ |
-| animated backdrop for a music/text card | `gen` `--pattern mandelbrot\|gradients\|life\|sierpinski` (no input file; `--size`/`--dur`/`--colors`/`--seed`) |
+| animated backdrop for a music/text card | `gen` `--pattern mandelbrot\|gradients\|life\|sierpinski` (no input file; `--size`/`--dur`/`--colors`/`--seed`) — audio patterns `noise` (`--color white/pink/brown/blue/violet/velvet`), `tone --freq`, `sweep` |
 | italic-style slant / dynamic tilt | `shear` `--x`/`--y` (-2..2; `--fill` edge color, `--interp`) — `--at`/`--dur` windows |
 | fix a color cast / white balance | `wb` (auto per-channel normalization; `--strength`, `--independence 0` keeps grade, `--smooth` frames) |
 | QC a clip for strobes before posting | `scan` — also reports `flash_frames`/`flash_max_badness` (photosensitive-epilepsy check) |
 | stereo too wide / phase issues | `channel` `--mode base --pan -1..1` (-1 folds to mono, +1 widens) |
-| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `bal --pan -1..1` rebalance lopsided stereo, `split` → `_L/_R.wav` host/guest stems, `mid`/`side` M/S extract, `haas` stereo widening, `surround` stereo→5.1 upmix) |
+| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `bal --pan -1..1` rebalance lopsided stereo, `split` → `_L/_R.wav` host/guest stems, `mid`/`side` M/S extract, `haas` stereo widening, `surround` stereo→5.1 upmix, `bands --freqs 300,3000` → `<stem>_bandN.wav` frequency-band stems for remixes, `sync --side right --cm 34` delay the closer mic by its distance to fix two-mic comb-filtering) |
 | loop to a length | `loop --until SEC` |
 | text draft watermark | `title --tile N` |
 | audio EQ polish | `eq` (`--bass`/`--treble`/`--presence` dB) |
 | animated push-in | `zoom --motion kenburns` |
 | still-image cutaway | `broll --insert img.png --still` |
 | wrong-orientation phone clip | `rotate` (`--deg`/`--flip`) |
-| burned-in logo/watermark | `delogo` (`--x --y --w --h` or `--regions x:y:w:h,...` for several; `--at`/`--dur` only some of the time) |
+| burned-in logo/watermark | `delogo` (`--x --y --w --h` or `--regions x:y:w:h,...` for several; `--at`/`--dur` only some of the time; `--find logo.png` auto-locates it in the first 15s — no coordinates needed) |
 | smooth slow-mo | `speed --factor 0.5 --interp` |
 | styled title text | `title --size 2 --color ff0000` |
 | lower-third placement | `title --position bottom` (or `top`/`center`) |

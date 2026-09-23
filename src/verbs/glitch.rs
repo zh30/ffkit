@@ -39,6 +39,12 @@ pub fn run(args: GlitchArgs, g: &Globals) -> Result<Contract, Error> {
             let bw = (64.0 - (args.strength - 0.5) / 19.5 * 56.0).round() as i32;
             format!("shufflepixels=mode=block:width={bw}")
         }
+        crate::cli::GlitchEngine::Random => {
+            // frame-order scramble inside a rolling cache — strength scales
+            // the cache depth (bigger cache = further-flung frames)
+            let f = (args.strength * 10.0).clamp(2.0, 200.0).round() as i32;
+            format!("random=frames={f}")
+        }
     };
 
     let mut argv = ffmpeg_base(g.progress);
@@ -62,6 +68,7 @@ pub fn run(args: GlitchArgs, g: &Globals) -> Result<Contract, Error> {
             crate::cli::GlitchEngine::Stutter => "shuffleframes",
             crate::cli::GlitchEngine::Pixels => "shufflepixels",
             crate::cli::GlitchEngine::Swaprect => "swaprect",
+            crate::cli::GlitchEngine::Random => "random",
         },
     })))
 }

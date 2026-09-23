@@ -93,7 +93,15 @@ pub fn run(args: GenArgs, g: &Globals) -> Result<Contract, Error> {
                     args.dur
                 )
             }
-            _ => "anoisesrc=color=pink:sample_rate=44100".to_string(),
+            _ => {
+                let c = args.color.as_deref().unwrap_or("pink");
+                if !matches!(c, "white" | "pink" | "brown" | "blue" | "violet" | "velvet") {
+                    return Err(Error::input(
+                        "--color: white | pink | brown | blue | violet | velvet",
+                    ));
+                }
+                format!("anoisesrc=color={c}:sample_rate=44100")
+            }
         };
         let mut argv = ffmpeg_base(g.progress);
         argv.extend([
@@ -110,6 +118,7 @@ pub fn run(args: GenArgs, g: &Globals) -> Result<Contract, Error> {
         return Ok(c.with_extra(json!({
             "pattern": args.pattern,
             "freq": args.freq,
+            "color": args.color,
             "duration_s": args.dur,
         })));
     }

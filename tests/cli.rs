@@ -24953,3 +24953,202 @@ fn fx_fshift_deint_phase_gen_sweep_leveler_limit_channel_bal_scan_noise() {
     let j = run_json(&["scan", &v.to_string_lossy()]);
     assert_eq!(j["extra"]["noisy"], false);
 }
+
+#[test]
+fn channel_bands_sync_delogo_find_scan_cc_crop_gen_color_glitch_random() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let v = fixture(dir.path());
+    // channel --mode bands — acrossover stems: 200Hz on L, 3kHz on R
+    let stereo = dir.path().join("st.wav");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=200:r=44100:d=2",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=3000:r=44100:d=2",
+            "-filter_complex",
+            "[0][1]amerge=inputs=2[a]",
+            "-map",
+            "[a]",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&stereo)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let stub = dir.path().join("st_out.wav");
+    let j = run_json(&[
+        "channel",
+        &stereo.to_string_lossy(),
+        "-o",
+        &stub.to_string_lossy(),
+        "--mode",
+        "bands",
+        "--freqs",
+        "500,2000",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["bands"], 3);
+    let b1 = dir.path().join("st_out_band1.wav");
+    let b3 = dir.path().join("st_out_band3.wav");
+    assert!(b1.exists() && b3.exists());
+    // band3 (>2kHz) keeps the 3kHz tone; band1 (<500Hz) rejects it by ~-60dB
+    let hi = std::process::Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-i",
+            &b3.to_string_lossy(),
+            "-af",
+            "highpass=f=2500,volumedetect",
+            "-f",
+            "null",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    assert!(String::from_utf8_lossy(&hi.stderr).contains("max_volume: -2"));
+    let hi1 = std::process::Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-i",
+            &b1.to_string_lossy(),
+            "-af",
+            "highpass=f=2500,volumedetect",
+            "-f",
+            "null",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let log1 = String::from_utf8_lossy(&hi1.stderr);
+    let max1: f64 = log1
+        .split("max_volume: ")
+        .nth(1)
+        .and_then(|s| s.split_whitespace().next())
+        .and_then(|s| s.parse().ok())
+        .unwrap();
+    assert!(max1 < -45.0, "band1 leaked 3kHz: {max1} dB");
+    // channel --mode sync — compensationdelay per-side, graph runs clean
+    let o = dir.path().join("sy.mp4");
+    let j = run_json(&[
+        "channel",
+        &v.to_string_lossy(),
+        "-o",
+        &o.to_string_lossy(),
+        "--mode",
+        "sync",
+        "--cm",
+        "34",
+    ]);
+    assert!(o.exists());
+    assert_eq!(j["extra"]["mode"], "Sync");
+    // delogo --find — find_rect locates a gray logo pasted at 100:60
+    let logo = dir.path().join("logo.png");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=64x48:rate=1:duration=1",
+            "-vf",
+            "format=gray",
+        ])
+        .arg(&logo)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let lv = dir.path().join("lv.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=320x240:rate=25:duration=2",
+            "-i",
+            &logo.to_string_lossy(),
+            "-filter_complex",
+            "[0][1]overlay=x=100:y=60",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&lv)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let o = dir.path().join("unlogo.mp4");
+    let j = run_json(&[
+        "delogo",
+        &lv.to_string_lossy(),
+        "-o",
+        &o.to_string_lossy(),
+        "--find",
+        &logo.to_string_lossy(),
+    ]);
+    assert!(o.exists());
+    assert_eq!(
+        j["extra"]["found_box"],
+        serde_json::json!([100, 60, 64, 48])
+    );
+    // scan — cropdetect QC on a padded clip; CC stays clean on plain sources
+    let pad = dir.path().join("pad.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=320x240:rate=25:duration=1",
+            "-vf",
+            "pad=w=320:h=280:x=0:y=20:color=black",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&pad)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&["scan", &pad.to_string_lossy()]);
+    assert_eq!(j["extra"]["crop_hint"], "320x240:0:20");
+    assert_eq!(j["extra"]["letterboxed"], true);
+    assert_eq!(j["extra"]["has_cc"], false);
+    let j = run_json(&["scan", &v.to_string_lossy()]);
+    assert_eq!(j["extra"]["letterboxed"], false);
+    // gen --color — noise colour routes to anoisesrc
+    let o = dir.path().join("nb.m4a");
+    let j = run_json(&[
+        "gen",
+        "-o",
+        &o.to_string_lossy(),
+        "--pattern",
+        "noise",
+        "--color",
+        "blue",
+        "--dur",
+        "1",
+    ]);
+    assert!(o.exists());
+    assert_eq!(j["extra"]["color"], "blue");
+    // glitch --engine random — random frame scramble
+    let o = dir.path().join("gr.mp4");
+    let j = run_json(&[
+        "glitch",
+        &v.to_string_lossy(),
+        "-o",
+        &o.to_string_lossy(),
+        "--engine",
+        "random",
+    ]);
+    assert!(o.exists());
+    assert_eq!(j["extra"]["filter"], "random");
+}

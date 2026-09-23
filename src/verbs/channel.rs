@@ -45,6 +45,105 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
             "outputs": [l.display().to_string(), r.display().to_string()],
         })));
     }
+    if args.mode == ChannelMode::Bands {
+        // acrossover: split the spectrum into band stems for remixing —
+        // --freqs "300,3000" → band1 <300Hz, band2 300-3000, band3 >3000
+        let mut freqs: Vec<u32> = Vec::new();
+        for part in args.freqs.as_deref().unwrap_or("300,3000").split(',') {
+            let f: u32 = part
+                .trim()
+                .parse()
+                .map_err(|_| Error::input(format!("--freqs '{part}' wants Hz numbers")))?;
+            if !(20..=20000).contains(&f) {
+                return Err(Error::input("--freqs must be 20..20000 Hz"));
+            }
+            freqs.push(f);
+        }
+        if freqs.len() > 4 {
+            return Err(Error::input("--freqs supports up to 4 crossover points"));
+        }
+        freqs.sort_unstable();
+        let stem = args
+            .output
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("out");
+        let dir = args.output.parent().unwrap_or_else(|| Path::new("."));
+        let bands: Vec<_> = (1..=freqs.len() + 1)
+            .map(|i| dir.join(format!("{stem}_band{i}.wav")))
+            .collect();
+        for p in &bands {
+            crate::paths::ensure_output_allowed(p, &[&args.input], g.overwrite)?;
+        }
+        let pads: Vec<String> = (1..=bands.len()).map(|i| format!("[b{i}]")).collect();
+        let fc = format!(
+            "[0:a]acrossover=split={}{}",
+            freqs
+                .iter()
+                .map(|f| f.to_string())
+                .collect::<Vec<_>>()
+                .join(" "),
+            pads.concat()
+        );
+        let mut argv = ffmpeg_base(g.progress);
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend(["-filter_complex", &fc]);
+        for (i, p) in bands.iter().enumerate() {
+            argv.extend(["-map", &format!("[b{}]", i + 1), "-c:a", "pcm_s16le"]);
+            argv.push(p);
+        }
+        let c = engine::write_job("channel", &[&args.input], &bands[0], vec![argv], g)?;
+        if !g.dry_run {
+            for p in &bands {
+                if !p.exists() {
+                    return Err(Error::verification(format!(
+                        "output was not written: {}",
+                        p.display()
+                    )));
+                }
+            }
+        }
+        return Ok(c.with_extra(json!({
+            "mode": "Bands",
+            "freqs": freqs,
+            "bands": bands.len(),
+            "outputs": bands.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
+        })));
+    }
+    if args.mode == ChannelMode::Sync {
+        // compensationdelay: pushes the closer mic back by its distance —
+        // two mics on one source at different distances comb-filter when
+        // summed; 34cm ≈ 1ms at 20°C
+        let cm = args.cm.unwrap_or(30.0);
+        if !(0.0..=100.0).contains(&cm) {
+            return Err(Error::input("--cm must be 0..100"));
+        }
+        let side = args.side.as_deref().unwrap_or("right");
+        if !matches!(side, "left" | "right") {
+            return Err(Error::input("--side must be left|right"));
+        }
+        let fc = if side == "right" {
+            format!("[0:a]channelsplit=channel_layout=stereo[L][R];[R]compensationdelay=cm={cm:.0}[Rd];[L][Rd]amerge=inputs=2[a]")
+        } else {
+            format!("[0:a]channelsplit=channel_layout=stereo[L][R];[L]compensationdelay=cm={cm:.0}[Ld];[Ld][R]amerge=inputs=2[a]")
+        };
+        let mut argv = ffmpeg_base(g.progress);
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend(["-filter_complex", &fc, "-map", "[a]", "-map", "0:v?"]);
+        if probe.has_video {
+            argv.extend(["-c:v", "copy"]);
+        }
+        argv.extend(["-c:a", "aac"]);
+        argv.push(&args.output);
+        let c = engine::write_job("channel", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(json!({
+            "mode": "Sync",
+            "side": side,
+            "cm": cm,
+        })));
+    }
     let af = match args.mode {
         // single-mic voice recorded on one ear → copy ch0 to all
         ChannelMode::Dualmono => "pan=stereo|FL<c0|FR<c0".to_string(),
@@ -116,7 +215,9 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
             }
             format!("stereotools=base={p:.3}")
         }
-        ChannelMode::Split => unreachable!("split returns early"),
+        ChannelMode::Split | ChannelMode::Bands | ChannelMode::Sync => {
+            unreachable!("handled above")
+        }
     };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");

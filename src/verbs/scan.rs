@@ -20,7 +20,7 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     // log where we count flash-flagged frames (badness > 0)
     let scdet_leg = if args.scenes { ",scdet=t=8" } else { "" };
     let vf = format!(
-        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,idet,signalstats,entropy=mode=diff,bitplanenoise{scdet_leg},metadata=print:file=-"
+        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,idet,signalstats,entropy=mode=diff,bitplanenoise{scdet_leg},readeia608,cropdetect=limit=24:round=2,metadata=print:file=-"
     );
     let mut argv = Argv::ffmpeg();
     argv.push("-i");
@@ -47,6 +47,8 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     let mut luma_max = f64::MIN;
     let mut scene_cuts: Vec<f64> = Vec::new();
     let mut noise_vals: Vec<f64> = Vec::new();
+    let mut cc_lines = 0usize;
+    let (mut cd_x1, mut cd_x2, mut cd_y1, mut cd_y2) = (-1i64, -1i64, -1i64, -1i64);
     for line in log.lines() {
         if let Some(rest) = line.split("black_start:").nth(1) {
             let s = rest
@@ -104,6 +106,27 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
                 .and_then(|s| s.parse::<f64>().ok())
             {
                 noise_vals.push(v);
+            }
+        }
+        // EIA-608 closed captions: any lavfi.readeia608.* key means a CC
+        // line was decoded this frame (broadcast master QC)
+        if line.contains("lavfi.readeia608.") {
+            cc_lines += 1;
+        }
+        // cropdetect letterbox QC: x1/x2/y1/y2 bounds of non-black content
+        for (k, slot) in [
+            ("lavfi.cropdetect.x1=", &mut cd_x1),
+            ("lavfi.cropdetect.x2=", &mut cd_x2),
+            ("lavfi.cropdetect.y1=", &mut cd_y1),
+            ("lavfi.cropdetect.y2=", &mut cd_y2),
+        ] {
+            if let Some(v) = line
+                .split(k)
+                .nth(1)
+                .and_then(|s| s.trim().split(' ').next())
+                .and_then(|s| s.parse::<i64>().ok())
+            {
+                *slot = v;
             }
         }
         if line.contains("pblack:") {
@@ -240,6 +263,22 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+    let crop_hint = if cd_x1 < 0 || cd_x2 <= cd_x1 || cd_y2 <= cd_y1 {
+        None
+    } else {
+        Some(format!(
+            "{}x{}:{}:{}",
+            cd_x2 - cd_x1 + 1,
+            cd_y2 - cd_y1 + 1,
+            cd_x1,
+            cd_y1
+        ))
+    };
+    let letterboxed = cd_x1 >= 0
+        && (cd_x1 > 0
+            || cd_y1 > 0
+            || cd_x2 + 1 < probe.width.unwrap_or(0) as i64
+            || cd_y2 + 1 < probe.height.unwrap_or(0) as i64);
 
     Ok(Contract::ok("scan", None, Some(probe)).with_extra(json!({
         "freeze_min": freeze_min,
@@ -284,5 +323,14 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         },
         "noisy": !noise_vals.is_empty()
             && noise_vals.iter().sum::<f64>() / noise_vals.len() as f64 > 0.8,
+        // broadcast QC: EIA-608 closed-caption lines decoded (has_cc gates
+        // delivery specs that require CC on air masters)
+        "has_cc": cc_lines > 0,
+        "cc_lines": cc_lines,
+        // letterbox QC: inner content bounds from cropdetect — a clip that
+        // is letterboxed has a hint smaller than the frame (crop it, or
+        // deliver --platform which re-pads cleanly)
+        "crop_hint": crop_hint,
+        "letterboxed": letterboxed,
     })))
 }

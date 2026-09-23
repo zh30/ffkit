@@ -35,7 +35,100 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--image file not found"));
         }
     }
-    let regions = if image_mask.is_some() {
+    if let Some(f) = &args.find {
+        if args.x.is_some()
+            || args.y.is_some()
+            || args.w.is_some()
+            || args.h.is_some()
+            || args.regions.is_some()
+            || args.image.is_some()
+        {
+            return Err(Error::input(
+                "--find conflicts with --x/--y/--w/--h/--regions/--image",
+            ));
+        }
+        if !f.exists() {
+            return Err(Error::input("--find file not found"));
+        }
+    }
+    // --find: find_rect hunts the reference bitmap through the first 15s and
+    // reports its box in lavfi.rect.* frame metadata — that becomes the
+    // removal region, no manual coordinates needed
+    let found = if let Some(f) = &args.find {
+        let esc = |p: &std::path::Path| {
+            p.to_string_lossy()
+                .replace('\\', "\\\\")
+                .replace(':', "\\:")
+                .replace('\'', "\\'")
+        };
+        let graph = format!(
+            "movie='{}'[v];[v]trim=duration=15,find_rect=object='{}':threshold=0.5",
+            esc(&args.input),
+            esc(f)
+        );
+        let mut pv = crate::spawn::Argv::ffprobe();
+        pv.push("-f");
+        pv.push("lavfi");
+        pv.push("-i");
+        pv.push(&graph);
+        pv.extend(["-show_frames", "-of", "default=nw=1"]);
+        let sp = crate::spawn::run(&pv, g.timeout, false)?;
+        let sp = crate::spawn::require_ok(&pv, sp)?;
+        let out = crate::spawn::stdout_str(&sp).unwrap_or_default();
+        // scan frame blocks until one reports all four lavfi.rect.* keys —
+        // mixing coords across frames would corrupt the box
+        let mut hit: Option<(u32, u32, u32, u32)> = None;
+        let mut vals = [None::<u32>; 4];
+        let mut seen = false;
+        for l in out.lines() {
+            if l.starts_with("frame:") {
+                if seen {
+                    if let [Some(x), Some(y), Some(w2), Some(h2)] = vals {
+                        hit = Some((x, y, w2, h2));
+                        break;
+                    }
+                    vals = [None; 4];
+                }
+                seen = true;
+                continue;
+            }
+            for (k, i) in [
+                ("lavfi.rect.x=", 0usize),
+                ("lavfi.rect.y=", 1usize),
+                ("lavfi.rect.w=", 2usize),
+                ("lavfi.rect.h=", 3usize),
+            ] {
+                if let Some(v) = l
+                    .split(k)
+                    .nth(1)
+                    .and_then(|s| s.trim().split(' ').next())
+                    .and_then(|s| s.parse().ok())
+                {
+                    vals[i] = Some(v);
+                }
+            }
+        }
+        if hit.is_none() {
+            if let [Some(x), Some(y), Some(w2), Some(h2)] = vals {
+                hit = Some((x, y, w2, h2));
+            }
+        }
+        hit.map(|(x, y, w2, h2)| vec![(x, y, w2, h2)])
+    } else {
+        None
+    };
+    let regions = if let Some(r) = found {
+        if args.find.is_some() && r.is_empty() {
+            return Err(Error::input(
+                "object not found in the first 15s — pass --x/--y/--w/--h or --regions",
+            ));
+        }
+        r
+    } else if args.find.is_some() {
+        return Err(Error::input(
+            "object not found in the first 15s — pass --x/--y/--w/--h or --regions",
+        ));
+    } else if image_mask.is_some() {
         Vec::new()
     } else {
         match &args.regions {
@@ -64,7 +157,7 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
                 (Some(x), Some(y), Some(w2), Some(h2)) => vec![(x, y, w2, h2)],
                 _ => {
                     return Err(Error::input(
-                        "need --x --y --w --h, --regions x:y:w:h[,...], or --image mask.png",
+                        "need --x --y --w --h, --regions x:y:w:h[,...], --image mask.png, or --find ref.png",
                     ))
                 }
             },
@@ -165,6 +258,8 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
     drop(mask_tmp);
     let mut extra = if image_mask.is_some() {
         json!({ "mask_image": args.image })
+    } else if args.find.is_some() {
+        json!({ "find": args.find, "found_box": regions[0] })
     } else {
         json!({
             "box": {"x": regions[0].0, "y": regions[0].1, "w": regions[0].2, "h": regions[0].3},
