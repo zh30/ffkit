@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.175.0] — 2026-09-22
+
+### Added
+- `hls --poster-at` — pick the poster.jpg frame time (sec or `end`, clamped inside the stream); errors without `--poster`.
+- `deliver --crf` — H.264 quality level for platform delivery (default 20).
+
+>>>>>>> origin/devin/rsi-round148
+
 ## [0.174.0] — 2026-09-22
 
 ### Added
@@ -11,6 +19,7 @@
 
 ### Added
 - `audiogram --at a,b,...` + `--dur` — one N-second waveform clip per start point (`<stem>_N.mp4`, `extra.files`); single `--at`/`--from` + `--dur` bounds one clip. Rendering refactored to `render_clip(from, to, out)` per window.
+
 
 ## [0.172.0] — 2026-09-22
 

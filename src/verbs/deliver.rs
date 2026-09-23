@@ -36,7 +36,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         "-preset",
         "medium",
         "-crf",
-        "20",
+        &args.crf.unwrap_or(20).clamp(0, 51).to_string(),
         "-pix_fmt",
         "yuv420p",
         "-movflags",
