@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.225.0] - 2026-09-23
+
+### Added
+- `stack` — median-composite 3+ locked-off inputs (`xmedian`): removes objects present in fewer than half the inputs (tourists crossing a museum shot, per-file sensor noise). `--percentile`; audio taken from input 1.
+- `channel --mode ms` — decode mid/side-recorded stereo back to L/R (`stereotools ms>lr`) for field recorders.
+- `leveler --engine mcompand` — multiband compressor preset (rumble/body/air bands): lifts quiet speech, caps peaks.
+- `scope --mode hist` — rolling temporal histogram (`thistogram`) for exposure/color drift QC.
+
+
 ## [0.224.0] - 2026-09-23
 
 ### Added

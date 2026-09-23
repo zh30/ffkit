@@ -101,6 +101,7 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
         ChannelMode::Surround => "surround=chl_out=5.1".to_string(),
         // stereotools stereo base: -1 folds toward mono (fixes over-wide
         // recordings / stereo-phase issues), +1 exaggerates width
+        ChannelMode::Ms => "stereotools=mode=ms>lr".to_string(),
         ChannelMode::Base => {
             let p = args.pan.unwrap_or(0.5);
             if !(-1.0..=1.0).contains(&p) {

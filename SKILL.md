@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.224.0
+version: 0.225.0
 
 
 
@@ -63,6 +63,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | blocky re-uploaded/screen-rec footage | `deblock` (`--strength` 0.05-0.95, `--at` window) |
 | colored halo on tape/capture | `chromashift` (`--x`/`--y` px, `--edge` wrap/smear) |
 | moving people/cars on a tripod shot, rain streaks | `tmedian` (temporal median; `--radius` frames of history, `--percentile`, `--at` window; drops 2*radius edge frames) |
+| tourists/noise across 3+ copies of the same locked shot | `stack` `in1 in2 in3 ...` (median across inputs — each takes the object in a different spot; `--percentile`) |
 | waveform PNG of audio | `waveform` (`--size`, `--color`, `--scale`, `--bg` card, `--at/--dur`, comma `--at` = one PNG per window, `--vertical` = wave runs top→bottom) — podcast art, thumbnails |
 | audio spectrogram PNG | `spectrogram` (`--size`, `--color`, `--separate` per-channel, `--at/--dur`, comma `--at` = one PNG per window) — inspect hum/noise before cleanup |
 | watch loudness while it plays | `meter` (`--size`, `--meter 9|18`, `--at/--dur` — EBU R128 video; podcast/voice QC) |
@@ -155,6 +156,8 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | rising chirp to a hit | `riser` (`--at` lands, `--dur`/`--gain`) |
 | airy whoosh swell | `whoosh` (`--at` lands, `--dur`/`--gain`) |
 | voice sibilance tamer | `deesser` (`--amount`/`--freq`/window) |
+| field-recorder mid/side stereo | `channel --mode ms` (decodes MS back to L/R) |
+| loud+quiet speech in one file | `leveler --engine mcompand` (multiband lift+cap across rumble/body/air) |
 | clipped/blown-out audio rescue | `declip` (`--engine clip` = `adeclip` peak interpolation; `--engine click` = `adeclick` vinyl pops/dropouts; `--window`/`--threshold`/window) |
 | magnify subtle motion | `amplify` (`--amount`/`--radius`/`--threshold`, `--at` window) |
 | sky/gradient banding fix | `deband` (`--strength`/`--radius`/window) |

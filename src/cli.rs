@@ -322,6 +322,9 @@ pub enum Cmd {
     /// Temporal median: remove anything present <half the window (moving
     /// people/cars on tripod shots, rain streaks)
     Tmedian(TmedianArgs),
+    /// Median-stack 3+ locked-off videos of the same scene — removes objects
+    /// present in <half the inputs (tourists, noise)
+    Stack(StackArgs),
     /// Mirror half the frame across the center axis (dance/symmetry look)
     Mirror(MirrorArgs),
     /// Chunky retro pixelation over the whole frame
@@ -1124,6 +1127,8 @@ pub enum ScopeMode {
     Vector,
     /// Luma/RGB waveform monitor
     Wave,
+    /// Temporal histogram — luma distribution rolling over time
+    Hist,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1668,6 +1673,18 @@ pub struct TmedianArgs {
     /// Window length in seconds (required with --at)
     #[arg(long)]
     pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct StackArgs {
+    /// Locked-off inputs of the same scene (3+, same WxH — conform first)
+    #[arg(required = true)]
+    pub inputs: Vec<PathBuf>,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Percentile 0-1 across inputs (0.5 = median; lower darkens, higher brightens)
+    #[arg(long, default_value_t = 0.5)]
+    pub percentile: f64,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2951,6 +2968,8 @@ pub enum ChannelMode {
     Surround,
     /// Stereo base via stereotools: --pan -1 (mono-fold) .. 0 (unchanged) .. 1 (wide)
     Base,
+    /// Decode mid/side-recorded stereo back to L/R (stereotools ms>lr)
+    Ms,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3716,6 +3735,8 @@ pub enum LevelerEngine {
     Compressor,
     /// speechnorm — adaptive normalize for speech (speechnorm filter)
     Speechnorm,
+    /// mcompand — multiband compression preset (low/body/air bands)
+    Mcompand,
 }
 
 #[derive(clap::Args, Debug)]

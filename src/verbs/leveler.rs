@@ -39,6 +39,12 @@ pub fn run(args: LevelerArgs, g: &Globals) -> Result<Contract, Error> {
             pr.clamp(1.0, 50.0),
             10f64.powf(pt / 20.0).min(1.0)
         ),
+        // Three-band voice comp: rumble/body/air split at 300Hz and 3kHz;
+        // -30dB lift on quiet, -3dB squash above -8dBFS.
+        crate::cli::LevelerEngine::Mcompand => format!(
+            "mcompand='0.005,0.1 6 -60/{q},-25/-18,-8/-4 300 |              0.005,0.1 6 -60/{q},-25/-18,-8/-4 3000 |              0.005,0.1 6 -60/{q},-25/-18,-8/-4 22000'",
+            q = (pt - 20.0).round() as i32
+        ),
     };
     let fc = match &args.at {
         Some(raw) => Some(engine::audio_window_for(

@@ -133,6 +133,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sprite` | Seek-preview sprite sheets + WebVTT (`--every` secs, `--width` tile px, `--cols`x`--rows` per sheet, `--vtt` path, `--from`/`--to` bounds -- `end` ok) — hover thumbnails for video players |
 | `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window, comma list); `--formant` keeps the voice timbre (librubberband) |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
+| `channel --mode ms` | Decode mid/side-recorded stereo back to L/R (stereotools ms>lr) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51|pan|widen|split|ambience|mid|side|haas|surround|base` (stereo→`_L/_R.wav` stems, M/S extract, haas widening, stereo→5.1 upmix); `--pan -1..1` pan / `base` stereo base (-1 mono fold, +1 wide) |
 | `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--curve` freehand F,G;F,G line (firequalizer), `--graphic` 18-band classic EQ, `--tilt` warm↔bright; `end` ok, comma list = several windows |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window); `end` ok, comma list = several windows. `--ir file.wav` = convolution reverb from impulse-response packs (cathedral/plate), `--tail` rings past the end |
@@ -162,6 +163,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `trail` | Motion trails: `--mode echo` ghost smear behind movement (`--frames` 2-16, `--at`/`--dur` window), `--mode light` bright-pixel persistence (`--decay` 0.5-0.99) |
 | `glitch` | Datamosh-style glitch: `--strength` 0.5-20 drives RGB channel shift + temporal noise |
 | `bars` | SMPTE test card: `--size`/`--dur`/`--hd`/`--tone` (1kHz bed), for QC slates and leader |
+| `scope --mode hist` | Rolling temporal histogram of luma — color/exposure drift QC over time |
 | `scope` | QC scope overlay: `--mode vector|wave` in a corner (`--position`, `--size` fraction), `--at` windows |
 | `desqueeze` | Anamorphic restore: `--factor` lens ratio (1.33/1.5/1.8/2.0), `--axis y|x` |
 | `solarize` | Psychedelic partial invert: pixels above `--threshold` luma invert, `--at` windows |
@@ -187,6 +189,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `deband` | Smooths gradient banding (sky/backdrop steps) via `gradfun`, `--strength`/`--radius`/`--at` window |
 | `deblock` | Removes DCT block edges from heavy compression (`--strength` scales detection, `--at` window) |
 | `chromashift` | Shift chroma planes by px to fix misregistration halos (`--x`/`--y`, `--edge` wrap/smear, `--at` window) |
+| `stack` | Median-stack 3+ locked-off videos of the same scene — removes objects present in <half the inputs (tourists, sensor noise); `--percentile`; audio from input 1 |
 | `tmedian` | Temporal median — erase anything visible <half the window: moving people/cars on tripod shots, rain streaks (`--radius` history frames, `--percentile`, `--at` window; output loses 2*radius edge frames) |
 | `dedup` | Drops near-duplicate frames via `mpdecimate` — shrinks static stretches, `--frac` sensitivity |
 | `audiogram --mode cqt` | Constant-Q music spectrum (`showcqt`) — piano-roll spectrum look for music clips |
@@ -226,6 +229,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `meter` | Live EBU R128 loudness meter video (`--size`, `--meter 9\|18`, `--at/--dur` slice) — watch I/TP/LRA while audio plays |
 | `dehum` | Notch out mains hum (`--mains 50|60` or `--freq HZ` custom, `--harmonics`, `--at/--dur`, `end` ok, comma list = several windows) |
 | `tempo` | Speed audio `--factor` 0.5–8, pitch held (`atempo` chain; use `speed` for video) , `--at/--dur` retempo just a window — comma list ok; `end` ok |
+| `leveler --engine mcompand` | Multiband compression preset — lifts quiet speech, caps peaks across rumble/body/air bands |
 | `leveler` | Compress dynamics (`--preset`, `--engine speechnorm` adaptive speech normalize, `--at/--dur` window); `end` ok, comma list = several windows |
 | `gate` | Noise gate — silence below `--threshold` dB (`agate`) (`--preset voice|podcast|studio`, `--at/--dur` window); `end` ok, comma list = several windows |
 | `silence` | Insert `--dur` secs of silence at `--at` (comma list pads several points) or `--end`; `--detect` reports silence ranges as JSON |

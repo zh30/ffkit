@@ -21773,6 +21773,220 @@ fn deblock_chromashift_lumakey() {
 }
 
 #[test]
+fn stack_channel_ms_leveler_mcompand_scope_hist() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // stack: 3 locked-off inputs, each with a red box at a different x —
+    // median removes all three
+    let mut ins = Vec::new();
+    for i in 0..3u32 {
+        let p = dir.path().join(format!("ob{i}.mp4"));
+        let st = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=gray:size=128x96:rate=25",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=red:size=20x20:rate=25",
+                "-filter_complex",
+                &format!("[0][1]overlay=x={}:y=38", 10 + i * 50),
+                "-t",
+                "1",
+            ])
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(st.success());
+        ins.push(p);
+    }
+    let stacked = dir.path().join("stacked.mp4");
+    let mut av = vec!["stack"];
+    for p in &ins {
+        av.push(p.to_str().unwrap());
+    }
+    av.extend(["-o", stacked.to_str().unwrap()]);
+    let v = run_json(&av);
+    assert_eq!(v["status"], "ok");
+    let fr = dir.path().join("st.rgb");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            stacked.to_str().unwrap(),
+            "-vf",
+            "select='eq(n,10)'",
+            "-frames:v",
+            "1",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+        ])
+        .arg(&fr)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let raw = std::fs::read(&fr).unwrap();
+    let reds = (0..raw.len() / 3)
+        .filter(|i| raw[i * 3] > 200 && raw[i * 3 + 1] < 80)
+        .count();
+    assert_eq!(reds, 0, "xmedian stack should erase all three boxes");
+
+    // channel --mode ms: decode MS stereo back to L/R (R keeps the 900Hz side)
+    let ms = dir.path().join("ms.wav");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=300",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=900",
+            "-filter_complex",
+            "[0:a][1:a]join=inputs=2:channel_layout=stereo,stereotools=mode=lr>ms",
+            "-t",
+            "1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&ms)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let lr = dir.path().join("lr.m4a");
+    let v = run_json(&[
+        "channel",
+        ms.to_str().unwrap(),
+        "-o",
+        lr.to_str().unwrap(),
+        "--mode",
+        "ms",
+    ]);
+    assert_eq!(v["status"], "ok");
+    let r_ch = dir.path().join("r.wav");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            lr.to_str().unwrap(),
+            "-af",
+            "pan=mono|c0=c1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&r_ch)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let out = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "info", "-i"])
+        .arg(&r_ch)
+        .args(["-af", "highpass=f=600,volumedetect", "-f", "null", "-"])
+        .output()
+        .unwrap();
+    let log = String::from_utf8_lossy(&out.stderr);
+    let max: f64 = log
+        .lines()
+        .find(|l| l.contains("max_volume"))
+        .and_then(|l| l.split_whitespace().nth(4)?.parse().ok())
+        .unwrap_or(-99.0);
+    assert!(
+        max > -30.0,
+        "decoded R channel should carry the 900Hz tone ({max})"
+    );
+
+    // leveler --engine mcompand: quiet tail lifted
+    let var = dir.path().join("var.wav");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440,aeval='val(0)*(0.1+0.8*(sin(0.5*2*PI*t)+1)/2)'",
+            "-t",
+            "3",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&var)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let mc = dir.path().join("mc.m4a");
+    let v = run_json(&[
+        "leveler",
+        var.to_str().unwrap(),
+        "-o",
+        mc.to_str().unwrap(),
+        "--engine",
+        "mcompand",
+    ]);
+    assert_eq!(v["status"], "ok");
+    let tail_rms = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "info", "-i"])
+            .arg(p)
+            .args([
+                "-af",
+                "atrim=start=2.4:end=3,volumedetect",
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find(|l| l.contains("mean_volume"))
+            .and_then(|l| l.split_whitespace().nth(4)?.parse().ok())
+            .unwrap_or(-99.0)
+    };
+    let (before, after) = (tail_rms(&var), tail_rms(&mc));
+    assert!(
+        after > before + 3.0,
+        "mcompand quiet tail {before}->{after}"
+    );
+
+    // scope --mode hist renders
+    let sc = dir.path().join("sc.mp4");
+    let v = run_json(&[
+        "scope",
+        stacked.to_str().unwrap(),
+        "-o",
+        sc.to_str().unwrap(),
+        "--mode",
+        "hist",
+    ]);
+    assert_eq!(v["status"], "ok");
+    assert!(sc.exists());
+}
+
+#[test]
 fn tmedian_declip_engines_smooth_bilateral() {
     if !has_ffmpeg() {
         return;

@@ -21,6 +21,7 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
     let filt = match args.mode {
         ScopeMode::Vector => "vectorscope=m=color2",
         ScopeMode::Wave => "waveform=mode=column:display=parade:intensity=0.5",
+        ScopeMode::Hist => "thistogram=display_mode=overlay",
     };
     let (x, y) = match args.position.as_str() {
         "top-left" => ("8", "8"),
