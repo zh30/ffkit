@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.190.0] — 2026-09-22
+
+### Added
+
+- `censor --shape circle` — elliptical mask inside each `--region` (circular face censor; geq alpha clip)
+- `progress --opacity` — ghost progress bar (`colorchannelmixer=aa=N` on the bar source)
+
 ## [0.189.0] — 2026-09-22
 
 ### Added
