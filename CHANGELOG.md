@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.189.0] — 2026-09-22
+
+### Added
+
+- `trail` — motion trails: `--mode echo` trailing ghost smear (`tmix` + delayed overlay composite, `--frames` 2-16, `--at`/`--dur` window), `--mode light` bright-pixel persistence via `lagfun` (`--decay` 0.5-0.99)
+- `glitch --strength` — datamosh-style look (RGB channel shift + temporal noise)
+- `fade --curve` — audio fade curve shape (tri/qsin/esin/hsin/log/qua/cub/exp)
+
+## [0.188.0] — 2026-09-22
+
 ## [0.188.0] — 2026-09-22
 
 ### Added

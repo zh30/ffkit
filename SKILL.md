@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.188.0
+version: 0.189.0
 
 
 
@@ -103,7 +103,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | split into exactly N parts | `split` (`--parts N` — equal-length grid) |
 | title that fades in/out | `title` (`--fade` secs — soft entry/exit, `--box` card) |
 | end-card title / tail-only effect | `<verb> --at end --dur N` — every `--at/--dur` window verb anchors the tail (title, speed, tempo, mix, music, mute, boomerang, zoom, blur, grade, volume, censor, meme, overlay, delogo, eq, reverb, fx, denoise, dehum, leveler, gate, vocal, voice, vdenoise, pitch, progress, waveform/spectrogram, bw/invert/sharpen/vignette). `thumb`/`cover`/`frames --at end` = last frame |
-| dip-to-black at a cut / at every scene mark | `fade` (`--dip T --dur N` — half out, half back; comma list dips at several points) |
+| dip-to-black at a cut / at every scene mark | `fade` (`--dip T --dur N` — half out, half back; comma list dips at several points; `--curve qsin/esin/hsin/log/qua/cub/exp` shapes the audio fade) |
 | fix white balance / color cast | `grade` (`--hue` deg — rotates the hue) |
 | quiet tail on a podcast | `silence` (`--end --dur` secs — appended) |
 | logo/watermark that eases in | `overlay` (`--fade` secs — alpha in/out) |
@@ -130,6 +130,8 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | thumbnail at a given size | `thumb` (`--width`) |
 | inverted flash/accent | `invert` (`--at`/`--dur`) |
 | blur just a moment | `blur` (`--at`/`--dur`) |
+| motion trails / ghost smears | `trail` (`--mode echo` tmix smear, `--frames`, `--at`/`--dur`; `--mode light` bright-pixel persistence via lagfun, `--decay`) |
+| datamosh glitch | `glitch` (`--strength` channel-shift + noise) |
 | text in a corner | `title` (`--position top-right` …) |
 | B&W only for a moment | `bw` (`--at`/`--dur`) |
 | sharpen only the key shot | `sharpen` (`--at`/`--dur`) |

@@ -660,3 +660,8 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `grid --gap` — uniform pixel border around every tile.
 - `chapter --import` — read chapter marks from a text file (`TIME|TITLE` or `TIME,TITLE`).
 
+## Shipped this run (round 162)
+
+- `trail` — motion trails: `--mode echo` composites a delayed `tmix` smear behind moving subjects (split + setpts delay + overlay; `--frames`/`--at`/`--dur`), `--mode light` holds bright pixels via `lagfun` (`--decay`). Note: `tmix` looks FORWARD — reverse sandwiches do not flip it; the split+delayed-overlay trick produces a true trailing smear.
+- `glitch --strength` — datamosh-style look (`format=rgba,rgbashift=±N,noise=alls=N*4:allf=t+u`).
+- `fade --curve` — afade curve shape for the audio side (tri/qsin/esin/hsin/log/qua/cub/exp); video stays linear.
