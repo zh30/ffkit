@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.202.0] — 2026-09-23
+
+### Added
+
+- `outline` — inks detected edges black over footage: `edgedetect=mode=wires`+`negate` multiply-blended; `--strength`, `--at`/`--dur` windows.
+- `night` — night-vision look: desaturate + green mids + `noise` grain + `vignette`; `--grain`, windowed via blend branch.
+- `snow` — falling snow: a tall `noise` field cropped by a `mod(t*speed,2h)` scrolling window, `colorkey`ed over the video; `--density`/`--speed`, `--at`/`--dur` windows.
+
 ## [0.201.0] — 2026-09-23
 
 ### Added

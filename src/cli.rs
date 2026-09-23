@@ -241,6 +241,12 @@ pub enum Cmd {
     Sway(SwayArgs),
     /// Rack-focus breathing blur
     Rack(RackArgs),
+    /// Ink detected edges black over the footage
+    Outline(OutlineArgs),
+    /// Night-vision look: green tint + grain + vignette
+    Night(NightArgs),
+    /// Falling snow overlay
+    Snow(SnowArgs),
     /// Comic look: posterized base + ink outlines
     Cartoon(CartoonArgs),
     /// Thermal / false-color luma map
@@ -1097,6 +1103,57 @@ pub struct RackArgs {
     /// Max blur sigma (2-40)
     #[arg(long, default_value_t = 12.0)]
     pub blur: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct OutlineArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Edge strength 0-1 (lower = inker)
+    #[arg(long, default_value_t = 0.5)]
+    pub strength: f64,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct NightArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Grain level 0-30
+    #[arg(long, default_value_t = 8.0)]
+    pub grain: f64,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SnowArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Speckle density 5-200
+    #[arg(long, default_value_t = 40)]
+    pub density: u32,
+    /// Fall speed px/sec
+    #[arg(long, default_value_t = 60)]
+    pub speed: u32,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
