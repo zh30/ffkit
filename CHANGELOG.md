@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.157.0] — 2026-09-22
+
+### Added
+- Comma-list `--at` on `speed`, `tempo`, `zoom`, `vdenoise` — several timed windows per pass (requires `--dur`).
+
+### Changed
+- New `time::window_list` resolves comma `--at` lists and merges overlapping/touching windows; `speed`/`tempo`/`zoom` now emit alternating normal/FX trim+concat segments per merged window (the single-window graph is unchanged).
+
 ## [0.156.0] — 2026-09-22
 
 ### Added

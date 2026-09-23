@@ -16,18 +16,10 @@ pub fn run(args: VdenoiseArgs, g: &Globals) -> Result<Contract, Error> {
     // --at/--dur: nlmeans accepts timeline `enable`, so a window is a flag
     // on the filter, not a split graph — cheap to keep the rest untouched.
     let vf = match &args.at {
-        Some(raw) => {
-            let at = crate::time::resolve_at(raw, args.dur, probe.duration)?;
-            if !(0.0..probe.duration).contains(&at) {
-                return Err(Error::input("--at is outside the input"));
-            }
-            match args.dur {
-                Some(d) if at + d < probe.duration => {
-                    format!("nlmeans=s={s:.1}:enable='between(t,{at:.3},{:.3})'", at + d)
-                }
-                _ => format!("nlmeans=s={s:.1}:enable='gte(t,{at:.3})'"),
-            }
-        }
+        Some(raw) => format!(
+            "nlmeans=s={s:.1}:enable='{}'",
+            crate::time::enable_expr(raw, args.dur, probe.duration)?
+        ),
         None => {
             if args.dur.is_some() {
                 return Err(Error::input("--dur needs --at"));

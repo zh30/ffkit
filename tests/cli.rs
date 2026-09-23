@@ -15444,6 +15444,77 @@ fn bleep_comma_list_censors_every_window() {
 }
 
 #[test]
+fn speed_tempo_zoom_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    for (verb, extra) in [
+        ("speed", vec!["--factor", "2"]),
+        ("tempo", vec![]),
+        ("zoom", vec!["--factor", "2"]),
+        ("vdenoise", vec![]),
+    ] {
+        let out = dir.path().join(format!("{verb}.mp4"));
+        let input = if verb == "tempo" {
+            // tempo is audio-only — synthesize a wav
+            let wav = dir.path().join("t.wav");
+            let ok = Command::new("ffmpeg")
+                .args([
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "sine=frequency=440:duration=1.5",
+                    "-c:a",
+                    "pcm_s16le",
+                ])
+                .arg(&wav)
+                .status()
+                .unwrap()
+                .success();
+            assert!(ok, "tone fixture");
+            wav
+        } else {
+            src.clone()
+        };
+        let mut cmd = vec![
+            verb,
+            input.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--at",
+            "0.1,0.6",
+            "--dur",
+            "0.2",
+        ];
+        cmd.extend(extra);
+        let v = run_json(&cmd);
+        assert_eq!(v["status"], "ok", "{verb}: {v}");
+        let cmds = v["commands"][0]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c.as_str().unwrap())
+            .collect::<Vec<_>>()
+            .join(" ");
+        if verb == "vdenoise" {
+            assert!(
+                cmds.contains("between(t,0.100,0.300)+between(t,0.600,0.800)"),
+                "{cmds}"
+            );
+        } else {
+            // two windows → 5 alternating segments
+            assert!(cmds.contains("concat=n=5"), "{verb}: {cmds}");
+        }
+    }
+}
+
+#[test]
 fn audio_fx_comma_windows() {
     if !has_ffmpeg() {
         return;

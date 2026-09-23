@@ -865,7 +865,7 @@ pub struct SpeedArgs {
     /// Linear speed ramp FROM,TO across the input (or --at/--dur window), e.g. 0.5,3
     #[arg(long)]
     pub ramp: Option<String>,
-    /// Apply the factor only inside this window (h:mm:ss or seconds)
+    /// Apply the factor only inside this window — comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)
@@ -1505,7 +1505,7 @@ pub struct ZoomArgs {
     /// 1.25 = 25% punch-in on the center
     #[arg(long, default_value_t = 1.25)]
     pub factor: f64,
-    /// Punch only inside this window (h:mm:ss or seconds)
+    /// Punch only inside this window — comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)
@@ -1735,7 +1735,7 @@ pub struct TempoArgs {
     /// Speed factor 0.5..=8 (pitch preserved)
     #[arg(long, default_value_t = 1.5)]
     pub factor: f64,
-    /// Retempo only this window (h:mm:ss or seconds)
+    /// Retempo only this window — comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)
@@ -2496,7 +2496,7 @@ pub struct VdenoiseArgs {
     #[arg(long, default_value_t = 4.0)]
     pub strength: f64,
     /// Denoise only from this time on (h:mm:ss or seconds) — nlmeans is
-    /// slow, so window it when only one scene is grainy
+    /// slow, so window it when only one scene is grainy — comma list for several (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// ..for this many seconds (default: to the end)

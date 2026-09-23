@@ -76,6 +76,22 @@ pub fn enable_windows(at: &str, dur: Option<f64>, duration: f64) -> Result<Vec<(
     Ok(out)
 }
 
+/// Sorted, merged `(start, end)` windows for trim/concat graphs (`speed`,
+/// `tempo`, `zoom`): a comma `--at` list resolves per entry, then overlapping
+/// or touching windows merge into one (back-to-back FX is one segment).
+pub fn window_list(at: &str, dur: Option<f64>, duration: f64) -> Result<Vec<(f64, f64)>, Error> {
+    let mut w = enable_windows(at, dur, duration)?;
+    w.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+    let mut merged: Vec<(f64, f64)> = Vec::new();
+    for (s, e) in w {
+        match merged.last_mut() {
+            Some(prev) if s <= prev.1 + 1e-6 => prev.1 = prev.1.max(e),
+            _ => merged.push((s, e)),
+        }
+    }
+    Ok(merged)
+}
+
 /// `enable='...'` predicate for `--at`/`--dur`: `gte(t,s)` when the window runs
 /// to the tail, otherwise OR'd `between(t,s,e)` terms (comma list = several).
 pub fn enable_expr(at: &str, dur: Option<f64>, duration: f64) -> Result<String, Error> {

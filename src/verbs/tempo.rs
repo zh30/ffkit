@@ -40,18 +40,32 @@ pub fn run(args: TempoArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.input);
     match &args.at {
         Some(raw) => {
-            let at = crate::time::resolve_at(raw, args.dur, probe.duration)?;
-            if at >= probe.duration - 0.05 {
-                return Err(Error::input("--at is past the end of the input"));
+            let windows = crate::time::window_list(raw, args.dur, probe.duration)?;
+            // alternating normal/retempoed segments around each window
+            let mut bounds = vec![0.0];
+            for (s, e) in &windows {
+                bounds.push(*s);
+                bounds.push(*e);
             }
-            let end = (at + args.dur.unwrap_or(probe.duration - at)).min(probe.duration);
-            // head + retempoed mid + tail
-            let fc = format!(
-                "[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[h];\
-                 [0:a]atrim={at:.3}:{end:.3},asetpts=PTS-STARTPTS,{af}[m];\
-                 [0:a]atrim={end:.3}:,asetpts=PTS-STARTPTS[tl];\
-                 [h][m][tl]concat=n=3:v=0:a=1[aout]"
-            );
+            bounds.push(probe.duration);
+            let mut seg: Vec<String> = Vec::new();
+            let mut ins = String::new();
+            let mut nseg = 0usize;
+            for i in 0..bounds.len() - 1 {
+                let (s, e) = (bounds[i], bounds[i + 1]);
+                if e - s < 0.01 {
+                    continue;
+                }
+                let mut ch = "asetpts=PTS-STARTPTS".to_string();
+                if i % 2 == 1 {
+                    ch.push_str(&format!(",{af}"));
+                }
+                seg.push(format!("[0:a]atrim=start={s:.3}:end={e:.3},{ch}[a{i}]"));
+                ins.push_str(&format!("[a{i}]"));
+                nseg += 1;
+            }
+            seg.push(format!("{ins}concat=n={nseg}:v=0:a=1[aout]"));
+            let fc = seg.join(";");
             argv.extend(["-filter_complex", &fc, "-map", "[aout]"]);
         }
         None => {

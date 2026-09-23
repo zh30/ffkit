@@ -79,49 +79,55 @@ fn windowed(
     probe: &crate::probe::Probe,
     g: &Globals,
 ) -> Result<Contract, Error> {
-    let at = crate::time::resolve_at(args.at.as_deref().unwrap(), args.dur, probe.duration)?;
-    if !(0.0..probe.duration - 0.1).contains(&at) {
-        return Err(Error::input("--at must land inside the input"));
-    }
-    let end = match args.dur {
-        Some(d) if d <= 0.0 => return Err(Error::input("--dur must be positive")),
-        Some(d) => (at + d).min(probe.duration),
-        None => probe.duration,
-    };
-    if end - at < 0.1 {
-        return Err(Error::input("speed window is under 0.1s"));
+    let windows = crate::time::window_list(args.at.as_deref().unwrap(), args.dur, probe.duration)?;
+    for (s, e) in &windows {
+        if e - s < 0.1 {
+            return Err(Error::input("a speed window is under 0.1s"));
+        }
     }
     let has_v = probe.has_video;
     let has_a = probe.has_audio;
     let mut seg: Vec<String> = Vec::new();
-    // video segments: [0,at) normal, [at,end) sped, [end,) normal
-    if has_v {
-        seg.push(format!("[0:v]trim=0:{at:.3},setpts=PTS-STARTPTS[v0]"));
-        seg.push(format!(
-            "[0:v]trim={at:.3}:{end:.3},setpts=(PTS-STARTPTS)/{factor}[v1]"
-        ));
-        seg.push(format!("[0:v]trim=start={end:.3},setpts=PTS-STARTPTS[v2]"));
+    // alternating normal/sped segments around each window
+    let mut bounds = vec![0.0];
+    for (s, e) in &windows {
+        bounds.push(*s);
+        bounds.push(*e);
     }
-    if has_a {
-        let chain = atempo_chain(factor)?;
-        seg.push(format!("[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[a0]"));
-        seg.push(format!(
-            "[0:a]atrim={at:.3}:{end:.3},asetpts=PTS-STARTPTS,{chain}[a1]"
-        ));
-        seg.push(format!(
-            "[0:a]atrim=start={end:.3},asetpts=PTS-STARTPTS[a2]"
-        ));
-    }
-    let (nv, na) = (if has_v { 1 } else { 0 }, if has_a { 1 } else { 0 });
+    bounds.push(probe.duration);
+    let chain = if has_a {
+        Some(atempo_chain(factor)?)
+    } else {
+        None
+    };
     let mut ins = String::new();
-    for i in 0..3 {
+    let mut nseg = 0usize;
+    for i in 0..bounds.len() - 1 {
+        let (s, e) = (bounds[i], bounds[i + 1]);
+        if e - s < 0.01 {
+            continue;
+        }
+        let win = i % 2 == 1;
         if has_v {
+            let pts = if win {
+                format!("setpts=(PTS-STARTPTS)/{factor}")
+            } else {
+                "setpts=PTS-STARTPTS".to_string()
+            };
+            seg.push(format!("[0:v]trim=start={s:.3}:end={e:.3},{pts}[v{i}]"));
             ins.push_str(&format!("[v{i}]"));
         }
         if has_a {
+            let mut a = "asetpts=PTS-STARTPTS".to_string();
+            if win {
+                a.push_str(&format!(",{}", chain.as_deref().unwrap()));
+            }
+            seg.push(format!("[0:a]atrim=start={s:.3}:end={e:.3},{a}[a{i}]"));
             ins.push_str(&format!("[a{i}]"));
         }
+        nseg += 1;
     }
+    let (nv, na) = (if has_v { 1 } else { 0 }, if has_a { 1 } else { 0 });
     let mut outs = String::new();
     if has_v {
         outs.push_str("[vout]");
@@ -129,7 +135,7 @@ fn windowed(
     if has_a {
         outs.push_str("[aout]");
     }
-    seg.push(format!("{ins}concat=n=3:v={nv}:a={na}{outs}"));
+    seg.push(format!("{ins}concat=n={nseg}:v={nv}:a={na}{outs}"));
     let fc = seg.join(";");
 
     let mut argv = ffmpeg_base(g.progress);
@@ -152,8 +158,7 @@ fn windowed(
     let c = engine::write_job("speed", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({
         "factor": factor,
-        "at": at,
-        "dur": end - at,
+        "windows": windows.iter().map(|(s, e)| json!({"at": s, "dur": e - s})).collect::<Vec<_>>(),
         "keep_pitch": true,
     })))
 }

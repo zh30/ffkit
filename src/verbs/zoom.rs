@@ -102,39 +102,49 @@ fn windowed(
     probe: &crate::probe::Probe,
     g: &Globals,
 ) -> Result<Contract, Error> {
-    let at = crate::time::resolve_at(args.at.as_deref().unwrap(), args.dur, probe.duration)?;
-    if !(0.0..probe.duration - 0.1).contains(&at) {
-        return Err(Error::input("--at must land inside the input"));
+    let windows = crate::time::window_list(args.at.as_deref().unwrap(), args.dur, probe.duration)?;
+    let has_a = probe.has_audio;
+    // alternating normal/zoomed segments around each window
+    let mut bounds = vec![0.0];
+    for (s, e) in &windows {
+        bounds.push(*s);
+        bounds.push(*e);
     }
-    let end = match args.dur {
-        Some(d) if d <= 0.0 => return Err(Error::input("--dur must be positive")),
-        Some(d) => (at + d).min(probe.duration),
-        None => probe.duration,
-    };
-    let mid_vf = if args.motion.is_some() {
-        zoompan_for(end - at)
-    } else {
-        vf.to_string()
-    };
-    let mut seg: Vec<String> = vec![
-        format!("[0:v]trim=0:{at:.3},setpts=PTS-STARTPTS[v0]"),
-        format!("[0:v]trim={at:.3}:{end:.3},setpts=PTS-STARTPTS,{mid_vf}[v1]"),
-        format!("[0:v]trim=start={end:.3},setpts=PTS-STARTPTS[v2]"),
-        "[v0][v1][v2]concat=n=3:v=1:a=0[vout]".to_string(),
-    ];
-    if probe.has_audio {
-        seg.insert(3, format!("[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[a0]"));
-        seg.insert(
-            4,
-            format!("[0:a]atrim={at:.3}:{end:.3},asetpts=PTS-STARTPTS[a1]"),
-        );
-        seg.insert(
-            5,
-            format!("[0:a]atrim=start={end:.3},asetpts=PTS-STARTPTS[a2]"),
-        );
-        seg.pop();
-        seg.push("[v0][a0][v1][a1][v2][a2]concat=n=3:v=1:a=1[vout][aout]".to_string());
+    bounds.push(probe.duration);
+    let mut seg: Vec<String> = Vec::new();
+    let mut ins = String::new();
+    let mut nseg = 0usize;
+    for i in 0..bounds.len() - 1 {
+        let (s, e) = (bounds[i], bounds[i + 1]);
+        if e - s < 0.01 {
+            continue;
+        }
+        if i % 2 == 1 {
+            let mid_vf = if args.motion.is_some() {
+                zoompan_for(e - s)
+            } else {
+                vf.to_string()
+            };
+            seg.push(format!(
+                "[0:v]trim=start={s:.3}:end={e:.3},setpts=PTS-STARTPTS,{mid_vf}[v{i}]"
+            ));
+        } else {
+            seg.push(format!(
+                "[0:v]trim=start={s:.3}:end={e:.3},setpts=PTS-STARTPTS[v{i}]"
+            ));
+        }
+        ins.push_str(&format!("[v{i}]"));
+        if has_a {
+            seg.push(format!(
+                "[0:a]atrim=start={s:.3}:end={e:.3},asetpts=PTS-STARTPTS[a{i}]"
+            ));
+            ins.push_str(&format!("[a{i}]"));
+        }
+        nseg += 1;
     }
+    let (nv, na) = (1, if has_a { 1 } else { 0 });
+    let outs = if has_a { "[vout][aout]" } else { "[vout]" };
+    seg.push(format!("{ins}concat=n={nseg}:v={nv}:a={na}{outs}"));
     let fc = seg.join(";");
 
     let mut argv = ffmpeg_base(g.progress);
@@ -152,8 +162,7 @@ fn windowed(
     let mut c = engine::write_job("zoom", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({
         "factor": args.factor,
-        "at": at,
-        "dur": end - at,
+        "windows": windows.iter().map(|(s, e)| json!({"at": s, "dur": e - s})).collect::<Vec<_>>(),
         "motion": args.motion.map(|_| "kenburns"),
     }));
     Ok(c)
