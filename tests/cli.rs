@@ -16884,7 +16884,6 @@ fn transcode_vbitrate_cap_and_loudnorm_gate() {
     );
 }
 
-
 #[test]
 fn delogo_regions_multi_box() {
     if !has_ffmpeg() {
