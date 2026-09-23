@@ -237,6 +237,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 142)
+- `concat --audio-fade N` — fades audio out/in at every joint (boundary `afade` per clip: each non-last clip's tail fades out, each non-first clip's head fades in). Keeps every clip's duration — no overlap, no drift, lip sync preserved; forces the re-encode path since stream-copy can't fade.
+
 ## Shipped this run (round 141)
 - `waveform`/`spectrogram --at a,b,...` — a comma `--at` renders one PNG per window as `<stem>_N.png` (spectrogram slices the audio before each render; waveform crops each rendered strip) and lists them in `extra.outputs`.
 

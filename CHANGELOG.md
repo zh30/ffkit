@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.169.0] — 2026-09-22
+
+### Added
+- `concat --audio-fade N` — boundary `afade` at every joint: each non-last clip's tail fades out, each non-first clip's head fades in. Duration and lip sync preserved (no overlap drift); forces the re-encode path since stream-copy can't fade.
+
 ## [0.168.0] — 2026-09-22
 
 ### Added
