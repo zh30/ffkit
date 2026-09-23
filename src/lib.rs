@@ -128,6 +128,8 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Blur(args) => verbs::blur::run(args, &g),
         Cmd::Trail(args) => verbs::trail::run(args, &g),
         Cmd::Glitch(args) => verbs::glitch::run(args, &g),
+        Cmd::Mirror(args) => verbs::mirror::run(args, &g),
+        Cmd::Pix(args) => verbs::pix::run(args, &g),
         Cmd::Batch(args) => batch::run(args, &g),
         Cmd::Graph { plan } => graph::run(plan, &g),
         Cmd::Pipeline { plan } => pipeline::run(plan, &g),

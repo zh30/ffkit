@@ -17680,3 +17680,149 @@ fn censor_circle_mask_and_progress_opacity() {
         });
     assert!(bar_ok, "opacity missing from bar source: {}", v["commands"]);
 }
+
+#[test]
+fn mirror_pix_sepia() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("src.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=320x240:duration=2:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    // mirror x: right half mirrors the left (frame is x-symmetric)
+    let mir = dir.path().join("mir.mp4");
+    let v = run_json(&[
+        "mirror",
+        src.to_str().unwrap(),
+        "-o",
+        mir.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(fc.contains("hstack") && fc.contains("hflip"), "{fc}");
+    let out = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-ss", "0.5", "-i"])
+        .arg(&mir)
+        .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+        .output()
+        .unwrap();
+    // left pixel at x must equal right pixel at W-1-x (center mirror)
+    let w = 320usize;
+    let row = 120;
+    let base = row * w * 3;
+    let mut sym = 0u32;
+    for x in 0..w / 2 {
+        let a = &out.stdout[base + x * 3..base + x * 3 + 3];
+        let b = &out.stdout[base + (w - 1 - x) * 3..base + (w - 1 - x) * 3 + 3];
+        if a.iter().zip(b.iter()).all(|(p, q)| p.abs_diff(*q) < 24) {
+            sym += 1;
+        }
+    }
+    assert!(sym > 120, "mirror symmetry {sym}");
+    // windowed mirror uses blend with the T variable
+    let mirw = dir.path().join("mirw.mp4");
+    let v = run_json(&[
+        "mirror",
+        src.to_str().unwrap(),
+        "-o",
+        mirw.to_str().unwrap(),
+        "--axis",
+        "y",
+        "--at",
+        "0.5",
+        "--dur",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        fc.contains("vstack") && fc.contains("blend=all_expr") && fc.contains("between(T,"),
+        "{fc}"
+    );
+    // pix: neighbor downscale + probed upscale, blocky frame
+    let px = dir.path().join("px.mp4");
+    let v = run_json(&[
+        "pix",
+        src.to_str().unwrap(),
+        "-o",
+        px.to_str().unwrap(),
+        "--strength",
+        "16",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        fc.contains("scale=w=iw/16") && fc.contains("scale=w=320:h=240"),
+        "{fc}"
+    );
+    let out = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-ss", "0.5", "-i"])
+        .arg(&px)
+        .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+        .output()
+        .unwrap();
+    let base = 120 * w * 3;
+    let runs = (1..w)
+        .filter(|x| {
+            out.stdout[base + x * 3..base + x * 3 + 3]
+                != out.stdout[base + (x - 1) * 3..base + (x - 1) * 3 + 3]
+        })
+        .count();
+    assert!(runs < 60, "pixelated row should be blocky, runs {runs}");
+    // grade --preset sepia: classic sepia matrix
+    let sep = dir.path().join("sep.mp4");
+    let v = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        sep.to_str().unwrap(),
+        "--preset",
+        "sepia",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let fc = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|a| a.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(fc.contains("colorchannelmixer=.393:.769:.189"), "{fc}");
+}

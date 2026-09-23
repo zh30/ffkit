@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.191.0
+version: 0.194.0
 
 
 
@@ -68,7 +68,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | voice all over the place | `leveler` (`--at`/`--dur` window, `--threshold`/`--ratio`/`--makeup` — `acompressor`) |
 | hiss between sentences | `gate` (`--threshold`, `--preset`, `--at/--dur` — `agate` closes on quiet parts) |
 | pad in room tone / breath | `silence` (`--at`, comma list pads several points, `--dur` inserts quiet; `--detect` reports ranges; video holds: `freeze`) |
-| one-click look | `grade --preset cinematic|vivid|vintage|soft` (stacks under the sliders) |
+| one-click look | `grade --preset cinematic|vivid|vintage|soft|sepia` (stacks under the sliders) |
 | karaoke / keep only the vocal | `vocal` (`--at`/`--dur` window, `--mode karaoke` drops the center, `isolate` keeps it — stereo only; `--amount` partial) |
 | container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart); `--audio` rips the track, `--video` video-only, `--aspect 16:9` fixes display AR |
 | top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline`, `--at/--dur` window — `--at end` covers the tail), `--position` center/bottom, `--wrap` + `--align` multiline, `--fade` edge fades (needs --at/--dur), `--opacity` ghost text |
@@ -133,6 +133,8 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | blur just a moment | `blur` (`--at`/`--dur`) |
 | motion trails / ghost smears | `trail` (`--mode echo` tmix smear, `--frames`, `--at`/`--dur`; `--mode light` bright-pixel persistence via lagfun, `--decay`) |
 | datamosh glitch | `glitch` (`--strength` channel-shift + noise) |
+| mirror symmetry (dance) | `mirror` (`--axis x` left→right / `--axis y` top→bottom, `--at`/`--dur` window) |
+| retro pixelation | `pix` (`--strength` 2-64 block divisor, `--at`/`--dur` window) |
 | text in a corner | `title` (`--position top-right` …) |
 | B&W only for a moment | `bw` (`--at`/`--dur`) |
 | sharpen only the key shot | `sharpen` (`--at`/`--dur`) |

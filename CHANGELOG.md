@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.194.0] — 2026-09-23
+
+### Added
+
+- `mirror` — half-frame mirror across the center axis (`--axis x`/`y`, `--at`/`--dur` windowed via blend T-expr)
+- `pix` — full-frame retro pixelation (`--strength` 2-64 block divisor, `--at`/`--dur` window)
+- `grade --preset sepia` — classic sepia `colorchannelmixer` matrix
+
 ## [0.191.0] — 2026-09-23
 
 ### Added
