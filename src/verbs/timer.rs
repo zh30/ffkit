@@ -23,7 +23,10 @@ fn parse_hex(c: &str) -> Option<[u8; 3]> {
 pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "timer")?;
-    let at = args.at.unwrap_or(0.0);
+    let at = match &args.at {
+        Some(raw) => crate::time::resolve_frame_at(raw.trim(), probe.duration)?,
+        None => 0.0,
+    };
     let until = at + args.dur.unwrap_or(f64::MAX).min(86400.0);
     // --down: display the remaining time to the window end
     // --start seeds the readout: up counts N+t-at, down counts N-(t-at).

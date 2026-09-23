@@ -15997,6 +15997,39 @@ fn hls_poster_at_and_deliver_crf() {
 }
 
 #[test]
+
+fn timer_countdown_meter_at_end() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = lavfi_fixture(dir.path(), "f.mp4", "440", 1.0);
+    for (verb, extra) in [
+        ("timer", vec!["--at", "end", "--dur", "0.05"]),
+        ("countdown", vec!["--at", "end"]),
+        ("meter", vec!["--at", "end", "--dur", "0.1"]),
+    ] {
+        let out = dir.path().join(format!("{verb}.mp4"));
+        let mut argv = vec![verb, src.to_str().unwrap(), "-o", out.to_str().unwrap()];
+        argv.extend(extra);
+        let v = run_json(&argv);
+        assert_eq!(v["status"], "ok", "{verb} --at end: {v}");
+    }
+    // numeric --at still works
+    let v = run_json(&[
+        "timer",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("tn.mp4").to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--dur",
+        "0.1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
 fn deliver_fps_subs_margin_hls_poster() {
     if !has_ffmpeg() {
         return;

@@ -237,11 +237,16 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 149)
+- `timer`/`countdown`/`meter --at` now take `end` (and `end-N`-style anchors) — the last three numeric `--at` knobs moved onto `resolve_frame_at`.
+
+
 ## Shipped this run (round 148)
 - `hls --poster-at` — poster frame time for the player card (sec or `end`, clamped inside the stream); errors without `--poster`. `deliver --crf` — H.264 quality knob on platform delivery (default 20).
 
 ## Shipped this run (round 146)
 - `audiogram --at a,b,... --dur N` — the podcast→clips play in one call: each point starts an N-second audiogram written as `<stem>_N.mp4` (`extra.files`); single `--at`/`--from` + `--dur` bounds one clip. Rendering refactored to `render_clip(from, to, out)` per window.
+
 
 
 ## Shipped this run (round 145)
