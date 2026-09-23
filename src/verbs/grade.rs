@@ -37,6 +37,13 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         Some(crate::cli::GradePreset::Soft) => {
             String::from("eq=contrast=0.92:brightness=0.04:saturation=0.95")
         }
+        // teal shadows + warm mids (bs/bm only — 4.4 lacks ms)
+        Some(crate::cli::GradePreset::Teal) => {
+            String::from("eq=contrast=1.08:saturation=1.12,colorbalance=bs=0.10:bm=-0.06")
+        }
+        // desat lands at the chain tail so the default eq sliders can't
+        // re-add saturation
+        Some(crate::cli::GradePreset::Noir) => String::from("eq=contrast=1.28:brightness=-0.02"),
         None => String::new(),
     };
     if !vf.is_empty() {
@@ -56,6 +63,9 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if args.hue != 0.0 {
         vf.push_str(&format!(",hue=h={}", args.hue.clamp(-180.0, 180.0)));
+    }
+    if matches!(args.preset, Some(crate::cli::GradePreset::Noir)) {
+        vf.push_str(",hue=s=0");
     }
     if let Some(lut) = &args.lut {
         // Single quotes group literal path text; escape internal quotes.

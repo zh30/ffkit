@@ -233,7 +233,17 @@ fn burn_overlay(
         argv.push(&pngs[i]);
     }
 
-    let y = overlay_y(args.safe, args.position);
+    let margin;
+    let y = match args.margin {
+        Some(m) => {
+            margin = match args.position {
+                CaptionPosition::Bottom => format!("H-h-{m}"),
+                CaptionPosition::Top => m.to_string(),
+            };
+            margin.as_str()
+        }
+        None => overlay_y(args.safe, args.position),
+    };
     let mut fc = String::new();
     let mut last = "0:v".to_string();
     for (i, (start, end, _)) in jobs.iter().enumerate() {
