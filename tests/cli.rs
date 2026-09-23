@@ -5300,6 +5300,47 @@ fn waveform_renders_a_drawn_png() {
 }
 
 #[test]
+fn extract_cover_comma_at_grab_one_still_each() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = lavfi_fixture(dir.path(), "f.mp4", "440", 1.0);
+    let png = dir.path().join("e.png");
+    let v = run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        png.to_str().unwrap(),
+        "--at",
+        "0.2,0.6",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        dir.path().join("e_1.png").exists() && dir.path().join("e_2.png").exists(),
+        "extract writes _1/_2 stills: {v}"
+    );
+    assert_eq!(v["extra"]["files"].as_array().unwrap().len(), 2, "{v}");
+    let jpg = dir.path().join("c.jpg");
+    let v = run_json(&[
+        "cover",
+        src.to_str().unwrap(),
+        "-o",
+        jpg.to_str().unwrap(),
+        "--at",
+        "0.1,0.5",
+        "--size",
+        "160x160",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        dir.path().join("c_1.jpg").exists() && dir.path().join("c_2.jpg").exists(),
+        "cover writes _1/_2 stills: {v}"
+    );
+    assert_eq!(v["extra"]["files"].as_array().unwrap().len(), 2, "{v}");
+}
+
+#[test]
 fn waveform_spectrogram_comma_at_render_one_png_each() {
     if !has_ffmpeg() {
         return;
