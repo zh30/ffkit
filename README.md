@@ -97,7 +97,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `doctor` | Whether local ffmpeg works, which encoders/filters exist |
 | `probe` | Duration, size, codecs, channels |
 | `look` | Contact sheet (`--tiles`) or timestamps (`--at`, repeatable) |
-| `cut` | Trim; lossless copy by default, `--accurate`, `--ranges`, `--drop` for frame-exact |
+| `cut` | Trim; lossless copy by default, `--accurate`, `--ranges`, `--drop` for frame-exact (bounds take `end`: `T-end` through the tail, `end-N` last N secs) |
 | `concat` | Join N clips (any xfade `--transition`, `--audio-fade`); `--level -14` loudnorms each clip first |
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop , `--position` anchors the picture in the bars , `--strength` sigma |
 | `extract` | Still frame or `--gif` clip (`--bounce` palindrome) | `--at` (`end` = last frame / last --dur sec), `--width`, `--fps` , `--loop` GIF repeat count, `--colors` palette size |
@@ -137,7 +137,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window, `--at end` the tail (`--soft` removelogo) |
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
 | `subs` | Extract (`--stream`, `--all`)/burn/mux subtitles (`--shift/--merge/--rate`, burn style + `--outline`/`--box` plate/`--align`/`--from`/`--to` window, `--safe`); `--convert` .srt↔.vtt; `--case` cue text |
-| `thumb` | One-frame cover grab (`--at` — `end` = last frame / `--frame`, `--count` N stills, `--width`) → jpg/png/webp; `--scenes` stills at cuts |
+| `thumb` | One-frame cover grab (`--at` — `end` = last frame / `--frame`, `--count` N stills (`--from`/`--to` bounds the spread, `--to end` ok), `--width`) → jpg/png/webp; `--scenes` stills at cuts |
 | `solid` | Solid-color clip card (`--color`, `--size`, `--dur`, `--fps` rate; silent stereo optional) (`--gradient` animated, `--noise` grain) , `--text` end-card text (`--wrap` folds, `--align` lines) |
 | `replace` | Swap the audio track (`--mix`, `--duck`, `--fade`, `--loop` short beds, `--at`/`--dur` window) |
 | `jumpcut` | Cut silence inside a talking-head take |

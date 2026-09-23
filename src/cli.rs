@@ -996,6 +996,11 @@ pub struct ThumbArgs {
     /// Grab N evenly-spaced stills instead of one (out_01.jpg … out_NN.jpg)
     #[arg(long)]
     pub count: Option<u32>,
+    /// Bound the --count spread window (default: whole clip; `end` ok on --to)
+    #[arg(long)]
+    pub from: Option<String>,
+    #[arg(long)]
+    pub to: Option<String>,
     /// Grab a still at every scene change (thumbnail candidates)
     #[arg(long)]
     pub scenes: bool,

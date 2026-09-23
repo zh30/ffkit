@@ -81,14 +81,27 @@ pub fn run(args: CutArgs, g: &Globals) -> Result<Contract, Error> {
     engine::write_job("cut", &[&args.input], &args.output, vec![argv], g)
 }
 
-fn parse_ranges(ranges: &str) -> Result<Vec<(f64, f64)>, Error> {
+fn parse_ranges(ranges: &str, duration: f64) -> Result<Vec<(f64, f64)>, Error> {
     let mut segs: Vec<(f64, f64)> = Vec::new();
     for part in ranges.split(',') {
         let (a, b) = part
             .split_once('-')
             .ok_or_else(|| Error::input(format!("bad range '{part}' — use 10-20,40-50")))?;
-        let a = parse_time(a.trim())?;
-        let b = parse_time(b.trim())?;
+        let (a, b) = if a.trim().eq_ignore_ascii_case("end") {
+            // `end-N` = the last N seconds of the input
+            let n = parse_time(b.trim())?;
+            if n <= 0.0 || n >= duration {
+                return Err(Error::input(format!(
+                    "bad range '{part}' — tail length inside the input"
+                )));
+            }
+            (duration - n, duration)
+        } else if b.trim().eq_ignore_ascii_case("end") {
+            // `T-end` = from T through the tail
+            (parse_time(a.trim())?, duration)
+        } else {
+            (parse_time(a.trim())?, parse_time(b.trim())?)
+        };
         if b <= a || a < 0.0 {
             return Err(Error::input(format!(
                 "bad range '{part}' — end after start"
@@ -103,7 +116,7 @@ fn parse_ranges(ranges: &str) -> Result<Vec<(f64, f64)>, Error> {
 fn ranges_cut(args: &CutArgs, ranges: &str, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "cut --ranges")?;
-    let mut segs = parse_ranges(ranges)?
+    let mut segs = parse_ranges(ranges, probe.duration)?
         .into_iter()
         .map(|(a, b)| (a, b.min(probe.duration)))
         .collect::<Vec<_>>();
@@ -118,7 +131,7 @@ fn ranges_cut(args: &CutArgs, ranges: &str, g: &Globals) -> Result<Contract, Err
 fn drop_cut(args: &CutArgs, ranges: &str, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "cut --drop")?;
-    let mut drops = parse_ranges(ranges)?
+    let mut drops = parse_ranges(ranges, probe.duration)?
         .into_iter()
         .map(|(a, b)| (a, b.min(probe.duration)))
         .collect::<Vec<_>>();

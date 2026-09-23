@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.143.0
+version: 0.144.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -107,7 +107,8 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | keep only the good parts | `cut` (`--ranges "10-20,40-50"` — joined) |
 | solid color card / backplate | `solid` (`--color`/`--size`/`--dur`/`--fps`, optional silent track), `--noise` grain, `--text` card text (`--wrap`/`--align`), `--fade` card fades |
 | boost without clipping | `volume` (`--limit` dBTP — brickwall after the gain) |
-| rip out a middle section | `cut` (`--drop "30-45"` — keeps the rest joined) |
+| rip out a middle section | `cut` (`--drop "30-45"` — keeps the rest joined; `end-N` = trim the tail) |
+| keep only the tail / several parts | `cut` (`--ranges` — `T-end` through the tail, `end-N` last N secs) |
 | text that survives busy frames | `title` (`--outline` — stroke around every glyph) |
 | bars in brand color | `fit` (`--color` — pad fill instead of black) |
 | burned subs, your style | `subs` (`--size`/`--color`/`--top`/`--outline`/`--font`) |

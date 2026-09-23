@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.144.0] — 2026-09-22
+
+### Added
+- `cut --ranges`/`--drop` accept `end` bounds — `T-end` through the tail, `end-N` the last N seconds.
+- `thumb --count --from/--to` — bound the even-spread still window (`--to end` ok).
+
 ## [0.143.0] — 2026-09-22
 
 ### Added

@@ -14960,3 +14960,73 @@ fn chapter_yt_writes_description_format_and_imports_it_back() {
     assert_eq!(ch.len(), 2, "{ch:?}");
     assert_eq!(ch[1]["title"], "Demo");
 }
+
+#[test]
+fn cut_ranges_accept_end_bounds() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // --drop end-0.3 → keeps 0..0.7 (drops the tail)
+    let v = run_json(&[
+        "cut",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("d.mp4").to_str().unwrap(),
+        "--drop",
+        "end-0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("0.700"), "{cmds}");
+    // --ranges 0.2-end → keeps 0.2..1.0
+    let v = run_json(&[
+        "cut",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("r.mp4").to_str().unwrap(),
+        "--ranges",
+        "0.2-end",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}"); // single range → needs 2+
+    let v = run_json(&[
+        "cut",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("r.mp4").to_str().unwrap(),
+        "--ranges",
+        "0-0.2,end-0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // thumb --count bounded by --from/--to
+    let v = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("tb.jpg").to_str().unwrap(),
+        "--count",
+        "3",
+        "--from",
+        "0.2",
+        "--to",
+        "0.9",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-ss"), "{cmds}");
+    assert!(cmds.contains("-t"), "{cmds}");
+    assert!(cmds.contains("0.700"), "{cmds}"); // -t span
+}

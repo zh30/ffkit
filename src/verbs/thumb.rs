@@ -6,7 +6,7 @@ use crate::cli::{Globals, ThumbArgs};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
-use crate::time::fmt_time;
+use crate::time::{fmt_time, parse_time};
 
 pub fn run(args: ThumbArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
@@ -72,15 +72,30 @@ pub fn run(args: ThumbArgs, g: &Globals) -> Result<Contract, Error> {
         if !(1..=50).contains(&n) {
             return Err(Error::input("--count must be 1..=50"));
         }
+        let t0 = match &args.from {
+            Some(s) => parse_time(s)?,
+            None => 0.0,
+        };
+        let t1 = match &args.to {
+            Some(s) if s.trim().eq_ignore_ascii_case("end") => probe.duration,
+            Some(s) => parse_time(s)?,
+            None => probe.duration,
+        };
+        if t0 < 0.0 || t1 <= t0 || t0 >= probe.duration {
+            return Err(Error::input(
+                "--from/--to need 0 <= from < to within the input",
+            ));
+        }
+        let span = t1.min(probe.duration) - t0;
         let stem = args
             .output
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("thumb");
         let parent = args.output.parent().filter(|p| !p.as_os_str().is_empty());
-        // fps=(n-0.5)/dur spaces the picks across ~95% of the clip; a higher
+        // fps=(n-0.5)/span spaces the picks across ~95% of the window; a higher
         // rate lands the last pts past EOF and drops a frame.
-        let fps = (n as f64 - 0.5).max(0.5) / probe.duration.max(0.05);
+        let fps = (n as f64 - 0.5).max(0.5) / span.max(0.05);
         let files: Vec<String> = (1..=n)
             .map(|k| {
                 let name = format!("{stem}_{k:02}.{ext}");
@@ -91,8 +106,14 @@ pub fn run(args: ThumbArgs, g: &Globals) -> Result<Contract, Error> {
             })
             .collect();
         let mut argv = ffmpeg_base(g.progress);
+        if t0 > 0.0 {
+            argv.extend(["-ss", &fmt_time(t0)]);
+        }
         argv.push("-i");
         argv.push(&args.input);
+        if t1 < probe.duration {
+            argv.extend(["-t", &fmt_time(span)]);
+        }
         let scale = args
             .width
             .map(|w| format!(",scale={w}:-2"))

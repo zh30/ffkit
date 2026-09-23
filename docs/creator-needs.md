@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 117)
+- `cut --ranges`/`--drop` accept `end` bounds — `T-end` runs through the tail, `end-N` is the last N seconds (`--drop end-10` trims the outro without probing the duration).
+- `thumb --count --from/--to` — bound the even-spread still window (`--to end` ok).
+
 ## Shipped this run (round 116)
 - `end` sweep completed: `--at end` on `boomerang`, `mute`, `dehum`, `voice`, `vdenoise`, `zoom` (via `time::resolve_at`) and `--at end` = last frame on `thumb`, `cover`, `frames` (new `time::resolve_frame_at`, duration − 0.05s, no `--dur` needed).
 

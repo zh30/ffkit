@@ -97,7 +97,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `doctor` | 本机 ffmpeg 是否可用、有哪些 encoder/filter |
 | `probe` | 时长、分辨率、编码、声道 |
 | `look` | 联系表（`--tiles`）或指定时间点（`--at`，可重复） |
-| `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges`、`--drop` 才帧精确 |
+| `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges`、`--drop` 才帧精确（边界支持 `end`：`T-end` 到结尾、`end-N` 最后 N 秒） |
 | `concat` | 拼接 N 段（任意 xfade `--transition`、`--audio-fade`）；`--level -14` 先统一各段响度 |
 | `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 ，`--position` 画面对齐黑边位置 ，`--strength` 模糊力度 |
 | `extract` | 抓静帧或 `--gif` 动图（`--bounce` 往返循环） | `--at`（`end` = 最后一帧 / 最后 --dur 秒）、`--width`、`--fps` ，`--loop` GIF 循环次数、`--colors` 调色板大小 |
@@ -137,7 +137,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h`；`--at`/`--dur` 只处理窗口，`--at end` 片尾（`--soft` 柔化去除） |
 | `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`）+ `--rotate`、`--clear` 显示旋转，无损拷贝 |
 | `subs` | 提取（`--stream`、`--all` 全部）/烧录/封装字幕（`--shift/--merge/--rate`、烧录样式 + `--outline`/`--box` 衬底/`--align`/`--from`/`--to` 窗口、`--safe`）；`--convert` .srt↔.vtt 互转；`--case` 大小写 |
-| `thumb` | 抓封面帧（`--at`（`end` = 最后一帧）/`--frame`、`--count` 均布 N 张、`--width`）→ jpg/png/webp；`--scenes` 场景切换抓帧 |
+| `thumb` | 抓封面帧（`--at`（`end` = 最后一帧）/`--frame`、`--count` 均布 N 张（`--from`/`--to` 限定范围，`--to` 可用 `end`）、`--width`）→ jpg/png/webp；`--scenes` 场景切换抓帧 |
 | `solid` | 纯色视频卡（`--color`、`--size`、`--dur`、`--fps` 帧率，可选静音轨）（`--gradient` 渐变、`--noise` 颗粒） |（`--color`/`--gradient` 支持颜色名与十六进制） ，`--text` 卡片文字（`--wrap` 折行、`--align` 对齐） |
 | `replace` | 换音轨（`--mix`、`--duck`、`--fade`、`--loop` 短音源循环、`--at`/`--dur` 局部替换） |
 | `jumpcut` | 剪掉口播里的静音停顿 |
