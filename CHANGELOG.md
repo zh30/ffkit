@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.178.1] — 2026-09-22
+
+### Fixed
+- `scroll_comma_at_and_end_replays_windows` test: compile fix (`{w:?}`) + `--text` flag (the test was authored on rsi-round150 but never committed to its branch; landed with the merge).
+
 ## [0.178.0] — 2026-09-22
 
 ### Added

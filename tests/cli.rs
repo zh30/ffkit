@@ -16009,6 +16009,7 @@ fn scroll_comma_at_and_end_replays_windows() {
         src.to_str().unwrap(),
         "-o",
         out.to_str().unwrap(),
+        "--text",
         "Crawl text",
         "--at",
         "0.2,end",
@@ -16018,7 +16019,7 @@ fn scroll_comma_at_and_end_replays_windows() {
     assert_eq!(v["status"], "ok", "{v}");
     let w = v["extra"]["windows"].as_array().unwrap();
     assert_eq!(w.len(), 2, "{v}");
-    assert!((w[1]["at"].as_f64().unwrap() - 1.4).abs() < 0.05, "{w}");
+    assert!((w[1]["at"].as_f64().unwrap() - 1.4).abs() < 0.05, "{w:?}");
     assert!(out.is_file());
 }
 
