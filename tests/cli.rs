@@ -15387,3 +15387,58 @@ fn audiogram_and_caption_from_end_bounds() {
     assert_eq!(v["status"], "ok", "{v}");
     assert_eq!(v["extra"]["cues"], 1, "{v}");
 }
+
+#[test]
+fn bleep_comma_list_censors_every_window() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "bleep",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("bl.mp4").to_str().unwrap(),
+        "--at",
+        "0.1,0.5,end",
+        "--dur",
+        "0.1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("adelay=100"), "{cmds}");
+    assert!(cmds.contains("adelay=500"), "{cmds}");
+    assert!(cmds.contains("adelay=900"), "{cmds}");
+    assert!(cmds.contains("amix=inputs=4"), "{cmds}");
+    let v = run_json(&[
+        "censor",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("cx.mp4").to_str().unwrap(),
+        "--region",
+        "10:10:40:40",
+        "--at",
+        "0.1,0.5",
+        "--dur",
+        "0.1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("between(t,0.100,0.200)+between(t,0.500,0.600)"),
+        "{cmds}"
+    );
+}

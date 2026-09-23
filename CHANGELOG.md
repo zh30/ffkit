@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.152.0] — 2026-09-22
+
+### Added
+- `bleep --at` comma list — censor several windows in one pass.
+- `censor --at` comma list — cover several windows (requires `--dur`).
+
 ## [0.151.0] — 2026-09-22
 
 ### Added

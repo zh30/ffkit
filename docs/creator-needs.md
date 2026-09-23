@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 125)
+- `bleep --at t1,t2,...` — comma list censors several words in one pass (one sine + adelay per window, OR'd mute enable).
+- `censor --at t1,t2 --dur N` — comma list covers several spots (requires `--dur`).
+
 ## Shipped this run (round 124)
 - `audiogram --from end`/`end-N` — clip the rendered segment from the tail.
 - `caption --from end`/`end-N`, `--to end` — cue-window filter anchored to the tail.

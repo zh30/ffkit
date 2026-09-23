@@ -1544,7 +1544,7 @@ pub struct BleepArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Window start (h:mm:ss or seconds)
+    /// Window start(s) — comma list for several bleeps (`end` ok per entry)
     #[arg(long)]
     pub at: String,
     /// Window length in seconds
@@ -2741,7 +2741,7 @@ pub struct CensorArgs {
     /// Mosaic blocks or gaussian blur
     #[arg(long, value_enum, default_value_t = CensorMode::Pixel)]
     pub mode: CensorMode,
-    /// Censor only inside this window (h:mm:ss or seconds)
+    /// Censor only inside this window — comma list for several spots (needs --dur; `end` ok)
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (default: to the end)

@@ -22,22 +22,44 @@ pub fn run(args: BleepArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_audio {
         return Err(Error::input("bleep: input has no audio stream"));
     }
-    let start = crate::time::resolve_at(&args.at, Some(args.dur), probe.duration)?;
-    if !(0.0..probe.duration).contains(&start) {
-        return Err(Error::input("--at is outside the input"));
+    // --at takes a comma list: censor several words in one pass.
+    let mut windows: Vec<(f64, f64)> = Vec::new();
+    for part in args.at.split(',') {
+        let start = crate::time::resolve_at(part.trim(), Some(args.dur), probe.duration)?;
+        if !(0.0..probe.duration).contains(&start) {
+            return Err(Error::input("--at is outside the input"));
+        }
+        windows.push((start, (start + args.dur).min(probe.duration)));
     }
-    let end = (start + args.dur).min(probe.duration);
+    if windows.len() > 20 {
+        return Err(Error::input("bleep is capped at 20 windows"));
+    }
+    windows.sort_by(|a, b| a.0.total_cmp(&b.0));
 
-    let fc = format!(
-        "[0:a]volume=0:enable='between(t,{start:.3},{end:.3})'[dry];\
-         sine=frequency={freq}:duration={dur}[tone];\
-         [tone]adelay={ms}:all=1,volume={lvl}[bp];\
-         [dry][bp]amix=inputs=2:duration=first:normalize=0[aout]",
-        freq = args.freq,
-        dur = args.dur,
-        lvl = args.level,
-        ms = (start * 1000.0).round() as u64,
-    );
+    let mute = windows
+        .iter()
+        .map(|(s, e)| format!("between(t,{s:.3},{e:.3})"))
+        .collect::<Vec<_>>()
+        .join("+");
+    let mut fc = format!("[0:a]volume=0:enable='{mute}'[dry];");
+    for (i, (s, _)) in windows.iter().enumerate() {
+        fc.push_str(&format!(
+            "sine=frequency={freq}:duration={dur}[tone{i}];\
+             [tone{i}]adelay={ms}:all=1,volume={lvl}[bp{i}];",
+            freq = args.freq,
+            dur = args.dur,
+            lvl = args.level,
+            ms = (s * 1000.0).round() as u64,
+        ));
+    }
+    fc.push_str("[dry]");
+    for i in 0..windows.len() {
+        fc.push_str(&format!("[bp{i}]"));
+    }
+    fc.push_str(&format!(
+        "amix=inputs={}:duration=first:normalize=0[aout]",
+        windows.len() + 1
+    ));
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);

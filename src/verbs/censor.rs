@@ -47,15 +47,36 @@ pub fn run(args: CensorArgs, g: &Globals) -> Result<Contract, Error> {
     };
     let enable = match (&args.at, args.dur) {
         (Some(at), dur) => {
-            let start = crate::time::resolve_at(at, dur, probe.duration)?;
-            if !(0.0..probe.duration).contains(&start) {
-                return Err(Error::input("--at is outside the input"));
+            if at.contains(',') && dur.is_none() {
+                return Err(Error::input("a comma list of --at times needs --dur"));
             }
-            match dur.map(|d| start + d) {
-                Some(e) if e < probe.duration => {
-                    format!(":enable='between(t,{start:.3},{e:.3})'")
+            let mut starts = Vec::new();
+            for part in at.split(',') {
+                let start = crate::time::resolve_at(part.trim(), dur, probe.duration)?;
+                if !(0.0..probe.duration).contains(&start) {
+                    return Err(Error::input("--at is outside the input"));
                 }
-                _ => format!(":enable='gte(t,{start:.3})'"),
+                starts.push(start);
+            }
+            if starts.len() == 1 {
+                let start = starts[0];
+                match dur.map(|d| start + d) {
+                    Some(e) if e < probe.duration => {
+                        format!(":enable='between(t,{start:.3},{e:.3})'")
+                    }
+                    _ => format!(":enable='gte(t,{start:.3})'"),
+                }
+            } else {
+                let d = dur.unwrap();
+                let expr = starts
+                    .iter()
+                    .map(|s| {
+                        let e = (s + d).min(probe.duration);
+                        format!("between(t,{s:.3},{e:.3})")
+                    })
+                    .collect::<Vec<_>>()
+                    .join("+");
+                format!(":enable='{expr}'")
             }
         }
         (None, Some(_)) => return Err(Error::input("--dur needs --at")),
