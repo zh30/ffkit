@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::cli::{DelogoArgs, Globals};
+use crate::cli::{DelogoArgs, DelogoShape, Globals};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -64,13 +64,28 @@ pub fn run(args: DelogoArgs, g: &Globals) -> Result<Contract, Error> {
     // --soft: removelogo reads a PNG mask (white = remove) and interpolates
     // edges instead of boxing — gentler on gradients/sky.
     let mut mask_tmp = None;
-    let vf = if args.soft {
+    let circle = matches!(args.shape, DelogoShape::Circle);
+    let vf = if args.soft || circle {
         let (fw, fh) = (w as u32, h as u32);
         let mut img = image::RgbaImage::from_pixel(fw, fh, image::Rgba([0, 0, 0, 255]));
         for &(x, y, rw, rh) in &regions {
-            for yy in y..(y + rh) {
-                for xx in x..(x + rw) {
-                    img.put_pixel(xx, yy, image::Rgba([255, 255, 255, 255]));
+            if circle {
+                let (cx, cy) = (x as f64 + rw as f64 / 2.0, y as f64 + rh as f64 / 2.0);
+                let (rx, ry) = (rw as f64 / 2.0, rh as f64 / 2.0);
+                for yy in y..(y + rh) {
+                    for xx in x..(x + rw) {
+                        let dx = (xx as f64 + 0.5 - cx) / rx;
+                        let dy = (yy as f64 + 0.5 - cy) / ry;
+                        if dx * dx + dy * dy <= 1.0 {
+                            img.put_pixel(xx, yy, image::Rgba([255, 255, 255, 255]));
+                        }
+                    }
+                }
+            } else {
+                for yy in y..(y + rh) {
+                    for xx in x..(x + rw) {
+                        img.put_pixel(xx, yy, image::Rgba([255, 255, 255, 255]));
+                    }
                 }
             }
         }

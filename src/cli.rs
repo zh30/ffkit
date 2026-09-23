@@ -616,6 +616,9 @@ pub struct CaptionArgs {
     /// Word-wrap each cue line at N columns (≥4, burn only)
     #[arg(long)]
     pub wrap: Option<u32>,
+    /// Karaoke sung-word color as RRGGBB (needs --karaoke)
+    #[arg(long)]
+    pub highlight: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -753,6 +756,8 @@ pub enum WaveMode {
     Cline,
     /// Frequency bars (showfreqs) — spectrum audiogram look
     Spectrum,
+    /// Lissajous vectorscope (avectorscope) — trippy stereo scope
+    Scope,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1009,6 +1014,15 @@ pub struct DelogoArgs {
     /// Feathered removal via removelogo mask instead of the hard delogo box
     #[arg(long)]
     pub soft: bool,
+    /// Mask shape: box (default) or circle (ellipse via edge-interpolated mask)
+    #[arg(long, value_enum, default_value_t = DelogoShape::Box)]
+    pub shape: DelogoShape,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum DelogoShape {
+    Box,
+    Circle,
 }
 
 #[derive(clap::Args, Debug)]
