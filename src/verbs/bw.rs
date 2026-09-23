@@ -22,7 +22,7 @@ pub fn run(args: BwArgs, g: &Globals) -> Result<Contract, Error> {
         &{
             match &args.at {
                 Some(s) => {
-                    let at = crate::time::parse_time(s)?;
+                    let at = crate::time::resolve_at(s, args.dur, probe.duration)?;
                     if !(0.0..probe.duration).contains(&at) {
                         return Err(Error::input("--at is outside the input"));
                     }

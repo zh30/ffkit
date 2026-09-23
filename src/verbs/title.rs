@@ -51,7 +51,7 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "title")?;
     let at = match &args.at {
-        Some(s) => crate::time::parse_time(s)?,
+        Some(s) => crate::time::resolve_at(s, Some(args.duration), probe.duration)?,
         None => 0.0,
     };
     if at < 0.0 || at >= probe.duration {

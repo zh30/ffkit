@@ -27,7 +27,7 @@ pub fn run(args: ProgressArgs, g: &Globals) -> Result<Contract, Error> {
     };
     let enable = match &args.at {
         Some(s) => {
-            let at = time::parse_time(s)?;
+            let at = time::resolve_at(s, args.dur, probe.duration)?;
             if !(0.0..probe.duration).contains(&at) {
                 return Err(Error::input("--at is outside the input"));
             }

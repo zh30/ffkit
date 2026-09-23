@@ -14691,3 +14691,63 @@ fn meme_at_end_windows_tail() {
         .join(" ");
     assert!(cmds.contains("between(t,0.600,1.000"), "{cmds}");
 }
+
+#[test]
+fn at_end_works_across_windowed_verbs() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // blur --at end --dur 0.4 → enable covers the tail
+    let out = dir.path().join("be.mp4");
+    let v = run_json(&[
+        "blur",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "end",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("between(t,0.600") || cmds.contains("gte(t,0.600"),
+        "{cmds}"
+    );
+    // title --at end --duration 0.4 → end-card title
+    let v = run_json(&[
+        "title",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("tc.mp4").to_str().unwrap(),
+        "--text",
+        "THE END",
+        "--at",
+        "end",
+        "--duration",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // volume --at end without --dur → input error
+    let v = run_json(&[
+        "volume",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("ve.mp4").to_str().unwrap(),
+        "--db",
+        "-6",
+        "--at",
+        "end",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert_eq!(v["error"]["kind"], "input");
+}

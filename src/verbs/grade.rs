@@ -62,7 +62,7 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         vf.push_str(&format!(",noise=alls={}:allf=t+u", args.grain.min(30.0)));
     }
     if let Some(s) = &args.at {
-        let at = crate::time::parse_time(s)?;
+        let at = crate::time::resolve_at(s, args.dur, probe.duration)?;
         if !(0.0..probe.duration).contains(&at) {
             return Err(Error::input("--at is outside the input"));
         }

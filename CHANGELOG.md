@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.139.0] — 2026-09-22
+
+### Added
+- `--at end --dur N` on every windowed look/gain verb — `title` (end-cards), `blur`, `bw`, `invert`, `sharpen`, `vignette`, `grade`, `delogo`, `volume`, `progress` — via shared `time::resolve_at`.
+
 ## [0.138.0] — 2026-09-22
 
 ### Added

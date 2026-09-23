@@ -133,7 +133,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet`（`--at`/`--dur` 局部回声） |
 | `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio（`--kind`、`--strength`、`--at`/`--dur`） |
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip`、`--angle` 任意角度倾斜 |
-| `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h`；`--at`/`--dur` 只处理窗口（`--soft` 柔化去除） |
+| `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h`；`--at`/`--dur` 只处理窗口，`--at end` 片尾（`--soft` 柔化去除） |
 | `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`）+ `--rotate`、`--clear` 显示旋转，无损拷贝 |
 | `subs` | 提取（`--stream`、`--all` 全部）/烧录/封装字幕（`--shift/--merge/--rate`、烧录样式 + `--outline`/`--box` 衬底/`--align`/`--from`/`--to` 窗口、`--safe`）；`--convert` .srt↔.vtt 互转；`--case` 大小写 |
 | `thumb` | 抓封面帧（`--at`/`--frame`、`--count` 均布 N 张、`--width`）→ jpg/png/webp；`--scenes` 场景切换抓帧 |
@@ -143,7 +143,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（`--merge N` 合并间隔小于 N 秒的段；`--by-scene` 场景切换处再切开；默认只编码要留下的段；`--copy` 无损但按关键帧） |
 | `cover` | 封面静帧（`--at`、`--blur` 模糊底填充、`--size` 画布——默认 1080x1920） |
 | `fade` | 画面和声音淡入淡出（`--in` / `--out`，`--color` 淡出到白等、`--dip T` 场景闪黑转场） |
-| `title` | 标题卡烧录（`--at`、`--fade`、`--outline`、`--box` 底板、`--wrap` 折行、`--align` 对齐、`--opacity` 半透明） |
+| `title` | 标题卡烧录（`--at`——`end` = 片尾卡、`--fade`、`--outline`、`--box` 底板、`--wrap` 折行、`--align` 对齐、`--opacity` 半透明） |
 | `loop` | 把成片重复 N 遍（Shorts 循环加长）（`--from`/`--to` 只循环片段，`--fade` 无缝衔接） |
 | `stabilize` | 手持防抖（deshake）——`--rx`/`--ry` 搜索半径，`--edge` 边缘填充 blank|original|clamped|mirror |
 | `reverse` | 倒放画面和声音 |
@@ -153,7 +153,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `vignette` | 暗角，整段或定时窗口（`--angle`、`--at`、`--dur`） |
 | `bw` | 黑白化，整段或定时窗口（`--at`、`--dur`、`--strength` 保留部分色彩） |
 | `volume` | 音量 ±dB（平台响度请用 `loudnorm`） |
-| `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`、`--dur`） |
+| `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`/`--dur`；`--at end` = 片尾） |
 | `vdenoise` | 视频降噪（暗光噪点）：`--strength` 0.5–30、`--at`/`--dur` 只处理一段（nlmeans，长片较慢） |
 | `crop` | 裁剪 `--region` 区域，或 `--aspect` 重构（`--anchor center|top|bottom|left|right` 可选锚点） |
 | `waveform` | 音频波形 → PNG（`--size`、`--color`, `--scale`、`--peak` 峰值、`--split` 逐声道、`--full` 密集、`--bg` 不透明底卡），播客封面/缩略图用（`--at/--dur` 只画片段） |
