@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.179.0] — 2026-09-22
+
+### Added
+- `hls --encrypt` — AES-128 segment encryption writing `key.bin` + `key.info` (`#EXT-X-KEY` in playlists); `--key HEX` custom key, `--key-uri URI` playlist key URL.
+
+
+
 ## [0.178.1] — 2026-09-22
 
 ### Fixed

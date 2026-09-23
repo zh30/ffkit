@@ -2152,6 +2152,15 @@ pub struct HlsArgs {
     /// Poster frame time (sec or `end`; default mid-video) — needs --poster
     #[arg(long)]
     pub poster_at: Option<String>,
+    /// AES-128 encrypt the segments (writes key.bin + key.info; paywalled/private streams)
+    #[arg(long)]
+    pub encrypt: bool,
+    /// Use this 32-hex key instead of a random one (implies --encrypt)
+    #[arg(long)]
+    pub key: Option<String>,
+    /// URI written into the playlist for the key (default key.bin; use a CDN/auth URL for real deployments)
+    #[arg(long)]
+    pub key_uri: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
