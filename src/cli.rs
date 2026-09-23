@@ -1247,6 +1247,9 @@ pub struct CoverArgs {
     /// Ambient: fill the pad with a blurred copy of the frame instead of black
     #[arg(long)]
     pub blur: bool,
+    /// Canvas WxH (default 1080x1920; 1280x720 for YouTube thumbs)
+    #[arg(long)]
+    pub size: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2426,6 +2429,13 @@ pub struct VdenoiseArgs {
     /// Denoise strength 0.5..=30 (default 4; heavier is slower and softer)
     #[arg(long, default_value_t = 4.0)]
     pub strength: f64,
+    /// Denoise only from this time on (h:mm:ss or seconds) — nlmeans is
+    /// slow, so window it when only one scene is grainy
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2702,6 +2712,9 @@ pub struct GridArgs {
     /// Crop tiles to fill the cell instead of letterboxing
     #[arg(long)]
     pub fill: bool,
+    /// Gutter / letterbox color behind the tiles (name or RRGGBB; default black)
+    #[arg(long)]
+    pub bg: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

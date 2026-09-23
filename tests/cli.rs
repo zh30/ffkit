@@ -14374,3 +14374,113 @@ fn freeze_zoom_pushes_into_hold() {
     assert_eq!(v["status"], "failed", "{v}");
     assert_eq!(v["error"]["kind"], "input");
 }
+
+#[test]
+fn vdenoise_at_windows_nlmeans() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("vd.mp4");
+    let v = run_json(&[
+        "vdenoise",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("nlmeans=s=4.0:enable='between(t,0.300,0.700)'"),
+        "{cmds}"
+    );
+    let v = run_json(&[
+        "vdenoise",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("vd2.mp4").to_str().unwrap(),
+        "--dur",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert_eq!(v["error"]["kind"], "input");
+}
+
+#[test]
+fn cover_size_sets_canvas() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.png");
+    let v = run_json(&[
+        "cover",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--size",
+        "1280x720",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["frame"], "1280x720");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "1280,720");
+}
+
+#[test]
+fn grid_bg_colors_gutters() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "ga.mp4", "440", 0.6);
+    let b = lavfi_fixture(dir.path(), "gb.mp4", "550", 0.6);
+    let out = dir.path().join("g.mp4");
+    let v = run_json(&[
+        "grid",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--layout",
+        "2x1",
+        "--gap",
+        "24",
+        "--bg",
+        "ff0000",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains(":(oh-ih)/2:0xff0000"), "{cmds}");
+}

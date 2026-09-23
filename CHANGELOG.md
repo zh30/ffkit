@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.136.0] — 2026-09-22
+
+### Added
+- `vdenoise --at/--dur` — window the denoise pass (nlmeans timeline enable).
+- `cover --size` — poster canvas WxH (default 1080x1920).
+- `grid --bg` — gutter / letterbox color behind tiles (name or hex).
+
 ## [0.135.0] — 2026-09-22
 
 ### Added

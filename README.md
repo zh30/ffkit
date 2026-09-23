@@ -117,7 +117,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `speed` | Change playback speed (`--factor`, `--at/--dur`, `--ramp` FROM,TO) |
 | `music` | Bed under speech with ducking (`--track`) |
 | `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`) |
-| `grid` | Multi-up collage (`--layout`, `--audio` pick, `--labels`, `--gap`, `--fill` crop instead of letterbox) |
+| `grid` | Multi-up collage (`--layout`, `--audio` pick, `--labels`, `--gap`, `--bg` gutter color, `--fill` crop instead of letterbox) |
 | `progress` | Progress bar on any edge, whole clip or a window (`--color`, `--height`, `--edge` bottom/top/left/right, `--at`, `--dur`) |
 | `freeze` | Hold a frame (`--at`, `--dur`, `--end`, `--ease`, `--reverse`, `--zoom` push-in) |
 | `censor` | Blur/mosaic a region (`--mode`, `--strength`, `--at`) |
@@ -141,7 +141,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `replace` | Swap the audio track (`--mix`, `--duck`, `--fade`, `--loop` short beds, `--at`/`--dur` window) |
 | `jumpcut` | Cut silence inside a talking-head take |
 | `rough` | Map speech islands in a long take (`--json`); `-o` assembles (`--merge N` merges keeps closer than N s, `--by-scene` splits keeps at scene changes) (default encodes only keeps; `--copy` is lossless/keyframe-sloppy) |
-| `cover` | 9:16 cover still (`--at`, `--blur` ambient pad) |
+| `cover` | Cover still (`--at`, `--blur` ambient pad, `--size` canvas — default 1080x1920) |
 | `fade` | Video and audio fade (`--in` / `--out`, `--color` e.g. white, `--dip T` scene-change dip) |
 | `title` | Hook/title card (`--at`, `--fade`, `--outline`, `--box` backplate, `--wrap` long hooks, `--align` lines, `--opacity` ghost) |
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section, `--fade` seamless joints) |
@@ -154,7 +154,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `bw` | Desaturate to B&W, whole clip or a window (`--at`, `--dur`, `--strength` keeps muted color) |
 | `volume` | Gain ±dB (platform loudness is `loudnorm`) |
 | `blur` | Full-frame or windowed gaussian blur (`--sigma`, `--at`, `--dur`) |
-| `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30 (nlmeans; slow on long clips) |
+| `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30, `--at`/`--dur` window (nlmeans; slow on long clips) |
 | `crop` | Crop `--region x:y:w:h`, or `--aspect` reframe with `--anchor center|top|bottom|left|right` |
 | `waveform` | Audio waveform → PNG (`--size`, `--color`, `--scale`, `--peak` transients, `--split` per-channel rows, `--full` dense draw, `--bg` opaque card) for podcast art/thumbnails (`--at/--dur` slice) |
 | `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup (`--color` magma/viridis…, `--scale` lin/sqrt…, `--no-legend`) (`--at/--dur` slice) |

@@ -13,20 +13,33 @@ pub fn run(args: VdenoiseArgs, g: &Globals) -> Result<Contract, Error> {
     engine::need_video(&probe, "vdenoise")?;
 
     let s = args.strength;
+    // --at/--dur: nlmeans accepts timeline `enable`, so a window is a flag
+    // on the filter, not a split graph — cheap to keep the rest untouched.
+    let vf = match &args.at {
+        Some(raw) => {
+            let at = crate::time::parse_time(raw)?;
+            if !(0.0..probe.duration).contains(&at) {
+                return Err(Error::input("--at is outside the input"));
+            }
+            match args.dur {
+                Some(d) if at + d < probe.duration => {
+                    format!("nlmeans=s={s:.1}:enable='between(t,{at:.3},{:.3})'", at + d)
+                }
+                _ => format!("nlmeans=s={s:.1}:enable='gte(t,{at:.3})'"),
+            }
+        }
+        None => {
+            if args.dur.is_some() {
+                return Err(Error::input("--dur needs --at"));
+            }
+            format!("nlmeans=s={s:.1}")
+        }
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
     argv.extend([
-        "-vf",
-        &format!("nlmeans=s={s:.1}"),
-        "-c:v",
-        "libx264",
-        "-preset",
-        "fast",
-        "-crf",
-        "18",
-        "-pix_fmt",
-        "yuv420p",
+        "-vf", &vf, "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
     ]);
     if probe.has_audio {
         argv.extend(["-c:a", "copy"]);

@@ -6,10 +6,15 @@ use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 use crate::time::{fmt_time, parse_time};
 
-const FRAME_W: u32 = 1080;
-const FRAME_H: u32 = 1920;
-
 pub fn run(args: CoverArgs, g: &Globals) -> Result<Contract, Error> {
+    let (frame_w, frame_h) = match &args.size {
+        Some(s) => s
+            .split_once('x')
+            .and_then(|(a, b)| Some((a.parse::<u32>().ok()?, b.parse::<u32>().ok()?)))
+            .filter(|(w, h)| *w >= 16 && *h >= 16 && *w % 2 == 0 && *h % 2 == 0)
+            .ok_or_else(|| Error::input("--size must be even WxH (min 16x16)"))?,
+        None => (1080, 1920),
+    };
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "cover")?;
     let at = match &args.at {
@@ -25,11 +30,11 @@ pub fn run(args: CoverArgs, g: &Globals) -> Result<Contract, Error> {
 
     let vf = if args.blur {
         format!(
-            "split[a][b];[a]scale={FRAME_W}:{FRAME_H}:force_original_aspect_ratio=increase,crop={FRAME_W}:{FRAME_H},gblur=sigma=40[bg];[b]scale={FRAME_W}:{FRAME_H}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1,format=yuv420p"
+            "split[a][b];[a]scale={frame_w}:{frame_h}:force_original_aspect_ratio=increase,crop={frame_w}:{frame_h},gblur=sigma=40[bg];[b]scale={frame_w}:{frame_h}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1,format=yuv420p"
         )
     } else {
         format!(
-            "scale={FRAME_W}:{FRAME_H}:force_original_aspect_ratio=decrease,pad={FRAME_W}:{FRAME_H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,format=yuv420p"
+            "scale={frame_w}:{frame_h}:force_original_aspect_ratio=decrease,pad={frame_w}:{frame_h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,format=yuv420p"
         )
     };
     let mut argv = ffmpeg_base(g.progress);
@@ -44,6 +49,6 @@ pub fn run(args: CoverArgs, g: &Globals) -> Result<Contract, Error> {
     let c = engine::write_job("cover", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({
         "at": at,
-        "frame": format!("{FRAME_W}x{FRAME_H}"),
+        "frame": format!("{frame_w}x{frame_h}"),
     })))
 }

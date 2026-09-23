@@ -117,7 +117,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `speed` | 变速（`--factor`、`--at/--dur` 窗口、`--ramp` FROM,TO 渐变） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
 | `key` | 绿幕合成：`--color` 抠掉后叠到 `--bg` 图片/视频上（`--similarity`、`--blend`、`--despill` 去边缘绿色） |
-| `grid` | 多画面宫格（`--layout`、`--audio` 选音轨、`--labels`、`--gap`、`--fill` 裁满代替黑边） |
+| `grid` | 多画面宫格（`--layout`、`--audio` 选音轨、`--labels`、`--gap`、`--bg` 格缝颜色、`--fill` 裁满代替黑边） |
 | `progress` | 任意边进度条，整段或定时窗口（`--color`、`--height`、`--edge` bottom/top/left/right、`--at`、`--dur`） |
 | `freeze` | 定格画面（`--at`、`--dur`、`--end`、`--ease` 减速、`--reverse` 倒放、`--zoom` 推近定格） |
 | `censor` | 区域打码（`--mode`、`--strength` 强度、`--at`） |
@@ -141,7 +141,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `replace` | 换音轨（`--mix`、`--duck`、`--fade`、`--loop` 短音源循环、`--at`/`--dur` 局部替换） |
 | `jumpcut` | 剪掉口播里的静音停顿 |
 | `rough` | 长素材粗剪：先列出说话段落（`--json`），`-o` 再拼起来（`--merge N` 合并间隔小于 N 秒的段；`--by-scene` 场景切换处再切开；默认只编码要留下的段；`--copy` 无损但按关键帧） |
-| `cover` | 9:16 封面静帧（`--at`、`--blur` 模糊底填充） |
+| `cover` | 封面静帧（`--at`、`--blur` 模糊底填充、`--size` 画布——默认 1080x1920） |
 | `fade` | 画面和声音淡入淡出（`--in` / `--out`，`--color` 淡出到白等、`--dip T` 场景闪黑转场） |
 | `title` | 标题卡烧录（`--at`、`--fade`、`--outline`、`--box` 底板、`--wrap` 折行、`--align` 对齐、`--opacity` 半透明） |
 | `loop` | 把成片重复 N 遍（Shorts 循环加长）（`--from`/`--to` 只循环片段，`--fade` 无缝衔接） |
@@ -154,7 +154,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `bw` | 黑白化，整段或定时窗口（`--at`、`--dur`、`--strength` 保留部分色彩） |
 | `volume` | 音量 ±dB（平台响度请用 `loudnorm`） |
 | `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`、`--dur`） |
-| `vdenoise` | 视频降噪（暗光噪点）：`--strength` 0.5–30（nlmeans，长片较慢） |
+| `vdenoise` | 视频降噪（暗光噪点）：`--strength` 0.5–30、`--at`/`--dur` 只处理一段（nlmeans，长片较慢） |
 | `crop` | 裁剪 `--region` 区域，或 `--aspect` 重构（`--anchor center|top|bottom|left|right` 可选锚点） |
 | `waveform` | 音频波形 → PNG（`--size`、`--color`, `--scale`、`--peak` 峰值、`--split` 逐声道、`--full` 密集、`--bg` 不透明底卡），播客封面/缩略图用（`--at/--dur` 只画片段） |
 | `spectrogram` | 音频频谱图 → PNG（`--size`），清理前先看嗡鸣/噪声（`--color` magma/viridis…、`--scale` lin/sqrt…、`--no-legend` 去图例）（`--at/--dur` 只画片段） |

@@ -41,8 +41,13 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
     if gap >= tw.min(th) / 2 {
         return Err(Error::input("--gap is too big for the tile size"));
     }
-    // Shrink each tile inside its cell, then pad back to the full cell in
-    // black — a uniform border around every tile without touching the stack.
+    // Shrink each tile inside its cell, then pad back to the full cell —
+    // a uniform gutter around every tile without touching the stack.
+    let gutter = args
+        .bg
+        .as_deref()
+        .map(crate::color::lavfi)
+        .unwrap_or_else(|| "black".to_string());
     let (itw, ith) = (tw - gap, th - gap);
     if tw < 16 || th < 16 {
         return Err(Error::input(
@@ -82,7 +87,7 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
             format!("scale={itw}:{ith}:force_original_aspect_ratio=decrease")
         };
         seg.push(format!(
-            "[{i}:v]{fit},pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v{i}]"
+            "[{i}:v]{fit},pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2:{gutter},setsar=1,fps=30,format=yuv420p[v{i}]"
         ));
         if !layout_str.is_empty() {
             layout_str.push('|');

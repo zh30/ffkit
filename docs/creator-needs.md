@@ -237,6 +237,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 109)
+- `vdenoise --at/--dur` — window the nlmeans denoise to just the grainy scene (it's the priciest filter in the kit).
+- `cover --size WxH` — poster canvas at any size (1280x720 for YouTube thumbs), not just 1080x1920.
+- `grid --bg` — gutters/letterboxes pick up a brand color instead of black.
+
 ## Shipped this run (round 108)
 
 - `slideshow --dur N` — total montage runtime spread across the stills (`per = (dur + (n-1)*fade)/n`): "make my 12 photos a 30-second Reel" is one flag instead of per-image math.
