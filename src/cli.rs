@@ -662,6 +662,9 @@ pub struct AudiogramArgs {
     /// Draw each channel on its own row (stereo split view)
     #[arg(long)]
     pub split: bool,
+    /// Frequency scale for --mode spectrum: lin|log|rlog (music→log)
+    #[arg(long)]
+    pub fscale: Option<String>,
     /// Background colour when no --image (name or 0xRRGGBB, default 101418)
     #[arg(long)]
     pub bg: Option<String>,
@@ -1303,6 +1306,9 @@ pub struct SolidArgs {
     /// Animated film-grain on the card (0-100 strength)
     #[arg(long)]
     pub noise: Option<u32>,
+    /// Card frame rate (default 30; 24 for filmic grain)
+    #[arg(long)]
+    pub fps: Option<f64>,
     /// Per-line alignment of --text on the card (with --wrap)
     #[arg(long, value_enum)]
     pub align: Option<crate::raster::TextAlign>,
@@ -2056,6 +2062,9 @@ pub struct ScrollArgs {
     /// Per-line alignment inside the credit block (left-justified credits)
     #[arg(long, value_enum)]
     pub align: Option<crate::raster::TextAlign>,
+    /// Word-wrap credit lines at N columns (≥4)
+    #[arg(long)]
+    pub wrap: Option<u32>,
     #[arg(long)]
     pub font: Option<String>,
     /// Roll mode: up (end credits) | ticker (bottom news crawl)
@@ -2249,6 +2258,9 @@ pub struct WaveformArgs {
     /// Draw each channel on its own row (stereo split view)
     #[arg(long)]
     pub split: bool,
+    /// Draw every sample pixel (denser wave) vs the default scale draw
+    #[arg(long)]
+    pub full: bool,
     /// Render only this slice (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,

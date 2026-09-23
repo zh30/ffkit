@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.123.0] — 2026-09-22
+
+### Added
+
+- `audiogram --fscale lin|log|rlog` — frequency axis on `--mode spectrum` bars
+- `solid --fps N` — card frame rate (filmic 24 fps grain)
+- `waveform --full` — `draw=full` dense waveform rendering
+- `scroll --wrap N` — word-wrap credit lines at N columns
+
 ## [0.122.0] — 2026-09-22
 
 ### Added

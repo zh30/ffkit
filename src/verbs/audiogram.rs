@@ -51,11 +51,21 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
             "--scale/--split apply to waveform modes (not spectrum)",
         ));
     }
+    let fs = match &args.fscale {
+        Some(s) if ["lin", "log", "rlog"].contains(&s.as_str()) => {
+            format!(":fscale={s}")
+        }
+        Some(_) => return Err(Error::input("--fscale: lin|log|rlog")),
+        None => String::new(),
+    };
+    if args.fscale.is_some() && !matches!(args.mode, WaveMode::Spectrum) {
+        return Err(Error::input("--fscale applies to --mode spectrum only"));
+    }
     // Spectrum renders frequency bars via showfreqs; the rest use showwaves.
     let (wave_src, mode) = match args.mode {
         WaveMode::Spectrum => (
             format!(
-                "[0:a]showfreqs=s={{ww}}x{{wh}}:mode=bar:colors={}[wv];",
+                "[0:a]showfreqs=s={{ww}}x{{wh}}:mode=bar:colors={}{fs}[wv];",
                 crate::color::lavfi(&args.color)
             ),
             "spectrum",

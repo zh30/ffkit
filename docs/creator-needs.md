@@ -234,6 +234,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 96)
+
+- `audiogram --fscale lin|log|rlog` — showfreqs frequency axis (spectrum mode; log-freq bars for music).
+- `solid --fps N` — card frame rate (24 for filmic grain cards).
+- `waveform --full` — `draw=full` every-pixel wave rendering.
+- `scroll --wrap N` — word-wrap credit lines (wrap family now across title/caption/meme/solid/scroll).
+
 ## Shipped this run (round 95)
 
 - `meter` — live EBU R128 loudness meter video (`ebur128 video=1`; QC pass for podcast/voice delivery).
