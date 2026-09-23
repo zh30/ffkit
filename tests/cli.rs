@@ -16,7 +16,8 @@ fn has_ffmpeg() -> bool {
 }
 
 // ahistogram exists on Ubuntu's ffmpeg 4.4.2 but heap-crashes
-// (malloc_consolidate): probe it renders a few frames before asserting.
+// (malloc_consolidate): probe it renders the production shape
+// (940x320, 1s of audio, colorkey tail) before asserting.
 fn ahistogram_works() -> bool {
     Command::new("ffmpeg")
         .args([
@@ -27,11 +28,11 @@ fn ahistogram_works() -> bool {
             "-f",
             "lavfi",
             "-i",
-            "sine=frequency=440:duration=0.2",
+            "sine=frequency=440:duration=1",
             "-filter_complex",
-            "ahistogram=s=320x120:slide=scroll,format=rgb24",
+            "ahistogram=s=940x320:slide=scroll,format=rgb24,colorkey=0x000000:0.12:0.1",
             "-frames:v",
-            "3",
+            "30",
             "-f",
             "null",
             "-",
