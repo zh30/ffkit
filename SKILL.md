@@ -2,7 +2,8 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.192.0
+version: 0.193.0
+version: 0.191.0
 
 
 
@@ -179,7 +180,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | reaction / multi-cam grid | `grid` (`--layout 2x2`, `--size`, `--gap`/`--bg` gutters, `--time` stamps every tile) |
 | watch-time progress bar | `progress` (`--color`, `--height`, `--edge`, `--bg` track, `--reverse` depletes the bar) |
 | freeze a beat / outro hold | `freeze` (`--ease`/`--reverse` swoop, `--zoom` push-in, `--at T --dur D` — comma `--at` freezes at several points, or `--end D`) |
-| blur a face / logo | `censor` (`--region x:y:w:h` — comma list covers several spots, `--mode pixel|blur`, `--strength`, `--shape circle` ellipse mask; `--at`/`--dur` limits the window) |
+| blur a face / logo | `censor` (`--region x:y:w:h` — comma list covers several spots, `--mode pixel|blur|solid` (solid = black-bar redact), `--strength`, `--shape circle` ellipse mask; `--at`/`--dur` limits the window) |
 | slow-mo punch-in | `speed` (`--factor`/`--ramp`, `--at`/`--dur` for just one window) |
 | boomerang replay | `boomerang` (forward then reversed, one loop) |
 | YouTube/player chapters | `chapter` (`--at T|TITLE` repeatable, `--auto` silence gaps, `--remove` strips; lossless; `--yt` export/`--import` YouTube `H:MM:SS Title` lines) |
