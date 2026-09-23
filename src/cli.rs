@@ -239,6 +239,14 @@ pub enum Cmd {
     Pulse(PulseArgs),
     /// Timelapse flicker removal (temporal luma smoothing)
     Deflicker(DeflickerArgs),
+    /// Relief emboss (convolution kernel)
+    Emboss(EmbossArgs),
+    /// Tilt-shift miniature: blur top/bottom strips
+    Tilt(TiltArgs),
+    /// Handheld drift shake (slow sine crop wander)
+    Sway(SwayArgs),
+    /// Rack-focus breathing blur
+    Rack(RackArgs),
     /// Comic look: posterized base + ink outlines
     Cartoon(CartoonArgs),
     /// Thermal / false-color luma map
@@ -1088,6 +1096,73 @@ pub struct DeflickerArgs {
     /// Temporal averaging window in frames (3-129)
     #[arg(long, default_value_t = 5)]
     pub size: u32,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct EmbossArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Mix with source 0-1 (1 = full relief)
+    #[arg(long, default_value_t = 1.0)]
+    pub amount: f64,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct TiltArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Sharp middle band as fraction of height (0.1-0.45)
+    #[arg(long, default_value_t = 0.3)]
+    pub band: f64,
+    /// Blur strength for the outer strips (sigma 1-40)
+    #[arg(long, default_value_t = 8.0)]
+    pub blur: f64,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SwayArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Sway cycles per second
+    #[arg(long, default_value_t = 0.4)]
+    pub rate: f64,
+    /// Max pixel drift (2-80)
+    #[arg(long, default_value_t = 10)]
+    pub px: u32,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct RackArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Focus cycles per second
+    #[arg(long, default_value_t = 0.25)]
+    pub rate: f64,
+    /// Max blur sigma (2-40)
+    #[arg(long, default_value_t = 12.0)]
+    pub blur: f64,
 }
 
 #[derive(clap::Args, Debug)]

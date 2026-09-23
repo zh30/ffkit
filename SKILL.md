@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.200.0
+version: 0.201.0
 
 
 
@@ -136,6 +136,10 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | partial invert | `solarize` (`--threshold`, `--at` window) |
 | breathing zoom | `pulse` (`--rate`/`--depth`, `--at` window) |
 | timelapse flicker fix | `deflicker` (`--size` frames) |
+| relief emboss | `emboss` (`--amount` mix, `--at` window) |
+| tilt-shift miniature | `tilt` (`--band` sharp strip, `--blur`) |
+| handheld drift | `sway` (`--rate`/`--px`, `--at` window) |
+| rack-focus breathing | `rack` (`--rate`/`--blur`) |
 | test card | `bars` (`--size`/`--dur`/`--hd`/`--tone` 1kHz) |
 | QC scope overlay | `scope` (`--mode vector|wave`, `--position` corner, `--at` window) |
 | anamorphic restore | `desqueeze` (`--factor` lens ratio, `--axis`) |
