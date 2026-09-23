@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 119)
+- `channel --mode pan --pan -1..1` — stereo pan (push the mix to one ear for ASMR / placement).
+- `grade --exposure` — real EV stops (-3..3, ffmpeg `exposure` filter) to rescue under/over-exposed footage.
+
 ## Shipped this run (round 118)
 - `sprite --from/--to` — bound the seek-preview thumbnail window (`--to end` ok); VTT cues stay on absolute media times.
 - `loop --from/--to` accept `end` — loop the tail section without probing the duration.

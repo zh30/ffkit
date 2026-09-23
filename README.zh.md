@@ -129,7 +129,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sprite` | 播放条预览雪碧图 + WebVTT（`--every` 间隔秒、`--width` 缩略图宽、`--cols`x`--rows` 每张格数、`--vtt` 路径、`--from`/`--to` 限定范围，支持 `end`）——播放器悬停预览 |
 | `pitch` | ±12 半音变调不变速（`--at/--dur` 窗口），支持 `end` |
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
-| `channel` | 声道手术：`--mode dualmono|mono|swap|invert|mix51`；`widen` 立体声加宽 |
+| `channel` | 声道手术：`--mode dualmono|mono|swap|invert|mix51|pan`；`widen` 立体声加宽、`--pan -1..1` 声像定位 |
 | `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡） ，`--band` 参量频段，`--tilt` 暖↔亮，支持 `end` |
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet`（`--at`/`--dur` 局部回声），支持 `end` |
 | `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio（`--kind`、`--strength`、`--at`/`--dur`），支持 `end` |
@@ -148,7 +148,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | 把成片重复 N 遍（Shorts 循环加长）（`--from`/`--to` 只循环片段，支持 `end`，`--fade` 无缝衔接） |
 | `stabilize` | 手持防抖（deshake）——`--rx`/`--ry` 搜索半径，`--edge` 边缘填充 blank|original|clamped|mirror |
 | `reverse` | 倒放画面和声音 |
-| `grade` | `--preset` 一键风格 + 对比/饱和/亮度/`--gamma`/`--hue`, `--at`/`--dur`/`--warm`；`--lut look.cube` 套 3D LUT | 预设 `cinematic`/`vivid`/`vintage`/`soft` 叠在滑杆之下 |
+| `grade` | `--preset` 一键风格 + 对比/饱和/亮度/`--gamma`/`--hue`/`--exposure`（EV 档）, `--at`/`--dur`/`--warm`；`--lut look.cube` 套 3D LUT | 预设 `cinematic`/`vivid`/`vintage`/`soft` 叠在滑杆之下 |
 | `zoom` | 推近（`--factor 1.25`、`--center X,Y` 靶点；`--at`/`--dur` 局部窗口，支持 `end`） | `--out`
 | `sharpen` | USM 锐化，整段或定时窗口（`--amount`、`--at`、`--dur`） |
 | `vignette` | 暗角，整段或定时窗口（`--angle`、`--at`、`--dur`） |

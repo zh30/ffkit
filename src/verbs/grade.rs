@@ -46,6 +46,14 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         "eq=contrast={}:brightness={}:saturation={}:gamma={}",
         args.contrast, args.brightness, args.saturation, args.gamma
     ));
+    if let Some(ev) = args.exposure {
+        if !(-3.0..=3.0).contains(&ev) {
+            return Err(Error::input("--exposure must be -3..=3 (EV stops)"));
+        }
+        if ev != 0.0 {
+            vf.push_str(&format!(",exposure=exposure={ev}"));
+        }
+    }
     if args.hue != 0.0 {
         vf.push_str(&format!(",hue=h={}", args.hue.clamp(-180.0, 180.0)));
     }

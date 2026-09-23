@@ -17,6 +17,16 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
         ChannelMode::Swap => "channelmap=map=FR-FL|FL-FR:channel_layout=stereo".to_string(),
         // ITU fold-down: dialogue keeps center, surrounds fold at 0.707
         ChannelMode::Widen => "extrastereo=m=2.5".to_string(),
+        // pan p>0 fades the left side into the right ear and vice-versa
+        ChannelMode::Pan => {
+            let p = args.pan.unwrap_or(0.5);
+            if !(-1.0..=1.0).contains(&p) {
+                return Err(Error::input("--pan must be -1..=1"));
+            }
+            let fl = 1.0 - p.max(0.0);
+            let fr = 1.0 - (-p).max(0.0);
+            format!("pan=stereo|FL<{fl:.3}*FL|FR<{fr:.3}*FR")
+        }
         ChannelMode::Mix51 => {
             "pan=stereo|FL<FL+0.707*FC+0.707*BL+0.5*LFE|FR<FR+0.707*FC+0.707*BR+0.5*LFE".to_string()
         }

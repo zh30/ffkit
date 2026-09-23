@@ -129,7 +129,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sprite` | Seek-preview sprite sheets + WebVTT (`--every` secs, `--width` tile px, `--cols`x`--rows` per sheet, `--vtt` path, `--from`/`--to` bounds -- `end` ok) — hover thumbnails for video players |
 | `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window); `end` ok |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
-| `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51`; `widen` stereo |
+| `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51|pan`; `widen` stereo, `--pan -1..1` pan |
 | `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--tilt` warm↔bright; `end` ok |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window); `end` ok |
 | `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio (`--kind`, `--strength`, `--at`/`--dur`); `end` ok |
@@ -148,7 +148,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section, `end` ok, `--fade` seamless joints) |
 | `stabilize` | Handheld deshake — `--rx`/`--ry` radius, `--edge` fill (blank|original|clamped|mirror) |
 | `reverse` | Play picture and sound backwards |
-| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm` | Presets `cinematic`/`vivid`/`vintage`/`soft` stack under the sliders; `--lut look.cube` applies a 3D LUT | `--at`/`--dur`
+| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops) | Presets `cinematic`/`vivid`/`vintage`/`soft` stack under the sliders; `--lut look.cube` applies a 3D LUT | `--at`/`--dur`
 | `zoom` | Punch-in (`--factor 1.25`, `--center X,Y` target; `--at`/`--dur` window, `end` ok) | `--out`
 | `sharpen` | Unsharp mask, whole clip or a window (`--amount`, `--at`, `--dur`) |
 | `vignette` | Corner darkening, whole clip or a window (`--angle`, `--at`, `--dur`) |

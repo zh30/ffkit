@@ -1451,6 +1451,10 @@ pub struct GradeArgs {
     pub saturation: f64,
     #[arg(long, default_value_t = 0.02, allow_hyphen_values = true)]
     pub brightness: f64,
+    /// EV stops (like a camera dial): -3 darkens .. +3 opens up underexposed
+    /// footage — real exposure compensation, not a brightness slide
+    #[arg(long, allow_hyphen_values = true)]
+    pub exposure: Option<f64>,
     /// Apply a 3D LUT file (.cube etc) after the slider correction
     #[arg(long)]
     pub lut: Option<PathBuf>,
@@ -1616,6 +1620,9 @@ pub struct ChannelArgs {
     /// With --mode invert: which side flips polarity: left|right|both (default both)
     #[arg(long)]
     pub side: Option<String>,
+    /// With --mode pan: stereo position -1 (full left) .. 1 (full right)
+    #[arg(long, allow_hyphen_values = true)]
+    pub pan: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1628,6 +1635,8 @@ pub enum ChannelMode {
     Mix51,
     /// Stereo widen for flat camera audio (extrastereo)
     Widen,
+    /// Stereo pan --pan -1..1 (push the mix to one ear)
+    Pan,
 }
 
 #[derive(clap::Args, Debug)]

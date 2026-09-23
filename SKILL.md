@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.145.0
+version: 0.146.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -143,6 +143,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | spectrogram in brand colors | `spectrogram` (`--color`) |
 | music kicks in after the intro | `music` (`--at`/`--dur`) |
 | fix an out-of-phase mic | `channel` (`--mode invert --side`) |
+| rescue dark or blown footage | `grade` (`--exposure -3..3` — real EV stops, not a brightness slide) |
 | contact-sheet breathing room | `sheet` (`--pad`/`--margin`) |
 | diagonal watermark | `overlay` (`--angle`) |
 | short overlay clip repeats | `overlay` (`--loop` — covers the base) |
@@ -188,7 +189,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | draft/tiled watermark | `overlay --tile N` (diagonal watermark pass) |
 | shift subtitle timing | `caption --shift SEC` |
 | gif tuning | `transcode --preset gif --fps --width`, `extract --gif --bounce` (palindrome loop), `extract --colors` palette size |
-| one-ear voice fix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo) |
+| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear) |
 | loop to a length | `loop --until SEC` |
 | text draft watermark | `title --tile N` |
 | audio EQ polish | `eq` (`--bass`/`--treble`/`--presence` dB) |

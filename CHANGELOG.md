@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.146.0] — 2026-09-22
+
+### Added
+- `channel --mode pan --pan -1..1` — stereo pan.
+- `grade --exposure` — EV stops (-3..3) via the `exposure` filter.
+
 ## [0.145.0] — 2026-09-22
 
 ### Added

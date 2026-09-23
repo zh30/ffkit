@@ -15110,3 +15110,49 @@ fn loop_and_frames_accept_end_bounds() {
     assert_eq!(v["status"], "ok", "{v}");
     assert_eq!(v["extra"]["count"], 3, "{v}");
 }
+
+#[test]
+fn channel_pan_and_grade_exposure() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "channel",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("pan.mp4").to_str().unwrap(),
+        "--mode",
+        "pan",
+        "--pan",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("pan=stereo"), "{cmds}");
+    assert!(cmds.contains("0.200"), "{cmds}");
+    let v = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("ev.mp4").to_str().unwrap(),
+        "--exposure",
+        "1.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("exposure=exposure=1.5"), "{cmds}");
+}
