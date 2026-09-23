@@ -75,6 +75,15 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
                 )))
             }
         },
+        // stereotools side-level cut: drops room echo / wide ambience so the
+        // center voice sits drier — amount is the side keep-ratio 0..1
+        ChannelMode::Ambience => {
+            let a = args.amount.unwrap_or(0.5);
+            if !(0.0..=1.0).contains(&a) {
+                return Err(Error::input("--amount must be 0..1"));
+            }
+            format!("stereotools=slev={a:.3}")
+        }
         ChannelMode::Split => unreachable!("split returns early"),
     };
     let mut argv = ffmpeg_base(g.progress);

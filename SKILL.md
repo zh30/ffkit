@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.210.0
+version: 0.211.0
 
 
 
@@ -157,6 +157,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | audiogram CQT music spectrum | `audiogram --mode cqt` |
 | audiogram scrolling spectrogram | `audiogram --mode spectro` |
 | find black/frozen stretches (QC) | `scan` (JSON extras; no -o) |
+| beauty/skin smoothing | `smooth` (`--strength`, `--at`/`--dur` window) |
 | noisy clip, pick denoiser | `vdenoise --engine nlmeans\|hqdn3d\|atadenoise` |
 | broadcast range tag | `transcode --range limited` |
 | halo-free sharpening | `sharpen --engine cas` (`--amount`) |

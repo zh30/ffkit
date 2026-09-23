@@ -19,15 +19,20 @@ pub fn run(args: VdenoiseArgs, g: &Globals) -> Result<Contract, Error> {
         crate::cli::VDenoiseEngine::Nlmeans => (format!("nlmeans=s={s:.1}"), "nlmeans"),
         crate::cli::VDenoiseEngine::Hqdn3d => (
             format!(
-                "hqdn3d=luma_spatial={:.2}:chroma_spatial={:.2}",
-                s / 4.0,
-                s / 6.0
+                "hqdn3d=luma_spatial={:.1}:chroma_spatial={:.1}:luma_tmp={:.1}",
+                s * 2.0,
+                s * 1.5,
+                s * 2.0
             ),
             "hqdn3d",
         ),
         crate::cli::VDenoiseEngine::Atadenoise => (
             format!("atadenoise=s={:.0}", (5.0 + s * 4.0).min(129.0)),
             "atadenoise",
+        ),
+        crate::cli::VDenoiseEngine::Vaguedenoise => (
+            format!("vaguedenoiser=threshold={:.1}", s * 3.0),
+            "vaguedenoiser",
         ),
     };
     let vf = match &args.at {

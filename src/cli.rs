@@ -285,6 +285,8 @@ pub enum Cmd {
     Equalize(EqualizeArgs),
     /// QC scan: report black/frozen stretches, writes no media
     Scan(ScanArgs),
+    /// Edge-preserving beauty/skin blur (smartblur)
+    Smooth(SmoothArgs),
     /// Comic look: posterized base + ink outlines
     Cartoon(CartoonArgs),
     /// Thermal / false-color luma map
@@ -2641,6 +2643,9 @@ pub struct ChannelArgs {
     /// With --mode pan: stereo position -1 (full left) .. 1 (full right)
     #[arg(long, allow_hyphen_values = true)]
     pub pan: Option<f64>,
+    /// With --mode ambience: side-channel keep ratio 0..1 (room/reverb cut)
+    #[arg(long)]
+    pub amount: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
@@ -2657,6 +2662,8 @@ pub enum ChannelMode {
     Pan,
     /// Split stereo into two mono files <stem>_L.wav / <stem>_R.wav (host/guest mics)
     Split,
+    /// Cut side-channel room/ambience (stereotools slev) — drier voice
+    Ambience,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3555,6 +3562,23 @@ pub struct DehumArgs {
     pub dur: Option<f64>,
 }
 
+#[derive(clap::Args, Debug)]
+pub struct SmoothArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Blur strength 0.1..1 (default 0.5 — skin/sky flattening)
+    #[arg(long, default_value_t = 0.5)]
+    pub strength: f64,
+    /// Smooth only inside this window — comma list for several (needs --dur)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+
 #[derive(clap::ValueEnum, Clone, Copy, Debug, Default)]
 pub enum VDenoiseEngine {
     /// nlmeans — best quality, slowest (per-pixel patch search)
@@ -3564,6 +3588,8 @@ pub enum VDenoiseEngine {
     Hqdn3d,
     /// atadenoise — temporal frame-averaging, best on static shots
     Atadenoise,
+    /// vaguedenoiser — wavelet denoiser (strong spatial cut)
+    Vaguedenoise,
 }
 
 #[derive(clap::Args, Debug)]

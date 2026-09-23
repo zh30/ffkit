@@ -99,6 +99,7 @@ pub mod sharpen;
 pub mod sheet;
 pub mod silence;
 pub mod slideshow;
+pub mod smooth;
 pub mod snow;
 pub mod solarize;
 pub mod solid;

@@ -1,6 +1,15 @@
 # Changelog
 
 ## [Unreleased]
+## [0.211.0] — RSI round 184
+
+- `smooth` — edge-preserving beauty/skin blur (smartblur in `ls>0` flat-region mode;
+  `--strength` scales radius+threshold, `--at/--dur` windows it)
+- `vdenoise --engine vaguedenoise` — wavelet denoiser (strong spatial cut);
+  `hqdn3d` strength mapping raised so it actually bites
+- `channel --mode ambience --amount` — stereotools side-level cut that dries
+  out room echo under voice (mid survives, side drops)
+
 
 ## [0.210.0] — 2026-09-23
 

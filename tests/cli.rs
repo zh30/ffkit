@@ -20162,3 +20162,138 @@ fn scan_detects_black_and_vdenoise_engines_range() {
         "prores should be tagged tv range"
     );
 }
+
+#[test]
+fn smooth_vaguedenoise_and_channel_ambience() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+
+    // flat gray + temporal noise — edge-preserving smoothers must visibly cut it
+    let flat = dir.path().join("flat.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("color=c=0x808080:s=160x120:d=1:r=10,noise=alls=35:allf=t+u")
+        .args(["-pix_fmt", "yuv420p"])
+        .arg(&flat)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let patch_std = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args([
+                "-vf",
+                "crop=100:60:10:10,format=gray",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+        let fr = 100 * 60usize;
+        let mut acc = 0.0;
+        let mut n = 0usize;
+        for chunk in o.stdout.chunks(fr) {
+            if chunk.len() < fr {
+                break;
+            }
+            let m = chunk.iter().map(|b| *b as f64).sum::<f64>() / fr as f64;
+            acc += chunk.iter().map(|b| (*b as f64 - m).powi(2)).sum::<f64>() / fr as f64;
+            n += 1;
+        }
+        (acc / n.max(1) as f64).sqrt()
+    };
+    let src_std = patch_std(&flat);
+
+    // beauty smooth: flat noise flattens hard while edges keep their threshold
+    let sm = dir.path().join("sm.mp4");
+    let v = run_json(&[
+        "smooth",
+        flat.to_str().unwrap(),
+        "-o",
+        sm.to_str().unwrap(),
+        "--strength",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["filter"], "smartblur", "{v}");
+    assert!(
+        patch_std(&sm) < src_std * 0.5,
+        "smartblur should cut flat-region noise: {v}"
+    );
+
+    // wavelet denoise engine
+    let vg = dir.path().join("vg.mp4");
+    let v = run_json(&[
+        "vdenoise",
+        flat.to_str().unwrap(),
+        "-o",
+        vg.to_str().unwrap(),
+        "--engine",
+        "vaguedenoise",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["filter"], "vaguedenoiser", "{v}");
+    assert!(
+        patch_std(&vg) < src_std * 0.75,
+        "wavelet denoise should cut flat-region noise: {v}"
+    );
+
+    // L-only stereo → ambience side-cut drops the panned channel, lifts the
+    // silent one onto the surviving mid
+    let lonly = dir.path().join("lonly.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("sine=frequency=440:duration=1")
+        .args(["-af", "pan=stereo|c0=c0|c1=0*c0"])
+        .arg(&lonly)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let amb = dir.path().join("amb.m4a");
+    let v = run_json(&[
+        "channel",
+        lonly.to_str().unwrap(),
+        "-o",
+        amb.to_str().unwrap(),
+        "--mode",
+        "ambience",
+        "--amount",
+        "0.1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let level = |p: &std::path::Path, ch: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args([
+                "-af",
+                &format!("pan=mono|c0={ch},volumedetect"),
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find(|l| l.contains("max_volume"))
+            .and_then(|l| l.split("max_volume:").nth(1))
+            .and_then(|s| s.trim().trim_end_matches(" dB").parse().ok())
+            .unwrap()
+    };
+    let src_l = level(&lonly, "c0");
+    let out_l = level(&amb, "c0");
+    let out_r = level(&amb, "c1");
+    assert!(
+        out_l < src_l - 2.0,
+        "ambience cut should drop the panned channel: {v}"
+    );
+    assert!(out_r > -60.0, "mid should survive onto the quiet ear: {v}");
+}

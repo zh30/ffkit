@@ -133,7 +133,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sprite` | 播放条预览雪碧图 + WebVTT（`--every` 间隔秒、`--width` 缩略图宽、`--cols`x`--rows` 每张格数、`--vtt` 路径、`--from`/`--to` 限定范围，支持 `end`）——播放器悬停预览 |
 | `pitch` | ±12 半音变调不变速（`--at/--dur` 窗口，逗号列表）；`--formant` 保留人声音色不失真（需 librubberband） |
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
-| `channel` | 声道手术：`--mode dualmono|mono|swap|invert|mix51|pan|widen|split`（`split` 立体声→`_L/_R.wav` 双人声分轨）；`--pan -1..1` 声像定位 |
+| `channel` | 声道手术：`--mode dualmono|mono|swap|invert|mix51|pan|widen|split|ambience`（`split` 立体声→`_L/_R.wav` 双人声分轨）；`--pan -1..1` 声像定位；`ambience --amount` 削侧链去房间混响 |
 | `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡） ，`--band` 参量频段，`--tilt` 暖↔亮，支持 `end`，逗号列表可多段 |
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet`（`--at`/`--dur` 局部回声），支持 `end`，逗号列表可多段 |
 | `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio/saturate（`--kind`、`--strength`、`--at`/`--dur`），支持 `end`，逗号列表可多段 |
@@ -188,6 +188,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `audiogram --mode cqt` | 恒 Q 音乐频谱（`showcqt`）——钢琴卷帘式频谱，适合音乐片段 |
 | `audiogram --mode spectro` | 滚动频谱图（`showspectrum`）——彩色时频滚动 |
 | `scan` | 质检报告：黑屏/冻结区间与黑帧计数（JSON extras，不写文件） |
+| `smooth` | 边缘保留美颜/皮肤模糊（smartblur，`--strength`、`--at/--dur` 窗口） |
 | `sharpen --engine cas` | 对比自适应锐化——边缘更脆且无 unsharp 光晕，`--amount` |
 | `equalize` | `histeq` 自动对比度，修复灰暗/洗白画面，`--strength`/`--intensity`/`--at` 窗口 |
 | `pick` | 主色提取：某时刻均色 + 3x2 分区色板（仅 JSON 报告） |
@@ -207,7 +208,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `glow` | 梦幻泛光：模糊副本 screen 混合叠加（`--strength`、`--at`/`--dur` 窗口） |
 | `vhs` | 复古磁带：`--strength` 0-3 噪点+色偏+扫描线（`--at`/`--dur` 窗口） |
 | `motionblur` | 快门拖影：`--frames` 2-8 帧间混合（`--at`/`--dur` 窗口） |
-| `vdenoise` | 视频降噪（`--engine nlmeans|hqdn3d|atadenoise`、`--strength`、`--at` 窗口），支持 `end`，逗号列表可多段 |
+| `vdenoise` | 视频降噪（`--engine nlmeans|hqdn3d|atadenoise|vaguedenoise`、`--strength`、`--at` 窗口），支持 `end`，逗号列表可多段 |
 | `crop` | 裁剪 `--region` 区域，或 `--aspect` 重构（`--anchor center|top|bottom|left|right` 可选锚点） |
 | `waveform` | 音频波形 → PNG（`--size`、`--color`, `--scale`、`--peak` 峰值、`--split` 逐声道、`--full` 密集、`--bg` 不透明底卡、`--vertical` 竖向波形（自上而下，PNG 为 高×宽）），播客封面/缩略图用（`--at/--dur` 只画片段，支持 `end`，逗号 `--at` 每窗一张 `<stem>_N.png`） |
 | `spectrogram` | 音频频谱图 → PNG（`--size`），清理前先看嗡鸣/噪声（`--color` magma/viridis…、`--scale` lin/sqrt…、`--no-legend` 去图例、`--separate` 逐声道分带）（`--at/--dur` 只画片段，支持 `end`，逗号 `--at` 每窗一张 `<stem>_N.png`） |
