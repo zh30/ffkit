@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.223.0] — RSI round 196
+
+- `deblock` — DCT block-edge removal for heavily compressed sources (phone screen recordings, re-uploads): `deblock=filter=strong` with `--strength` scaling all three detection thresholds (stock defaults are a near no-op; measured HF block energy −7%). `--at`/`--dur` windows.
+- `chromashift` — shift both chroma planes by whole pixels (`--x`/`--y` -255..255, `--edge` wrap/smear): fixes the colored halo on tape captures and misregistered encodes. `--at` window.
+- `key --mode luma` — luminance keying via `lumakey`: keys the luma band `[threshold−similarity, threshold+similarity]` with `--blend` feathering. White-sky or dark-backdrop removal with no green screen. (`lumakey` semantics verified: it keys a luma band around the pivot, not a directional cutoff.)
+
+
 ## [0.222.0] — RSI round 195
 
 - `amplify` — motion magnification: per-pixel diffs below `--threshold` across `--radius` frames get multiplied by `--amount`. Subtle breathing, pulses, machine shake become visible (measured stdev 66 → 80 at amount=8/threshold=30; +19% on a slow drift fixture). `--at`/`--dur` windows.

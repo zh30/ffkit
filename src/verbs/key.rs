@@ -2,7 +2,7 @@ use std::path::Path;
 
 use serde_json::json;
 
-use crate::cli::{Globals, KeyArgs};
+use crate::cli::{Globals, KeyArgs, KeyMode};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -49,6 +49,24 @@ pub fn run(args: KeyArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         ""
     };
+    // colorkey removes a hue; lumakey removes the luma band
+    // [threshold±similarity] (bright sky, whiteboard paper, dark backdrops)
+    let keyer = match args.mode.unwrap_or(KeyMode::Color) {
+        KeyMode::Color => format!(
+            "colorkey={color}:{:.3}:{:.3}{despill}",
+            args.similarity, args.blend
+        ),
+        KeyMode::Luma => {
+            let t = args.threshold.unwrap_or(0.5);
+            if !(0.0..=1.0).contains(&t) {
+                return Err(Error::input("--threshold must be 0..=1"));
+            }
+            format!(
+                "lumakey=threshold={t:.3}:tolerance={:.3}:softness={:.3}",
+                args.similarity, args.blend
+            )
+        }
+    };
     let enable = match &args.at {
         Some(s) => format!(
             ":enable='{}'",
@@ -57,10 +75,9 @@ pub fn run(args: KeyArgs, g: &Globals) -> Result<Contract, Error> {
         None => String::new(),
     };
     let fc = format!(
-        "[0:v]fps={fps:.3},format=yuv420p,colorkey={color}:{:.3}:{:.3}{despill}[keyed];\
+        "[0:v]fps={fps:.3},format=yuv420p,{keyer}[keyed];\
          [1:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps={fps:.3},format=yuv420p[bg];\
          [bg][keyed]overlay=0:0:shortest=1{enable}[vout]",
-        args.similarity, args.blend
     );
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if fg.has_audio {
@@ -74,7 +91,9 @@ pub fn run(args: KeyArgs, g: &Globals) -> Result<Contract, Error> {
     let inputs: Vec<&Path> = vec![&args.input, &args.bg];
     let mut c = engine::write_job("key", &inputs, &args.output, vec![argv], g)?;
     c = c.with_extra(json!({
+        "mode": match args.mode.unwrap_or(KeyMode::Color) { KeyMode::Color => "color", KeyMode::Luma => "luma" },
         "color": color,
+        "threshold": args.threshold,
         "similarity": args.similarity,
         "blend": args.blend,
         "bg_is_still": bg_is_still,

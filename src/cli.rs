@@ -315,6 +315,10 @@ pub enum Cmd {
     V360(V360Args),
     /// Auto white balance: remove a color cast (indoor tungsten, mixed light)
     Wb(WbArgs),
+    /// Remove DCT block edges from heavily compressed sources
+    Deblock(DeblockArgs),
+    /// Shift chroma planes by pixels — fix tape/capture chroma misregistration
+    Chromashift(ChromashiftArgs),
     /// Mirror half the frame across the center axis (dance/symmetry look)
     Mirror(MirrorArgs),
     /// Chunky retro pixelation over the whole frame
@@ -1585,6 +1589,60 @@ pub struct SelectiveArgs {
     pub dur: Option<f64>,
 }
 
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum KeyMode {
+    /// Chroma key — remove --color (green/blue screen)
+    Color,
+    /// Luma key — remove a brightness band around --threshold
+    Luma,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum ChromaEdge {
+    /// Wrap chroma around the shifted edge (cleanest for corrections)
+    Wrap,
+    /// Smear edge chroma outward
+    Smear,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DeblockArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Detection strength 0.05-0.95 (0.5 balanced; heavy blocking needs 0.8+)
+    #[arg(long, default_value_t = 0.5)]
+    pub strength: f64,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ChromashiftArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Horizontal chroma shift in px -255..255 (tape halo is usually 1-8)
+    #[arg(long, allow_hyphen_values = true, default_value_t = 0)]
+    pub x: i32,
+    /// Vertical chroma shift in px -255..255
+    #[arg(long, allow_hyphen_values = true, default_value_t = 0)]
+    pub y: i32,
+    /// Edge handling: wrap (default) | smear
+    #[arg(long, value_enum, default_value_t = ChromaEdge::Wrap)]
+    pub edge: ChromaEdge,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
 #[derive(clap::Args, Debug)]
 pub struct AmplifyArgs {
     pub input: PathBuf,
@@ -2306,6 +2364,13 @@ pub struct KeyArgs {
     /// Remove color spill ringing on the keyed edges
     #[arg(long)]
     pub despill: bool,
+    /// Key mode: color (green/blue screen, default) | luma (bright/dark
+    /// background — whiteboard scans, bright sky, no green screen needed)
+    #[arg(long, value_enum)]
+    pub mode: Option<KeyMode>,
+    /// Luma pivot to key out for --mode luma (0-1; ~0.1 = dark bg, ~0.9 = bright sky)
+    #[arg(long)]
+    pub threshold: Option<f64>,
     /// Key only inside this window — comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,

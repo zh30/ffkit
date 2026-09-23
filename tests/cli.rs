@@ -21608,6 +21608,171 @@ fn amplify_selective_deint_engines() {
 }
 
 #[test]
+fn deblock_chromashift_lumakey() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let hf = |p: &std::path::Path| -> u64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-f", "rawvideo", "-pix_fmt", "gray", "-"])
+            .output()
+            .unwrap();
+        let d = o.stdout;
+        if d.is_empty() {
+            return u64::MAX;
+        }
+        let mut t = 0u64;
+        for r in 1..127 {
+            for x in 1..127 {
+                let c = d[r * 128 + x] as i64;
+                let lap = (4 * c
+                    - d[r * 128 + x - 1] as i64
+                    - d[r * 128 + x + 1] as i64
+                    - d[(r - 1) * 128 + x] as i64
+                    - d[(r + 1) * 128 + x] as i64)
+                    .unsigned_abs();
+                t += lap;
+            }
+        }
+        t
+    };
+
+    // deblock: heavy-compression fixture loses high-frequency block energy
+    let blk = dir.path().join("blk.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("testsrc2=size=128x128:rate=10")
+        .args(["-q:v", "45", "-t", "1"])
+        .arg(&blk)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let db = dir.path().join("db.mp4");
+    let v = run_json(&[
+        "deblock",
+        blk.to_str().unwrap(),
+        "-o",
+        db.to_str().unwrap(),
+        "--strength",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let (i, o) = (hf(&blk), hf(&db));
+    assert!(o < i, "deblock should cut HF block energy: {i} -> {o}");
+
+    // chromashift: U-plane step moves by the shift
+    let cs = dir.path().join("cs.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("color=c=red:size=64x64:d=1")
+        .args(["-f", "lavfi", "-i", "color=c=blue:size=64x64:d=1"])
+        .args(["-filter_complex", "[0][1]hstack"])
+        .arg(&cs)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let cso = dir.path().join("cso.mp4");
+    let v = run_json(&[
+        "chromashift",
+        cs.to_str().unwrap(),
+        "-o",
+        cso.to_str().unwrap(),
+        "--x",
+        "8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let ucol = |p: &std::path::Path| -> Vec<u8> {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args([
+                "-vf",
+                "extractplanes=u",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let d = o.stdout;
+        d[10 * 64..10 * 64 + 64].to_vec()
+    };
+    let (a, b) = (ucol(&cs), ucol(&cso));
+    // find the transition column (red U~90 vs blue U~170) in each row
+    let edge_of = |row: &[u8]| -> usize {
+        row.windows(2)
+            .position(|w| (w[1] as i16 - w[0] as i16).abs() > 40)
+            .unwrap_or(0)
+    };
+    let (ea, eb) = (edge_of(&a), edge_of(&b));
+    assert!(ea > 0 && eb != ea, "chroma edge should move: {ea} -> {eb}");
+
+    // key --mode luma: bright box keys out, dark field stays
+    let lum = dir.path().join("lum.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("color=c=0x303030:size=128x128:d=1")
+        .args(["-f", "lavfi", "-i", "color=c=0xf0f0f0:size=128x128:d=1"])
+        .args(["-filter_complex", "[0][1]overlay=32:32:eval=init"])
+        .arg(&lum)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let bg = dir.path().join("bg.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("gradients=size=128x128:seed=2")
+        .args(["-t", "1"])
+        .arg(&bg)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let ko = dir.path().join("ko.mp4");
+    let v = run_json(&[
+        "key",
+        lum.to_str().unwrap(),
+        "-o",
+        ko.to_str().unwrap(),
+        "--bg",
+        bg.to_str().unwrap(),
+        "--mode",
+        "luma",
+        "--threshold",
+        "0.9",
+        "--similarity",
+        "0.15",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["mode"], "luma");
+    let o = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&ko)
+        .args(["-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+        .output()
+        .unwrap();
+    let d = o.stdout;
+    let px = |x: usize, y: usize| -> (i16, i16, i16) {
+        let i = (y * 128 + x) * 3;
+        (d[i] as i16, d[i + 1] as i16, d[i + 2] as i16)
+    };
+    let field = px(10, 10);
+    assert!(
+        (field.0 - field.1).abs() < 12 && (field.1 - field.2).abs() < 12,
+        "dark field should stay dark gray: {field:?}"
+    );
+    let boxc = px(50, 50);
+    assert!(
+        (boxc.0 - boxc.1).abs() > 10 || (boxc.1 - boxc.2).abs() > 10,
+        "bright box should be keyed out (bg shows): {boxc:?}"
+    );
+}
+
+#[test]
 fn wb_median_chroma_scan_flash() {
     if !has_ffmpeg() {
         return;

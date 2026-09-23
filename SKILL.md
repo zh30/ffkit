@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.222.0
+version: 0.223.0
 
 
 
@@ -59,7 +59,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | cover still | `cover` (`--blur` ambient pad, `--size` canvas, comma `--at` = one cover per time) |
 
 | speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--at`/`--dur` windowed swap (comma `--at` lays the new track across several windows), `--mix` keep the original under it, `--video` swap the picture and keep the audio), `loudnorm` (`--target` platform preset), `volume` |
-| grainy low-light footage | `vdenoise` (`--strength`, nlmeans — slow; `--at`/`--dur` windows it) |
+| grainy low-light footage | `vdenoise` (`--strength`, `--engine` nlmeans/hqdn3d/atadenoise/vaguedenoise/bm3d/dctdnoiz/owdenoise/median/chroma) |
+| blocky re-uploaded/screen-rec footage | `deblock` (`--strength` 0.05-0.95, `--at` window) |
+| colored halo on tape/capture | `chromashift` (`--x`/`--y` px, `--edge` wrap/smear) |
 | waveform PNG of audio | `waveform` (`--size`, `--color`, `--scale`, `--bg` card, `--at/--dur`, comma `--at` = one PNG per window, `--vertical` = wave runs top→bottom) — podcast art, thumbnails |
 | audio spectrogram PNG | `spectrogram` (`--size`, `--color`, `--separate` per-channel, `--at/--dur`, comma `--at` = one PNG per window) — inspect hum/noise before cleanup |
 | watch loudness while it plays | `meter` (`--size`, `--meter 9|18`, `--at/--dur` — EBU R128 video; podcast/voice QC) |
@@ -153,6 +155,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | airy whoosh swell | `whoosh` (`--at` lands, `--dur`/`--gain`) |
 | voice sibilance tamer | `deesser` (`--amount`/`--freq`/window) |
 | clipped/blown-out audio rescue | `declip` (`adeclip` interpolates flattened peaks, `--window`/`--threshold`/window) |
+| magnify subtle motion | `amplify` (`--amount`/`--radius`/`--threshold`, `--at` window) |
 | sky/gradient banding fix | `deband` (`--strength`/`--radius`/window) |
 | drop duplicate frames | `dedup` (`--frac`, VFR out) |
 | audiogram CQT music spectrum | `audiogram --mode cqt` |
@@ -229,7 +232,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | motion / loop | `speed`, `reverse`, `loop`, `stabilize` (`--edge` fill), `fade` |
 | picture | `grade` (+ `--lut` .cube), `bw`, `vignette`, `sharpen`, `blur` |
 | logo / PiP | `overlay` |
-| green screen | `key` (`--bg`, `--color`/`--similarity`/`--blend`, `--despill` for fringe, `--at`/`--dur` key only inside a window — comma list ok) |
+| green screen | `key` (`--bg`, `--color`/`--similarity`/`--blend`, `--despill` for fringe, `--mode luma` keys a brightness band (`--threshold` pivot) instead of a color, `--at`/`--dur` window — comma list ok) |
 | reaction / multi-cam grid | `grid` (`--layout 2x2`, `--size`, `--gap`/`--bg` gutters, `--time` stamps every tile) |
 | watch-time progress bar | `progress` (`--color`, `--height`, `--edge`, `--bg` track, `--reverse` depletes the bar) |
 | freeze a beat / outro hold | `freeze` (`--ease`/`--reverse` swoop, `--zoom` push-in, `--at T --dur D` — comma `--at` freezes at several points, or `--end D`) |
