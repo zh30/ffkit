@@ -153,7 +153,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section, `end` ok, `--fade` seamless joints) |
 | `stabilize` | Handheld deshake — `--rx`/`--ry` radius, `--edge` fill (blank|original|clamped|mirror) |
 | `reverse` | Play picture and sound backwards |
-| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops), `--skin` warmth ，含 `--kelvin` 开尔文白平衡、`--split` 青橙分调 | Presets `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` stack under the sliders; `--lut look.cube` applies a 3D LUT, `--lut look.png` a HALD image LUT (haldclut — Darktable/RawTherapee exports); `--skin -1..1` warms faces only (selectivecolor reds), `--vibrance -1..1` smarter saturation (boosts muted, protects skin), `--curve "x/y …"` freeform master curve (matte fade, S-curve) | `--at`/`--dur` `--wash C` colour veil | `--match ref.mp4` histogram match |
+| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops), `--skin` warmth ，含 `--kelvin` 开尔文白平衡、`--split` 青橙分调 | Presets `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` stack under the sliders; `--lut look.cube` applies a 3D LUT, `--lut look.png` a HALD image LUT (haldclut — Darktable/RawTherapee exports); `--skin -1..1` warms faces only (selectivecolor reds), `--vibrance -1..1` smarter saturation (boosts muted, protects skin), `--curve "x/y …"` freeform master curve (matte fade, S-curve) | `--at`/`--dur` `--wash C` colour veil | `--match ref.mp4` histogram match | `--lut` accepts 1D LUTs |
 | `zoom` | Punch-in (`--factor 1.25`, `--center X,Y` target; `--at`/`--dur` window — comma list for several, `end` ok) | `--out`
 | `sharpen` | Unsharp mask, whole clip or a window (`--amount`, `--at`, `--dur`) `--engine unsharp\|cas\|halo` (halo = maskedclamp, no overshoot) |
 | `vignette` | Corner darkening, whole clip or a window (`--angle`, `--at`, `--dur`) |
@@ -161,14 +161,14 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `volume` | Gain ±dB; `--at/--dur` limits it to a window — comma list covers several spots (needs `--dur`) (platform loudness is `loudnorm`) |
 | `blur` | Full-frame or windowed gaussian blur (`--sigma`, `--at`/`--dur`; `--at end` = tail) | `--engine directional --angle` streaks |
 | `trail` | Motion trails: `--mode echo` ghost smear behind movement (`--frames` 2-16, `--at`/`--dur` window), `--mode light` bright-pixel persistence (`--decay` 0.5-0.99) | `--mode diff` motion ghost |
-| `glitch` | Datamosh-style glitch: `--strength` 0.5-20 drives RGB channel shift + temporal noise | `--engine planes` channel rotation |
+| `glitch` | Datamosh-style glitch: `--strength` 0.5-20 drives RGB channel shift + temporal noise | `--engine planes` channel rotation | `--engine swapuv` chroma flip |
 | `bars` | SMPTE test card: `--size`/`--dur`/`--hd`/`--tone` (1kHz bed), for QC slates and leader |
 | `scope --mode hist` | Rolling temporal histogram of luma — color/exposure drift QC over time |
 | `scope` | QC scope overlay: `--mode vector|wave` in a corner (`--position`, `--size` fraction), `--at` windows | `--mode mvs` MV overlay | `--mode data --x/--y` hex readout |
 | `desqueeze` | Anamorphic restore: `--factor` lens ratio (1.33/1.5/1.8/2.0), `--axis y|x` |
 | `solarize` | Psychedelic partial invert: pixels above `--threshold` luma invert, `--at` windows |
 | `pulse` | Breathing zoom bounce: `--rate` cycles/sec, `--depth` amplitude, `--at` windows |
-| `deflicker` | Timelapse flicker fix: temporal luma smoothing `--size` frames |
+| `deflicker` | Timelapse flicker fix: temporal luma smoothing `--size` frames | `--engine tmide` temporal equalization |
 | `emboss` | Relief emboss: convolution kernel, `--amount` mixes back with source, `--at` windows |
 | `tilt` | Tilt-shift miniature: blurs top/bottom strips, `--band` sharp fraction, `--blur` sigma, `--at` windows |
 | `sway` | Handheld drift: sine-wander crop on padded frame, `--rate`/`--px`, `--at` windows |
@@ -202,7 +202,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `perspective` | Deskew a filmed screen/whiteboard: `--points x0,y0,x1,y1,x2,y2,x3,y3` (TL,TR,BL,BR quad in source, px), `--interp linear|cubic` |
 | `wb` | Auto white balance / cast removal: `--strength` 0..1, `--independence` 0 keeps the grade (contrast only), `--smooth` temporal frames, `--at`/`--dur` window |
 | `shear` | Italic-style picture slant: `--x`/`--y` shear factors -2..2, `--fill` edge color, `--interp nearest|bilinear`, `--at`/`--dur` window |
-| `gen` | Generative animated backgrounds from lavfi sources (no input): `--pattern mandelbrot` (endless zoom) `|gradients` (drifting palette — `--colors` up to 8, `--seed`, `--speed`) `|life` (cellular automaton, `--rule`), `--size`/`--fps`/`--dur` |
+| `gen` | Generative animated backgrounds from lavfi sources (no input): `--pattern mandelbrot` (endless zoom) `|gradients` (drifting palette — `--colors` up to 8, `--seed`, `--speed`) `|life` (cellular automaton, `--rule`), `--size`/`--fps`/`--dur` | `--pattern noise|tone` audio beds |
 | `sharpen --engine cas` | Contrast-adaptive sharpening — crisper edges without unsharp halos, `--amount` |
 | `equalize` | Auto-contrast via `histeq` for flat/washed footage, `--strength`/`--intensity`/`--at` window |
 | `pick` | Dominant-color report at a timestamp: mean hex + 3x2 zone swatches (JSON only) |

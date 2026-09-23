@@ -56,8 +56,39 @@ pub fn run(args: GenArgs, g: &Globals) -> Result<Contract, Error> {
             "cellauto=size={}x{}:rate={}:rule={}",
             w, h, args.fps, args.rule
         ),
-        _ => return Err(Error::input("--pattern: mandelbrot | gradients | life")),
+        "noise" | "tone" => String::new(),
+        _ => {
+            return Err(Error::input(
+                "--pattern: mandelbrot | gradients | life | noise | tone",
+            ))
+        }
     };
+    if matches!(args.pattern.as_str(), "noise" | "tone") {
+        // audio-only beds: pink noise (roomtone/dither bed) or a sine tone
+        let audio_src = if args.pattern == "tone" {
+            let f = args.freq.unwrap_or(440.0).clamp(20.0, 20000.0);
+            format!("sine=frequency={f}:sample_rate=44100")
+        } else {
+            "anoisesrc=color=pink:sample_rate=44100".to_string()
+        };
+        let mut argv = ffmpeg_base(g.progress);
+        argv.extend([
+            "-f",
+            "lavfi",
+            "-i",
+            &audio_src,
+            "-t",
+            &format!("{:.3}", args.dur),
+        ]);
+        argv.extend(["-c:a", "aac"]);
+        argv.push(&args.output);
+        let c = engine::write_job("gen", &[], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(json!({
+            "pattern": args.pattern,
+            "freq": args.freq,
+            "duration_s": args.dur,
+        })));
+    }
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-f", "lavfi", "-i"]);
     argv.push(&src);

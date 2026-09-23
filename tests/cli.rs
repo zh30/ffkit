@@ -24138,6 +24138,82 @@ fn scan_scenes_stereo_fx_ringmod_smooth_yaep_w3fdif() {
 }
 
 #[test]
+fn grade_lut1d_deflicker_tmide_gen_audio_glitch_swapuv() {
+    if !has_ffmpeg()
+        || !has_filter("lut1d")
+        || !has_filter("tmidequalizer")
+        || !has_filter("swapuv")
+        || !has_filter("anoisesrc")
+    {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+
+    // 1D .cube: lut3d can't read it — grade must route to lut1d
+    let lut = dir.path().join("l1.cube");
+    std::fs::write(
+        &lut,
+        "TITLE lift\nLUT_1D_SIZE 8\n0 0.15 0\n0.14 0.29 0.14\n0.29 0.43 0.29\n0.43 0.57 0.43\n0.57 0.71 0.57\n0.71 0.86 0.71\n0.86 0.93 0.86\n1 1 1\n",
+    )
+    .unwrap();
+    let o = dir.path().join("g1.mp4");
+    let v = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--lut",
+        lut.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["lut_engine"], "lut1d", "{v}");
+
+    let o = dir.path().join("df.mp4");
+    let v = run_json(&[
+        "deflicker",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--engine",
+        "tmide",
+        "--size",
+        "8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+
+    // audio beds: noise (pink) + tone (sine) — file exists, has audio stream
+    for (pat, extra) in [("noise", vec![]), ("tone", vec!["--freq", "880"])] {
+        let o = dir.path().join(format!("{pat}.m4a"));
+        let mut args = vec![
+            "gen",
+            "-o",
+            o.to_str().unwrap(),
+            "--pattern",
+            pat,
+            "--dur",
+            "1.5",
+        ];
+        args.extend(extra);
+        let v = run_json(&args);
+        assert_eq!(v["status"], "ok", "{v}");
+        assert!(o.exists());
+    }
+
+    let o = dir.path().join("su.mp4");
+    let v = run_json(&[
+        "glitch",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--engine",
+        "swapuv",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["filter"], "swapuv", "{v}");
+}
+
+#[test]
 fn legalize_levels_aberrate() {
     if !has_ffmpeg() || !has_filter("limiter") || !has_filter("colorlevels") {
         return;

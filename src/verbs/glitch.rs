@@ -24,6 +24,7 @@ pub fn run(args: GlitchArgs, g: &Globals) -> Result<Contract, Error> {
             // psychedelic false color (clean, no noise grain)
             "format=gbrp,shuffleplanes=1:2:0:3,format=yuv420p".to_string()
         }
+        crate::cli::GlitchEngine::Swapuv => "swapuv".to_string(),
     };
 
     let mut argv = ffmpeg_base(g.progress);
@@ -43,6 +44,7 @@ pub fn run(args: GlitchArgs, g: &Globals) -> Result<Contract, Error> {
         "filter": match args.engine.unwrap_or(crate::cli::GlitchEngine::Shift) {
             crate::cli::GlitchEngine::Shift => "rgbashift+noise",
             crate::cli::GlitchEngine::Planes => "shuffleplanes",
+            crate::cli::GlitchEngine::Swapuv => "swapuv",
         },
     })))
 }

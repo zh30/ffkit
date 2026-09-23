@@ -1166,6 +1166,8 @@ pub enum GlitchEngine {
     Shift,
     /// shuffleplanes channel rotation — false-color acid look
     Planes,
+    /// swapuv — U/V chroma swap (magenta↔green flip, weird-Terry look)
+    Swapuv,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1285,6 +1287,18 @@ pub struct DeflickerArgs {
     /// Temporal averaging window in frames (3-129)
     #[arg(long, default_value_t = 5)]
     pub size: u32,
+    /// Engine: am (default, arithmetic-mean window) | tmide — temporal midway
+    /// histogram equalization: stronger for timelapse/strobe-source flicker
+    #[arg(long, value_enum)]
+    pub engine: Option<DeflickerEngine>,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum DeflickerEngine {
+    /// deflicker — local arithmetic-mean window
+    Am,
+    /// tmidequalizer — temporal histogram midpoint (harder flicker flattening)
+    Tmide,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2118,7 +2132,7 @@ pub struct GenArgs {
     /// -o target (e.g. bg.mp4) — generative sources take no input file
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Pattern: mandelbrot | gradients | life (cellular automaton)
+    /// Pattern: mandelbrot | gradients | life (cellular automaton) | noise | tone (audio beds)
     #[arg(long, default_value = "gradients")]
     pub pattern: String,
     /// Frame size WxH
@@ -2136,6 +2150,9 @@ pub struct GenArgs {
     /// Gradient colors, up to 8 (comma list: name or 0xRRGGBB)
     #[arg(long)]
     pub colors: Option<String>,
+    /// Tone frequency Hz for --pattern tone (default 440)
+    #[arg(long)]
+    pub freq: Option<f64>,
     /// Gradient drift speed 0.001-1
     #[arg(long, default_value_t = 0.01)]
     pub speed: f64,

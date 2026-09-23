@@ -111,11 +111,18 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
             )
         })
         .cloned();
+    // 1D .cube files only carry LUT_1D_SIZE — lut3d rejects them, route to lut1d
+    let lut1d = args.lut.as_ref().is_some_and(|p| {
+        std::fs::read_to_string(p)
+            .map(|c| c.contains("LUT_1D_SIZE") && !c.contains("LUT_3D_SIZE"))
+            .unwrap_or(false)
+    });
     if let Some(lut) = &args.lut {
         if hald_lut.is_none() {
             // Single quotes group literal path text; escape internal quotes.
             let esc = lut.display().to_string().replace('\'', "\\'");
-            vf.push_str(&format!(",lut3d=file='{esc}'"));
+            let f = if lut1d { "lut1d" } else { "lut3d" };
+            vf.push_str(&format!(",{f}=file='{esc}'"));
         }
     }
     if args.skin != 0.0 {
@@ -220,7 +227,7 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         "saturation": args.saturation,
         "brightness": args.brightness,
         "lut": args.lut,
-        "lut_engine": if hald_lut.is_some() { "haldclut" } else if args.lut.is_some() { "lut3d" } else { "none" },
+        "lut_engine": if hald_lut.is_some() { "haldclut" } else if lut1d { "lut1d" } else if args.lut.is_some() { "lut3d" } else { "none" },
         "skin": args.skin,
         "grain": args.grain,
         "warm": args.warm,

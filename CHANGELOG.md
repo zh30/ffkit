@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- `grade --lut` now auto-routes 1D `.cube` files (LUT_1D_SIZE) to `lut1d` — lut3d rejects them outright, so tonal 1D LUTs previously failed
+- `deflicker --engine tmide` — tmidequalizer temporal histogram midpoint for stubborn timelapse/strobe flicker
+- `gen --pattern noise|tone` — audio beds without input files: pink-noise roomtone/dither bed, `--freq` sine reference tone
+- `glitch --engine swapuv` — U/V chroma swap (magenta↔green weird-color look)
+
+### Added
 - `stereo` — stereo3d packed-format conversion: side-by-side/above-below/interleaved ↔ anaglyph (red-cyan, green-magenta) for 3D creators; `--in`/`--out` take stereo3d format names (anaglyphs are output-only)
 - `scan --scenes` — same QC pass also reports `scene_cuts`: hard-cut timestamps from scdet (edit-point map)
 - `fx --kind ringmod` — fast-AM tremolo robot voice (Dalek / sci-fi comm channel)

@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.242.0
+version: 0.243.0
 
 
 
@@ -214,6 +214,10 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | analog capture cleanup | `vdenoise --engine dotcrawl` (dedot: dot-crawl + rainbow edges on VHS / capture-card rips) |
 | hex pixel readout | `scope --mode data --x 100 --y 90` (datascope grid of raw values at a point) |
 | false-color glitch | `glitch --engine planes` (RGB channel rotation, clean acid look) |
+| 1D LUT support | `grade --lut curve.cube` (1D LUTs auto-route to lut1d — lut3d rejects them) |
+| hard flicker kill | `deflicker --engine tmide` (temporal midway equalization for timelapse/strobe) |
+| audio beds | `gen --pattern noise|tone --dur 30 -o bed.m4a` (pink-noise roomtone, sine reference tone) |
+| chroma-swap look | `glitch --engine swapuv` (U/V flip — magenta↔green) |
 | edit-point map | `scan --scenes` (scene_cuts timestamps via scdet — QC pass doubles as a cut list) |
 | 3D format convert | `stereo` `--in sbsl --out arcd` (stereo3d: SBS→anaglyph preview, interleaved for 3D displays) |
 | robot voice | `fx --kind ringmod` (fast-AM tremolo — Dalek/sci-fi comm channel) |
