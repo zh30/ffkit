@@ -852,6 +852,9 @@ pub struct DeliverArgs {
     /// Output frame rate (default 30; use 60 for gameplay/sport uploads)
     #[arg(long)]
     pub fps: Option<u32>,
+    /// H.264 quality level (default 20; lower = sharper/larger, 18 visually lossless)
+    #[arg(long)]
+    pub crf: Option<u32>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -2139,6 +2142,9 @@ pub struct HlsArgs {
     /// Also write poster.jpg next to the playlist (mid-video frame for the player)
     #[arg(long)]
     pub poster: bool,
+    /// Poster frame time (sec or `end`; default mid-video) — needs --poster
+    #[arg(long)]
+    pub poster_at: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

@@ -244,14 +244,22 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(playlist.display().to_string());
 
+    if args.poster_at.is_some() && !args.poster {
+        return Err(Error::input("--poster-at needs --poster"));
+    }
     let poster_path = dir.join("poster.jpg");
     let mut argvs = vec![argv];
     if args.poster {
         if !probe.has_video {
             return Err(Error::input("--poster needs a video stream"));
         }
+        let at = match &args.poster_at {
+            Some(raw) => crate::time::resolve_frame_at(raw.trim(), probe.duration)?,
+            None => probe.duration / 2.0,
+        }
+        .min((probe.duration - 0.1).max(0.0));
         let mut pargv = ffmpeg_base(g.progress);
-        pargv.extend(["-ss".to_string(), format!("{:.3}", probe.duration / 2.0)]);
+        pargv.extend(["-ss".to_string(), format!("{at:.3}")]);
         pargv.extend(["-i".to_string(), args.input.display().to_string()]);
         pargv.extend(["-frames:v".to_string(), "1".to_string()]);
         pargv.extend(["-q:v".to_string(), "3".to_string()]);

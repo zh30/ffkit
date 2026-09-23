@@ -15879,6 +15879,50 @@ fn freeze_and_fade_dip_comma_windows() {
 }
 
 #[test]
+fn hls_poster_at_and_deliver_crf() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = lavfi_fixture(dir.path(), "f.mp4", "440", 1.0);
+    let outdir = dir.path().join("h");
+    let v = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        outdir.to_str().unwrap(),
+        "--poster",
+        "--poster-at",
+        "end",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(outdir.join("poster.jpg").is_file(), "{v}");
+
+    // --poster-at without --poster errors
+    let v = run_json(&[
+        "hls",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("h2").to_str().unwrap(),
+        "--poster-at",
+        "0.5",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+
+    let v = run_json(&[
+        "deliver",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("d.mp4").to_str().unwrap(),
+        "--platform",
+        "square",
+        "--crf",
+        "26",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}
+
+#[test]
 fn deliver_fps_subs_margin_hls_poster() {
     if !has_ffmpeg() {
         return;
