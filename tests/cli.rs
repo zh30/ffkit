@@ -15543,6 +15543,77 @@ fn concat_gap_inserts_black_silence() {
 }
 
 #[test]
+fn grid_time_stamps_every_tile() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    let b = lavfi_fixture(dir.path(), "b.mp4", "550", 1.0);
+    let out = dir.path().join("g.mp4");
+    let v = run_json(&[
+        "grid",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--layout",
+        "2x1",
+        "--size",
+        "640x240",
+        "--time",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("crop=w="), "{cmds}");
+    assert!(cmds.contains("xstack"), "{cmds}");
+    // both tiles carry a timestamp in their bottom-right corner
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            out.to_str().unwrap(),
+            "-vf",
+            "select=eq(n\\,15)",
+            "-vframes",
+            "1",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            dir.path().join("f.rgb").to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let raw = std::fs::read(dir.path().join("f.rgb")).unwrap();
+    let (w, _h) = (640usize, 240usize);
+    let lit = |x0: usize, x1: usize, y0: usize, y1: usize| {
+        let mut n = 0usize;
+        for y in y0..y1 {
+            for x in x0..x1 {
+                let o = (y * w + x) * 3;
+                if raw[o] as u32 + raw[o + 1] as u32 + raw[o + 2] as u32 > 500 {
+                    n += 1;
+                }
+            }
+        }
+        n
+    };
+    assert!(lit(180, 320, 190, 235) > 50, "tile1 stamped");
+    assert!(lit(500, 640, 190, 235) > 50, "tile2 stamped");
+}
+
+#[test]
 fn concat_audio_fade_fades_each_joint() {
     if !has_ffmpeg() {
         return;

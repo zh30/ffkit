@@ -2823,6 +2823,9 @@ pub struct GridArgs {
     /// Gutter / letterbox color behind the tiles (name or RRGGBB; default black)
     #[arg(long)]
     pub bg: Option<String>,
+    /// Stamp an mm:ss readout on every tile (same clock across the grid)
+    #[arg(long)]
+    pub time: bool,
 }
 
 #[derive(clap::Args, Debug)]
