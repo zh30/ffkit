@@ -14837,3 +14837,34 @@ fn at_end_works_on_speed_and_audio_windows() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn sprite_writes_sheets_and_vtt() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // 1s @ --every 0.2 → 5 thumbs, one 10x10 sheet + WebVTT cues
+    let v = run_json(&[
+        "sprite",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("sp.jpg").to_str().unwrap(),
+        "--every",
+        "0.2",
+        "--width",
+        "80",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["thumbs"], 5);
+    let sheet = dir.path().join("sp-1.jpg");
+    let vtt = dir.path().join("sp.vtt");
+    assert!(sheet.exists(), "sheet missing");
+    assert!(vtt.exists(), "vtt missing");
+    let text = std::fs::read_to_string(&vtt).unwrap();
+    assert!(text.starts_with("WEBVTT"), "{text}");
+    assert_eq!(text.matches("-->").count(), 5, "{text}");
+    assert!(text.contains("00:00:00.200 --> 00:00:00.400"), "{text}");
+    assert!(text.contains("sp-1.jpg#xywh=80,0,80,60"), "{text}");
+}

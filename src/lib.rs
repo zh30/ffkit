@@ -83,6 +83,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Chapter(args) => verbs::chapter::run(args, &g),
         Cmd::Autocrop(args) => verbs::autocrop::run(args, &g),
         Cmd::Sheet(args) => verbs::sheet::run(args, &g),
+        Cmd::Sprite(args) => verbs::sprite::run(args, &g),
         Cmd::Pitch(args) => verbs::pitch::run(args, &g),
         Cmd::Cutsil(args) => verbs::cutsil::run(args, &g),
         Cmd::Channel(args) => verbs::channel::run(args, &g),

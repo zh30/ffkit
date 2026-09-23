@@ -126,6 +126,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `chapter` | Embed chapter marks at `TIME|TITLE` or `--import` a marks file; `--auto` / `--export`; `--list` dumps; `--remove` strips all; `--shift` re-times marks |
 | `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`; `--buffer N` keeps N px edge context) |
 | `sheet` | Contact sheet grid (`--cols`x`--rows`, `--time` stamps, `--title` header, `--from`/`--to` window) |
+| `sprite` | Seek-preview sprite sheets + WebVTT (`--every` secs, `--width` tile px, `--cols`x`--rows` per sheet, `--vtt` path) — hover thumbnails for video players |
 | `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window); `end` ok |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51`; `widen` stereo |

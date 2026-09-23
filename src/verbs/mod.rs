@@ -69,6 +69,7 @@ pub mod solid;
 pub mod spectrogram;
 pub mod speed;
 pub mod split;
+pub mod sprite;
 pub mod stabilize;
 pub mod strip;
 pub mod subs;

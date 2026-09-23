@@ -123,6 +123,8 @@ pub enum Cmd {
     Autocrop(AutocropArgs),
     /// Contact sheet: cols×rows thumbnails from the whole clip
     Sheet(SheetArgs),
+    /// Seek-preview sprite sheets + WebVTT for video players
+    Sprite(SpriteArgs),
     /// Pitch-shift audio by semitones (voice effects, music retune)
     Pitch(PitchArgs),
     /// Strip dead air at the head and tail (audio-only)
@@ -1674,6 +1676,28 @@ pub struct SheetArgs {
     /// ..up to this time (default: input end)
     #[arg(long)]
     pub to: Option<String>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SpriteArgs {
+    pub input: PathBuf,
+    /// Output stem — writes <stem>-1.jpg..-N.jpg plus <stem>.vtt
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// WebVTT path (default: <output>.vtt)
+    #[arg(long)]
+    pub vtt: Option<PathBuf>,
+    /// Seconds between thumbnails
+    #[arg(long, default_value_t = 10.0)]
+    pub every: f64,
+    /// Thumbnail width px (height follows aspect, forced even)
+    #[arg(long, default_value_t = 160)]
+    pub width: u32,
+    /// Tiles per sheet axis (default 10x10 = 100 thumbs/sheet)
+    #[arg(long, default_value_t = 10)]
+    pub cols: u32,
+    #[arg(long, default_value_t = 10)]
+    pub rows: u32,
 }
 
 #[derive(clap::Args, Debug)]

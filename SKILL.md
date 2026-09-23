@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.140.0
+version: 0.141.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -176,6 +176,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | punch-zoom a moment | `zoom` (`--factor`, `--at`/`--dur`) |
 | strip letterbox/pillarbox | `autocrop` (cropdetect scan → crop, `--buffer N` keeps N px edge) |
 | contact sheet / preview grid | `sheet` (`--cols`/`--rows`/`--tile` → PNG, `--time` stamps, `--from`/`--to` window) |
+| player seek-preview thumbnails | `sprite` (`--every` secs → `<stem>-N.jpg` sheets + `.vtt` with `#xywh` cues) |
 | title card mid-clip | `title` (`--text`, `--at` S for lower-third timing) |
 | voice-over on video's own audio | `replace --audio V --mix G --duck` (sidechain) |
 | pitch-shift voice/music | `pitch` (`--at`/`--dur` window, `--semitones N`, duration preserved) |

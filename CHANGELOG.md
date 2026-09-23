@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.141.0] — 2026-09-22
+
+### Added
+- `sprite` — seek-preview thumbnails for video players: `<stem>-N.jpg` tile sheets (`--every` secs, `--width` px, `--cols`x`--rows` per sheet) plus a WebVTT cue file with `#xywh` coordinates (`--vtt`).
+
 ## [0.140.0] — 2026-09-22
 
 ### Added

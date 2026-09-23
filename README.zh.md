@@ -126,6 +126,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `chapter` | 在 `TIME|TITLE` 写入章节或 `--import` 导入标记文件；`--auto` / `--export`；`--list` 列出；`--remove` 清除全部章节；`--shift` 整体平移标记 |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`；`--buffer N` 向外扩 N 像素） |
 | `sheet` | 宫格预览图（`--cols`x`--rows`、`--time` 每格时间戳、`--title` 标题行、`--from`/`--to` 采样窗口） |
+| `sprite` | 播放条预览雪碧图 + WebVTT（`--every` 间隔秒、`--width` 缩略图宽、`--cols`x`--rows` 每张格数、`--vtt` 路径）——播放器悬停预览 |
 | `pitch` | ±12 半音变调不变速（`--at/--dur` 窗口），支持 `end` |
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
 | `channel` | 声道手术：`--mode dualmono|mono|swap|invert|mix51`；`widen` 立体声加宽 |
