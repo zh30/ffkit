@@ -155,7 +155,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `reverse` | 倒放画面和声音 |
 | `grade` | `--preset` 一键风格 + 对比/饱和/亮度/`--gamma`/`--hue`/`--exposure`（EV 档）, `--at`/`--dur`/`--warm`/`--skin`；`--lut look.cube` 套 3D LUT，`--lut look.png` 套 HALD 图像 LUT（haldclut，Darktable/RawTherapee 导出）；`--skin -1..1` 只暖肤色（selectivecolor 红通道） ，含 `--kelvin` 开尔文白平衡、`--split` 青橙分调 | 预设 `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` 叠在滑杆之下  `--curve "x/y …"` 自由主曲线（哑光/S曲线） |
 | `zoom` | 推近（`--factor 1.25`、`--center X,Y` 靶点；`--at`/`--dur` 局部窗口——逗号列表可多段，支持 `end`） | `--out`
-| `sharpen` | USM 锐化，整段或定时窗口（`--amount`、`--at`、`--dur`） |
+| `sharpen` | USM 锐化，整段或定时窗口（`--amount`、`--at`、`--dur`） `--engine unsharp\|cas\|halo`（halo=maskedclamp 无过冲） |
 | `vignette` | 暗角，整段或定时窗口（`--angle`、`--at`、`--dur`） |
 | `bw` | 黑白化，整段或定时窗口（`--at`、`--dur`、`--strength` 保留部分色彩） ，`--weights r,g,b` 胶片通道权重  `--cut 0-1` 硬阈值（复印风） |
 | `volume` | 音量 ±dB；`--at/--dur` 局部增益，逗号列表可作用多处（需 `--dur`）（平台响度请用 `loudnorm`） |
@@ -250,6 +250,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `legalize` | 亮度钳制到广播安全 16-235（`--min`/`--max`、`--at`/`--dur`） | - |
 | `levels` | Photoshop 色阶：`--in-min/--in-max/--out-min/--out-max`（救压暗素材、哑光头） | - |
 | `aberrate` | 色散镶边 — `--amount` px（VHS/故障边缘感） | - |
+| `displace` | 按第二个素材亮度位移扭曲画面（热扭曲/液体故障）：`--edge` wrap/mirror/smear/blank，`--at`/`--dur` 窗口 | - |
+| `eqviz` | 应用 EQ 频段并渲染响应曲线为视频：`--bands "f=200 w=100 g=10 t=h"`（t=h/l/p 搁架/峰值），`--size` | - |
 | `crossfade` | 两段音频淡接，`--dur` 秒重叠（`acrossfade`） |
 | `strip` | 去掉全部元数据/章节（发片前隐私清理），无损 `-c copy` |
 | `frames` | 每 `--every`、`--at` 秒抽一帧（`end` = 最后一帧）、`--count` 均布 N 帧 → `stem_001.png…`（`--width` 缩放） |

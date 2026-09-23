@@ -65,7 +65,7 @@ pub fn run(args: MeterArgs, g: &Globals) -> Result<Contract, Error> {
     })))
 }
 
-fn parse_size(s: &str) -> Result<(u32, u32), Error> {
+pub fn parse_size(s: &str) -> Result<(u32, u32), Error> {
     let (w, h) = s
         .split_once('x')
         .ok_or_else(|| Error::input("--size must look like WxH (e.g. 640x480)"))?;

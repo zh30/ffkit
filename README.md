@@ -155,7 +155,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `reverse` | Play picture and sound backwards |
 | `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops), `--skin` warmth ，含 `--kelvin` 开尔文白平衡、`--split` 青橙分调 | Presets `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` stack under the sliders; `--lut look.cube` applies a 3D LUT, `--lut look.png` a HALD image LUT (haldclut — Darktable/RawTherapee exports); `--skin -1..1` warms faces only (selectivecolor reds), `--curve "x/y …"` freeform master curve (matte fade, S-curve) | `--at`/`--dur`
 | `zoom` | Punch-in (`--factor 1.25`, `--center X,Y` target; `--at`/`--dur` window — comma list for several, `end` ok) | `--out`
-| `sharpen` | Unsharp mask, whole clip or a window (`--amount`, `--at`, `--dur`) |
+| `sharpen` | Unsharp mask, whole clip or a window (`--amount`, `--at`, `--dur`) `--engine unsharp\|cas\|halo` (halo = maskedclamp, no overshoot) |
 | `vignette` | Corner darkening, whole clip or a window (`--angle`, `--at`, `--dur`) |
 | `bw` | Desaturate to B&W, whole clip or a window (`--at`, `--dur`, `--strength` keeps muted color) ，`--weights r,g,b` 胶片通道权重，`--cut 0-1` hard threshold (xerox/graphic B&W) |
 | `volume` | Gain ±dB; `--at/--dur` limits it to a window — comma list covers several spots (needs `--dur`) (platform loudness is `loudnorm`) |
@@ -250,6 +250,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `legalize` | Clamp luma to broadcast-safe 16-235 (`--min`/`--max`, `--at`/`--dur`) | - |
 | `levels` | Photoshop levels: `--in-min/--in-max/--out-min/--out-max` (crush rescue, matte fade) | - |
 | `aberrate` | Chromatic aberration fringe — `--amount` px (VHS / glitch edge look) | - |
+| `displace` | Warp picture by a second clip's luma map (heat ripple, liquid glitch): `--edge` wrap/mirror/smear/blank, `--at`/`--dur` window | - |
+| `eqviz` | Apply EQ bands and render the response curve as video: `--bands "f=200 w=100 g=10 t=h"` (t=h/l/p shelf/peak), `--size` | - |
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
 | `frames` | Still dump every `--every`, `--at` seconds (`end` = last frame), `--count` even-spread → `stem_001.png…` (`--width`) |

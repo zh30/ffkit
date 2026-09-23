@@ -367,6 +367,11 @@ pub enum Cmd {
     /// Shutter smear: temporal frame average
     #[command(name = "motionblur")]
     MotionBlur(MotionBlurArgs),
+    /// Warp the picture by a second clip's displacement map (heat ripple, liquid glitch)
+    Displace(DisplaceArgs),
+    /// Apply an EQ and render its response curve as the video (mix QC cards)
+    #[command(name = "eqviz")]
+    Eqviz(EqvizArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -935,6 +940,8 @@ pub enum SharpenEngine {
     Unsharp,
     /// Contrast-adaptive sharpening — crisper edges, no white halos
     Cas,
+    /// Unsharp clamped to a blurred base (maskedclamp) — strongest, zero halo
+    Halo,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -4417,6 +4424,61 @@ pub struct SharpenArgs {
     /// Engine: unsharp (default) or cas (contrast-adaptive, no halos)
     #[arg(long, value_enum, default_value_t = SharpenEngine::Unsharp)]
     pub engine: SharpenEngine,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum DisplaceEdge {
+    /// smear edge pixels outward
+    Smear,
+    /// leave uncovered pixels black
+    Blank,
+    /// wrap around the opposite edge
+    Wrap,
+    /// mirror the picture back in
+    #[default]
+    Mirror,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DisplaceArgs {
+    /// Video to warp
+    pub input: PathBuf,
+    /// Clip whose luma drives the displacement map
+    #[arg(long)]
+    pub map: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Edge handling for pixels pushed off-frame (default mirror)
+    #[arg(long, value_enum, default_value_t = DisplaceEdge::Mirror)]
+    pub edge: DisplaceEdge,
+    /// Displace only from this time — comma list ok (`end` ok, needs --dur)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct EqvizArgs {
+    /// Audio or video file to EQ + visualize
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// EQ bands, one per audio channel pair: "f=200 w=100 g=10 t=h" is a +10dB
+    /// low shelf at 200Hz (t=h high-shelf, t=l low-shelf, t=p peak). Two
+    /// entries separated by " | " sets stereo — one entry applies to all.
+    #[arg(long)]
+    pub bands: Option<String>,
+    /// Curve video size WxH (default 640x360)
+    #[arg(long, default_value = "640x360")]
+    pub size: String,
+    /// Only from this time (`end` ok)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds (default: to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

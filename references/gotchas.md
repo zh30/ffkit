@@ -237,3 +237,6 @@ an atempo'd whole-file render would shift the window.
 - `limiter` without `planes=` applies luma numbers to chroma too — pass `planes=1` for luma-only legalization. Codec ringing can push encoded luma a few points past the clamp; that's inherent, not a clamp failure.
 
 - `drmeter`, `astats` print nothing on ffmpeg 4.4 even at clean EOF (metadata filters stay silent) — `meter --mode drm` was cut; use `scan`'s `audio_max_db`/`audio_mean_db` (volumedetect does print).
+- `displace`, `maskedclamp` each take THREE inputs (src + two map/ref pads) — a labeled link can be consumed only once, so `split` the map before feeding two pads.
+- `maskfun`/`geq` per-plane semantics on 4.4 don't match docs (threshold scale/plane resolution) — luma-band isolation was cut this round; use `key --mode luma` or `levels` for band work.
+- `lumakey` keys the [threshold±tolerance] band to alpha=0 (not single-side); outside pixels keep partial alpha with softness — not a hard binary mask.

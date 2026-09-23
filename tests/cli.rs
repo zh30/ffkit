@@ -23343,6 +23343,87 @@ fn grade_curve_bw_cut_scan_volume() {
 }
 
 #[test]
+fn displace_sharpen_halo_eqviz() {
+    if !has_ffmpeg()
+        || !has_filter("displace")
+        || !has_filter("maskedclamp")
+        || !has_filter("anequalizer")
+    {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let input = fixture(dir.path());
+    // displace: gradient map warps the frame
+    let map = dir.path().join("map.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "gradients=size=320x240:rate=30",
+            "-t",
+            "1",
+            "-y",
+        ])
+        .arg(&map)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let out = dir.path().join("disp.mp4");
+    let v = run_json(&[
+        "displace",
+        input.to_str().unwrap(),
+        "--map",
+        map.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"].as_str().unwrap(), "ok");
+    // halo: clamped sharpen keeps frame, no overshoot beyond unsharp's halos
+    let out2 = dir.path().join("halo.mp4");
+    let v = run_json(&[
+        "sharpen",
+        input.to_str().unwrap(),
+        "-o",
+        out2.to_str().unwrap(),
+        "--engine",
+        "halo",
+    ]);
+    assert_eq!(v["status"].as_str().unwrap(), "ok");
+    // eqviz: EQ'd audio + response-curve video
+    let out3 = dir.path().join("eqv.mp4");
+    let v = run_json(&[
+        "eqviz",
+        input.to_str().unwrap(),
+        "-o",
+        out3.to_str().unwrap(),
+        "--bands",
+        "f=200 w=100 g=10 t=h",
+    ]);
+    assert_eq!(v["status"].as_str().unwrap(), "ok");
+    let probe = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out3)
+        .output()
+        .unwrap();
+    let streams = String::from_utf8_lossy(&probe.stdout);
+    assert!(
+        streams.contains("video") && streams.contains("audio"),
+        "eqviz needs curve video + EQ'd audio: {streams}"
+    );
+}
+
+#[test]
 fn legalize_levels_aberrate() {
     if !has_ffmpeg() || !has_filter("limiter") || !has_filter("colorlevels") {
         return;

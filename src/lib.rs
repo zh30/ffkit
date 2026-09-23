@@ -196,6 +196,8 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Glow(args) => verbs::glow::run(args, &g),
         Cmd::Vhs(args) => verbs::vhs::run(args, &g),
         Cmd::MotionBlur(args) => verbs::motionblur::run(args, &g),
+        Cmd::Displace(args) => verbs::displace::run(args, &g),
+        Cmd::Eqviz(args) => verbs::eqviz::run(args, &g),
         Cmd::Batch(args) => batch::run(args, &g),
         Cmd::Graph { plan } => graph::run(plan, &g),
         Cmd::Pipeline { plan } => pipeline::run(plan, &g),

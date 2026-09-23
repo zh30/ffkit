@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- `displace` — warp the picture by a second clip's luma displacement map (displace + scale2ref; `--edge` wrap/mirror/smear/blank, timeline `--at`/`--dur`): heat ripple, liquid glitch, water reflections
+- `sharpen --engine halo` — unsharp clamped to a blurred base via maskedclamp: strongest sharpening available, zero overshoot halos
+- `eqviz` — apply EQ bands (anequalizer params) and render the frequency-response curve as the video: `--bands "f=200 w=100 g=10 t=h"` low-shelf, " | "-separated per-channel; mix QC card
+
+### Added
 - `grade --curve "x/y x/y …"` — freeform master tone curve (curves master): matte fade `0/0.08 1/1`, S-curve `0/0 0.25/0.18 0.75/0.82 1/1`
 - `bw --cut 0-1` — hard luma threshold instead of grayscale (lutyuv: xerox / high-contrast graphic B&W)
 - `scan` — new extras `audio_max_db`/`audio_mean_db` (volumedetect pass: clip check + cheap loudness read on any audio-bearing input)
