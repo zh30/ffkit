@@ -16826,3 +16826,60 @@ fn mute_and_volume_comma_windows() {
         "{cmds}"
     );
 }
+
+#[test]
+fn transcode_vbitrate_cap_and_loudnorm_gate() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = lavfi_fixture(dir.path(), "v.mp4", "440", 2.0);
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("o.mp4").to_str().unwrap(),
+        "--vbitrate",
+        "1M",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-maxrate 1M -bufsize 2M"), "{cmds}");
+    let bad = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("o.mp3").to_str().unwrap(),
+        "--preset",
+        "mp3",
+        "--vbitrate",
+        "1M",
+    ]);
+    assert_eq!(bad["status"], "failed", "{bad}");
+    let gate = run_json(&[
+        "loudnorm",
+        src.to_str().unwrap(),
+        "--measure",
+        "--gate",
+        "-50",
+    ]);
+    assert_eq!(gate["status"], "failed", "{gate}");
+    let pass = run_json(&[
+        "loudnorm",
+        src.to_str().unwrap(),
+        "--measure",
+        "--gate",
+        "0",
+    ]);
+    assert_eq!(pass["status"], "ok", "{pass}");
+    assert!(
+        pass["extra"]["measured"]["input_i"].as_str().is_some(),
+        "{pass}"
+    );
+}
