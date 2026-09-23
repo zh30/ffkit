@@ -23141,3 +23141,115 @@ fn interp_mcdeint_grade_kelvin() {
     let (r, b) = (out.stdout[i] as i64, out.stdout[i + 2] as i64);
     assert!(r > b + 10, "3000K must warm: r={r} b={b}");
 }
+
+#[test]
+fn matrix_bw_weights_grade_split() {
+    if !has_ffmpeg() || !has_filter("colormatrix") || !has_filter("colorchannelmixer") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("c.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=rate=25:size=128x128",
+            "-t",
+            "1",
+            "-y",
+        ])
+        .arg(&src)
+        .status()
+        .unwrap();
+    assert!(st.success());
+
+    // matrix converts
+    let mx = dir.path().join("mx.mp4");
+    let v = run_json(&[
+        "matrix",
+        src.to_str().unwrap(),
+        "-o",
+        mx.to_str().unwrap(),
+        "--from",
+        "bt601",
+        "--to",
+        "bt709",
+    ]);
+    assert_eq!(v["extra"]["to"], "bt709");
+    assert!(v["extra"]["filter"]
+        .as_str()
+        .unwrap()
+        .contains("colormatrix"));
+
+    // bw --weights: pure gray (r=g=b) everywhere
+    let bw = dir.path().join("bw.mp4");
+    run_json(&[
+        "bw",
+        src.to_str().unwrap(),
+        "-o",
+        bw.to_str().unwrap(),
+        "--weights",
+        "1.5,0.3,0.1",
+    ]);
+    let out = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-i"])
+        .arg(&bw)
+        .args([
+            "-frames:v",
+            "1",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "-y",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let i = (64 * 128 + 64) * 3;
+    let (r, g, b) = (
+        out.stdout[i] as i64,
+        out.stdout[i + 1] as i64,
+        out.stdout[i + 2] as i64,
+    );
+    assert!(
+        (r - g).abs() <= 2 && (g - b).abs() <= 2,
+        "weights output must be gray: {r},{g},{b}"
+    );
+
+    // grade --split shifts shadows toward blue
+    if has_filter("colorcorrect") {
+        let sp = dir.path().join("sp.mp4");
+        run_json(&[
+            "grade",
+            src.to_str().unwrap(),
+            "-o",
+            sp.to_str().unwrap(),
+            "--split",
+            "0.8",
+        ]);
+        let out = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-i"])
+            .arg(&sp)
+            .args([
+                "-vf",
+                "crop=8:8:8:8",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-y",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let (r, b) = (out.stdout[0] as i64, out.stdout[2] as i64);
+        assert!(b >= r, "teal shadows expected: r={r} b={b}");
+    }
+}

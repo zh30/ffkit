@@ -153,11 +153,11 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | 把成片重复 N 遍（Shorts 循环加长）（`--from`/`--to` 只循环片段，支持 `end`，`--fade` 无缝衔接） |
 | `stabilize` | 手持防抖（deshake）——`--rx`/`--ry` 搜索半径，`--edge` 边缘填充 blank|original|clamped|mirror |
 | `reverse` | 倒放画面和声音 |
-| `grade` | `--preset` 一键风格 + 对比/饱和/亮度/`--gamma`/`--hue`/`--exposure`（EV 档）, `--at`/`--dur`/`--warm`/`--skin`；`--lut look.cube` 套 3D LUT，`--lut look.png` 套 HALD 图像 LUT（haldclut，Darktable/RawTherapee 导出）；`--skin -1..1` 只暖肤色（selectivecolor 红通道） ，含 `--kelvin` 开尔文白平衡 | 预设 `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` 叠在滑杆之下 |
+| `grade` | `--preset` 一键风格 + 对比/饱和/亮度/`--gamma`/`--hue`/`--exposure`（EV 档）, `--at`/`--dur`/`--warm`/`--skin`；`--lut look.cube` 套 3D LUT，`--lut look.png` 套 HALD 图像 LUT（haldclut，Darktable/RawTherapee 导出）；`--skin -1..1` 只暖肤色（selectivecolor 红通道） ，含 `--kelvin` 开尔文白平衡、`--split` 青橙分调 | 预设 `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` 叠在滑杆之下 |
 | `zoom` | 推近（`--factor 1.25`、`--center X,Y` 靶点；`--at`/`--dur` 局部窗口——逗号列表可多段，支持 `end`） | `--out`
 | `sharpen` | USM 锐化，整段或定时窗口（`--amount`、`--at`、`--dur`） |
 | `vignette` | 暗角，整段或定时窗口（`--angle`、`--at`、`--dur`） |
-| `bw` | 黑白化，整段或定时窗口（`--at`、`--dur`、`--strength` 保留部分色彩） |
+| `bw` | 黑白化，整段或定时窗口（`--at`、`--dur`、`--strength` 保留部分色彩） ，`--weights r,g,b` 胶片通道权重 |
 | `volume` | 音量 ±dB；`--at/--dur` 局部增益，逗号列表可作用多处（需 `--dur`）（平台响度请用 `loudnorm`） |
 | `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`/`--dur`；`--at end` = 片尾） |
 | `trail` | 运动拖影：`--mode echo` 跟随残影（`--frames` 2-16、`--at`/`--dur` 窗口），`--mode light` 亮部拖尾（`--decay` 0.5-0.99） |
@@ -246,6 +246,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `dejudder` | 消除电视电影抖动（`--cycle 4` 对应 3:2 下拉） | - |
 | `despill` | 去除抠像边缘绿/蓝溢色（`--type`、`--mix`、`--expand`、`--at`/`--dur`） | - |
 | `interp` | 运动补偿插帧：`--fps 60` 上采样、`--slow 0.5` 顺滑慢动作 | - |
+| `matrix` | 色彩矩阵转换（`--from bt601 --to bt709` 修 SD 偏绿；源矩阵自动检测） | - |
 | `crossfade` | 两段音频淡接，`--dur` 秒重叠（`acrossfade`） |
 | `strip` | 去掉全部元数据/章节（发片前隐私清理），无损 `-c copy` |
 | `frames` | 每 `--every`、`--at` 秒抽一帧（`end` = 最后一帧）、`--count` 均布 N 帧 → `stem_001.png…`（`--width` 缩放） |

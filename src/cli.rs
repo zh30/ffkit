@@ -208,6 +208,9 @@ pub enum Cmd {
     Dejudder(DejudderArgs),
     /// Motion-compensated frame interpolation — 60fps upres or smooth slow-mo
     Interp(InterpArgs),
+    /// Convert between color matrices (fix SD-601 footage gone green in a 709
+    /// timeline; bt2020 deliveries)
+    Matrix(MatrixArgs),
     /// Straight ↔ premultiplied alpha conversion for graphics handoffs
     Premult(PremultArgs),
     /// Stretch edge pixels to fill border strips (chroma-key rims, leftover letterbox)
@@ -2789,6 +2792,10 @@ pub struct GradeArgs {
     /// 9000 cool — direct dial when --warm's -1..1 slide isn't enough
     #[arg(long)]
     pub kelvin: Option<f64>,
+    /// Split-tone strength -1..1: teal shadows + orange highlights (the
+    /// blockbuster grade); negative flips to warm shadows / cool highlights
+    #[arg(long, allow_hyphen_values = true)]
+    pub split: Option<f64>,
     /// Grade only from this time — dream sequences, flashbacks; comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
@@ -3370,6 +3377,38 @@ pub enum InterpMode {
     Blend,
     /// Duplicate frames (convert fps only, no smoothing)
     Dup,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum ColorMatrix {
+    /// Auto (reads the stream's colorspace tag — source side only)
+    #[default]
+    Auto,
+    Bt709,
+    /// BT.601 / SMPTE-170M — SD NTSC/PAL masters
+    Bt601,
+    Smpte240m,
+    Bt2020,
+    Fcc,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct MatrixArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Source matrix (default: auto — read the stream tag)
+    #[arg(long, value_enum, default_value_t = ColorMatrix::Auto)]
+    pub from: ColorMatrix,
+    /// Destination matrix — convert into this space
+    #[arg(long, value_enum, default_value_t = ColorMatrix::Bt709)]
+    pub to: ColorMatrix,
+    /// Convert only from this time (needs --dur)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4339,6 +4378,10 @@ pub struct BwArgs {
     /// Saturation left 0..=1 (default 0 = full bw; 0.4 keeps muted color)
     #[arg(long)]
     pub strength: Option<f64>,
+    /// Film channel weights "r,g,b" (e.g. 1.5,0.3,0.1 darkens blue skies like
+    /// a red filter) — replaces the BT.601 luma mix
+    #[arg(long)]
+    pub weights: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

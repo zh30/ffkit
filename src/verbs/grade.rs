@@ -120,6 +120,11 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         let k = 6500.0 - args.warm * 3500.0;
         vf.push_str(&format!(",colortemperature=temperature={k:.0}"));
     }
+    if let Some(sp) = args.split {
+        let sp = sp.clamp(-1.0, 1.0);
+        // teal shadows + orange highlights; negative flips the pair
+        vf.push_str(&format!(",colorcorrect=bl={:.3}:rh={:.3}", sp, sp * 0.7));
+    }
     if args.grain > 0.0 {
         vf.push_str(&format!(",noise=alls={}:allf=t+u", args.grain.min(30.0)));
     }

@@ -75,6 +75,7 @@ pub mod lens;
 pub mod leveler;
 pub mod r#loop;
 pub mod loudnorm;
+pub mod matrix;
 pub mod meme;
 pub mod meta;
 pub mod meter;

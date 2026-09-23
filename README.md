@@ -153,11 +153,11 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section, `end` ok, `--fade` seamless joints) |
 | `stabilize` | Handheld deshake — `--rx`/`--ry` radius, `--edge` fill (blank|original|clamped|mirror) |
 | `reverse` | Play picture and sound backwards |
-| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops), `--skin` warmth ，含 `--kelvin` 开尔文白平衡 | Presets `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` stack under the sliders; `--lut look.cube` applies a 3D LUT, `--lut look.png` a HALD image LUT (haldclut — Darktable/RawTherapee exports); `--skin -1..1` warms faces only (selectivecolor reds) | `--at`/`--dur`
+| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops), `--skin` warmth ，含 `--kelvin` 开尔文白平衡、`--split` 青橙分调 | Presets `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` stack under the sliders; `--lut look.cube` applies a 3D LUT, `--lut look.png` a HALD image LUT (haldclut — Darktable/RawTherapee exports); `--skin -1..1` warms faces only (selectivecolor reds) | `--at`/`--dur`
 | `zoom` | Punch-in (`--factor 1.25`, `--center X,Y` target; `--at`/`--dur` window — comma list for several, `end` ok) | `--out`
 | `sharpen` | Unsharp mask, whole clip or a window (`--amount`, `--at`, `--dur`) |
 | `vignette` | Corner darkening, whole clip or a window (`--angle`, `--at`, `--dur`) |
-| `bw` | Desaturate to B&W, whole clip or a window (`--at`, `--dur`, `--strength` keeps muted color) |
+| `bw` | Desaturate to B&W, whole clip or a window (`--at`, `--dur`, `--strength` keeps muted color) ，`--weights r,g,b` 胶片通道权重 |
 | `volume` | Gain ±dB; `--at/--dur` limits it to a window — comma list covers several spots (needs `--dur`) (platform loudness is `loudnorm`) |
 | `blur` | Full-frame or windowed gaussian blur (`--sigma`, `--at`/`--dur`; `--at end` = tail) |
 | `trail` | Motion trails: `--mode echo` ghost smear behind movement (`--frames` 2-16, `--at`/`--dur` window), `--mode light` bright-pixel persistence (`--decay` 0.5-0.99) |
@@ -246,6 +246,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `dejudder` | Remove pullup judder (`--cycle 4` for 3:2 pulldown wobble) | - |
 | `despill` | Remove green/blue screen spill from keyed edges (`--type`, `--mix`, `--expand`, `--at`/`--dur`) | - |
 | `interp` | Motion-compensated interpolation: `--fps 60` upres, `--slow 0.5` smooth slow-mo | - |
+| `matrix` | Convert color matrices (`--from bt601 --to bt709` — fixes SD-gone-green; auto-detects source) | - |
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
 | `frames` | Still dump every `--every`, `--at` seconds (`end` = last frame), `--count` even-spread → `stem_001.png…` (`--width`) |

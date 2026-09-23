@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- `matrix` — convert between color matrices (colormatrix): `--from bt601 --to bt709` fixes SD-601 footage gone green in a 709 timeline; `--from auto` reads the stream tag; timeline `--at`/`--dur`
+- `bw --weights r,g,b` — film-photographer channel weights for B&W (1.5,0.3,0.1 darkens blue skies like a red filter); replaces the 601 luma mix
+- `grade --split -1..1` — split-tone: teal shadows + orange highlights (blockbuster grade); negative flips to warm shadows / cool highlights
+
+### Added
 - `interp` — motion-compensated frame interpolation (minterpolate): `--fps 60` upres for high-refresh delivery, `--slow 0.5` smooth slow-mo from normal-rate footage (`--mode mci|blend|dup`)
 - `deinterlace --engine mcdeint` — motion-compensated deinterlacer (archive quality, slow)
 - `grade --kelvin 1000-40000` — direct white-balance dial in Kelvin (tungsten 2700 / daylight 5500 / cool 9000); exclusive with `--warm`
