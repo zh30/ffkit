@@ -120,6 +120,15 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         let k = 6500.0 - args.warm * 3500.0;
         vf.push_str(&format!(",colortemperature=temperature={k:.0}"));
     }
+    if let Some(c) = &args.curve {
+        let pts = c.replace(['\'', '"', ';', ':', '='], "");
+        if pts.is_empty() {
+            return Err(Error::input(
+                "--curve needs points like \"0/0 0.5/0.7 1/1\"",
+            ));
+        }
+        vf.push_str(&format!(",curves=master='{pts}'"));
+    }
     if let Some(sp) = args.split {
         let sp = sp.clamp(-1.0, 1.0);
         // teal shadows + orange highlights; negative flips the pair

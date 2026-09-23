@@ -40,6 +40,11 @@ pub fn run(args: BwArgs, g: &Globals) -> Result<Contract, Error> {
         "-vf",
         &{
             let base = match &weights {
+                _ if args.cut.is_some() => {
+                    // hard threshold on luma — xerox/graphic cut
+                    let t = (args.cut.unwrap().clamp(0.0, 1.0) * 255.0) as u32;
+                    format!("lutyuv=y='if(gt(val,{t}),255,0)':u=128:v=128")
+                }
                 // colorchannelmixer: same luma mix on all three output
                 // channels = true grayscale with custom weights
                 Some(v) => format!(

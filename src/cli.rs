@@ -2802,6 +2802,10 @@ pub struct GradeArgs {
     /// blockbuster grade); negative flips to warm shadows / cool highlights
     #[arg(long, allow_hyphen_values = true)]
     pub split: Option<f64>,
+    /// Freeform master curve points "x/y x/y" (curves master): S-curve
+    /// "0/0 0.25/0.18 0.75/0.82 1/1", matte "0/0.08 1/0.92"
+    #[arg(long)]
+    pub curve: Option<String>,
     /// Grade only from this time — dream sequences, flashbacks; comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
@@ -4449,6 +4453,9 @@ pub struct BwArgs {
     /// a red filter) — replaces the BT.601 luma mix
     #[arg(long)]
     pub weights: Option<String>,
+    /// Hard threshold 0-1 instead of grayscale (xerox / high-contrast look)
+    #[arg(long)]
+    pub cut: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

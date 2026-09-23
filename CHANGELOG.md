@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- `grade --curve "x/y x/y …"` — freeform master tone curve (curves master): matte fade `0/0.08 1/1`, S-curve `0/0 0.25/0.18 0.75/0.82 1/1`
+- `bw --cut 0-1` — hard luma threshold instead of grayscale (lutyuv: xerox / high-contrast graphic B&W)
+- `scan` — new extras `audio_max_db`/`audio_mean_db` (volumedetect pass: clip check + cheap loudness read on any audio-bearing input)
+
+### Added
 - `legalize` — clamp luma to broadcast-safe levels (limiter, planes=1 luma-only; `--min`/`--max`, timeline `--at`/`--dur`)
 - `levels` — Photoshop-style levels (colorlevels): `--in-min/--in-max` input points, `--out-min/--out-max` output range — crush rescue, matte film fade
 - `aberrate` — chromatic aberration fringe (rgbashift): `--amount` px splits red left / blue right (VHS, cheap-lens, glitch edge)

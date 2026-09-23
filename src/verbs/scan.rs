@@ -172,6 +172,26 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         })
         .collect();
 
+    // volumedetect pass: peak + mean dB (clip check + cheap loudness read)
+    let (mut audio_max_db, mut audio_mean_db): (Option<f64>, Option<f64>) = (None, None);
+    if probe.has_audio {
+        let mut argv = Argv::ffmpeg();
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend(["-af", "volumedetect", "-f", "null", "-"]);
+        if let Ok(sp) = spawn::run(&argv, g.timeout, false) {
+            let stderr = String::from_utf8_lossy(&sp.stderr);
+            for line in stderr.lines() {
+                if let Some(v) = line.split("max_volume:").nth(1) {
+                    audio_max_db = v.trim().trim_end_matches(" dB").parse().ok();
+                }
+                if let Some(v) = line.split("mean_volume:").nth(1) {
+                    audio_mean_db = v.trim().trim_end_matches(" dB").parse().ok();
+                }
+            }
+        }
+    }
+
     Ok(Contract::ok("scan", None, Some(probe)).with_extra(json!({
         "freeze_min": freeze_min,
         "black_min": black_min,
@@ -191,5 +211,8 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         "frames_undetermined": idet_counts.3,
         // L/R phase correlation, stereo inputs only: <0 collapses in mono
         "phase_corr": phase_corr,
+        // peak level (>= -0.5 dB clips on most encoders) + programme mean
+        "audio_max_db": audio_max_db,
+        "audio_mean_db": audio_mean_db,
     })))
 }

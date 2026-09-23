@@ -235,3 +235,5 @@ an atempo'd whole-file render would shift the window.
 - `aphasemeter` outputs TWO pads (audio out0, video out1) — both must be consumed or the graph stalls; map the audio pad as the output audio instead of anullsink (which hangs). dither/morpho/earwax are absent on ffmpeg 4.4.
 
 - `limiter` without `planes=` applies luma numbers to chroma too — pass `planes=1` for luma-only legalization. Codec ringing can push encoded luma a few points past the clamp; that's inherent, not a clamp failure.
+
+- `drmeter`, `astats` print nothing on ffmpeg 4.4 even at clean EOF (metadata filters stay silent) — `meter --mode drm` was cut; use `scan`'s `audio_max_db`/`audio_mean_db` (volumedetect does print).

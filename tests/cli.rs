@@ -23255,6 +23255,94 @@ fn matrix_bw_weights_grade_split() {
 }
 
 #[test]
+fn grade_curve_bw_cut_scan_volume() {
+    if !has_ffmpeg() || !has_filter("curves") || !has_filter("volumedetect") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let input = fixture(dir.path());
+    // --curve: matte lift keeps the chain alive
+    let out = dir.path().join("curve.mp4");
+    run_json(&[
+        "grade",
+        input.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--curve",
+        "0/0.15 0.5/0.55 1/1",
+    ]);
+    let ymin = |f: &Path| -> u8 {
+        Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-i"])
+            .arg(f)
+            .args([
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "yuv420p",
+                "-y",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout[..320 * 240]
+            .iter()
+            .min()
+            .copied()
+            .unwrap_or(0)
+    };
+    assert!(ymin(&out) > ymin(&input) + 15, "matte curve lifts blacks");
+    let _ = &input; // input reused for scan below
+                    // --cut: hard threshold — luma quantizes to near-binary
+    let out2 = dir.path().join("cut.mp4");
+    run_json(&[
+        "bw",
+        input.to_str().unwrap(),
+        "-o",
+        out2.to_str().unwrap(),
+        "--cut",
+        "0.5",
+    ]);
+    let raw = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            out2.to_str().unwrap(),
+            "-frames:v",
+            "1",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "yuv420p",
+            "-y",
+            "-",
+        ])
+        .output()
+        .expect("frame extract")
+        .stdout;
+    // yuv420p Y plane = first w*h bytes
+    let y = &raw[..320 * 240];
+    let extremes = y.iter().filter(|&&v| !(40..=215).contains(&v)).count();
+    assert!(
+        extremes as f64 / y.len() as f64 > 0.7,
+        "threshold should binarize most pixels, got {extremes}/{}",
+        y.len()
+    );
+    // scan: volumedetect peak/mean present on audio input
+    let v = run_json(&["scan", input.to_str().unwrap()]);
+    let max_db = v["extra"]["audio_max_db"].as_f64().expect("audio_max_db");
+    let mean_db = v["extra"]["audio_mean_db"].as_f64().expect("audio_mean_db");
+    assert!(
+        max_db > mean_db && max_db < 1.0,
+        "sine peak {max_db} mean {mean_db}"
+    );
+}
+
+#[test]
 fn legalize_levels_aberrate() {
     if !has_ffmpeg() || !has_filter("limiter") || !has_filter("colorlevels") {
         return;

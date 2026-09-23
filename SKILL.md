@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.233.0
+version: 0.234.0
 
 
 
@@ -186,8 +186,11 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | SD looks green in HD edit | `matrix` --to bt709 (colormatrix converts 601→709 — not just re-tagging) |
 | film-style B&W | `bw --weights 1.5,0.3,0.1` (channel weights — red filter darkens skies like film) |
 | blockbuster split-tone | `grade --split 0.8` (teal shadows + orange highlights; negative flips) |
+| freeform tone curve | `grade --curve "0/0.08 0.5/0.55 1/1"` (matte fade / S-curve; curves master points) |
 | broadcast QC clamp | `legalize` (limiter pins luma to 16-235; --min/--max custom) |
 | lifted web rip | `levels` --in-min 0.06 --in-max 0.92 (Photoshop levels; --out-min = matte fade) |
+| xerox / graphic B&W | `bw --cut 0.5` (hard luma threshold, not grayscale) |
+| audio peak & mean | `scan` extras `audio_max_db`/`audio_mean_db` (volumedetect: clip + cheap loudness) |
 | cheap-lens fringe | `aberrate` --amount 5 (rgbashift: red left/blue right — VHS/glitch edge) |
 | mono-compat visual | `audiogram --mode phase` (aphasemeter scope — thin line = mono, cloud = decorrelated) |
 | beauty/skin smoothing | `smooth` (`--engine` smartblur/bilateral — bilateral keeps edges sharper; `--strength`, `--at`/`--dur` window) |
