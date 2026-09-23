@@ -18490,3 +18490,98 @@ fn glow_vhs_motionblur() {
         "{fc}"
     );
 }
+
+#[test]
+fn bars_scope_desqueeze() {
+    if !has_ffmpeg() || !has_filter("vectorscope") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+
+    // bars: smptehdbars argv + probe dims
+    let ba = dir.path().join("ba.mp4");
+    let v = run_json(&[
+        "bars",
+        "-o",
+        ba.to_str().unwrap(),
+        "--size",
+        "160x120",
+        "--dur",
+        "1",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let joined: String = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|a| a.as_str().unwrap_or(""))
+        })
+        .collect();
+    assert!(joined.contains("smptehdbars"), "{joined}");
+    assert!(joined.contains("sine=frequency=1000"), "{joined}");
+
+    // scope: corner overlay runs in both modes
+    let src = dir.path().join("s.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:duration=1:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let sc = dir.path().join("sc.mp4");
+    let v = run_json(&[
+        "scope",
+        src.to_str().unwrap(),
+        "-o",
+        sc.to_str().unwrap(),
+        "--mode",
+        "wave",
+        "--at",
+        "0.2",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+
+    // desqueeze: 160x120 *1.33 on y -> 160x158
+    let dq = dir.path().join("dq.mp4");
+    let v = run_json(&[
+        "desqueeze",
+        src.to_str().unwrap(),
+        "-o",
+        dq.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let p = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&dq)
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&p.stdout).trim(), "160,158");
+}
