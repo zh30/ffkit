@@ -1986,9 +1986,9 @@ pub struct CountdownArgs {
     /// Optional text shown after the count (e.g. "GO!")
     #[arg(long)]
     pub go: Option<String>,
-    /// Start the countdown at this time (default 0)
+    /// Start the countdown at this time (default 0; `end` = last ~50ms)
     #[arg(long)]
-    pub at: Option<f64>,
+    pub at: Option<String>,
     #[arg(long)]
     pub font: Option<String>,
     /// Text size multiplier (default 3 — big center numerals)
@@ -2056,9 +2056,9 @@ pub struct TimerArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Start the running timer at this time (default 0)
+    /// Start the running timer at this time (default 0; `end` = last ~50ms)
     #[arg(long)]
-    pub at: Option<f64>,
+    pub at: Option<String>,
     /// Stop showing after this many seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
@@ -2459,9 +2459,9 @@ pub struct MeterArgs {
     /// EBU meter scale 9..=18 (default 9 = -18..+9 LUFS window)
     #[arg(long, default_value_t = 9)]
     pub meter: u32,
-    /// Meter only from this time (QC one slice)
+    /// Meter only from this time (`end` = last ~50ms; QC one slice)
     #[arg(long)]
-    pub at: Option<f64>,
+    pub at: Option<String>,
     /// ..for this many seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,

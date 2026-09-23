@@ -31,7 +31,10 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "countdown")?;
-    let at = args.at.unwrap_or(0.0);
+    let at = match &args.at {
+        Some(raw) => crate::time::resolve_frame_at(raw.trim(), probe.duration)?,
+        None => 0.0,
+    };
     if at < 0.0 {
         return Err(Error::input("--at must be >= 0"));
     }

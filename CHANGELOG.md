@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.176.0] — 2026-09-22
+
+### Added
+- `timer`/`countdown`/`meter --at` accept `end` — last numeric `--at` args moved onto `resolve_frame_at` anchors.
+
 ## [0.172.0] — 2026-09-22
 
 ### Added

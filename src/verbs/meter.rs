@@ -19,7 +19,8 @@ pub fn run(args: MeterArgs, g: &Globals) -> Result<Contract, Error> {
     }
 
     let mut argv = ffmpeg_base(g.progress);
-    if let Some(at) = args.at {
+    if let Some(raw) = &args.at {
+        let at = crate::time::resolve_frame_at(raw.trim(), probe.duration)?;
         argv.extend(["-ss", &crate::time::fmt_time(at.max(0.0))]);
     }
     argv.push("-i");

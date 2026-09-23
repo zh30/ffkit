@@ -237,6 +237,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 149)
+- `timer`/`countdown`/`meter --at` now take `end` (and `end-N`-style anchors) — the last three numeric `--at` knobs moved onto `resolve_frame_at`.
+
 ## Shipped this run (round 145)
 - `extract --at a,b,...` + `cover --at a,b,...` — comma `--at` grabs one still/cover per timepoint as `<stem>_N.<ext>` (`extra.files`); `cover` applies the same canvas/`--blur`/`--size` to every output. With `thumb` (r144) and `frames`, every still-grabber now takes a beat list in one call.
 
