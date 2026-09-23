@@ -17230,3 +17230,151 @@ fn subs_encoding_gbk_and_deliver_subs() {
     assert!(vf.contains("subtitles=filename="), "{vf}");
     assert_eq!(v["probe"]["width"].as_u64(), Some(1080));
 }
+
+#[test]
+fn trail_glitch_and_fade_curve() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // flash: white box only 0.4-0.6s so post-flash frames reveal trail persistence
+    let flash = dir.path().join("flash.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+            "color=c=black:size=160x120:duration=2:rate=24,drawbox=x=40:y=40:w=80:h=40:c=white:t=fill:enable='between(t\\,0.4\\,0.6)'",
+            "-pix_fmt", "yuv420p",
+        ])
+        .arg(&flash)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let mean_luma = |mp4: &Path, t: &str| -> u8 {
+        let pgm = mp4.with_file_name(format!(
+            "{}_{}.pgm",
+            mp4.file_stem().unwrap().to_string_lossy(),
+            t.replace('.', "_")
+        ));
+        let o = Command::new("ffmpeg")
+            .args(["-y", "-loglevel", "error", "-ss", t, "-i"])
+            .arg(mp4)
+            .args([
+                "-frames:v",
+                "1",
+                "-vf",
+                "crop=80:40:40:40",
+                "-pix_fmt",
+                "gray",
+            ])
+            .arg(&pgm)
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+        let d = std::fs::read(&pgm).unwrap();
+        let px = &d[d.len() - 80 * 40..];
+        (px.iter().map(|p| *p as u64).sum::<u64>() / px.len() as u64) as u8
+    };
+    // baseline: box zone is black at t=1.0 without trail
+    assert_eq!(mean_luma(&flash, "1.0"), 0);
+    let tr = dir.path().join("tr.mp4");
+    let v = run_json(&[
+        "trail",
+        flash.to_str().unwrap(),
+        "-o",
+        tr.to_str().unwrap(),
+        "--mode",
+        "echo",
+        "--frames",
+        "8",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // at t=1.0 (~0.4s after the box vanished) the echo trail still leaves residue
+    let luma = mean_luma(&tr, "0.8");
+    assert!(luma > 5, "echo trail left no residue: {luma}");
+    let trl = dir.path().join("trl.mp4");
+    let v = run_json(&[
+        "trail",
+        flash.to_str().unwrap(),
+        "-o",
+        trl.to_str().unwrap(),
+        "--mode",
+        "light",
+        "--decay",
+        "0.9",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    // lagfun holds bright pixels much longer
+    let luma = mean_luma(&trl, "1.0");
+    assert!(luma > 40, "light trail faded too fast: {luma}");
+
+    // glitch shifts channels → output frame differs from source
+    let src2 = dir.path().join("s2.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:duration=1:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src2)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let gl = dir.path().join("gl.mp4");
+    let v = run_json(&[
+        "glitch",
+        src2.to_str().unwrap(),
+        "-o",
+        gl.to_str().unwrap(),
+        "--strength",
+        "6",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let raw = |mp4: &Path| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-y", "-loglevel", "error", "-ss", "0.5", "-i"])
+            .arg(mp4)
+            .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let (a, b) = (raw(&src2), raw(&gl));
+    let diff = a.iter().zip(b.iter()).filter(|(x, y)| x != y).count();
+    assert!(diff > 500, "glitch changed almost nothing: {diff}");
+
+    // fade --curve lands :curve=NAME in the afade chain
+    let src = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    let fo = dir.path().join("fo.mp4");
+    let v = run_json(&[
+        "fade",
+        src.to_str().unwrap(),
+        "-o",
+        fo.to_str().unwrap(),
+        "--in",
+        "0.2",
+        "--curve",
+        "qsin",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let af_ok = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter())
+        .any(|a| {
+            a.as_str()
+                .unwrap_or("")
+                .contains("afade=t=in:st=0:d=0.2:curve=qsin")
+        });
+    assert!(af_ok, "curve missing from afade: {}", v["commands"]);
+}

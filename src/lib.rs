@@ -126,6 +126,8 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Bw(args) => verbs::bw::run(args, &g),
         Cmd::Volume(args) => verbs::volume::run(args, &g),
         Cmd::Blur(args) => verbs::blur::run(args, &g),
+        Cmd::Trail(args) => verbs::trail::run(args, &g),
+        Cmd::Glitch(args) => verbs::glitch::run(args, &g),
         Cmd::Batch(args) => batch::run(args, &g),
         Cmd::Graph { plan } => graph::run(plan, &g),
         Cmd::Pipeline { plan } => pipeline::run(plan, &g),

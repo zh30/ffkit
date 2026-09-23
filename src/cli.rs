@@ -223,6 +223,10 @@ pub enum Cmd {
     Volume(VolumeArgs),
     /// Gaussian blur the picture
     Blur(BlurArgs),
+    /// Motion trails behind moving subjects (dance/skate/echo smears)
+    Trail(TrailArgs),
+    /// Datamosh-style RGB-shift glitch look
+    Glitch(GlitchArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -892,6 +896,44 @@ pub enum DeliverPlatform {
 }
 
 #[derive(clap::Args, Debug)]
+pub struct TrailArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Trail length in frames (2-16, echo mode)
+    #[arg(long, default_value_t = 8)]
+    pub frames: u32,
+    /// echo = motion smear (tmix), light = bright-pixel persistence (lagfun)
+    #[arg(long, value_enum, default_value_t = TrailMode::Echo)]
+    pub mode: TrailMode,
+    /// Bright-trail persistence 0.5-0.99 (light mode)
+    #[arg(long, default_value_t = 0.95)]
+    pub decay: f64,
+    /// Apply the trail inside this window — comma list ok (echo mode)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window seconds (needs --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum TrailMode {
+    Echo,
+    Light,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct GlitchArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Glitch intensity 0.5-20 (channel shift px + noise)
+    #[arg(long, default_value_t = 3.0)]
+    pub strength: f64,
+}
+
+#[derive(clap::Args, Debug)]
 pub struct SpeedArgs {
     pub input: PathBuf,
     #[arg(short, long)]
@@ -1355,6 +1397,21 @@ pub struct FadeArgs {
     /// Dip length in seconds (default 0.8 — needs --dip)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Audio fade curve shape (default linear)
+    #[arg(long, value_enum)]
+    pub curve: Option<FadeCurve>,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum FadeCurve {
+    Tri,
+    Qsin,
+    Esin,
+    Hsin,
+    Log,
+    Qua,
+    Cub,
+    Exp,
 }
 
 #[derive(clap::Args, Debug)]

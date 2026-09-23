@@ -67,17 +67,35 @@ pub fn run(args: FadeArgs, g: &Globals) -> Result<Contract, Error> {
         ]);
     }
     if probe.has_audio {
+        let curve = args
+            .curve
+            .map(|c| {
+                format!(
+                    ":curve={}",
+                    match c {
+                        crate::cli::FadeCurve::Tri => "tri",
+                        crate::cli::FadeCurve::Qsin => "qsin",
+                        crate::cli::FadeCurve::Esin => "esin",
+                        crate::cli::FadeCurve::Hsin => "hsin",
+                        crate::cli::FadeCurve::Log => "log",
+                        crate::cli::FadeCurve::Qua => "qua",
+                        crate::cli::FadeCurve::Cub => "cub",
+                        crate::cli::FadeCurve::Exp => "exp",
+                    }
+                )
+            })
+            .unwrap_or_default();
         let mut af = Vec::new();
         if fade_in > 0.0 {
-            af.push(format!("afade=t=in:st=0:d={fade_in}"));
+            af.push(format!("afade=t=in:st=0:d={fade_in}{curve}"));
         }
         if fade_out > 0.0 {
             let st = (probe.duration - fade_out).max(0.0);
-            af.push(format!("afade=t=out:st={st}:d={fade_out}"));
+            af.push(format!("afade=t=out:st={st}:d={fade_out}{curve}"));
         }
         for &(t, h) in &dips {
             af.push(format!(
-                "afade=t=out:st={:.3}:d={h:.3},afade=t=in:st={t:.3}:d={h:.3}",
+                "afade=t=out:st={:.3}:d={h:.3}{curve},afade=t=in:st={t:.3}:d={h:.3}{curve}",
                 t - h
             ));
         }
