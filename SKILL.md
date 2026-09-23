@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.215.0
+version: 0.216.0
 
 
 
@@ -152,6 +152,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | rising chirp to a hit | `riser` (`--at` lands, `--dur`/`--gain`) |
 | airy whoosh swell | `whoosh` (`--at` lands, `--dur`/`--gain`) |
 | voice sibilance tamer | `deesser` (`--amount`/`--freq`/window) |
+| clipped/blown-out audio rescue | `declip` (`adeclip` interpolates flattened peaks, `--window`/`--threshold`/window) |
 | sky/gradient banding fix | `deband` (`--strength`/`--radius`/window) |
 | drop duplicate frames | `dedup` (`--frac`, VFR out) |
 | audiogram CQT music spectrum | `audiogram --mode cqt` |
@@ -247,7 +248,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | draft/tiled watermark | `overlay --tile N` (diagonal watermark pass) |
 | shift subtitle timing | `caption --shift SEC` |
 | gif tuning | `transcode --preset gif --fps --width`, `extract --gif --bounce` (palindrome loop), `extract --colors` palette size |
-| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `split` → `_L/_R.wav` host/guest stems, `mid`/`side` M/S extract, `haas` stereo widening) |
+| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `split` → `_L/_R.wav` host/guest stems, `mid`/`side` M/S extract, `haas` stereo widening, `surround` stereo→5.1 upmix) |
 | loop to a length | `loop --until SEC` |
 | text draft watermark | `title --tile N` |
 | audio EQ polish | `eq` (`--bass`/`--treble`/`--presence` dB) |
@@ -260,7 +261,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | lower-third placement | `title --position bottom` (or `top`/`center`) |
 | container metadata tags | `meta` (`--title`/`--artist`/`--comment`, `--copy` pulls tags+chapters from another file) |
 | fix display rotation flag | `meta --rotate 90` (lossless; clears with `--rotate 0`) |
-| room tone on a voice | `reverb` (`--size room|hall|cave`, `--wet 0..0.9`) |
+| room tone on a voice | `reverb` (`--size room|hall|cave`, `--wet 0..0.9`, `--ir file.wav` convolution reverb from IR packs, `--tail`) |
 | wobble/sci-fi/echo/lofi/telephone/saturate/excite/bass/muffled/crystal audio | `fx` (`--kind`, `--strength`, `--at`/`--dur`) |
 | Ken Burns on a photo cutaway | `broll --insert img.png --still --motion kenburns` |
 | styled captions | `caption --color ff0000 --size 1.5` |

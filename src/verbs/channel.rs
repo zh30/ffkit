@@ -97,6 +97,8 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
             }
             format!("haas=side_gain={:.2}", 0.5 + 2.5 * a)
         }
+        // Stereo→5.1 soundfield upmix: derived surround + LFE (aac takes 5.1)
+        ChannelMode::Surround => "surround=chl_out=5.1".to_string(),
         ChannelMode::Split => unreachable!("split returns early"),
     };
     let mut argv = ffmpeg_base(g.progress);

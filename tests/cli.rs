@@ -20808,3 +20808,117 @@ fn replace_video_haas_denoise_engine() {
         "fftdn should cut broadband noise: {v}"
     );
 }
+
+#[test]
+fn declip_reverb_ir_channel_surround() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+
+    // declip: a hard-clipped sine keeps fewer saturated samples after repair
+    let clipped = dir.path().join("clipped.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("sine=frequency=440:duration=1")
+        .args(["-af", "alimiter=limit=0.2,volume=4"])
+        .arg(&clipped)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let clipped_frac = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-v", "error", "-i"])
+            .arg(p)
+            .args(["-f", "s16le", "-ac", "1", "-"])
+            .output()
+            .unwrap();
+        let n = o.stdout.len() / 2;
+        if n == 0 {
+            return -1.0;
+        }
+        let mut hit = 0usize;
+        for w in o.stdout.chunks_exact(2) {
+            let s = i16::from_le_bytes([w[0], w[1]]) as i32;
+            if s.abs() >= 32500 {
+                hit += 1;
+            }
+        }
+        hit as f64 / n as f64
+    };
+    let fixed = dir.path().join("fixed.wav");
+    let v = run_json(&[
+        "declip",
+        clipped.to_str().unwrap(),
+        "-o",
+        fixed.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let before = clipped_frac(&clipped);
+    let after = clipped_frac(&fixed);
+    assert!(
+        before > 0.1 && after < before * 0.9,
+        "declip should cut saturated-sample fraction {before} -> {after}"
+    );
+
+    // reverb --ir: convolution against an impulse response rings the tail
+    // past the dry source's end (output is dry + IR length)
+    let blip = dir.path().join("blip.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("sine=frequency=440:duration=0.3")
+        .args(["-af", "apad=whole_dur=1"])
+        .arg(&blip)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let ir = dir.path().join("ir.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("anoisesrc=color=pink:amplitude=0.9:duration=0.4")
+        .args(["-af", "afade=t=out:d=0.4"])
+        .arg(&ir)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let roomy = dir.path().join("roomy.wav");
+    let v = run_json(&[
+        "reverb",
+        blip.to_str().unwrap(),
+        "-o",
+        roomy.to_str().unwrap(),
+        "--ir",
+        ir.to_str().unwrap(),
+        "--wet",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 1.2, "{v}");
+
+    // channel --mode surround: stereo upmix produces a 6-channel file
+    let stereo = dir.path().join("stereo.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("anoisesrc=color=pink:duration=1")
+        .args(["-f", "lavfi", "-i"])
+        .arg("anoisesrc=color=pink:duration=1")
+        .args([
+            "-filter_complex",
+            "[0:a][1:a]join=inputs=2:channel_layout=stereo",
+        ])
+        .arg(&stereo)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let sur = dir.path().join("sur.m4a");
+    let v = run_json(&[
+        "channel",
+        stereo.to_str().unwrap(),
+        "-o",
+        sur.to_str().unwrap(),
+        "--mode",
+        "surround",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["channels"], 6, "{v}");
+}

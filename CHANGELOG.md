@@ -2,7 +2,12 @@
 
 ## [Unreleased]
 
-## [0.215.0] — RSI round 188
+## [0.216.0] — RSI round 189
+
+- `declip` — clipped/blown-out audio repair via `adeclip`: interpolates flattened peaks back into waveforms (`--window` ms analysis slice, `--threshold` 1-100 clip fraction, `--overlap-save`, `--at`/`--dur` windowed).
+- `reverb --ir` — convolution reverb: convolve against an impulse-response WAV from any IR pack (cathedral/plate/room — real spaces, not synthetic echo taps). `--tail` pads the dry side so the tail rings past the source end (default: the IR's own length).
+- `channel --mode surround` — stereo→5.1 upmix (`surround` soundfield transform + derived LFE) for TV / cinema-side delivery.
+
 
 - `replace --video` — the converse swap: keep this video's audio, show another file's frames (retake/音乐换画面). The audio is the master clock; a shorter picture needs `--loop`, a longer one is trimmed.
 - `channel --mode haas` — Haas-effect stereo widening (micro L/R delays + polarity flip, mono-safe); `--amount` scales side gain 0.5..3.0.

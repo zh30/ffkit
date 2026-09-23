@@ -277,6 +277,8 @@ pub enum Cmd {
     Whoosh(WhooshArgs),
     /// De-ess voice: tame 4-8kHz sibilance band
     Deesser(DeesserArgs),
+    /// Repair clipped (blown-out) audio — interpolates flattened peaks
+    Declip(DeclipArgs),
     /// Smooth gradient banding (skies, backdrops) windowed
     Deband(DebandArgs),
     /// Drop near-duplicate frames (screen recordings, slide decks)
@@ -1441,6 +1443,28 @@ pub struct DeesserArgs {
     #[arg(long)]
     pub at: Option<String>,
     /// Window length per --at, seconds
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DeclipArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Analysis window in ms (10-100; bigger = smoother repair on music)
+    #[arg(long, default_value_t = 55.0)]
+    pub window: f64,
+    /// Clip threshold fraction 1-100 (lower rescues harsher clipping)
+    #[arg(long, default_value_t = 10.0)]
+    pub threshold: f64,
+    /// Use overlap-save instead of overlap-add (slightly better on noise)
+    #[arg(long)]
+    pub overlap_save: bool,
+    /// Repair only inside this window — comma list for several (needs --dur)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
 }
@@ -2611,9 +2635,18 @@ pub struct ReverbArgs {
     /// Room size preset
     #[arg(long, value_enum, default_value_t = ReverbSize::Room)]
     pub size: ReverbSize,
-    /// Wet tail amount (0..0.9; 0.3 ≈ subtle room)
+    /// Wet tail amount (0..0.9; 0.3 ≈ subtle room). With --ir it maps to
+    /// afir wet gain 0..9 — 0.3 ≈ a live room
     #[arg(long, default_value_t = 0.3)]
     pub wet: f64,
+    /// Convolution reverb: impulse-response WAV from an IR pack
+    /// (cathedral/hall/plate — real spaces, not synthetic echo taps)
+    #[arg(long)]
+    pub ir: Option<PathBuf>,
+    /// Ring the tail past the end by this many seconds (default: the IR's
+    /// own length, so the last note still blooms)
+    #[arg(long)]
+    pub tail: Option<f64>,
     /// Start the reverb only here (echo on the hook)
     #[arg(long)]
     pub at: Option<String>,
@@ -2704,6 +2737,9 @@ pub enum ChannelMode {
     /// Haas-effect stereo widening (short L/R delays) — mono-safe width;
     /// --amount 0..1 scales side gain 0.5..3.0
     Haas,
+    /// Upmix stereo to 5.1 surround (soundfield transform + derived LFE —
+    /// TV / set-top / cinema delivery)
+    Surround,
 }
 
 #[derive(clap::Args, Debug)]

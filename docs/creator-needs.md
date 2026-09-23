@@ -799,3 +799,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `replace --video` — keep this video's audio, show another file's frames (retake / music-video recut). Audio is the master clock; short picture needs `--loop`, long is trimmed. Re-encodes to H.264 so any source container works.
 - `channel --mode haas` — Haas-effect widening: micro L/R delays + polarity flip. Mono-safe width (unlike extrastereo which cancels to mono). `--amount` scales side gain.
 - `denoise --engine` — deterministic pick: `auto` (afwtdn if built else afftdn), `wavel` (hard error if afwtdn missing — ffmpeg ≥5.1), `fftdn` (works everywhere). Trap note: anlmdn stays excluded — segfaults on brew ffmpeg 4.4.
+
+## Shipped — RSI round 189 (0.216.0)
+
+- `declip` — `adeclip` clip repair (flattened-peak interpolation); validated saturated-sample fraction 73.6%→47.4% on a hard-clipped sine. `.wav` outputs get `pcm_s16le` (AAC-in-.wav decode trap on ffmpeg 4.x).
+- `reverb --ir` — `afir` convolution reverb with user IR WAVs. Trap: afir cuts output at the dry input length — we `apad=pad_dur=<IR len>` so the tail rings past EOF (`--tail` overrides). `--at`/`--dur` unsupported in IR mode (dry/wet split needs per-window convolution — queued).
+- `channel --mode surround` — stereo→5.1 `surround` upmix (6-channel AAC out).

@@ -150,6 +150,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Riser(args) => verbs::accent::riser(args, &g),
         Cmd::Whoosh(args) => verbs::accent::whoosh(args, &g),
         Cmd::Deesser(args) => verbs::deesser::run(args, &g),
+        Cmd::Declip(args) => verbs::declip::run(args, &g),
         Cmd::Deband(args) => verbs::deband::run(args, &g),
         Cmd::Dedup(args) => verbs::dedup::run(args, &g),
         Cmd::Equalize(args) => verbs::equalize::run(args, &g),
