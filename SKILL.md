@@ -36,7 +36,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 |-----------|-------|
 | inspect | `doctor`, `probe`, `look` (`--tiles` / `--at`) |
 
-| trim / join | `cut`, `concat` (`--transition` any xfade (comma list picks one per joint), N clips, `--level -14` loudnorms each, `--gap N` black+silence between clips), `split` (`--every` story chunks, `--at` chapter points, `--chapters` embedded marks, `--fade N` soft part edges), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps, `--by-scene` split at cuts) |
+| trim / join | `cut`, `concat` (`--transition` any xfade (comma list picks one per joint), N clips, `--level -14` loudnorms each, `--gap N` black+silence between clips, `--audio-fade N` boundary fades at joints), `split` (`--every` story chunks, `--at` chapter points, `--chapters` embedded marks, `--fade N` soft part edges), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps, `--by-scene` split at cuts) |
 | platform loudness | `loudnorm` (`--target`, `-I/--tp/--lra`; `--measure` report-only, `--dynamic` per-frame) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur --strength`), `zoom`, `--position` top/bottom/corners |
 
@@ -168,7 +168,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | picture | `grade` (+ `--lut` .cube), `bw`, `vignette`, `sharpen`, `blur` |
 | logo / PiP | `overlay` |
 | green screen | `key` (`--bg`, `--color`/`--similarity`/`--blend`, `--despill` for fringe, `--at`/`--dur` key only inside a window — comma list ok) |
-| reaction / multi-cam grid | `grid` (`--layout 2x2`, `--size`, `--gap`/`--bg` gutters) |
+| reaction / multi-cam grid | `grid` (`--layout 2x2`, `--size`, `--gap`/`--bg` gutters, `--time` stamps every tile) |
 | watch-time progress bar | `progress` (`--color`, `--height`, `--edge`, `--bg` track) |
 | freeze a beat / outro hold | `freeze` (`--ease`/`--reverse` swoop, `--zoom` push-in, `--at T --dur D` — comma `--at` freezes at several points, or `--end D`) |
 | blur a face / logo | `censor` (`--strength`, `--region x:y:w:h`, `--mode pixel|blur`; `--at`/`--dur` limits the window) |

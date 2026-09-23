@@ -129,7 +129,100 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
             label_pngs.push((i as u32, png, tmp));
         }
     }
-    let ins: String = (0..n).map(|i| format!("[v{i}]")).collect();
+    // --time: per-tile mm:ss readout — one shared sprite drives every tile,
+    // so all clocks read identically frame-for-frame.
+    let mut timer_pngs: Vec<std::path::PathBuf> = Vec::new();
+    let mut timer_tmp: Option<tempfile::TempDir> = None;
+    if args.time {
+        let font_path = crate::font::resolve(None)?;
+        let font_bytes =
+            std::fs::read(&font_path).map_err(|e| Error::input(format!("read font: {e}")))?;
+        // render_title_styled's `size` is a multiplier: px = vw/8 * size —
+        // target px ≈ th/8 ⇒ size = th/tw
+        let fs = (th as f32 / tw as f32).clamp(0.2, 3.0);
+        let mut cells: Vec<image::RgbaImage> = Vec::new();
+        let (mut cw2, mut ch2) = (0u32, 0u32);
+        for i in 0..60u32 {
+            let img = crate::raster::render_title_styled(
+                &format!("{i:02}"),
+                &font_bytes,
+                tw,
+                [255, 255, 255],
+                fs,
+            )?;
+            cw2 = cw2.max(img.width());
+            ch2 = ch2.max(img.height());
+            cells.push(img);
+        }
+        let mut sprite = image::RgbaImage::new(cw2 * 60, ch2);
+        for (i, cell) in cells.iter().enumerate() {
+            image::imageops::overlay(&mut sprite, cell, (i as u32 * cw2) as i64, 0);
+        }
+        let colon = crate::raster::render_title_styled(":", &font_bytes, tw, [255, 255, 255], fs)?;
+        let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
+        let sp = tmp.path().join("tspr.png");
+        sprite
+            .save(&sp)
+            .map_err(|e| Error::output(format!("write sprite: {e}")))?;
+        let cp = tmp.path().join("tcol.png");
+        colon
+            .save(&cp)
+            .map_err(|e| Error::output(format!("write colon: {e}")))?;
+        timer_pngs.push(sp);
+        timer_pngs.push(cp);
+        timer_tmp = Some(tmp);
+        // input indexes: N videos + labels + sprite + colon
+        let spr_idx = n + label_pngs.len();
+        let col_idx = spr_idx + 1;
+        let m = (ch2 / 4).max(4);
+        let total_w = 2 * cw2 + colon.width();
+        // split sprite into per-tile mm/ss field feeds + colon feed
+        seg.push(format!(
+            "[{spr_idx}:v]format=rgba,split={k}{feeds}",
+            k = 2 * n,
+            feeds = (0..2 * n).map(|i| format!("[tsp{i}]")).collect::<String>(),
+        ));
+        for i in 0..n {
+            seg.push(format!(
+                "[tsp{i}]crop=w={cw2}:h={ch2}:x='mod(floor(t/60),60)*{cw2}':y=0[tmm{i}]"
+            ));
+            seg.push(format!(
+                "[tsp{}]crop=w={cw2}:h={ch2}:x='mod(floor(t),60)*{cw2}':y=0[tss{i}]",
+                i + n
+            ));
+        }
+        seg.push(format!(
+            "[{col_idx}:v]format=rgba,split={n}{feeds}",
+            feeds = (0..n).map(|i| format!("[tcl{i}]")).collect::<String>(),
+        ));
+        // overlay mm:ss at each tile's bottom-right, applied on [v{i}] before xstack
+        for i in 0..n {
+            let col = i as u32 % cols;
+            let row = i as u32 / cols;
+            let x = (col + 1) * tw - (total_w + m).min(tw);
+            let y = (row + 1) * th - (ch2 + m).min(th);
+            let w1 = format!("[tv{i}a]");
+            let w2 = format!("[tv{i}b]");
+            seg.push(format!("[v{i}][tmm{i}]overlay={x}:{y}:shortest=1{w1}"));
+            seg.push(format!(
+                "{w1}[tcl{i}]overlay={}:{y}:shortest=1{w2}",
+                x + cw2
+            ));
+            seg.push(format!(
+                "{w2}[tss{i}]overlay={}:{y}:shortest=1[vt{i}]",
+                x + cw2 + colon.width()
+            ));
+        }
+    }
+    let ins: String = (0..n)
+        .map(|i| {
+            if args.time {
+                format!("[vt{i}]")
+            } else {
+                format!("[v{i}]")
+            }
+        })
+        .collect();
     let vfirst = if label_pngs.is_empty() {
         "[vout]"
     } else {
@@ -173,6 +266,11 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-loop", "1", "-i"]);
         argv.push(png);
     }
+    for png in &timer_pngs {
+        argv.extend(["-loop", "1", "-i"]);
+        argv.push(png);
+    }
+    // timer_tmp stays alive until after write_job — the PNGs live inside it
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);
     if all_audio || args.audio.is_some() {
         argv.extend(["-map", "[aout]", "-c:a", "aac"]);
@@ -193,6 +291,7 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
     let refs: Vec<&std::path::Path> = args.inputs.iter().map(|p| p.as_path()).collect();
     let argvs: Vec<Argv> = vec![argv];
     let c = engine::write_job("grid", &refs, &args.output, argvs, g)?;
+    drop(timer_tmp);
     drop(label_pngs);
     let extra = json!({
         "inputs": n,

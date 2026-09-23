@@ -15570,6 +15570,111 @@ fn concat_gap_inserts_black_silence() {
 }
 
 #[test]
+fn grid_time_stamps_every_tile() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    let b = lavfi_fixture(dir.path(), "b.mp4", "550", 1.0);
+    let out = dir.path().join("g.mp4");
+    let v = run_json(&[
+        "grid",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--layout",
+        "2x1",
+        "--size",
+        "640x240",
+        "--time",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("crop=w="), "{cmds}");
+    assert!(cmds.contains("xstack"), "{cmds}");
+    // both tiles carry a timestamp in their bottom-right corner
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            out.to_str().unwrap(),
+            "-vf",
+            "select=eq(n\\,15)",
+            "-vframes",
+            "1",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            dir.path().join("f.rgb").to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let raw = std::fs::read(dir.path().join("f.rgb")).unwrap();
+    let (w, _h) = (640usize, 240usize);
+    let lit = |x0: usize, x1: usize, y0: usize, y1: usize| {
+        let mut n = 0usize;
+        for y in y0..y1 {
+            for x in x0..x1 {
+                let o = (y * w + x) * 3;
+                if raw[o] as u32 + raw[o + 1] as u32 + raw[o + 2] as u32 > 500 {
+                    n += 1;
+                }
+            }
+        }
+        n
+    };
+    assert!(lit(180, 320, 190, 235) > 50, "tile1 stamped");
+    assert!(lit(500, 640, 190, 235) > 50, "tile2 stamped");
+}
+
+#[test]
+fn concat_audio_fade_fades_each_joint() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 0.5);
+    let b = lavfi_fixture(dir.path(), "b.mp4", "550", 0.5);
+    let v = run_json(&[
+        "concat",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        dir.path().join("f.mp4").to_str().unwrap(),
+        "--audio-fade",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("afade=t=out:st=0.300:d=0.200"), "{cmds}");
+    assert!(cmds.contains("afade=t=in:st=0:d=0.200"), "{cmds}");
+    assert!(cmds.contains("concat=n=2"), "{cmds}");
+    // boundary fades preserve total duration (no overlap drift)
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.0).abs() < 0.15, "0.5+0.5 = 1.0s, got {d}; {v}");
+    assert!((v["extra"]["audio_fade"].as_f64().unwrap() - 0.2).abs() < 1e-6);
+}
+
+#[test]
 fn replace_comma_windows() {
     if !has_ffmpeg() {
         return;

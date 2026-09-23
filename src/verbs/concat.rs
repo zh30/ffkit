@@ -53,7 +53,7 @@ pub fn run(args: ConcatArgs, g: &Globals) -> Result<Contract, Error> {
         return gap_concat(&args, g, &input_refs, &probes, gap);
     }
 
-    if can_copy(&probes) {
+    if args.audio_fade.is_none() && can_copy(&probes) {
         copy_concat(&args, g, &input_refs)
     } else {
         filter_concat(&args, g, &input_refs, &probes)
@@ -114,6 +114,21 @@ fn filter_concat(
     if !has_v && !has_a {
         return Err(Error::input("concat: no streams"));
     }
+    if let Some(f) = args.audio_fade {
+        if !(0.05..=60.0).contains(&f) {
+            return Err(Error::input("--audio-fade seconds must be 0.05-60"));
+        }
+        if !has_a {
+            return Err(Error::input("--audio-fade needs audio on every clip"));
+        }
+        let shortest = probes
+            .iter()
+            .map(|p| p.duration)
+            .fold(f64::INFINITY, f64::min);
+        if f >= shortest {
+            return Err(Error::input("--audio-fade longer than the shortest clip"));
+        }
+    }
     let tw = paths::even(first.width.unwrap_or(1280));
     let th = paths::even(first.height.unwrap_or(720));
     let fps = first.fps.unwrap_or(30.0);
@@ -127,7 +142,7 @@ fn filter_concat(
     let n = args.inputs.len();
     let mut fc = String::new();
     let mut concat_ins = String::new();
-    for i in 0..n {
+    for (i, pr) in probes.iter().enumerate() {
         if has_v {
             fc.push_str(&format!(
                 "[{i}:v]scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={fps},format=yuv420p[v{i}];"
@@ -135,7 +150,25 @@ fn filter_concat(
             concat_ins.push_str(&format!("[v{i}]"));
         }
         if has_a {
-            concat_ins.push_str(&format!("[{i}:a]"));
+            match args.audio_fade {
+                // Boundary fades keep each clip's duration (and lip sync): the
+                // outgoing clip fades out on its tail, the incoming fades in on
+                // its head — no overlap, no drift across joints.
+                Some(f) => {
+                    let dur = pr.duration.max(0.0);
+                    let mut chain = format!("[{i}:a]asetpts=PTS-STARTPTS");
+                    if i > 0 {
+                        chain.push_str(&format!(",afade=t=in:st=0:d={f:.3}"));
+                    }
+                    if i + 1 < n {
+                        let st = (dur - f).max(0.0);
+                        chain.push_str(&format!(",afade=t=out:st={st:.3}:d={f:.3}"));
+                    }
+                    fc.push_str(&format!("{chain}[a{i}];"));
+                    concat_ins.push_str(&format!("[a{i}]"));
+                }
+                None => concat_ins.push_str(&format!("[{i}:a]")),
+            }
         }
     }
     let v = if has_v { 1 } else { 0 };
@@ -159,7 +192,11 @@ fn filter_concat(
         argv.extend(["-c:a", "aac"]);
     }
     argv.push(&args.output);
-    engine::write_job("concat", inputs, &args.output, vec![argv], g)
+    let c = engine::write_job("concat", inputs, &args.output, vec![argv], g)?;
+    Ok(match args.audio_fade {
+        Some(f) => c.with_extra(json!({ "audio_fade": f })),
+        None => c,
+    })
 }
 
 // N-input xfade chain: transition i starts at cumsum(d_0..d_i) - i*fade;

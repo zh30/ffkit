@@ -314,6 +314,10 @@ pub struct ConcatArgs {
     /// montage sections) — exclusive with --transition
     #[arg(long)]
     pub gap: Option<f64>,
+    /// Fade audio out/in at each joint by N seconds (boundary fades — keeps
+    /// every clip's duration and sync; no overlap drift)
+    #[arg(long)]
+    pub audio_fade: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2819,6 +2823,9 @@ pub struct GridArgs {
     /// Gutter / letterbox color behind the tiles (name or RRGGBB; default black)
     #[arg(long)]
     pub bg: Option<String>,
+    /// Stamp an mm:ss readout on every tile (same clock across the grid)
+    #[arg(long)]
+    pub time: bool,
 }
 
 #[derive(clap::Args, Debug)]

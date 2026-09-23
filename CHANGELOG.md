@@ -7,6 +7,16 @@
 ### Added
 - `thumb --at` comma lists — one still per timepoint (`<stem>_N.<ext>`); input-seeks each point, `--width` rescales all, `extra.files` lists them.
 
+## [0.170.0] — 2026-09-22
+
+### Added
+- `grid --time` — stamps the same mm:ss readout on every tile's bottom-right (one shared digit sprite; no libass/drawtext needed) for multi-cam/review grids.
+
+## [0.169.0] — 2026-09-22
+
+### Added
+- `concat --audio-fade N` — boundary `afade` at every joint: each non-last clip's tail fades out, each non-first clip's head fades in. Duration and lip sync preserved (no overlap drift); forces the re-encode path since stream-copy can't fade.
+
 ## [0.168.0] — 2026-09-22
 
 ### Added
