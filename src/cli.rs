@@ -305,6 +305,8 @@ pub enum Cmd {
     Lens(LensArgs),
     /// Deskew: stretch a filmed screen/whiteboard quad onto the frame
     Perspective(PerspectiveArgs),
+    /// Generative animated background: mandelbrot zoom | gradients | life
+    Gen(GenArgs),
     /// Reframe 360 equirect footage to a flat viewport (yaw/pitch/fov)
     V360(V360Args),
     /// Mirror half the frame across the center axis (dance/symmetry look)
@@ -1834,6 +1836,40 @@ pub struct EdgeArgs {
 }
 
 #[derive(clap::Args, Debug)]
+pub struct GenArgs {
+    /// -o target (e.g. bg.mp4) — generative sources take no input file
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Pattern: mandelbrot | gradients | life (cellular automaton)
+    #[arg(long, default_value = "gradients")]
+    pub pattern: String,
+    /// Frame size WxH
+    #[arg(long, default_value = "1920x1080")]
+    pub size: String,
+    /// Frame rate
+    #[arg(long, default_value_t = 30.0)]
+    pub fps: f64,
+    /// Duration seconds
+    #[arg(long, default_value_t = 5.0)]
+    pub dur: f64,
+    /// Random seed for gradients (reproducible palettes)
+    #[arg(long, allow_hyphen_values = true)]
+    pub seed: Option<i64>,
+    /// Gradient colors, up to 8 (comma list: name or 0xRRGGBB)
+    #[arg(long)]
+    pub colors: Option<String>,
+    /// Gradient drift speed 0.001-1
+    #[arg(long, default_value_t = 0.01)]
+    pub speed: f64,
+    /// Mandelbrot terminal zoom depth (end_scale; smaller = deeper)
+    #[arg(long, default_value_t = 0.05)]
+    pub zoom: f64,
+    /// Life rule 0-255 (110 = classic glider-friendly)
+    #[arg(long, default_value_t = 110)]
+    pub rule: i64,
+}
+
+#[derive(clap::Args, Debug)]
 pub struct PerspectiveArgs {
     pub input: PathBuf,
     #[arg(short, long)]
@@ -2708,6 +2744,10 @@ pub struct EqArgs {
     /// "80,0;3000,-6;8000,4" — points interpolate (firequalizer)
     #[arg(long)]
     pub curve: Option<String>,
+    /// Classic graphic EQ: up to 18 comma dB gains (65Hz..20kHz sliders)
+    /// e.g. --graphic "0,0,-6,-6,-3,0,0,0,2,2"
+    #[arg(long)]
+    pub graphic: Option<String>,
     /// Apply the EQ only from here (bass boost on the drop)
     #[arg(long)]
     pub at: Option<String>,
@@ -3741,6 +3781,9 @@ pub enum VDenoiseEngine {
     Atadenoise,
     /// vaguedenoiser — wavelet denoiser (strong spatial cut)
     Vaguedenoise,
+    /// bm3d — state-of-the-art patch denoiser, slowest but cleanest
+    /// (no timeline window: --at is rejected with this engine)
+    Bm3d,
 }
 
 #[derive(clap::Args, Debug)]

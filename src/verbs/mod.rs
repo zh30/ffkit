@@ -49,6 +49,7 @@ pub mod frames;
 pub mod freeze;
 pub mod fx;
 pub mod gate;
+pub mod gen;
 pub mod glitch;
 pub mod glow;
 pub mod grade;

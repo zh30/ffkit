@@ -134,7 +134,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window, comma list); `--formant` keeps the voice timbre (librubberband) |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51|pan|widen|split|ambience|mid|side|haas|surround` (stereo→`_L/_R.wav` stems, M/S extract, haas widening, stereo→5.1 upmix); `--pan -1..1` pan |
-| `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--curve` freehand F,G;F,G line (firequalizer), `--tilt` warm↔bright; `end` ok, comma list = several windows |
+| `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--curve` freehand F,G;F,G line (firequalizer), `--graphic` 18-band classic EQ, `--tilt` warm↔bright; `end` ok, comma list = several windows |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window); `end` ok, comma list = several windows. `--ir file.wav` = convolution reverb from impulse-response packs (cathedral/plate), `--tail` rings past the end |
 | `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio/saturate/excite/bass/muffled/crystal/sub/crossfeed/autopan (`--kind`, `--strength`, `--at`/`--dur`); `end` ok, comma list = several windows |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip`, free `--angle` tilt, `--at`/`--dur` windowed tilt (comma list) |
@@ -193,6 +193,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `upscale` | Up-res footage: `zscale` spline36 (better than lanczos) + light unsharp, `--factor` 1.05-4 (2 doubles dims), `--strength` edge acuity |
 | `v360` | Reframe 360 footage to flat (`--in` equirect/fisheye/dfisheye/cubemap/EAC/barrel/half-equirect, `--yaw`/`--pitch`/`--fov`, `--size`) |
 | `perspective` | Deskew a filmed screen/whiteboard: `--points x0,y0,x1,y1,x2,y2,x3,y3` (TL,TR,BL,BR quad in source, px), `--interp linear|cubic` |
+| `gen` | Generative animated backgrounds from lavfi sources (no input): `--pattern mandelbrot` (endless zoom) `|gradients` (drifting palette — `--colors` up to 8, `--seed`, `--speed`) `|life` (cellular automaton, `--rule`), `--size`/`--fps`/`--dur` |
 | `sharpen --engine cas` | Contrast-adaptive sharpening — crisper edges without unsharp halos, `--amount` |
 | `equalize` | Auto-contrast via `histeq` for flat/washed footage, `--strength`/`--intensity`/`--at` window |
 | `pick` | Dominant-color report at a timestamp: mean hex + 3x2 zone swatches (JSON only) |
@@ -212,7 +213,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `glow` | Dreamy bloom: blurred copy screen-blended back (`--strength`, `--at`/`--dur` window) |
 | `vhs` | Retro tape look: `--strength` 0-3 noise + chroma shift + scanlines (`--at`/`--dur` window) |
 | `motionblur` | Shutter smear: `--frames` 2-8 temporal blend (`--at`/`--dur` window) |
-| `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30, `--at`/`--dur` window — comma list ok (nlmeans; slow on long clips), `end` ok |
+| `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30, `--engine nlmeans` (quality default) `|hqdn3d|`atadenoise|`vaguedenoise|`bm3d` (strongest, slow — no `--at`), `--at`/`--dur` window — comma list ok, `end` ok |
 | `crop` | Crop `--region x:y:w:h`, or `--aspect` reframe with `--anchor center|top|bottom|left|right` |
 | `waveform` | Audio waveform → PNG (`--size`, `--color`, `--scale`, `--peak` transients, `--split` per-channel rows, `--full` dense draw, `--bg` opaque card) for podcast art/thumbnails (`--at/--dur` slice, `end` ok, comma `--at` renders `<stem>_N.png` per window, `--vertical` top→bottom wave) |
 | `spectrogram` | Audio spectrogram → PNG (`--size`) — spot hum/noise before cleanup (`--color` magma/viridis…, `--scale` lin/sqrt…, `--no-legend`, `--separate` per-channel bands) (`--at/--dur` slice, `end` ok, comma `--at` renders `<stem>_N.png` per window) |

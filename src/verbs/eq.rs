@@ -115,6 +115,25 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
         }
         chain.push(format!("firequalizer=gain_entry='{}'", entries.join(";")));
     }
+    // --graphic: the classic 18-slider EQ (65Hz..20kHz, dB per band)
+    if let Some(gr) = &args.graphic {
+        let gains: Vec<&str> = gr.split(',').collect();
+        if gains.len() > 18 {
+            return Err(Error::input("--graphic takes at most 18 dB values"));
+        }
+        let mut parts: Vec<String> = Vec::new();
+        for (i, s) in gains.iter().enumerate() {
+            let db: f64 = s
+                .trim()
+                .parse()
+                .map_err(|_| Error::input(format!("--graphic wants dB numbers, got '{s}'")))?;
+            if !(-60.0..=20.0).contains(&db) {
+                return Err(Error::input("--graphic gains must be -60..=20 dB"));
+            }
+            parts.push(format!("{}b={:.4}", i + 1, 10f64.powf(db / 20.0)));
+        }
+        chain.push(format!("superequalizer={}", parts.join(":")));
+    }
     if bass != 0.0 {
         chain.push(format!("bass=g={}", bass));
     }

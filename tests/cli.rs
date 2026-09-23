@@ -21167,3 +21167,131 @@ fn perspective_eq_curve_fx_autopan() {
         - levels.iter().cloned().fold(f64::MAX, f64::min);
     assert!(span > 4.0, "autopan should sweep the R channel: {levels:?}");
 }
+
+#[test]
+fn gen_vdenoise_bm3d_eq_graphic() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let flat_stdev = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-vf", "select='eq(n,10)',format=gray"])
+            .args(["-frames:v", "1", "-f", "rawvideo", "-"])
+            .output()
+            .unwrap();
+        let d = o.stdout;
+        if d.is_empty() {
+            return 99.0;
+        }
+        let m = d.iter().map(|v| *v as f64).sum::<f64>() / d.len() as f64;
+        (d.iter().map(|v| (*v as f64 - m).powi(2)).sum::<f64>() / d.len() as f64).sqrt()
+    };
+
+    // gen: three lavfi sources render without an input file
+    for (pat, extra) in [
+        ("gradients", "--colors red,blue --seed 7".to_string()),
+        ("mandelbrot", String::new()),
+        ("life", String::new()),
+    ] {
+        let out = dir.path().join(format!("g_{pat}.mp4"));
+        let mut argv = vec![
+            "gen".to_string(),
+            "-o".into(),
+            out.to_string_lossy().into(),
+            "--pattern".into(),
+            pat.to_string(),
+            "--size".into(),
+            "160x90".into(),
+            "--dur".into(),
+            "0.8".into(),
+        ];
+        argv.extend(extra.split_whitespace().map(String::from));
+        let refs: Vec<&str> = argv.iter().map(String::as_str).collect();
+        let v = run_json(&refs);
+        assert_eq!(v["status"], "ok", "pattern {pat}: {v}");
+        assert_eq!(v["probe"]["width"], 160, "pattern {pat}: {v}");
+    }
+
+    // vdenoise bm3d: flat-region luma stdev collapses on a noise=25 fixture
+    let flat = dir.path().join("flat.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("color=c=gray:size=160x90:rate=25")
+        .args(["-vf", "noise=alls=25:allf=t", "-t", "1"])
+        .arg(&flat)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let dn = dir.path().join("dn.mp4");
+    let v = run_json(&[
+        "vdenoise",
+        flat.to_str().unwrap(),
+        "-o",
+        dn.to_str().unwrap(),
+        "--engine",
+        "bm3d",
+        "--strength",
+        "6",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        flat_stdev(&dn) < flat_stdev(&flat) * 0.5,
+        "bm3d should halve flat luma stdev: {v}"
+    );
+    // bm3d has no timeline support — --at is rejected
+    let v = run_json(&[
+        "vdenoise",
+        flat.to_str().unwrap(),
+        "-o",
+        dir.path().join("dn2.mp4").to_str().unwrap(),
+        "--engine",
+        "bm3d",
+        "--at",
+        "0.2",
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert_eq!(v["error"]["kind"], "input", "{v}");
+
+    // eq --graphic: the 9th slider (~1kHz) cuts a 1kHz tone by its dB value
+    let tone = dir.path().join("t1k.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("sine=frequency=1000:duration=1")
+        .arg(&tone)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let eqd = dir.path().join("eq.m4a");
+    let v = run_json(&[
+        "eq",
+        tone.to_str().unwrap(),
+        "-o",
+        eqd.to_str().unwrap(),
+        "--graphic",
+        "0,0,0,0,0,0,0,0,-18",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let lvl = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-af", "volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find(|l| l.contains("mean_volume"))
+            .and_then(|l| l.split("mean_volume:").nth(1))
+            .and_then(|s| s.trim().trim_end_matches(" dB").parse().ok())
+            .unwrap_or(-91.0)
+    };
+    assert!(
+        lvl(&eqd) < lvl(&tone) - 12.0,
+        "graphic band 9 should cut 1kHz: {v}"
+    );
+}

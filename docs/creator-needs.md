@@ -819,3 +819,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `fx --kind autopan` — `apulsator` L/R sweep (hz by strength; ~10dB R-channel swing measured).
 
 Note: ffmpeg 4.4 `perspective` takes `sense` as int (0=source coords = our deskew use).
+
+## Shipped — RSI round 192 (0.219.0)
+
+- `gen` — generative backgrounds straight from lavfi: `mandelbrot` (start_scale 3→--zoom), `gradients` (c0..c7/speed/seed), `life` (cellauto rule). First no-input verb — `-o` only.
+- `vdenoise --engine bm3d` — `bm3d=sigma=strength*8` (sigma≈48 halves flat-region stdev on noise=25; sigma<8 is a no-op). No `enable` → `--at` rejected.
+- `eq --graphic` — `superequalizer` 18-band graphic EQ (dB → multiplier 10^(dB/20)).
+
+Dropped after probing: `dynaudnorm` is a verified passthrough on ffmpeg 4.4.8 (output bit-identical to input at any settings) — do not ship it; `removerect`/`find_rect` not in 4.4.

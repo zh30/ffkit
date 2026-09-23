@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.219.0] — RSI round 192
+
+- `gen` — generative animated backgrounds from lavfi sources, no input file: `--pattern mandelbrot` (endless fractal zoom, `--zoom` depth), `gradients` (drifting palette — `--colors` up to 8, `--seed`, `--speed`), `life` (cellular automaton, `--rule` 0-255). `--size`/`--fps`/`--dur`. For music-visualizer backdrops, VJ loops, text cards.
+- `vdenoise --engine bm3d` — strongest spatial denoiser ffmpeg ships (patch-stack Wiener); flat-region luma stdev 16.1 → 2.7 on a noise=25 fixture. No timeline support → `--at` is rejected with a clear error.
+- `eq --graphic "dB,dB,..."` — classic 18-slider graphic EQ (`superequalizer`, 65Hz..20kHz); measured -18dB cut at 1kHz on band 9.
+
 ## [0.218.0] — RSI round 191
 
 - `perspective` — deskew a filmed screen/whiteboard: `--points` takes the 4 corners of the skewed quad in the source (TL,TR,BL,BR, px) and `perspective` stretches it onto the output rectangle (`sense=0`); `--interp linear|cubic`.
