@@ -11,8 +11,13 @@ pub fn run(args: BrollArgs, g: &Globals) -> Result<Contract, Error> {
     if args.duration <= 0.0 || !args.duration.is_finite() {
         return Err(Error::input("--duration must be > 0"));
     }
-    let at = time::parse_time(&args.at)?;
     let a = engine::probe_or_err(&args.input, g)?;
+    // `end` = cutaway over the tail (--duration back from the last frame)
+    let at = if args.at == "end" {
+        (a.duration - args.duration).max(0.0)
+    } else {
+        time::parse_time(&args.at)?
+    };
     engine::need_video(&a, "broll")?;
     let b = engine::probe_or_err(&args.insert, g)?;
     if args.volume.is_some() && !args.audio {

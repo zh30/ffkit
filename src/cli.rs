@@ -491,7 +491,7 @@ pub struct BrollArgs {
     /// B-roll clip to cut away to
     #[arg(long)]
     pub insert: PathBuf,
-    /// Start of the cutaway on the A-roll
+    /// Start of the cutaway on the A-roll (or `end` for the tail)
     #[arg(long)]
     pub at: String,
     /// How long the cutaway lasts
@@ -2591,6 +2591,10 @@ pub struct ChapterArgs {
     /// Strip every chapter on remux (platforms that mangle them)
     #[arg(long)]
     pub remove: bool,
+    /// Shift every mark by SEC (negative pulls earlier — re-time marks
+    /// after adding/removing an intro)
+    #[arg(long)]
+    pub shift: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

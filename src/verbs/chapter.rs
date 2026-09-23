@@ -92,6 +92,13 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         }
         marks.push((secs, title));
     }
+    if let Some(shift) = args.shift {
+        if shift != 0.0 {
+            for m in &mut marks {
+                m.0 = (m.0 + shift).max(0.0);
+            }
+        }
+    }
     marks.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
     marks.dedup_by(|a, b| (a.0 - b.0).abs() < 0.05);
     if marks.is_empty() {

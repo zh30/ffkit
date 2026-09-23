@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.132.0] — 2026-09-22
+
+### Added
+
+- `chapter --shift` — slide all marks by SEC (re-time chapters after adding an intro)
+- `broll --at end` — cutaway over the tail without probing duration
+
 ## [0.131.0] — 2026-09-22
 
 ### Added

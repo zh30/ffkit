@@ -14034,3 +14034,66 @@ fn slideshow_volume_in_bed_chain() {
         .join(" ");
     assert!(cmds.contains("volume=0.5"), "{cmds}");
 }
+
+#[test]
+fn chapter_shift_moves_marks() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "--at",
+        "0.6|mid",
+        "--shift",
+        "0.2",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let ff = std::process::Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_chapters",
+            "-of",
+            "json",
+            out.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    let j: serde_json::Value = serde_json::from_slice(&ff.stdout).unwrap();
+    let t: f64 = j["chapters"][0]["start_time"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+    // shift 0.2 on a sole mark: 0.8 → but mark[0] is clamped to 0 when >0.05
+    assert_eq!(t, 0.0, "{j}");
+}
+
+#[test]
+fn broll_at_end_tail_cutaway() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("b.mp4");
+    let v = run_json(&[
+        "broll",
+        src.to_str().unwrap(),
+        "--insert",
+        src.to_str().unwrap(),
+        "--at",
+        "end",
+        "--duration",
+        "0.4",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

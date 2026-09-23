@@ -237,6 +237,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 105)
+
+- `chapter --shift SEC` — re-times every mark (negative pulls earlier): after adding/removing an intro card the marks slide once instead of re-authoring the file.
+- `broll --at end` — tail cutaway sugar: inserts over the last `--duration` seconds without probing the A-roll first (`insert --at end` parity).
+
 ## Shipped this run (round 104)
 
 - `transcode --alpha` — keeps the alpha channel for overlay/lower-third exports: `yuva420p` on webm, ProRes 4444 (`-profile:v 4`, `yuva444p10le`, `apl0` vendor tag); errors on h264/hevc/av1 which can't carry alpha.
