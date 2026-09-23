@@ -18942,3 +18942,117 @@ fn emboss_tilt_sway_rack() {
         "{joined}"
     );
 }
+
+#[test]
+fn outline_night_snow() {
+    if !has_ffmpeg() || !has_filter("edgedetect") || !has_filter("colorkey") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("s.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:duration=1:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let cmds = |v: &serde_json::Value| -> String {
+        v["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|c| {
+                c.as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|a| a.as_str().unwrap_or(""))
+            })
+            .collect()
+    };
+
+    // outline: argv carries edgedetect+multiply blend
+    let ol = dir.path().join("ol.mp4");
+    let v = run_json(&[
+        "outline",
+        src.to_str().unwrap(),
+        "-o",
+        ol.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let j = cmds(&v);
+    assert!(
+        j.contains("edgedetect") && j.contains("all_mode=multiply"),
+        "{j}"
+    );
+    assert!(j.contains("enable="), "{j}");
+
+    // night: green channel wins over red in output
+    let nv = dir.path().join("nv.mp4");
+    let v = run_json(&[
+        "night",
+        src.to_str().unwrap(),
+        "-o",
+        nv.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let raw = dir.path().join("nv.raw");
+    let o = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-ss", "0.4", "-i"])
+        .arg(&nv)
+        .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24"])
+        .arg(&raw)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let d = std::fs::read(&raw).unwrap();
+    let (mut r, mut g2, mut b) = (0u64, 0u64, 0u64);
+    for px in d.chunks(3) {
+        r += px[0] as u64;
+        g2 += px[1] as u64;
+        b += px[2] as u64;
+    }
+    assert!(g2 > r && g2 > b, "night should push green: r{r} g{g2} b{b}");
+
+    // snow: white speckles appear in output, argv carries colorkey
+    let sn = dir.path().join("sn.mp4");
+    let v = run_json(&[
+        "snow",
+        src.to_str().unwrap(),
+        "-o",
+        sn.to_str().unwrap(),
+        "--density",
+        "80",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let j = cmds(&v);
+    assert!(j.contains("colorkey") && j.contains("mod(t*"), "{j}");
+    let raw2 = dir.path().join("sn.raw");
+    let o = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-ss", "0.5", "-i"])
+        .arg(&sn)
+        .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray"])
+        .arg(&raw2)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let d2 = std::fs::read(&raw2).unwrap();
+    let white = d2.iter().filter(|&&p| p > 200).count();
+    assert!(white > 20, "expected snow speckles, got {white} white px");
+}

@@ -171,6 +171,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `tilt` | Tilt-shift miniature: blurs top/bottom strips, `--band` sharp fraction, `--blur` sigma, `--at` windows |
 | `sway` | Handheld drift: sine-wander crop on padded frame, `--rate`/`--px`, `--at` windows |
 | `rack` | Rack-focus breathing blur: sine-mixes a blurred copy, `--rate`/`--blur` |
+| `outline` | Ink detected edges black over footage: `--strength` threshold, `--at` windows |
+| `night` | Night-vision look: green tint + grain + vignette, `--at` windows |
+| `snow` | Falling snow overlay: scrolling noise keyed over video, `--density`/`--speed`, `--at` windows |
 | `cartoon` | Comic look: posterized base (`--levels` 2-16) + ink outlines from edge-detect, `--at` windows |
 | `heat` | Thermal / false-color luma map: `--preset` magma|inferno|plasma|viridis|turbo|cividis|range1|range2|shadows|highlights, `--opacity`, `--at` windows |
 | `kaleido` | 2x2 mirrored mandala from the top-left quadrant, `--at` windows |
