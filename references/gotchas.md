@@ -373,3 +373,25 @@ an atempo'd whole-file render would shift the window.
 - **`json!` macro recursion limit** — serde_json's json! hits its
   internal recursion cap around ~40 keys; once extras get that big,
   assign the tail keys after construction (`extra["k"] = json!(v)`).
+- **`allrgb`/`allyuv` take no `size=` option** — the color-cube sources
+  only accept rate/duration/sar and render 4096x4096 natively; put the
+  target `scale=` in the output chain instead (and keep `rate` low —
+  the card is static).
+- **`-vf` is an output-side option** — placed between `-f lavfi -i`
+  inputs it binds to the NEXT input and ffmpeg errors "cannot be
+  applied to input url". Bars appends the cube scale after all inputs.
+- **`vif` prints one line per scale (0-3)** — the last line is
+  `VIF scale=3 average:X`; `last_metric` (rev find) parses it with the
+  same `average` key as psnr/msad. Identical clips score ~1.0.
+- **`compand` attacks/decays are SECONDS** — not the ms-style values
+  acompressor presets carry. Feeding 8s attack into a short clip leaves
+  the gain envelope closed (output drops instead of lifting); keep the
+  doc-default 0.3/0.8 envelope.
+- **`haldclutsrc` `level=N` → (N³)x(N³) image** — level 4 = 64x64,
+  8 = standard 512x512 HALD-8. It renders a still; `-frames:v 1`.
+- **`alphaextract` hard-fails on alpha-less input** — "Requested planes
+  not available". ffkit pre-checks `pix_fmt` for the alpha fmts
+  (rgba/argb/yuva*/gbrap/ayuv/…) and errors with a readable message.
+- **`field` outputs HALF-HEIGHT frames** — it extracts one field, so
+  320x240 → 320x120 progressive, no interpolation. Cheapest
+  deinterlace; pair with an upscale if full height is needed.

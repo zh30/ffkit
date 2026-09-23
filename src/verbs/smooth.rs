@@ -63,6 +63,13 @@ pub fn run(args: SmoothArgs, g: &Globals) -> Result<Contract, Error> {
             let st = (args.strength * 32.0).round() as i32;
             format!("fspp=quality=5:strength={st}")
         }
+        // sab: shape-adaptive blur — smoothes inside regions without
+        // crossing contours; chroma_* left unset = follows the luma curve
+        SmoothEngine::Sab => format!(
+            "sab=luma_radius={:.1}:luma_pre_filter_radius=1:luma_strength={:.1}",
+            1.0 + 2.0 * s,
+            3.0 + 12.0 * s
+        ),
     };
 
     let chain = match &args.at {

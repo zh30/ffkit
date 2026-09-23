@@ -32,14 +32,20 @@ pub fn run(args: QaArgs, g: &Globals) -> Result<Contract, Error> {
     let psnr = matches!(args.metric.as_str(), "psnr" | "both");
     let ssim = matches!(args.metric.as_str(), "ssim" | "both");
     let msad = args.metric == "msad";
-    if !psnr && !ssim && !msad {
-        return Err(Error::input("--metric must be psnr, ssim, msad, or both"));
+    let vif = args.metric == "vif";
+    if !psnr && !ssim && !msad && !vif {
+        return Err(Error::input(
+            "--metric must be psnr, ssim, msad, vif, or both",
+        ));
     }
 
     let mut extra = json!({});
     let mut commands = Vec::new();
-    for metric in ["psnr", "ssim", "msad"] {
-        if (metric == "psnr" && !psnr) || (metric == "ssim" && !ssim) || (metric == "msad" && !msad)
+    for metric in ["psnr", "ssim", "msad", "vif"] {
+        if (metric == "psnr" && !psnr)
+            || (metric == "ssim" && !ssim)
+            || (metric == "msad" && !msad)
+            || (metric == "vif" && !vif)
         {
             continue;
         }
@@ -63,6 +69,8 @@ pub fn run(args: QaArgs, g: &Globals) -> Result<Contract, Error> {
                 Contract::failed("qa", &Error::ffmpeg(stderr)).with_commands(commands.clone())
             );
         }
+        // vif's last line is `VIF scale=3 average:X` — its finest scale
+        // doubles as the headline score; psnr/msad end on `average:` too
         let key = match metric {
             "ssim" => "All",
             _ => "average",

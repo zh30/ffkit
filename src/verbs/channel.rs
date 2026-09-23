@@ -198,6 +198,18 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
         }
         // Stereo→5.1 soundfield upmix: derived surround + LFE (aac takes 5.1)
         ChannelMode::Surround => "surround=chl_out=5.1".to_string(),
+        // stereowiden: dedicated M/S widener (pre-delay + feedback echo on
+        // the side signal + crossfeed) — --amount scales crossfeed 0.05..0.8
+        ChannelMode::Stereowiden => {
+            let a = args.amount.unwrap_or(0.5);
+            if !(0.0..=1.0).contains(&a) {
+                return Err(Error::input("--amount must be 0..1"));
+            }
+            format!(
+                "stereowiden=delay=20:feedback=0.3:crossfeed={:.2}:drymix=0.8",
+                0.05 + 0.75 * a
+            )
+        }
         // stereotools stereo base: -1 folds toward mono (fixes over-wide
         // recordings / stereo-phase issues), +1 exaggerates width
         ChannelMode::Ms => "stereotools=mode=ms>lr".to_string(),

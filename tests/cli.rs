@@ -26014,3 +26014,202 @@ fn r226_motion_timecode_msad_focus_gate_deemph_interlaced() {
         assert_eq!(String::from_utf8_lossy(&fo.stdout).trim(), "tb");
     }
 }
+
+#[test]
+fn r227_vif_cubebars_hald_widen_sab_compand_field_alpha() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // qa --metric vif — identical clips score the max VIF (scale=3 average)
+    if has_filter("vif") {
+        let j = run_json(&[
+            "qa",
+            &f.to_string_lossy(),
+            &f.to_string_lossy(),
+            "--metric",
+            "vif",
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert!(j["extra"]["vif"].as_f64().unwrap() > 0.99);
+    }
+
+    // bars --kind allrgb/allyuv — full-cube QC cards scaled to --size
+    for (kind, filter) in [("allrgb", "allrgb"), ("allyuv", "allyuv")] {
+        if has_filter(filter) {
+            let o = dir.path().join(format!("{kind}.mp4"));
+            let j = run_json(&[
+                "bars",
+                "-o",
+                &o.to_string_lossy(),
+                "--kind",
+                kind,
+                "--size",
+                "160x120",
+                "--dur",
+                "0.5",
+            ]);
+            assert_eq!(j["status"], "ok", "{kind}");
+            let p = &j["probe"];
+            assert_eq!(
+                (p["width"].as_u64().unwrap(), p["height"].as_u64().unwrap()),
+                (160, 120)
+            );
+        }
+    }
+
+    // gen --pattern hald — identity HALD LUT image (level 4 → 64x64 PNG)
+    if has_filter("haldclutsrc") {
+        let o = dir.path().join("hald.png");
+        let j = run_json(&[
+            "gen",
+            "--pattern",
+            "hald",
+            "--level",
+            "4",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["size"], "64x64");
+    }
+
+    // channel --mode stereowiden — M/S widener keeps loudness on stereo
+    if has_filter("stereowiden") {
+        let j = run_json(&[
+            "channel",
+            &f.to_string_lossy(),
+            "-o",
+            &dir.path().join("w.m4a").to_string_lossy(),
+            "--mode",
+            "stereowiden",
+        ]);
+        assert_eq!(j["status"], "ok");
+    }
+
+    // smooth --engine sab — shape-adaptive blur (flattens flat-region noise)
+    if has_filter("sab") {
+        let o = dir.path().join("sab.mp4");
+        let j = run_json(&[
+            "smooth",
+            &f.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--engine",
+            "sab",
+        ]);
+        assert_eq!(j["status"], "ok");
+    }
+
+    // leveler --engine compand — transfer-curve lift on quiet program
+    if has_filter("compand") {
+        let quiet = dir.path().join("q.wav");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=500:duration=2",
+                "-af",
+                "volume=-35dB",
+            ])
+            .arg(&quiet)
+            .status()
+            .unwrap()
+            .success());
+        let o = dir.path().join("comp.m4a");
+        let j = run_json(&[
+            "leveler",
+            &quiet.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--engine",
+            "compand",
+        ]);
+        assert_eq!(j["status"], "ok");
+        // quiet sine peak -53dB → lifted toward the knee (attack needs a
+        // second or two to open the envelope)
+        let vd = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&o)
+            .args(["-af", "volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&vd.stderr);
+        let max = s
+            .lines()
+            .find_map(|l| l.split("max_volume:").nth(1))
+            .and_then(|v| v.trim_end_matches(" dB").trim().parse::<f64>().ok())
+            .unwrap();
+        assert!(max > -50.0, "compand lifted max {max}");
+    }
+
+    // deinterlace --engine field — top-field extract halves the height
+    if has_filter("field") {
+        let o = dir.path().join("fld.mp4");
+        let j = run_json(&[
+            "deinterlace",
+            &f.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--engine",
+            "field",
+        ]);
+        assert_eq!(j["status"], "ok");
+        let p = &j["probe"];
+        assert_eq!(p["height"].as_u64().unwrap(), 120);
+    }
+
+    // extract --alpha — alpha channel as grayscale PNG; rejects no-alpha input
+    if has_filter("alphaextract") {
+        let argb = dir.path().join("a.png");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=red:s=64x64",
+                "-f",
+                "lavfi",
+                "-i",
+                "gradients=s=64x64",
+                "-filter_complex",
+                "[0][1]alphamerge",
+                "-frames:v",
+                "1",
+                "-pix_fmt",
+                "rgba",
+            ])
+            .arg(&argb)
+            .status()
+            .unwrap()
+            .success());
+        let o = dir.path().join("a_out.png");
+        let j = run_json(&[
+            "extract",
+            &argb.to_string_lossy(),
+            "--alpha",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+        let j2 = run_json(&[
+            "extract",
+            &f.to_string_lossy(),
+            "--alpha",
+            "-o",
+            &dir.path().join("a2.png").to_string_lossy(),
+        ]);
+        assert_eq!(j2["status"], "failed");
+    }
+}

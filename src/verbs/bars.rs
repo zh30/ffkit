@@ -25,6 +25,10 @@ pub fn run(args: BarsArgs, g: &Globals) -> Result<Contract, Error> {
         Some(BarKind::Pal75) => "pal75bars",
         Some(BarKind::Rgb) => "rgbtestsrc",
         Some(BarKind::Yuv) => "yuvtestsrc",
+        // color-cube sweeps take no size= — they render 4096x4096 natively,
+        // so scale down in the chain instead
+        Some(BarKind::Allrgb) => "allrgb",
+        Some(BarKind::Allyuv) => "allyuv",
         None => {
             if args.hd {
                 "smptehdbars"
@@ -33,18 +37,29 @@ pub fn run(args: BarsArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     };
+    let needs_scale = matches!(args.kind, Some(BarKind::Allrgb | BarKind::Allyuv));
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-f", "lavfi", "-i"]);
-    argv.push(format!(
-        "{src}=size={w}x{h}:duration={:.3}:rate=30",
-        args.dur
-    ));
+    if needs_scale {
+        // cube sweeps render 4096x4096 natively — keep the rate low, the
+        // card is static anyway
+        argv.push(format!("{src}=duration={:.3}:rate=2", args.dur));
+    } else {
+        argv.push(format!(
+            "{src}=size={w}x{h}:duration={:.3}:rate=30",
+            args.dur
+        ));
+    }
     if args.tone {
         argv.extend(["-f", "lavfi", "-i"]);
         argv.push(format!("sine=frequency=1000:duration={:.3}", args.dur));
         argv.extend(["-map", "0:v", "-map", "1:a", "-c:a", "aac", "-b:a", "96k"]);
     } else {
         argv.extend(["-map", "0:v"]);
+    }
+    // -vf is an output option: after the inputs or it binds to the wrong one
+    if needs_scale {
+        argv.extend(["-vf", &format!("scale={w}:{h}")]);
     }
     argv.extend([
         "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",

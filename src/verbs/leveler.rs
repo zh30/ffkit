@@ -52,6 +52,16 @@ pub fn run(args: LevelerArgs, g: &Globals) -> Result<Contract, Error> {
             10f64.powf(pm / 20.0),
             10f64.powf(pt / 20.0).clamp(0.05, 1.0)
         ),
+        // compand: single-band transfer curve — quiet program material is
+        // lifted along one continuous knee toward the ceiling (gentler
+        // upward leveling than acompressor's hard ratio)
+        crate::cli::LevelerEngine::Compand => {
+            // compand's attacks/decays are SECONDS (0..8), not the ms-style
+            // values acompressor presets carry — a 2s clip never opens an
+            // 8s attack; keep the doc-default envelope
+            "compand=attacks=0.3:decays=0.8:points=-80/-80|-45/-32|-20/-14|0/-6:soft-knee=6"
+                .to_string()
+        }
     };
     let fc = match &args.at {
         Some(raw) => Some(engine::audio_window_for(

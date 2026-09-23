@@ -22,6 +22,24 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_ascii_lowercase();
+    if args.alpha && !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "webp") {
+        return Err(Error::input("--alpha only applies to image output"));
+    }
+    if args.alpha {
+        let probe = engine::probe_or_err(&args.input, g)?;
+        let fmt = probe.pix_fmt.as_deref().unwrap_or("");
+        let has_alpha = [
+            "rgba", "argb", "bgra", "abgr", "yuva", "gbrap", "ya8", "ya16", "rgbaf", "bgraf",
+            "rgba64", "bgra64", "vuya", "vuyx", "ayuv", "pal8",
+        ]
+        .iter()
+        .any(|a| fmt.contains(a));
+        if !has_alpha {
+            return Err(Error::input(format!(
+                "input has no alpha channel (pix_fmt {fmt})"
+            )));
+        }
+    }
 
     let mut argv = ffmpeg_base(g.progress);
 
@@ -122,8 +140,18 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
             }
             argv.push("-i");
             argv.push(&args.input);
+            let mut vf = String::new();
+            if args.alpha {
+                vf.push_str("alphaextract");
+            }
             if let Some(w) = args.width {
-                argv.extend(["-vf", &format!("scale={w}:-2")]);
+                if !vf.is_empty() {
+                    vf.push(',');
+                }
+                vf.push_str(&format!("scale={w}:-2"));
+            }
+            if !vf.is_empty() {
+                argv.extend(["-vf", &vf]);
             }
             argv.extend(["-frames:v", "1", "-q:v", "2"]);
         }

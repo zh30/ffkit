@@ -11,6 +11,9 @@ use crate::error::Error;
 /// life runs a cellular automaton. For music visualizers, VJ loops, text-card
 /// backdrops.
 pub fn run(args: GenArgs, g: &Globals) -> Result<Contract, Error> {
+    if args.pattern == "hald" {
+        return hald(args, g);
+    }
     let mut it = args.size.split('x');
     let w: u32 = it.next().and_then(|v| v.parse().ok()).unwrap_or(0);
     let h: u32 = it.next().and_then(|v| v.parse().ok()).unwrap_or(0);
@@ -144,5 +147,26 @@ pub fn run(args: GenArgs, g: &Globals) -> Result<Contract, Error> {
         "size": format!("{w}x{h}"),
         "dur": args.dur,
         "source": src,
+    })))
+}
+
+/// Identity HALD CLUT image (haldclutsrc) — bake `grade --lut` looks in any
+/// image editor: apply your grade to this PNG, save, then feed it back as
+/// `--lut`. Level 8 → the standard 512x512 hald-8.
+fn hald(args: GenArgs, g: &Globals) -> Result<Contract, Error> {
+    if !(3..=12).contains(&args.level) {
+        return Err(Error::input("--level 3..12 (8 = standard 512x512)"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.extend(["-f", "lavfi", "-i"]);
+    argv.push(format!("haldclutsrc=level={}:rate=1", args.level));
+    argv.extend(["-frames:v", "1"]);
+    argv.push(&args.output);
+    let c = engine::write_job("gen", &[], &args.output, vec![argv], g)?;
+    let side = args.level.pow(3);
+    Ok(c.with_extra(json!({
+        "pattern": "hald",
+        "level": args.level,
+        "size": format!("{side}x{side}"),
     })))
 }

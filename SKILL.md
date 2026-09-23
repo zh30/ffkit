@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.253.0
+version: 0.254.0
 
 
 
@@ -80,7 +80,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline`, `--at/--dur` window — `--at end` covers the tail), `--position` center/bottom, `--wrap` + `--align` multiline, `--fade` edge fades (needs --at/--dur), `--opacity` ghost text |
 | fix my podcast voice | `voice` — one-shot chain: gate hiss → compress swings → loudnorm `--lufs` (default −16); `--at`/`--dur` windows it |
 | slideshow that runs exactly N seconds | `slideshow` (`--dur` spreads the runtime across the stills, `--bg` letterbox color) |
-| old interlaced footage | `deinterlace` (`--mode field` doubles the rate, `frame` same rate, `--parity` field order, `--engine` yadif/bwdif/estdif/kerndeint/w3fdif/mcdeint/fieldmatch/detelecine/`separate`/`pullup`/`phase` field reorder) |
+| old interlaced footage | `deinterlace` (`--mode field` doubles the rate, `frame` same rate, `--parity` field order, `--engine` yadif/bwdif/estdif/kerndeint/w3fdif/mcdeint/fieldmatch/detelecine/`separate`/`pullup`/`phase` field reorder/`field` half-height quick preview) |
 | fade to white | `fade --color white` (`--in`/`--out` seconds as usual) |
 | blend two audio files | `crossfade` (`--second`, `--dur` overlap — acrossfade) |
 | strip location/device tags | `strip` — drops all container metadata + chapters, stream copy |
@@ -95,7 +95,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | elapsed-time corner counter | `timer`/`countdown` (`--at` takes `end`) (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds), `--down` countdown, `--start` seed, `--opacity` ghost HUD |
 | web-embed HLS package | `hls` (`--seg` seconds, `--single` one-file, `--copy` repack, `--poster` writes poster.jpg, `--poster-at T` picks the frame, `--encrypt`/`--key HEX`/`--key-uri URI` AES-128 segments + key.bin/key.info) → dir/`index.m3u8` + `seg_*.ts`; `--ladder 1080,720,480` → ABR variant playlists + `master.m3u8`; `--audio-only` podcast HLS; `--fmp4` CMAF `.m4s` segments |
 
-| check encode quality loss | `qa` `ref.mp4 test.mp4` → psnr/ssim/msad numbers (`--metric`) |
+| check encode quality loss | `qa` `ref.mp4 test.mp4` → psnr/ssim/msad/vif numbers (`--metric`) |
 | normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill) |
 | light-leak / screen-blend overlay | `overlay --video leak.mp4 --mode screen` |
 | fix audio/video sync drift | `sync` (`--ms ±N` — pad or trim audio start) |
@@ -234,7 +234,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | compression QC | `scope --mode mvs` (codecview motion-vector arrows; coherent arrows = clean pans, jitter = noisy blocks) |
 | cheap-lens fringe | `aberrate` --amount 5 (rgbashift: red left/blue right — VHS/glitch edge) |
 | mono-compat visual | `audiogram --mode phase` (aphasemeter scope — thin line = mono, cloud = decorrelated) |
-| beauty/skin smoothing | `smooth` (`--engine` smartblur/bilateral — bilateral keeps edges sharper; `--strength`, `--at`/`--dur` window) |
+| beauty/skin smoothing | `smooth` (`--engine` smartblur/bilateral/sab — bilateral & sab keep edges sharper; `--strength`, `--at`/`--dur` window) |
 | reframe 360/equirect footage | `v360` (`--yaw`/`--pitch`/`--fov`, `--in` projection, `--size`) |
 | noisy clip, pick denoiser | `vdenoise --engine nlmeans\|hqdn3d\|atadenoise\|vaguedenoise\|bm3d` (bm3d/dctdnoiz/owdenoise strongest, no --at; `median` salt&pepper, `chroma` color speckle), `denoise --engine auto\|wavel\|fftdn` |
 | old footage is too low-res | `upscale` (zscale spline36 + unsharp, `--factor` 2 doubles dims) |
@@ -247,7 +247,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | glitched/dropped frames | `repair` (`--ref` another take, `--at`/`--dur` the bad stretch, `--ref-at` the clean frame to paste in — freezeframes) |
 | magnify subtle motion | `amplify` (`--amount` factor, `--radius` frames, `--threshold` diff cap, `--at` window) |
 | keep one color | `selective` (`--color C`/`--similarity`/`--blend` edge feather, `--at` window) |
-| test card | `bars` (`--size`/`--dur`/`--hd`/`--tone` 1kHz, `--kind sd|pal100|pal75|rgb|yuv` other patterns) |
+| test card | `bars` (`--size`/`--dur`/`--hd`/`--tone` 1kHz, `--kind sd|pal100|pal75|rgb|yuv|allrgb|allyuv` other patterns — allrgb/allyuv = full color-cube QC sweeps) |
 | QC scope overlay | `scope` (`--mode vector|wave|hist|mvs|data|qp|pix|osc|drift|loud|cie` — drift = luma-ramp curve, loud = loudness-over-time curve, cie = CIE-1931 gamut horseshoe, `--position` corner, `--at` window) |
 | anamorphic restore | `desqueeze` (`--factor` lens ratio, `--axis`) |
 | comic look | `cartoon` (`--levels` posterize, `--at` window) |
@@ -276,9 +276,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | waveform band at the top | `audiogram` (`--position`) |
 | pull OUT of a shot (reveal) | `zoom` (`--out`, `--center X,Y` punch target) |
 | title with a soft shadow | `title` (`--shadow`) |
-| still at an exact width | `extract` (`--gif` clip, `--width`, `--at end` last frame), `--loop` gif repeats |
+| still at an exact width | `extract` (`--gif` clip, `--width`, `--at end` last frame), `--loop` gif repeats, `--alpha` pulls the alpha channel out as a grayscale PNG (matte QC/export — needs an alpha-capable input) |
 | countdown with tick beeps | `countdown` (`--beep`, `--text` label during the count) |
-| one-word compressor curve | `leveler` (`--preset`) |
+| one-word compressor curve | `leveler` (`--preset`, `--engine compand` single-band transfer curve — quieter than acompressor's knee) |
 | spectrogram in brand colors | `spectrogram` (`--color`) |
 | music kicks in after the intro / sting at both ends | `music` (`--at`/`--dur`, comma `--at 0,end` = intro+outro stings) |
 | fix an out-of-phase mic | `channel` (`--mode invert --side`) |
@@ -331,7 +331,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | gif tuning | `transcode --preset gif --fps --width`, `extract --gif --bounce` (palindrome loop), `extract --colors` palette size |
 | headphone fatigue on long audio | `fx --kind crossfeed` (`--strength` 0..1 ear bleed); `fx --kind sub` adds a synthesized low octave; `fx --kind autopan` sweeps L-R |
 | draw a freehand EQ curve | `eq --curve "80,0;3000,-6;8000,4"` (freq,gain dB points, interpolated) or `eq --graphic` 18-band classic EQ |
-| animated backdrop for a music/text card | `gen` `--pattern mandelbrot\|gradients\|life\|sierpinski` (no input file; `--size`/`--dur`/`--colors`/`--seed`) — audio patterns `noise` (`--color white/pink/brown/blue/violet/velvet`), `tone --freq`, `sweep` |
+| animated backdrop for a music/text card | `gen` `--pattern mandelbrot\|gradients\|life\|sierpinski\|hald` (no input file; `--size`/`--dur`/`--colors`/`--seed`) — `hald` writes an identity HALD LUT PNG (`--level`, default 8) to grade in an editor then feed `grade --lut`; audio patterns `noise` (`--color white/pink/brown/blue/violet/velvet`), `tone --freq`, `sweep` |
 | italic-style slant / dynamic tilt | `shear` `--x`/`--y` (-2..2; `--fill` edge color, `--interp`) — `--at`/`--dur` windows |
 | fix a color cast / white balance | `wb` (auto per-channel normalization; `--strength`, `--independence 0` keeps grade, `--smooth` frames, `--engine greyedge` gentler cast fix) |
 | QC a clip for strobes before posting | `scan` — also reports `flash_frames`/`flash_max_badness` (photosensitive-epilepsy check) |

@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+## [0.254.0] — 2026-09-23
+
+### Added
+
+- `qa --metric vif` — Video Multi-method Assessment Fusion score
+  (perceptual quality metric; identical clips score ~1.0). Parsed off
+  the last `VIF scale=3 average:` line.
+- `bars --kind allrgb|allyuv` — full color-cube sweeps: every RGB/YUV
+  combination in one card (encoder color-bleed QC).
+- `gen --pattern hald` — `haldclutsrc` identity HALD LUT image
+  (`--level` 3..12, default 8 = 512x512): grade it in any image editor,
+  then feed it back via `grade --lut`.
+- `channel --mode stereowiden` — dedicated M/S widener
+  (pre-delay + feedback echo + crossfeed on the side signal);
+  `--amount` scales crossfeed 0.05..0.8.
+- `smooth --engine sab` — shape-adaptive blur: flattens flat regions
+  without crossing contours (matte-style cleanup, skin).
+- `leveler --engine compand` — single-band transfer-curve leveler:
+  quiet program material lifted along one continuous knee.
+- `deinterlace --engine field` — top-field extract: half-height
+  progressive output, the fastest possible deinterlace (previews).
+- `extract --alpha` — `alphaextract`: the alpha channel as a grayscale
+  PNG (matte export/QC); rejects inputs with no alpha channel.
+
 ## [0.253.0] — 2026-09-23
 
 ### Added

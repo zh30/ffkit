@@ -65,6 +65,9 @@ pub fn run(args: DeinterlaceArgs, g: &Globals) -> Result<Contract, Error> {
             };
             format!("phase={ph}")
         }
+        // field=top: pull the top field into a half-height progressive
+        // frame — cheapest possible deinterlace (preview/rough-cut)
+        crate::cli::DeintEngine::Field => "field=top".to_string(),
     };
     argv.extend(["-vf", &vf]);
     if probe.has_audio {

@@ -604,6 +604,10 @@ pub struct ExtractArgs {
     /// GIF palette size 2–256 (needs --gif; smaller = tinier file, banding)
     #[arg(long)]
     pub colors: Option<u32>,
+    /// Extract the alpha channel as a grayscale image (matte export/QC —
+    /// prores 4444, transparent webm, chroma-keyed deliverables)
+    #[arg(long)]
+    pub alpha: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1223,6 +1227,10 @@ pub enum BarKind {
     Rgb,
     /// YUV test pattern (yuvtestsrc)
     Yuv,
+    /// Every RGB color sweep (allrgb) — encoder color-bleed QC card
+    Allrgb,
+    /// Every YUV color sweep (allyuv) — chroma subsample QC card
+    Allyuv,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -2224,7 +2232,7 @@ pub struct GenArgs {
     /// -o target (e.g. bg.mp4) — generative sources take no input file
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Pattern: mandelbrot | gradients | life (cellular automaton) | sierpinski | noise | tone | sweep (audio beds / speaker-test chirp)
+    /// Pattern: mandelbrot | gradients | life (cellular automaton) | sierpinski | hald (identity LUT image — author your own `grade --lut` in an editor) | noise | tone | sweep (audio beds / speaker-test chirp)
     #[arg(long, default_value = "gradients")]
     pub pattern: String,
     /// Frame size WxH
@@ -2257,6 +2265,9 @@ pub struct GenArgs {
     /// Life rule 0-255 (110 = classic glider-friendly)
     #[arg(long, default_value_t = 110)]
     pub rule: i64,
+    /// HALD cube level for --pattern hald (3..12; 8 = standard 512x512)
+    #[arg(long, default_value_t = 8)]
+    pub level: u32,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3312,6 +3323,9 @@ pub enum ChannelMode {
     /// earwax — headphone-oriented stereo widening (crossfeed delay); makes
     /// podcasts/videos feel less "inside the skull" on earbuds
     Earwax,
+    /// stereowiden — dedicated M/S widener (delay+feedback+crossfeed): wider
+    /// stereo image on mono-safe terms; --amount 0..1 scales crossfeed 0.05..0.8
+    Stereowiden,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3568,6 +3582,9 @@ pub enum SmoothEngine {
     Spp,
     /// fspp — fast spp variant (oldest, blockiest sources)
     Fspp,
+    /// sab — shape-adaptive blur: smoothes inside flat regions without
+    /// crossing object edges (matte-style cleanup, skin)
+    Sab,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -3594,6 +3611,10 @@ pub enum DeintEngine {
     /// phase — field-phase reorder: swaps field order when a capture has
     /// wrong parity (jumpy interlaced playback, no real deinterlacing needed)
     Phase,
+    /// field — extract the top field only (half-height progressive, no
+    /// interpolation): the fastest possible deinterlace — preview/rough-cut
+    /// quality when yadif is overkill
+    Field,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -4148,7 +4169,7 @@ pub struct QaArgs {
     pub a: PathBuf,
     /// Processed clip to measure against A (auto-rescaled to match)
     pub b: PathBuf,
-    /// psnr, ssim, msad, or both (default both)
+    /// psnr, ssim, msad, vif, or both (default both)
     #[arg(long, default_value = "both")]
     pub metric: String,
 }
@@ -4401,6 +4422,9 @@ pub enum LevelerEngine {
     /// alimiter — lookahead brickwall limiter: --threshold is the ceiling dB,
     /// --makeup pushes the input into it (master-safe loudness)
     Limit,
+    /// compand — single-band transfer-curve leveler (quiet lifted toward
+    /// program level on one continuous knee — gentler than acompressor)
+    Compand,
 }
 
 #[derive(clap::Args, Debug)]
