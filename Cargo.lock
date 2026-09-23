@@ -243,7 +243,7 @@ dependencies = [
 
 [[package]]
 name = "ffkit"
-version = "0.226.0"
+version = "0.227.0"
 dependencies = [
  "clap",
  "encoding_rs",

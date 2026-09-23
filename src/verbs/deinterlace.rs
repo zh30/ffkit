@@ -26,6 +26,11 @@ pub fn run(args: DeinterlaceArgs, g: &Globals) -> Result<Contract, Error> {
         crate::cli::DeintEngine::Bwdif => format!("bwdif=mode={mode}:parity={parity}"),
         crate::cli::DeintEngine::Estdif => format!("estdif=mode={mode}:parity={parity}"),
         crate::cli::DeintEngine::Kerndeint => "kerndeint=sharp=1:twoway=1".to_string(),
+        // fieldmatch+decimate: inverse telecine — reconstruct 23.976p film
+        // frames from 29.97i, drop the duplicated frames after
+        crate::cli::DeintEngine::Fieldmatch => {
+            "fieldmatch=order=auto:combmatch=full,decimate=dupthresh=1.1".to_string()
+        }
     };
     argv.extend(["-vf", &vf]);
     if probe.has_audio {

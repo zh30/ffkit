@@ -196,6 +196,10 @@ pub enum Cmd {
     /// Two-camera angle switching across an aligned pair
     Multicam(MulticamArgs),
     Art(ArtArgs),
+    /// Remove dust specks / hot pixels (morphology, no blur of the rest)
+    Dedust(DedustArgs),
+    /// Stretch edge pixels to fill border strips (chroma-key rims, leftover letterbox)
+    Extend(ExtendArgs),
     /// Even out voice dynamic range (compressor)
     Leveler(LevelerArgs),
     /// Noise gate — silence below a threshold
@@ -3223,6 +3227,9 @@ pub enum DeintEngine {
     Bwdif,
     Estdif,
     Kerndeint,
+    /// fieldmatch + decimate — inverse telecine: 29.97i film content back to
+    /// 23.976p (anime/film transfers). Not a per-field deinterlacer.
+    Fieldmatch,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -3239,6 +3246,61 @@ pub enum FieldParity {
 pub enum DeinterlaceMode {
     Frame,
     Field,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DedustArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Speck size in px (1-4, default 1)
+    #[arg(long, default_value_t = 1)]
+    pub size: u32,
+    /// Remove bright specks (white dust on scans, hot pixels) — default
+    #[arg(long, default_value_t = false)]
+    pub light: bool,
+    /// Remove dark specks (film-negative dust, dead pixels)
+    #[arg(long, default_value_t = false)]
+    pub dark: bool,
+    /// Dedust only from this time (needs --dur)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// ..for this many seconds
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ExtendArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Stretch edge pixels to fill a left border this wide (px)
+    #[arg(long, default_value_t = 0)]
+    pub left: u32,
+    /// ..right border
+    #[arg(long, default_value_t = 0)]
+    pub right: u32,
+    /// ..top border
+    #[arg(long, default_value_t = 0)]
+    pub top: u32,
+    /// ..bottom border
+    #[arg(long, default_value_t = 0)]
+    pub bottom: u32,
+    /// Fill mode: smear (default edge-stretch), mirror, fixed, reflect, wrap, fade
+    #[arg(long, value_enum, default_value_t = ExtendMode::Smear)]
+    pub mode: ExtendMode,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum ExtendMode {
+    #[default]
+    Smear,
+    Mirror,
+    Fixed,
+    Reflect,
+    Wrap,
+    Fade,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4013,6 +4075,9 @@ pub enum VDenoiseEngine {
     Median,
     /// chroma — chroma-only noise reduction (phone-sensor color speckle)
     Chroma,
+    /// edge — nlmeans masked to flat areas only (maskedmerge over an
+    /// edgedetect+gblur+negate mask): denoise without melting detail
+    Edge,
 }
 
 #[derive(clap::Args, Debug)]

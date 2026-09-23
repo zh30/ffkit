@@ -75,6 +75,8 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Scroll(args) => verbs::scroll::run(args, &g),
         Cmd::Sync(args) => verbs::sync::run(args, &g),
         Cmd::Art(args) => verbs::art::run(args, &g),
+        Cmd::Dedust(args) => verbs::dedust::run(args, &g),
+        Cmd::Extend(args) => verbs::extend::run(args, &g),
         Cmd::Leveler(args) => verbs::leveler::run(args, &g),
         Cmd::Gate(args) => verbs::gate::run(args, &g),
         Cmd::Boomerang(args) => verbs::boomerang::run(args, &g),

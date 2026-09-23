@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- `dedust` — remove dust specks / hot pixels by morphology (luma erosion/dilation); `--size` 1-4, `--dark` for dark specks, `--at`/`--dur` window
+- `deinterlace --engine fieldmatch` — inverse telecine: fieldmatch+decimate reconstructs 23.976p film frames from 29.97i transfers
+- `vdenoise --engine edge` — nlmeans masked to flat areas via edgedetect+negate+maskedmerge; denoise without melting detail
+- `extend` — stretch edge pixels into border strips (fillborders: `--left/--right/--top/--bottom`, `--mode smear|mirror|...`) for chroma-key rims and leftover letterbox slivers
+
+### Added
 - `grade --lut look.png` — HALD image LUTs via `haldclut` (PNG/JPG; Darktable/RawTherapee exports); `.cube` keeps `lut3d`. `lut_engine` extra reports which path ran
 - `grade --skin -1..1` — selectivecolor on the reds channel only: warms faces without touching the rest of the grade
 - `scan` — interlace QC: `interlaced` verdict + `frames_tff`/`frames_bff`/`frames_progressive`/`frames_undetermined` (idet, same pass)

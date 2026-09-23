@@ -222,3 +222,7 @@ an atempo'd whole-file render would shift the window.
 
 - `blurdetect` does not exist on ffmpeg 4.4 (5.x+). `idet` prints its verdict as a stderr summary ("Single frame detection: ..."), not per-frame metadata — parse the `TFF/BFF/Progressive/Undetermined` counts.
 - `haldclut` accepts PNG/JPG HALD images (Darktable/RawTherapee exports) — LUT identity passthrough is within ~±5 encode error.
+
+- `erosion`/`dilation` thresholds are per-plane (`threshold0..3`), not a bare `threshold` — set threshold1/2/3=0 to leave chroma untouched.
+- `maskedmerge` graph pads are consumed once: split the source into 3 branches (orig → merge base, orig → denoise leg, orig → edgedetect mask leg).
+- `fieldmatch`+`decimate` drops duplicate frames so output fps falls (25→20 on uniform testsrc, 29.97→23.976 on real telecine) — assert fps < input in tests, not a fixed rate.

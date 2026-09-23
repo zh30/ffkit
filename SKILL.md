@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.226.0
+version: 0.227.0
 
 
 
@@ -167,6 +167,10 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | audiogram CQT music spectrum | `audiogram --mode cqt` |
 | audiogram scrolling spectrogram | `audiogram --mode spectro` |
 | find black/frozen stretches (QC) | `scan` (JSON extras; no -o) — also `interlaced`/frames_* from idet |
+| dust specks / hot pixels | `dedust` (`--size` 1-4, `--dark` for dark specks; morphology, not blur) |
+| inverse telecine | `deinterlace --engine fieldmatch` (film 29.97i → 23.976p) |
+| denoise without melting detail | `vdenoise --engine edge` (nlmeans masked to flat areas) |
+| fill border slivers | `extend` `--left|--right|--top|--bottom N --mode smear` (chroma-key rims, leftover letterbox) |
 | beauty/skin smoothing | `smooth` (`--engine` smartblur/bilateral — bilateral keeps edges sharper; `--strength`, `--at`/`--dur` window) |
 | reframe 360/equirect footage | `v360` (`--yaw`/`--pitch`/`--fov`, `--in` projection, `--size`) |
 | noisy clip, pick denoiser | `vdenoise --engine nlmeans\|hqdn3d\|atadenoise\|vaguedenoise\|bm3d` (bm3d/dctdnoiz/owdenoise strongest, no --at; `median` salt&pepper, `chroma` color speckle), `denoise --engine auto\|wavel\|fftdn` |

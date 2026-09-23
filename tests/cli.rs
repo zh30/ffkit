@@ -22444,3 +22444,131 @@ fn grade_lut_hald_skin_scan_idet() {
     let v = run_json(&["scan", skin.to_str().unwrap()]);
     assert_eq!(v["extra"]["interlaced"], false);
 }
+
+#[test]
+fn dedust_extend_vdenoise_edge_fieldmatch() {
+    if !has_ffmpeg() || !has_filter("fillborders") || !has_filter("maskedmerge") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // gray clip + a single white speck at (33,33)
+    let dust = dir.path().join("dust.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=gray:size=128x128:rate=25",
+            "-vf",
+            "drawbox=x=33:y=33:w=2:h=2:c=white:t=fill",
+            "-t",
+            "1",
+            "-y",
+        ])
+        .arg(&dust)
+        .status()
+        .unwrap();
+    assert!(st.success());
+
+    let luma = |f: &Path, x: usize, y: usize| -> i64 {
+        let out = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-i"])
+            .arg(f)
+            .args([
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-y",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        out.stdout[y * 128 + x] as i64
+    };
+    let speck0 = luma(&dust, 33, 33);
+    assert!(speck0 > 200, "fixture speck should be bright: {speck0}");
+
+    // dedust removes the bright speck, leaves flat luma alone
+    let clean = dir.path().join("clean.mp4");
+    run_json(&[
+        "dedust",
+        dust.to_str().unwrap(),
+        "-o",
+        clean.to_str().unwrap(),
+        "--size",
+        "1",
+    ]);
+    let speck1 = luma(&clean, 33, 33);
+    assert!(
+        speck1 < speck0 - 80,
+        "speck should erode: {speck0} -> {speck1}"
+    );
+
+    // extend smears edge px into the border strip
+    let ext = dir.path().join("ext.mp4");
+    run_json(&[
+        "extend",
+        dust.to_str().unwrap(),
+        "-o",
+        ext.to_str().unwrap(),
+        "--left",
+        "4",
+    ]);
+    assert_eq!(luma(&ext, 0, 64), luma(&ext, 8, 64));
+
+    // vdenoise --engine edge: maskedmerge graph runs, filter extra reports edge
+    let vd = dir.path().join("vd.mp4");
+    let v = run_json(&[
+        "vdenoise",
+        dust.to_str().unwrap(),
+        "-o",
+        vd.to_str().unwrap(),
+        "--engine",
+        "edge",
+        "--strength",
+        "6",
+    ]);
+    assert_eq!(v["extra"]["filter"], "edge");
+
+    // deinterlace --engine fieldmatch: decimate drops duplicated frames (fps falls)
+    if has_filter("fieldmatch") {
+        let di = dir.path().join("di.mp4");
+        run_json(&[
+            "deinterlace",
+            dust.to_str().unwrap(),
+            "-o",
+            di.to_str().unwrap(),
+            "--engine",
+            "fieldmatch",
+        ]);
+        let out = Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-select_streams",
+                "v",
+                "-show_entries",
+                "stream=avg_frame_rate",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(&di)
+            .output()
+            .unwrap();
+        let rate = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        let fps: f64 = rate.split('/').next().unwrap().parse::<f64>().unwrap()
+            / rate
+                .split('/')
+                .nth(1)
+                .unwrap_or("1")
+                .parse::<f64>()
+                .unwrap_or(1.0);
+        assert!(fps < 25.0, "decimate should drop dup frames: {rate}");
+    }
+}

@@ -65,7 +65,10 @@ pub fn run(args: VdenoiseArgs, g: &Globals) -> Result<Contract, Error> {
             format!("chromanr=thres={:.1}:sizew=15:sizeh=15", s * 12.0),
             "chromanr",
         ),
+        // edge: nlmeans strength, maskedmerge keeps original detail on edges
+        crate::cli::VDenoiseEngine::Edge => (format!("nlmeans=s={s:.1}"), "edge"),
     };
+    let edge_merge = matches!(filter_name, "edge");
     let vf = match &args.at {
         Some(raw) => {
             // bm3d/dctdnoiz/owdenoise have no timeline `enable` on ffmpeg 4.4
@@ -90,8 +93,20 @@ pub fn run(args: VdenoiseArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
+    if edge_merge {
+        // 3-branch: original → nlmeans → maskedmerge (mask = blurred edges,
+        // negated so flat areas take the denoised frame, edges keep detail).
+        // When --at windows, enable sits on the nlmeans leg: outside the
+        // window it passes original, so the merge equals original.
+        let fc = format!(
+            "[0:v]split=3[a][b][c];[b]{vf}[d];[c]edgedetect=low=0.05:high=0.15,format=gray,gblur=sigma=2,negate[m];[a][d][m]maskedmerge[v]"
+        );
+        argv.extend(["-filter_complex", &fc, "-map", "[v]", "-map", "0:a?"]);
+    } else {
+        argv.extend(["-vf", &vf, "-map", "0:v", "-map", "0:a?"]);
+    }
     argv.extend([
-        "-vf", &vf, "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
     ]);
     if probe.has_audio {
         argv.extend(["-c:a", "copy"]);
