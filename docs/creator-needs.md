@@ -811,3 +811,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `upscale` — `zscale=...:filter=spline36` + `unsharp` up-res verb (`--factor`, `--strength`). Even-dim safe (trunc(iw*F/2)*2).
 - `fx --kind sub` — `asubboost` synthesized low octave (wet 0.3..0.9 by strength); +4.2dB on a 100Hz band fixture.
 - `fx --kind crossfeed` — `crossfeed` headphone comfort (L−R diff −11dB on a dual-sine fixture).
+
+## Shipped — RSI round 191 (0.218.0)
+
+- `perspective` — 4-point deskew (`--points` quad corners TL,TR,BL,BR px → stretched to output rect; sense=0; `--interp`).
+- `eq --curve` — freehand `firequalizer` gain_entry line through F,G points (interpolated).
+- `fx --kind autopan` — `apulsator` L/R sweep (hz by strength; ~10dB R-channel swing measured).
+
+Note: ffmpeg 4.4 `perspective` takes `sense` as int (0=source coords = our deskew use).

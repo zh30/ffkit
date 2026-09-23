@@ -21037,3 +21037,133 @@ fn upscale_fx_sub_crossfeed() {
         "crossfeed should blend the ears: {v}"
     );
 }
+
+#[test]
+fn perspective_eq_curve_fx_autopan() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let band_level = |p: &std::path::Path, af: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args(["-af", &format!("{af},volumedetect"), "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find(|l| l.contains("mean_volume"))
+            .and_then(|l| l.split("mean_volume:").nth(1))
+            .and_then(|s| s.trim().trim_end_matches(" dB").parse().ok())
+            .unwrap_or(-91.0)
+    };
+
+    // perspective: the 4 corners of a skewed quad stretch onto the output rect
+    let src = dir.path().join("skew.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("testsrc=size=160x90:rate=25")
+        .args(["-t", "1"])
+        .arg(&src)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let deskew = dir.path().join("deskew.mp4");
+    let v = run_json(&[
+        "perspective",
+        src.to_str().unwrap(),
+        "-o",
+        deskew.to_str().unwrap(),
+        "--points",
+        "20,5,140,0,10,85,150,90",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"], 160, "{v}");
+    // a corner outside the frame is rejected
+    let v = run_json(&[
+        "perspective",
+        src.to_str().unwrap(),
+        "-o",
+        deskew.to_str().unwrap(),
+        "--points",
+        "20,5,140,0,10,85,250,90",
+    ]);
+    assert_eq!(v["status"], "failed", "{v}");
+    assert_eq!(v["error"]["kind"], "input", "{v}");
+
+    // eq --curve: a freehand firequalizer line tilts the top end down
+    let tone = dir.path().join("tone.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("sine=frequency=2000:duration=1")
+        .arg(&tone)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let curved = dir.path().join("curved.m4a");
+    let v = run_json(&[
+        "eq",
+        tone.to_str().unwrap(),
+        "-o",
+        curved.to_str().unwrap(),
+        "--curve",
+        "100,0;800,0;2000,-18;20000,-18",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(
+        band_level(&curved, "bandpass=f=2000:w=500")
+            < band_level(&tone, "bandpass=f=2000:w=500") - 6.0,
+        "eq --curve should cut the 2kHz band: {v}"
+    );
+
+    // fx autopan: the right channel level sweeps (L-R imaging moves)
+    let stereo = dir.path().join("st.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("sine=frequency=440:duration=1")
+        .args(["-f", "lavfi", "-i"])
+        .arg("sine=frequency=440:duration=1")
+        .args([
+            "-filter_complex",
+            "[0:a][1:a]join=inputs=2:channel_layout=stereo",
+        ])
+        .arg(&stereo)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let ap = dir.path().join("ap.m4a");
+    let v = run_json(&[
+        "fx",
+        stereo.to_str().unwrap(),
+        "-o",
+        ap.to_str().unwrap(),
+        "--kind",
+        "autopan",
+        "--strength",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let mut levels: Vec<f64> = Vec::new();
+    for off in [
+        0.05f64, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95,
+    ] {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&ap)
+            .args(["-ss", &off.to_string(), "-t", "0.05"])
+            .args(["-af", "pan=mono|c0=c1,volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let l = String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find(|l| l.contains("mean_volume"))
+            .and_then(|l| l.split("mean_volume:").nth(1))
+            .and_then(|s| s.trim().trim_end_matches(" dB").parse().ok())
+            .unwrap_or(-91.0);
+        levels.push(l);
+    }
+    let span = levels.iter().cloned().fold(f64::MIN, f64::max)
+        - levels.iter().cloned().fold(f64::MAX, f64::min);
+    assert!(span > 4.0, "autopan should sweep the R channel: {levels:?}");
+}

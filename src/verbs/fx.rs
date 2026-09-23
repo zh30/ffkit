@@ -58,6 +58,8 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
         // headphone crossfeed: bleeds each ear slightly into the other so
         // long listening sessions feel speaker-like instead of hard-panned
         FxKind::Crossfeed => format!("crossfeed=strength={:.2}:range=0.5", 0.2 + 0.6 * s),
+        // left-right autopan — a slow sweep makes loops/ambient beds feel alive
+        FxKind::Autopan => format!("apulsator=hz={:.2}:mode=sine", 0.4 + 2.6 * s),
     };
     // --at/--dur: duck the dry feed to 0 inside the window, add the FX in its place.
     // (on ffmpeg 4.4 none of these filters accept a timeline `enable` option)

@@ -80,6 +80,41 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
         }
         chain.push(format!("equalizer=f={f:.0}:t=q:w={w_oct:.2}:g={g_gain:.1}"));
     }
+    // --curve: arbitrary freehand EQ line through FREQ:GAIN points (firequalizer
+    // interpolates between entries — a tilt, a smile, whatever the creator drew)
+    if let Some(curve) = &args.curve {
+        let mut entries: Vec<String> = Vec::new();
+        for pt in curve
+            .split(';')
+            .flat_map(|s| s.split(','))
+            .collect::<Vec<_>>()
+            .chunks(2)
+        {
+            let f: f64 = pt
+                .first()
+                .and_then(|s| s.trim().parse().ok())
+                .ok_or_else(|| {
+                    Error::input("--curve wants \"F,G;F,G\" pairs (freq Hz, gain dB)")
+                })?;
+            let g_gain: f64 = pt
+                .get(1)
+                .and_then(|s| s.trim().parse().ok())
+                .ok_or_else(|| {
+                    Error::input("--curve wants \"F,G;F,G\" pairs (freq Hz, gain dB)")
+                })?;
+            if !(20.0..=20000.0).contains(&f) {
+                return Err(Error::input("--curve frequency must be 20..20000 Hz"));
+            }
+            if !(-60.0..=20.0).contains(&g_gain) {
+                return Err(Error::input("--curve gain must be -60..=20 dB"));
+            }
+            entries.push(format!("entry({f:.0},{g_gain:.1})"));
+        }
+        if entries.len() < 2 {
+            return Err(Error::input("--curve needs at least two F,G points"));
+        }
+        chain.push(format!("firequalizer=gain_entry='{}'", entries.join(";")));
+    }
     if bass != 0.0 {
         chain.push(format!("bass=g={}", bass));
     }

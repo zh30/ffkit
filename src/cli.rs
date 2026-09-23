@@ -303,6 +303,8 @@ pub enum Cmd {
     Edge(EdgeArgs),
     /// Lens distortion: fisheye look or action-cam defish
     Lens(LensArgs),
+    /// Deskew: stretch a filmed screen/whiteboard quad onto the frame
+    Perspective(PerspectiveArgs),
     /// Reframe 360 equirect footage to a flat viewport (yaw/pitch/fov)
     V360(V360Args),
     /// Mirror half the frame across the center axis (dance/symmetry look)
@@ -1832,6 +1834,19 @@ pub struct EdgeArgs {
 }
 
 #[derive(clap::Args, Debug)]
+pub struct PerspectiveArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Quad corners in the source, px: "x0,y0,x1,y1,x2,y2,x3,y3" (TL,TR,BL,BR)
+    #[arg(long, required = true)]
+    pub points: String,
+    /// Interpolation kernel: linear | cubic
+    #[arg(long, default_value = "linear")]
+    pub interp: String,
+}
+
+#[derive(clap::Args, Debug)]
 pub struct LensArgs {
     pub input: PathBuf,
     #[arg(short, long)]
@@ -2689,6 +2704,10 @@ pub struct EqArgs {
     /// (e.g. --band 800:-3 --band 5200:2:0.7)
     #[arg(long)]
     pub band: Vec<String>,
+    /// Freehand EQ curve through F,G points (freq Hz, gain dB):
+    /// "80,0;3000,-6;8000,4" — points interpolate (firequalizer)
+    #[arg(long)]
+    pub curve: Option<String>,
     /// Apply the EQ only from here (bass boost on the drop)
     #[arg(long)]
     pub at: Option<String>,
@@ -3944,6 +3963,8 @@ pub enum FxKind {
     Sub,
     /// Headphone crossfeed — speakers-like imaging on cans (long-form comfort)
     Crossfeed,
+    /// Left-right autopan sweep (apulsator)
+    Autopan,
 }
 
 #[derive(clap::Args, Debug)]

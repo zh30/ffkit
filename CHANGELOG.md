@@ -2,7 +2,12 @@
 
 ## [Unreleased]
 
-## [0.217.0] — RSI round 190
+## [0.218.0] — RSI round 191
+
+- `perspective` — deskew a filmed screen/whiteboard: `--points` takes the 4 corners of the skewed quad in the source (TL,TR,BL,BR, px) and `perspective` stretches it onto the output rectangle (`sense=0`); `--interp linear|cubic`.
+- `eq --curve "F,G;F,G"` — freehand EQ line through freq,gain points via `firequalizer=gain_entry` (points interpolate — draw a tilt, a smile, a notch shelf).
+- `fx --kind autopan` — `apulsator` L/R autopan sweep (hz 0.4-3 by strength); measured R-channel swing ~10dB over a cycle.
+
 
 - `upscale` — up-res old/phone footage: `zscale` spline36 kernel (reconstructs detail better than bilinear/lanczos) + light `unsharp` for edge acuity. `--factor` 1.05-4 (2 doubles width AND height), `--strength` 0-1.
 - `fx --kind sub` — synthesized sub-bass octave under the mix (`asubboost`, wet scaled by strength) — drop/trap low-end weight.

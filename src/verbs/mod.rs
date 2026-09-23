@@ -78,6 +78,7 @@ pub mod mute;
 pub mod night;
 pub mod outline;
 pub mod overlay;
+pub mod perspective;
 pub mod pick;
 pub mod pitch;
 pub mod pix;
