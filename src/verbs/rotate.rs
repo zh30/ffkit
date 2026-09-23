@@ -9,17 +9,39 @@ pub fn run(args: RotateArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "rotate")?;
 
+    let enable = match &args.at {
+        Some(s) => format!(
+            ":enable='{}'",
+            crate::time::enable_expr(s, args.dur, probe.duration)?
+        ),
+        None => String::new(),
+    };
+    if args.dur.is_some() && args.at.is_none() {
+        return Err(Error::input("--dur needs --at"));
+    }
     let vf = match (args.flip, args.angle) {
         (_, Some(a)) => {
             if !(-360.0..=360.0).contains(&a) || a == 0.0 {
                 return Err(Error::input("--angle must be -360..=360 and nonzero"));
             }
             // rotate expands the canvas; crop back so the tilt fills the frame.
-            format!("rotate=a={:.6}:c=black:out_w=iw:out_h=ih", a.to_radians())
+            format!(
+                "rotate=a={:.6}:c=black:out_w=iw:out_h=ih{enable}",
+                a.to_radians()
+            )
         }
-        (Some(FlipMode::H), None) => "hflip".to_string(),
-        (Some(FlipMode::V), None) => "vflip".to_string(),
+        (f @ (Some(FlipMode::H) | Some(FlipMode::V)), None) => {
+            let name = if f == Some(FlipMode::H) {
+                "hflip"
+            } else {
+                "vflip"
+            };
+            format!("{name}{enable}")
+        }
         (None, None) => match args.deg % 360 {
+            _ if !enable.is_empty() => return Err(Error::input(
+                "rotate --at works with --angle/--flip (a 90° turn changes the canvas mid-clip)",
+            )),
             90 => "transpose=1".to_string(),
             180 => "transpose=1,transpose=1".to_string(),
             270 => "transpose=2".to_string(),

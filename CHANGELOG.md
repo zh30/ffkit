@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.167.0] — 2026-09-22
+
+### Added
+- `rotate --at/--dur` — `--angle` tilt (and `--flip`) only inside a window via `enable='{enable_expr}'`: comma `--at` lists several tilts. `--deg` turns error out with `--at` — a 90° rotate changes the canvas mid-clip.
+
 ## [0.166.0] — 2026-09-22
 
 ### Added

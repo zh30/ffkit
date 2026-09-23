@@ -15444,6 +15444,42 @@ fn bleep_comma_list_censors_every_window() {
 }
 
 #[test]
+fn rotate_window_comma_dutch_tilt() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    let v = run_json(&[
+        "rotate",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("r.mp4").to_str().unwrap(),
+        "--angle",
+        "15",
+        "--at",
+        "0.1,0.6",
+        "--dur",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("rotate=a=0.261799"), "{cmds}");
+    assert!(
+        cmds.contains("between(t,0.100,0.400)+between(t,0.600,0.900)"),
+        "{cmds}"
+    );
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.0).abs() < 0.3, "{d}");
+}
+
+#[test]
 fn concat_gap_inserts_black_silence() {
     if !has_ffmpeg() {
         return;

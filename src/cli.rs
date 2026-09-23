@@ -898,6 +898,12 @@ pub struct RotateArgs {
     /// Free rotation in degrees — dutch tilt (overrides --deg)
     #[arg(long)]
     pub angle: Option<f64>,
+    /// Tilt only inside this window — comma list for several (needs --dur)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length for --at (seconds; default = to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
