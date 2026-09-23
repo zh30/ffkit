@@ -19930,3 +19930,130 @@ fn audiogram_cqt_sharpen_cas_equalize() {
         range(&eq)
     );
 }
+
+#[test]
+fn spectro_audiogram_speechnorm_saturate() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // amplitude-varying tone: gives adaptive normalizers dynamics to work on
+    let swell = dir.path().join("swell.wav");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "aevalsrc='0.5*sin(440*2*PI*t)*(0.15+0.55*pow(sin(3*t),2))':duration=4",
+            "-ar",
+            "44100",
+        ])
+        .arg(&swell)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let quiet = dir.path().join("quiet.wav");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1,volume=0.3",
+        ])
+        .arg(&quiet)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let vol = |f: &Path, which: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-v", "info", "-i"])
+            .arg(f)
+            .args(["-af", "volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find(|l| l.contains(&format!("{which}_volume")))
+            .and_then(|l| l.split(':').nth(1))
+            .and_then(|s| s.trim().replace(" dB", "").parse().ok())
+            .unwrap_or(0.0)
+    };
+
+    // audiogram --mode spectro: showspectrum paints a scrolling spectrogram
+    let sp = dir.path().join("sp.mp4");
+    let j = run_json(&[
+        "audiogram",
+        swell.to_str().unwrap(),
+        "-o",
+        sp.to_str().unwrap(),
+        "--mode",
+        "spectro",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let o = Command::new("ffmpeg")
+        .args(["-v", "error", "-ss", "0.5", "-i"])
+        .arg(&sp)
+        .args([
+            "-frames:v",
+            "1",
+            "-vf",
+            "format=gray",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "gray",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        o.stdout.iter().any(|&p| p > 20),
+        "spectro audiogram should paint a spectrogram"
+    );
+
+    // leveler --engine speechnorm raises a quiet/dynamic speech track
+    // (.m4a — ffkit encodes AAC; AAC-in-WAV misdecodes on ffmpeg 4.x)
+    let lv = dir.path().join("lv.m4a");
+    let j = run_json(&[
+        "leveler",
+        swell.to_str().unwrap(),
+        "-o",
+        lv.to_str().unwrap(),
+        "--engine",
+        "speechnorm",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(
+        vol(&lv, "max") > vol(&swell, "max") + 4.0,
+        "speechnorm should lift level: {} -> {}",
+        vol(&swell, "max"),
+        vol(&lv, "max")
+    );
+
+    // fx saturate (asoftclip) adds level/warmth via soft clip + makeup
+    let sat = dir.path().join("sat.m4a");
+    let j = run_json(&[
+        "fx",
+        quiet.to_str().unwrap(),
+        "-o",
+        sat.to_str().unwrap(),
+        "--kind",
+        "saturate",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(
+        vol(&sat, "max") > vol(&quiet, "max") + 1.0,
+        "saturate should add level: {} -> {}",
+        vol(&quiet, "max"),
+        vol(&sat, "max")
+    );
+}

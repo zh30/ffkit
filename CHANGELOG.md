@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.209.0] — 2026-09-23
+
+### Added
+
+- `audiogram --mode spectro` (scrolling `showspectrum` audiogram look)
+- `leveler --engine` (`compressor` default, `speechnorm` adaptive speech normalize)
+- `fx --kind saturate` (`asoftclip` tape-style soft clip saturation)
+
+
 ## [0.208.0] — 2026-09-23
 
 ### Added

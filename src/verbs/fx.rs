@@ -38,6 +38,13 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
         FxKind::Radio => String::from(
             "highpass=f=300,lowpass=f=3400,acompressor=threshold=-24dB:ratio=6:attack=5:release=80:makeup=4dB",
         ),
+        FxKind::Saturate => {
+            let th = (0.95 - 0.55 * s).clamp(0.05, 0.95);
+            format!(
+                "asoftclip=type=tanh:threshold={th:.2}:output={:.2}",
+                (1.0 / th).min(1.6)
+            )
+        }
     };
     // --at/--dur: duck the dry feed to 0 inside the window, add the FX in its place.
     // (on ffmpeg 4.4 none of these filters accept a timeline `enable` option)

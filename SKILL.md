@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.208.0
+version: 0.209.0
 
 
 
@@ -65,7 +65,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | watch loudness while it plays | `meter` (`--size`, `--meter 9|18`, `--at/--dur` — EBU R128 video; podcast/voice QC) |
 | mains hum / electrical buzz | `dehum` (`--at`/`--dur` window, `--mains 50|60` or `--freq HZ` custom hum, `--harmonics`) — notches the fundamental + harmonics |
 | faster/slower podcast | `tempo` (`--factor 1.5` — pitch held; video inputs: use `speed`), `--at/--dur` window |
-| voice all over the place | `leveler` (`--at`/`--dur` window, `--threshold`/`--ratio`/`--makeup` — `acompressor`) |
+| voice all over the place | `leveler` (`--at`/`--dur` window, `--threshold`/`--ratio`/`--makeup` — `acompressor`; `--engine speechnorm` lifts quiet speech too) |
 | hiss between sentences | `gate` (`--threshold`, `--preset`, `--at/--dur` — `agate` closes on quiet parts) |
 | pad in room tone / breath | `silence` (`--at`, comma list pads several points, `--dur` inserts quiet; `--detect` reports ranges; video holds: `freeze`) |
 | one-click look | `grade --preset cinematic|vivid|vintage|soft|sepia|teal|noir|bleach|neon` (stacks under the sliders) |
@@ -155,6 +155,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | sky/gradient banding fix | `deband` (`--strength`/`--radius`/window) |
 | drop duplicate frames | `dedup` (`--frac`, VFR out) |
 | audiogram CQT music spectrum | `audiogram --mode cqt` |
+| audiogram scrolling spectrogram | `audiogram --mode spectro` |
 | halo-free sharpening | `sharpen --engine cas` (`--amount`) |
 | auto-contrast flat footage | `equalize` (`--strength`/window) |
 | dominant colors | `pick` (mean + 6-zone swatch, `--at`) |
@@ -201,7 +202,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | short overlay clip repeats | `overlay` (`--loop` — covers the base) |
 | waveform showing quiet detail | `waveform` (`--scale log`) |
 | split on longer pauses | `split` (`--silence --min-silence`) |
-| wobble/sci-fi/echo/lofi/telephone voice | `fx` (`--kind` 8 effects) |
+| wobble/sci-fi/echo/lofi/telephone voice | `fx` (`--kind` 9 effects, incl. `saturate` tape warmth) |
 | effect only in the drop | `fx` (`--at`/`--dur`) |
 | boomerang that loops 3x | `boomerang` (`--times`), `--at/--dur` window |
 | H.265 for Apple / smaller archive | `transcode` (`--preset hevc`) |
@@ -255,7 +256,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | container metadata tags | `meta` (`--title`/`--artist`/`--comment`, `--copy` pulls tags+chapters from another file) |
 | fix display rotation flag | `meta --rotate 90` (lossless; clears with `--rotate 0`) |
 | room tone on a voice | `reverb` (`--size room|hall|cave`, `--wet 0..0.9`) |
-| wobble/sci-fi/echo/lofi/telephone audio | `fx` (`--kind`, `--strength`, `--at`/`--dur`) |
+| wobble/sci-fi/echo/lofi/telephone/saturate audio | `fx` (`--kind`, `--strength`, `--at`/`--dur`) |
 | Ken Burns on a photo cutaway | `broll --insert img.png --still --motion kenburns` |
 | styled captions | `caption --color ff0000 --size 1.5` |
 | logo only for part of the clip | `overlay --at 2 --dur 5` |

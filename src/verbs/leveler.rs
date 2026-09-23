@@ -30,8 +30,16 @@ pub fn run(args: LevelerArgs, g: &Globals) -> Result<Contract, Error> {
             args.makeup,
         ),
     };
-    let af =
-        format!("acompressor=threshold={pt}dB:ratio={pr}:attack={pa}:release={prel}:makeup={pm}dB");
+    let af = match args.engine.unwrap_or_default() {
+        crate::cli::LevelerEngine::Compressor => format!(
+            "acompressor=threshold={pt}dB:ratio={pr}:attack={pa}:release={prel}:makeup={pm}dB"
+        ),
+        crate::cli::LevelerEngine::Speechnorm => format!(
+            "speechnorm=p=0.95:c={}:e=6:t={:.3}:r=0.05:f=0.05",
+            pr.clamp(1.0, 50.0),
+            10f64.powf(pt / 20.0).min(1.0)
+        ),
+    };
     let fc = match &args.at {
         Some(raw) => Some(engine::audio_window_for(
             &af,

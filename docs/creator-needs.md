@@ -237,6 +237,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 182)
+
+- `audiogram --mode spectro` — scrolling showspectrum roll for music clips.
+- `leveler --engine speechnorm` — adaptive speech normalize (lifts quiet
+  speech up, not just peaks down); `--engine compressor` is the default.
+- `fx --kind saturate` ��� asoftclip tape-style soft clip + makeup gain.
+
 ## Shipped this run (round 181)
 
 - `audiogram --mode cqt` — `showcqt` constant-Q spectrum for music videos (accepted by `--fps`/`rate` on 4.4).

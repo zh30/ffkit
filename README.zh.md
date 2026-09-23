@@ -136,7 +136,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `channel` | 声道手术：`--mode dualmono|mono|swap|invert|mix51|pan|widen|split`（`split` 立体声→`_L/_R.wav` 双人声分轨）；`--pan -1..1` 声像定位 |
 | `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡） ，`--band` 参量频段，`--tilt` 暖↔亮，支持 `end`，逗号列表可多段 |
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet`（`--at`/`--dur` 局部回声），支持 `end`，逗号列表可多段 |
-| `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio（`--kind`、`--strength`、`--at`/`--dur`），支持 `end`，逗号列表可多段 |
+| `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio/saturate（`--kind`、`--strength`、`--at`/`--dur`），支持 `end`，逗号列表可多段 |
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip`、`--angle` 任意角度倾斜、`--at`/`--dur` 窗口倾斜（支持逗号列表） |
 | `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h`，或 `--regions x:y:w:h,...` 一次抹多处；`--at`/`--dur` 只处理窗口，`--at end` 片尾（`--soft` 柔化去除、`--shape circle` 椭圆遮罩） |
 | `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`）+ `--rotate`、`--clear` 显示旋转，无损拷贝 |
@@ -186,6 +186,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `deband` | `gradfun` 平滑天空/背景色带，`--strength`/`--radius`/`--at` 窗口 |
 | `dedup` | `mpdecimate` 丢弃近似重复帧——压缩静态片段，`--frac` 灵敏度 |
 | `audiogram --mode cqt` | 恒 Q 音乐频谱（`showcqt`）——钢琴卷帘式频谱，适合音乐片段 |
+| `audiogram --mode spectro` | 滚动频谱图（`showspectrum`）——彩色时频滚动 |
 | `sharpen --engine cas` | 对比自适应锐化——边缘更脆且无 unsharp 光晕，`--amount` |
 | `equalize` | `histeq` 自动对比度，修复灰暗/洗白画面，`--strength`/`--intensity`/`--at` 窗口 |
 | `pick` | 主色提取：某时刻均色 + 3x2 分区色板（仅 JSON 报告） |
@@ -212,7 +213,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `meter` | EBU R128 实时响度表视频（`--size`、`--meter 9\|18`、`--at/--dur` 只测片段）——边听边看 I/TP/LRA |
 | `dehum` | 市电嗡鸣陷波（`--mains 50|60` 或 `--freq HZ` 自定义频率、`--harmonics`、`--at/--dur`，支持 `end`，逗号列表可多段） |
 | `tempo` | 音频变速 `--factor` 0.5–8，不变调（`atempo` 链；视频请用 `speed`） ，`--at/--dur` 局部变速——逗号列表可多段，支持 `end` |
-| `leveler` | 动态压平（`--preset`、`--at/--dur` 窗口），支持 `end`，逗号列表可多段 |
+| `leveler` | 动态压平（`--preset`、`--engine speechnorm` 自适应人声归一、`--at/--dur` 窗口），支持 `end`，逗号列表可多段 |
 | `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`）（`--preset voice|podcast|studio`，`--at/--dur` 局部生效），支持 `end`，逗号列表可多段 |
 | `silence` | 在 `--at`（逗号列表多处）或 `--end` 插入 `--dur` 秒静音；`--detect` 以 JSON 报告静音区间 |
 | `vocal` | 消/留中置人声（`--mode`、`--amount` 强度、`--at/--dur` 窗口），支持 `end`，逗号列表可多段 |

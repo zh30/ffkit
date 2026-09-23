@@ -139,7 +139,7 @@ fn render_clip(
     if (args.scale.is_some() || args.split)
         && matches!(
             args.mode,
-            WaveMode::Spectrum | WaveMode::Scope | WaveMode::Cqt
+            WaveMode::Spectrum | WaveMode::Scope | WaveMode::Cqt | WaveMode::Spectro
         )
     {
         return Err(Error::input(
@@ -182,6 +182,12 @@ fn render_clip(
             format!("{awave}showcqt=s={{ww}}x{{wh}}:rate={fps}[wv];"),
             "cqt",
         ),
+        // showspectrum stamps one frame per FFT window; overlay picks up the
+        // background CFR timestamps, so no fps resample is needed.
+        WaveMode::Spectro => (
+            format!("{awave}showspectrum=s={{ww}}x{{wh}}:slide=scroll:scale=log[wv];"),
+            "spectro",
+        ),
         WaveMode::Scope => {
             let [r, g2, b] = crate::color::rgb(&args.color)?;
             (
@@ -197,7 +203,9 @@ fn render_clip(
                 WaveMode::Line => "line",
                 WaveMode::P2p => "p2p",
                 WaveMode::Cline => "cline",
-                WaveMode::Spectrum | WaveMode::Scope | WaveMode::Cqt => unreachable!(),
+                WaveMode::Spectrum | WaveMode::Scope | WaveMode::Cqt | WaveMode::Spectro => {
+                    unreachable!()
+                }
             };
             (
                 {

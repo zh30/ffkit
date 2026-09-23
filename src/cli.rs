@@ -848,6 +848,8 @@ pub enum WaveMode {
     Scope,
     /// Constant-Q music spectrum (showcqt) — piano-roll look
     Cqt,
+    /// Scrolling spectrogram (showspectrum) — colour time/frequency roll
+    Spectro,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -3362,6 +3364,10 @@ pub struct LevelerArgs {
     /// One-click compression curve: voice|podcast|master — fills the knobs
     #[arg(long, value_enum)]
     pub preset: Option<LevelerPreset>,
+    /// Engine: compressor (acompressor) or speechnorm — adaptive voice
+    /// normalizer that also lifts quiet speech up, not just peaks down
+    #[arg(long, value_enum)]
+    pub engine: Option<LevelerEngine>,
     /// Level only inside this window — comma list for several (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
@@ -3375,6 +3381,15 @@ pub enum LevelerPreset {
     Voice,
     Podcast,
     Master,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug, Default)]
+pub enum LevelerEngine {
+    /// acompressor — squash peaks above --threshold
+    #[default]
+    Compressor,
+    /// speechnorm — adaptive normalize for speech (speechnorm filter)
+    Speechnorm,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3716,6 +3731,8 @@ pub enum FxKind {
     Echo,
     Lofi,
     Radio,
+    /// Tape-style soft clip saturation (asoftclip) — warmth + loudness
+    Saturate,
 }
 
 #[derive(clap::Args, Debug)]

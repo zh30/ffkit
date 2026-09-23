@@ -136,7 +136,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51|pan|widen|split` (stereo→`_L/_R.wav` stems); `--pan -1..1` pan |
 | `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--tilt` warm↔bright; `end` ok, comma list = several windows |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window); `end` ok, comma list = several windows |
-| `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio (`--kind`, `--strength`, `--at`/`--dur`); `end` ok, comma list = several windows |
+| `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio/saturate (`--kind`, `--strength`, `--at`/`--dur`); `end` ok, comma list = several windows |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip`, free `--angle` tilt, `--at`/`--dur` windowed tilt (comma list) |
 | `delogo` | Blend out a burned-in logo box: `--x --y --w --h` or `--regions x:y:w:h,...` for several spots; `--at`/`--dur` for a window, `--at end` the tail (`--soft` removelogo, `--shape circle` elliptical mask) |
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
@@ -186,6 +186,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `deband` | Smooths gradient banding (sky/backdrop steps) via `gradfun`, `--strength`/`--radius`/`--at` window |
 | `dedup` | Drops near-duplicate frames via `mpdecimate` — shrinks static stretches, `--frac` sensitivity |
 | `audiogram --mode cqt` | Constant-Q music spectrum (`showcqt`) — piano-roll spectrum look for music clips |
+| `audiogram --mode spectro` | Scrolling spectrogram (`showspectrum`) — colour time/frequency roll |
 | `sharpen --engine cas` | Contrast-adaptive sharpening — crisper edges without unsharp halos, `--amount` |
 | `equalize` | Auto-contrast via `histeq` for flat/washed footage, `--strength`/`--intensity`/`--at` window |
 | `pick` | Dominant-color report at a timestamp: mean hex + 3x2 zone swatches (JSON only) |
@@ -212,7 +213,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `meter` | Live EBU R128 loudness meter video (`--size`, `--meter 9\|18`, `--at/--dur` slice) — watch I/TP/LRA while audio plays |
 | `dehum` | Notch out mains hum (`--mains 50|60` or `--freq HZ` custom, `--harmonics`, `--at/--dur`, `end` ok, comma list = several windows) |
 | `tempo` | Speed audio `--factor` 0.5–8, pitch held (`atempo` chain; use `speed` for video) , `--at/--dur` retempo just a window — comma list ok; `end` ok |
-| `leveler` | Compress dynamics (`--preset`, `--at/--dur` window); `end` ok, comma list = several windows |
+| `leveler` | Compress dynamics (`--preset`, `--engine speechnorm` adaptive speech normalize, `--at/--dur` window); `end` ok, comma list = several windows |
 | `gate` | Noise gate — silence below `--threshold` dB (`agate`) (`--preset voice|podcast|studio`, `--at/--dur` window); `end` ok, comma list = several windows |
 | `silence` | Insert `--dur` secs of silence at `--at` (comma list pads several points) or `--end`; `--detect` reports silence ranges as JSON |
 | `vocal` | Remove/isolate center vocals (`--mode`, `--at/--dur` window, `--amount` strength); `end` ok, comma list = several windows |
