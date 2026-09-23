@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.190.0
+version: 0.191.0
 
 
 
@@ -44,13 +44,14 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | frame / size | `fit` (`--fit pad` / `crop` / `blur --strength`), `zoom`, `--position` top/bottom/corners |
 
 | export | `deliver`, `transcode` (`--copy-audio`, `--vbitrate` peak cap, `--abitrate` audio bitrate, `--preset mp3`/`aac`/`wav`/`flac`/`opus` audio-only), `compress` (`--size 10MB` two-pass, `--crf` quality one-pass, `--res` downscale), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores`, `--target` platform sizes |
-| captions / mute | `caption` (`--karaoke` word reveal, `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, `--align`, `--from/--to` window, `--opacity` ghost, or `--mode mux`), `--fade` |
+| captions / mute | `caption` (`--karaoke` word reveal (`--highlight` sung color), `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, `--align`, `--from/--to` window, `--opacity` ghost, or `--mode mux`), `--fade` |
 
 | hook text | `title` (`--wrap` auto line breaks, `--align` left/right lower-thirds, `--box`/`--outline`/`--shadow`) |
 | dutch-angle tilt (full clip or windowed) | `rotate` (`--angle 15`, `--at`/`--dur` window — comma list for several tilts) |
 | chapters already in the file | `chapter` (`--list`) or `split` (`--chapters`) |
 | thumbnail candidates | `thumb` (`--scenes` grabs stills at every cut) |
 | spectrum-bar audiogram | `audiogram` (`--mode spectrum`, `--fscale`/`--fps`) |
+| lissajous vectorscope video | `audiogram` (`--mode scope` — trippy stereo scope) |
 | news-ticker crawl | `scroll` (`--mode ticker`, `--bg` opaque bar, `--speed` px/s) |
 | AV1 delivery | `transcode` (`--preset av1`) |
 | podcast/voice → mp3/m4a/wav/flac/opus | `transcode` (`--preset mp3`/`aac`/`wav`/`flac`/`opus` — `-vn` audio-only) |
@@ -168,7 +169,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | stroked TikTok captions | `caption` (`--outline RRGGBB`) |
 | branded audiogram title font | `audiogram` (`--font`) |
 | name each tile in a grid | `grid` (`--labels "a,b"`), `--fill` crop-fill cells |
-| gentle logo cleanup | `delogo` (`--soft`; `--regions x:y:w:h,...` covers several spots) |
+| gentle logo cleanup | `delogo` (`--soft`; `--regions x:y:w:h,...` covers several spots; `--shape circle` elliptical mask) |
 | animated gradient card | `solid` (`--gradient ff0000:0000ff`) |
 | reframe / crop out an edge | `crop` (`--region x:y:w:h` or `--aspect 1:1`/`9:16` centered) |
 | motion / loop | `speed`, `reverse`, `loop`, `stabilize` (`--edge` fill), `fade` |

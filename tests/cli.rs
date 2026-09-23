@@ -17463,6 +17463,143 @@ fn timer_countdown_scroll_opacity_ghost_overlays() {
 }
 
 #[test]
+fn karaoke_highlight_scope_and_delogo_circle() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let srt = dir.path().join("t.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:01,000\nhello wide world now\n\n2\n00:00:01,000 --> 00:00:02,000\nsecond caption line\n",
+    )
+    .unwrap();
+    let blk = dir.path().join("blk.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=black:size=320x180:duration=2:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&blk)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    // karaoke --highlight: prefix red, rest white on black
+    let cap = dir.path().join("cap.mp4");
+    let v = run_json(&[
+        "caption",
+        blk.to_str().unwrap(),
+        "-o",
+        cap.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--karaoke",
+        "--highlight",
+        "ff0000",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let out = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-ss", "1.1", "-i"])
+        .arg(&cap)
+        .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+        .output()
+        .unwrap();
+    let (mut reds, mut whites) = (0u32, 0u32);
+    for px in out.stdout.chunks(3) {
+        let (r, g, b) = (px[0], px[1], px[2]);
+        if r > 180 && g < 80 && b < 80 {
+            reds += 1;
+        }
+        if r > 200 && g > 200 && b > 200 {
+            whites += 1;
+        }
+    }
+    assert!(reds > 80 && whites > 80, "reds {reds} whites {whites}");
+    // --highlight without karaoke errors
+    let v = run_json(&[
+        "caption",
+        blk.to_str().unwrap(),
+        "-o",
+        cap.to_str().unwrap(),
+        "--srt",
+        srt.to_str().unwrap(),
+        "--highlight",
+        "ff0000",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "failed");
+    // audiogram --mode scope emits avectorscope
+    let wav = dir.path().join("tone.wav");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1:sample_rate=44100",
+        ])
+        .arg(&wav)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let ag = dir.path().join("ag.mp4");
+    let v = run_json(&[
+        "audiogram",
+        wav.to_str().unwrap(),
+        "-o",
+        ag.to_str().unwrap(),
+        "--mode",
+        "scope",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let scope = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter())
+        .any(|a| a.as_str().unwrap_or("").contains("avectorscope"));
+    assert!(scope, "scope filter missing: {}", v["commands"]);
+    // delogo --shape circle writes a removelogo mask
+    let dl = dir.path().join("dl.mp4");
+    let v = run_json(&[
+        "delogo",
+        blk.to_str().unwrap(),
+        "-o",
+        dl.to_str().unwrap(),
+        "--x",
+        "40",
+        "--y",
+        "40",
+        "--w",
+        "80",
+        "--h",
+        "40",
+        "--shape",
+        "circle",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let rm = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter())
+        .any(|a| a.as_str().unwrap_or("").contains("removelogo"));
+    assert!(rm, "circle should use removelogo mask: {}", v["commands"]);
+}
+
+#[test]
 fn censor_circle_mask_and_progress_opacity() {
     if !has_ffmpeg() {
         return;

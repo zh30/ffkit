@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.191.0] — 2026-09-23
+
+### Added
+
+- `caption --karaoke --highlight` — sung-word color over the dim full cue (two-layer PNG composite)
+- `audiogram --mode scope` — lissajous vectorscope video (avectorscope)
+- `delogo --shape circle` — elliptical removal mask via the removelogo path
+
 ## [0.190.0] — 2026-09-22
 
 ### Added
