@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.201.0] — 2026-09-23
+
+### Added
+
+- `emboss` — relief look via `convolution` kernel; `--amount` blends back with the source, `--at`/`--dur` windows.
+- `tilt` — tilt-shift miniature: `crop`+`gblur` top/bottom strips recomposited with `overlay`; `--band` sharp fraction, `--blur` sigma, `--at`/`--dur` windows.
+- `sway` — handheld drift: `pad` margin then per-frame `crop` x/y on slow sine; `--rate`/`--px`, windowed via blend branch.
+- `rack` — rack-focus breathing blur: `gblur` copy sine-mixed with the source; `--rate`/`--blur`.
+
 ## [0.200.0] — 2026-09-23
 
 ### Added

@@ -18713,3 +18713,137 @@ fn solarize_pulse_deflicker() {
     ]);
     assert_eq!(v["status"], "ok", "{v}");
 }
+
+#[test]
+fn emboss_tilt_sway_rack() {
+    if !has_ffmpeg() || !has_filter("convolution") || !has_filter("deflicker") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("s.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:duration=1:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+
+    // emboss full: uniform regions collapse to mid-gray relief
+    let em = dir.path().join("em.mp4");
+    let v = run_json(&[
+        "emboss",
+        src.to_str().unwrap(),
+        "-o",
+        em.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let joined: String = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|a| a.as_str().unwrap_or(""))
+        })
+        .collect();
+    assert!(joined.contains("convolution"), "{joined}");
+
+    // tilt windowed: argv carries overlay enable + gblur
+    let ti = dir.path().join("ti.mp4");
+    let v = run_json(&[
+        "tilt",
+        src.to_str().unwrap(),
+        "-o",
+        ti.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let joined: String = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|a| a.as_str().unwrap_or(""))
+        })
+        .collect();
+    assert!(
+        joined.contains("gblur") && joined.contains("enable="),
+        "{joined}"
+    );
+
+    // sway: argv carries pad+sine crop; runs windowed via blend branch
+    let sw = dir.path().join("sw.mp4");
+    let v = run_json(&[
+        "sway",
+        src.to_str().unwrap(),
+        "-o",
+        sw.to_str().unwrap(),
+        "--at",
+        "0.2",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let joined: String = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|a| a.as_str().unwrap_or(""))
+        })
+        .collect();
+    assert!(
+        joined.contains("blend=all_expr") && joined.contains("sin(2*PI"),
+        "{joined}"
+    );
+
+    // rack: argv carries gblur+sine blend
+    let rk = dir.path().join("rk.mp4");
+    let v = run_json(&[
+        "rack",
+        src.to_str().unwrap(),
+        "-o",
+        rk.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let joined: String = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|a| a.as_str().unwrap_or(""))
+        })
+        .collect();
+    assert!(
+        joined.contains("gblur") && joined.contains("all_expr"),
+        "{joined}"
+    );
+}

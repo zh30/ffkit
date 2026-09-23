@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 174)
+
+- `emboss` (convolution relief), `tilt` (tilt-shift strips), `sway` (handheld sine drift), `rack` (breathing blur).
+
 ## Shipped this run (round 173)
 
 - `solarize` (partial invert), `pulse` (zoompan breathing zoom), `deflicker` (timelapse luma smoothing).

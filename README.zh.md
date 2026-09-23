@@ -164,6 +164,10 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `solarize` | 迷幻局部反色：高于 `--threshold` 亮度的像素反色，`--at` 窗口 |
 | `pulse` | 呼吸变焦：`--rate` 每秒周期、`--depth` 幅度、`--at` 窗口 |
 | `deflicker` | 延时摄影去闪：`--size` 帧时域亮度平滑 |
+| `emboss` | 浮雕效果：卷积核，`--amount` 混合原图，`--at` 窗口 |
+| `tilt` | 移轴微缩：上下条带虚化，`--band` 清晰区比例、`--blur` 强度、`--at` 窗口 |
+| `sway` | 手持漂移：正弦漫游裁切，`--rate`/`--px`，`--at` 窗口 |
+| `rack` | 呼吸变焦虚化：正弦混合模糊副本，`--rate`/`--blur` |
 | `cartoon` | 漫画效果：色块化（`--levels` 2-16）+ 边缘墨线，`--at` 窗口 |
 | `heat` | 热成像伪彩：`--preset` magma|inferno|plasma|viridis|turbo|cividis|range1|range2|shadows|highlights、`--opacity`、`--at` 窗口 |
 | `kaleido` | 左上象限镜像成 2x2 曼陀罗，`--at` 窗口 |
