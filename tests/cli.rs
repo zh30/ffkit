@@ -15,6 +15,32 @@ fn has_ffmpeg() -> bool {
         .unwrap_or(false)
 }
 
+// ahistogram exists on Ubuntu's ffmpeg 4.4.2 but heap-crashes
+// (malloc_consolidate): probe it renders a few frames before asserting.
+fn ahistogram_works() -> bool {
+    Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.2",
+            "-filter_complex",
+            "ahistogram=s=320x120:slide=scroll,format=rgb24",
+            "-frames:v",
+            "3",
+            "-f",
+            "null",
+            "-",
+        ])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
 fn has_filter(name: &str) -> bool {
     Command::new("ffmpeg")
         .args(["-hide_banner", "-filters"])
@@ -26407,7 +26433,7 @@ fn r228_chromakey_shelf_notch_brickwall_boxblur_ahist() {
     }
 
     // audiogram --mode hist — ahistogram amplitude-distribution video
-    if has_filter("ahistogram") {
+    if has_filter("ahistogram") && ahistogram_works() {
         let o = dir.path().join("hist.mp4");
         let j = run_json(&[
             "audiogram",

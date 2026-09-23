@@ -411,7 +411,9 @@ an atempo'd whole-file render would shift the window.
   `slide=scroll` keeps it scrolling; no rate arg needed.
 - **`boxblur` radius is px (0-23), not sigma** — ffkit maps sigma→radius
   /3 clamped; power = kernel passes (2 = near-gaussian).
-- **`ahistogram` emits `yuva444p` (alpha)** — `colorkey` accepts it on
-  ffmpeg 4.4.8 but Ubuntu's 4.4.2 fails format negotiation; always
-  append `format=rgb24` before keying/overlaying its output (same fix
-  as aphasemeter).
+- **`ahistogram` emits `yuva444p` (alpha)** — append `format=rgb24`
+  before `colorkey`/overlaying its output (same fix as aphasemeter).
+- **`ahistogram` heap-crashes on Ubuntu's ffmpeg 4.4.2**
+  (`malloc_consolidate(): invalid chunk size` — distro build bug).
+  Homebrew ffmpeg 4.4.8 is fine; the cli test probes with a real render
+  before asserting (`ahistogram_works`).
