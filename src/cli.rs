@@ -253,6 +253,12 @@ pub enum Cmd {
     Night(NightArgs),
     /// Falling snow overlay
     Snow(SnowArgs),
+    /// Report dominant colors at a timestamp (JSON only)
+    Pick(PickArgs),
+    /// Visual diff between two clips
+    Diff(DiffArgs),
+    /// Keep one color, desaturate the rest
+    Selective(SelectiveArgs),
     /// Comic look: posterized base + ink outlines
     Cartoon(CartoonArgs),
     /// Thermal / false-color luma map
@@ -1214,6 +1220,46 @@ pub struct SnowArgs {
     /// Fall speed px/sec
     #[arg(long, default_value_t = 60)]
     pub speed: u32,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct PickArgs {
+    pub input: PathBuf,
+    /// Timestamp to sample (default: midpoint)
+    #[arg(long)]
+    pub at: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DiffArgs {
+    /// First clip
+    pub a: PathBuf,
+    /// Second clip
+    pub b: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Show second clip beside the diff
+    #[arg(long)]
+    pub side: bool,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct SelectiveArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Color to keep (name or #hex)
+    #[arg(long)]
+    pub color: String,
+    /// Match tolerance 0.01-0.7
+    #[arg(long, default_value_t = 0.4)]
+    pub similarity: f64,
     /// Only apply inside window(s); comma list, 'end' = tail
     #[arg(long)]
     pub at: Option<String>,

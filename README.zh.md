@@ -174,6 +174,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `outline` | 墨线描边：检测边缘压黑，`--strength` 阈值，`--at` 窗口 |
 | `night` | 夜视效果：绿色调+噪点+暗角，`--at` 窗口 |
 | `snow` | 落雪叠加：滚动噪点色键覆盖，`--density`/`--speed`，`--at` 窗口 |
+| `pick` | 主色提取：某时刻均色 + 3x2 分区色板（仅 JSON 报告） |
+| `diff` | 双片视觉差异：放大差值混合，`--side` 并排参考 |
+| `selective` | 单色保留：仅留 `--color` 其余去饱和，`--similarity` 容差，`--at` 窗口 |
 | `cartoon` | 漫画效果：色块化（`--levels` 2-16）+ 边缘墨线，`--at` 窗口 |
 | `heat` | 热成像伪彩：`--preset` magma|inferno|plasma|viridis|turbo|cividis|range1|range2|shadows|highlights、`--opacity`、`--at` 窗口 |
 | `kaleido` | 左上象限镜像成 2x2 曼陀罗，`--at` 窗口 |

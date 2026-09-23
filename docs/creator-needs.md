@@ -241,6 +241,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 
 - `bars` (SMPTE test card + 1kHz tone), `scope` (vectorscope/waveform corner overlay), `desqueeze` (anamorphic restore).
 
+## Shipped this run (round 176)
+
+- `pick` (zone-swatch color report), `diff` (amplified two-clip difference), `selective` (keep-one-color maskedmerge).
+
 ## Shipped this run (round 175)
 
 - `outline` (edge inking), `night` (night-vision green+grain), `snow` (scrolling noise keyed snow overlay).
