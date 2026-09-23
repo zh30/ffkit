@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- `denoise --ref noise.wav` — anlms adaptive noise cancellation with a reference recording (room-tone mic, second recorder): learns ref→mix then subtracts the estimate; ~9dB broadband cut while the voice survives (the naive single-graph reading cancels the voice too — documented in gotchas)
+- `interp --engine framerate` — scene-aware frame blending for high-fps delivery: ~10x faster than minterpolate's motion estimation at the cost of slight ghosting on fast motion
+- `thumb --best` — let ffmpeg pick the most representative frame (`thumbnail` scores each 100-frame batch by average similarity): a clean typical still from shaky footage, no manual timestamp needed
+
+### Added
 - `upscale --engine xbr|two-xsai` — integer-scale pixel-art upscalers (retro game captures, sprite sheets): xbr snaps `--factor` to 2/3/4, super2xsai is fixed 2x
 - `grade --vibrance -1..1` — smarter saturation that boosts muted colors while protecting saturated skin tones (mandelbrot pastel chroma +84% at 0.8 vs flat response on saturated testsrc)
 - `edge --engine sobel|kirsch|roberts|prewitt` — classic convolution edge kernels (bright edges on black, no thresholds — cruder, crunchier look than edgedetect's Canny pass)

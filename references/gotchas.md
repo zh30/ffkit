@@ -242,3 +242,6 @@ an atempo'd whole-file render would shift the window.
 - `lumakey` keys the [threshold±tolerance] band to alpha=0 (not single-side); outside pixels keep partial alpha with softness — not a hard binary mask.
 - `ffmpeg -h filter=NAME` exits 0 even for filters that don't exist ("Unknown filter" on stdout) — verify by actually running the filter. `scharr` is missing on ffmpeg 4.4 (sobel/kirsch/roberts/prewitt exist).
 - `vibrance` barely moves on fully-saturated or gray content — test with muted sources (mandelbrot) where its protect-saturated-skin band actually bites.
+- `anlms` learns input0→input1 (system ID), NOT "voice in 0, noise in 1" — feed the noise reference as input 0, the noisy mix as input 1, then subtract the estimate; feeding voice/ref directly cancels the voice too (measured −37dB on the tone).
+- Multiple `-af` flags don't chain (last wins) — join filters with commas in one `-af`.
+- `showcwt` is missing on ffmpeg 4.4 (audiogram wavelet mode deferred); `scharr` also missing.

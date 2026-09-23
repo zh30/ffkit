@@ -64,6 +64,27 @@ pub fn run(args: ThumbArgs, g: &Globals) -> Result<Contract, Error> {
         let c = engine::write_job("thumb", &[&args.input], &first, vec![argv], g)?;
         return Ok(c.with_extra(json!({ "scenes": true })));
     }
+    if args.best {
+        if args.at.is_some() || args.frame.is_some() || args.count.is_some() || args.scenes {
+            return Err(Error::input(
+                "--best picks its own frame; drop other selectors",
+            ));
+        }
+        // thumbnail scores each batch of 100 frames by average similarity and
+        // emits the most typical one — lands on a clean still even when the
+        // footage shakes or a subject blinks through the intro.
+        let scale = args
+            .width
+            .map(|w| format!(",scale={w}:-2"))
+            .unwrap_or_default();
+        let mut argv = ffmpeg_base(g.progress);
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend(["-vf", &format!("thumbnail{scale}"), "-frames:v", "1"]);
+        argv.push(&args.output);
+        let c = engine::write_job("thumb", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(json!({ "best": true })));
+    }
 
     if let Some(n) = args.count {
         if args.at.is_some() || args.frame.is_some() {

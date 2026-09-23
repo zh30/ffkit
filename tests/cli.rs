@@ -23542,6 +23542,106 @@ fn upscale_xbr_grade_vibrance_edge_kernels() {
 }
 
 #[test]
+fn denoise_ref_interp_framerate_thumb_best() {
+    if !has_ffmpeg() || !has_filter("anlms") || !has_filter("framerate") || !has_filter("thumbnail")
+    {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+
+    // denoise --ref: tone+noise mix, separate noise reference → anlms
+    // estimates and subtracts the noise while the 440Hz tone survives
+    let noisy = dir.path().join("noisy.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("anoisesrc=color=white:amplitude=0.02:seed=7")
+        .args(["-f", "lavfi", "-i"])
+        .arg("sine=frequency=440")
+        .args([
+            "-filter_complex",
+            "[1:a]volume=0.3[v];[0:a][v]amix=inputs=2[a]",
+            "-map",
+            "[a]",
+            "-t",
+            "2",
+        ])
+        .arg(&noisy)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let refr = dir.path().join("ref.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("anoisesrc=color=white:amplitude=0.02:seed=7")
+        .args(["-t", "2"])
+        .arg(&refr)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let clean = dir.path().join("clean.wav");
+    let v = run_json(&[
+        "denoise",
+        noisy.to_str().unwrap(),
+        "-o",
+        clean.to_str().unwrap(),
+        "--ref",
+        refr.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let band = |p: &std::path::Path, filt: &str| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-hide_banner", "-i"])
+            .arg(p)
+            .args(["-af", &format!("{filt},volumedetect"), "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let log = String::from_utf8_lossy(&o.stderr);
+        let m = log.split("mean_volume:").nth(1).unwrap();
+        m.trim_start().split(' ').next().unwrap().parse().unwrap()
+    };
+    let tone_in = band(&noisy, "bandpass=f=440:w=100");
+    let tone_out = band(&clean, "bandpass=f=440:w=100");
+    let hiss_in = band(&noisy, "highpass=f=2000");
+    let hiss_out = band(&clean, "highpass=f=2000");
+    assert!(
+        hiss_out < hiss_in - 3.0,
+        "ref noise removed {hiss_in} -> {hiss_out}"
+    );
+    assert!(
+        tone_out > tone_in - 12.0,
+        "tone survives {tone_in} -> {tone_out}"
+    );
+
+    // interp --engine framerate: blend path reaches 60fps cheaply
+    let src = fixture(dir.path());
+    let fr = dir.path().join("fr.mp4");
+    let v = run_json(&[
+        "interp",
+        src.to_str().unwrap(),
+        "-o",
+        fr.to_str().unwrap(),
+        "--fps",
+        "60",
+        "--engine",
+        "framerate",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["fps"], 60.0, "{v}");
+
+    // thumb --best: representative still lands on a real frame
+    let best = dir.path().join("best.png");
+    let v = run_json(&[
+        "thumb",
+        src.to_str().unwrap(),
+        "-o",
+        best.to_str().unwrap(),
+        "--best",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(best.exists());
+}
+
+#[test]
 fn legalize_levels_aberrate() {
     if !has_ffmpeg() || !has_filter("limiter") || !has_filter("colorlevels") {
         return;

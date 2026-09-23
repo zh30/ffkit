@@ -25,6 +25,37 @@ pub fn run(args: DenoiseArgs, g: &Globals) -> Result<Contract, Error> {
     // stronger on paper but segfaults in this build. afwtdn only exists in
     // ffmpeg ≥5.1 — older builds fall back to afftdn with the noise floor
     // raised (nf=-20, ~12 dB measured).
+    if let Some(r) = &args.ref_ {
+        // anlms learns ref→mix, i.e. estimates the noise component inside the
+        // mix: feed the reference as input 0, the noisy mix as input 1, then
+        // subtract the estimate. (The naive "voice in 0, ref in 1" reading of
+        // the docs destroys the voice — the filter cancels everything it can.)
+        if args.at.is_some() || args.dur.is_some() {
+            return Err(Error::input("denoise --ref can't be windowed (--at/--dur)"));
+        }
+        let rprobe = engine::probe_or_err(r, g)?;
+        if !rprobe.has_audio {
+            return Err(Error::input("denoise --ref: reference has no audio stream"));
+        }
+        let order = (64.0 + 448.0 * args.strength) as u32;
+        let mut argv = ffmpeg_base(g.progress);
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.push("-i");
+        argv.push(r);
+        let fc = format!(
+            "[1:a][0:a]anlms=order={order}:mu=0.3:eps=0.0001[e];[e]volume=-1[neg];[0:a][neg]amix=inputs=2[a]"
+        );
+        argv.extend(["-filter_complex", &fc]);
+        argv.extend(["-map", "[a]"]);
+        if probe.has_video {
+            argv.extend(["-map", "0:v", "-c:v", "copy"]);
+        }
+        argv.extend(["-c:a", "aac", "-b:a", "192k"]);
+        argv.push(&args.output);
+        let c = engine::write_job("denoise", &[&args.input, r], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(json!({ "ref": true, "order": order })));
+    }
     let has_wavel = doctor::list_filters()
         .map(|f| f.contains("afwtdn"))
         .unwrap_or(false);

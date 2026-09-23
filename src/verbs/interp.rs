@@ -18,7 +18,19 @@ pub fn run(args: InterpArgs, g: &crate::cli::Globals) -> Result<Contract, Error>
         crate::cli::InterpMode::Blend => "blend",
         crate::cli::InterpMode::Dup => "dup",
     };
-    let (vf, out_fps) = if let Some(slow) = args.slow {
+    let cheap = matches!(args.engine, Some(crate::cli::InterpEngine::Framerate));
+    let (vf, out_fps) = if cheap {
+        if args.slow.is_some() {
+            return Err(Error::input(
+                "interp --engine framerate can't do --slow (use minterpolate)",
+            ));
+        }
+        let fps = args.fps.unwrap_or(60.0);
+        // framerate blends between existing frames near scene changes —
+        // ~10x faster than minterpolate's motion estimation, slight ghosting
+        // on fast motion is the trade-off.
+        (format!("framerate=fps={fps}"), fps)
+    } else if let Some(slow) = args.slow {
         let slow = slow.clamp(0.02, 1.0);
         let src_fps = probe
             .fps

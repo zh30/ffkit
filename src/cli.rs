@@ -809,6 +809,11 @@ pub struct DenoiseArgs {
     /// (afftdn spectral). Auto picks the strongest available.
     #[arg(long, value_enum, default_value_t = DenoiseEngine::Auto)]
     pub engine: DenoiseEngine,
+    /// Noise-reference recording (room tone mic / second recorder): anlms
+    /// adaptively cancels what matches the reference — real denoise for
+    /// lavalier+room-mic rigs. --strength tunes the filter order.
+    #[arg(long)]
+    pub ref_: Option<PathBuf>,
     /// Denoise only inside this window — comma list for several (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
@@ -2304,6 +2309,10 @@ pub struct ThumbArgs {
     /// Grab a still at every scene change (thumbnail candidates)
     #[arg(long)]
     pub scenes: bool,
+    /// Let ffmpeg pick the most representative frame (thumbnail filter:
+    /// averages each batch — a clean, typical still from shaky footage)
+    #[arg(long)]
+    pub best: bool,
     /// Scale the still to this width (height follows aspect)
     #[arg(long)]
     pub width: Option<u32>,
@@ -3521,6 +3530,16 @@ pub struct InterpArgs {
     /// Interpolation engine
     #[arg(long, value_enum, default_value_t = InterpMode::Mci)]
     pub mode: InterpMode,
+    /// Interp filter: minterpolate (default, motion-compensated, slow+smooth)
+    /// | framerate (scene-aware frame blending — ~10x faster, slight ghost)
+    #[arg(long, value_enum)]
+    pub engine: Option<InterpEngine>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum InterpEngine {
+    Minterpolate,
+    Framerate,
 }
 
 #[derive(clap::Args, Debug)]
