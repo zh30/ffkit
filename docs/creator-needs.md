@@ -666,6 +666,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `glitch --strength` — datamosh-style look (`format=rgba,rgbashift=±N,noise=alls=N*4:allf=t+u`).
 - `fade --curve` — afade curve shape for the audio side (tri/qsin/esin/hsin/log/qua/cub/exp); video stays linear.
 
+## Shipped this run (round 164)
+
+- `caption --karaoke --highlight RRGGBB` — sung words painted in the highlight color over the dim full cue (two-layer render: base cue + prefix overlay at tight-crop origin).
+- `audiogram --mode scope` — lissajous vectorscope via `avectorscope=r={fps}:draw=line:zoom=2:rc/gc/bc` (verified on ffmpeg 4.4).
+- `delogo --shape circle` — elliptical logo mask painted into the `--soft` removelogo PNG (circle forces the mask path even without --soft).
+
 ## Shipped this run (round 163)
 
 - `censor --shape circle` — elliptical alpha mask inside each `--region` via `format=rgba,geq=…:a='if(lte(hypot(X-W/2,Y-H/2),min(W,H)/2),255,0)'` (circular face censor; corners of the box stay untouched). Verified: center diff large, corner diff ≤ codec noise.

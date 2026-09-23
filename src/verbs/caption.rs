@@ -110,7 +110,7 @@ fn burn_overlay(
 
     // karaoke: each cue becomes a word-by-word reveal — one PNG per step,
     // the window split evenly across the cue's time.
-    let mut jobs: Vec<(f64, f64, String)> = Vec::new();
+    let mut jobs: Vec<(f64, f64, String, Option<String>)> = Vec::new();
     for cue in &cues {
         if args.karaoke {
             let words: Vec<&str> = cue.text.split_whitespace().collect();
@@ -122,12 +122,17 @@ fn burn_overlay(
                     } else {
                         cue.start + (k + 1) as f64 * wd
                     };
-                    jobs.push((cue.start + k as f64 * wd, end, words[..=k].join(" ")));
+                    jobs.push((
+                        cue.start + k as f64 * wd,
+                        end,
+                        words[..=k].join(" "),
+                        Some(cue.text.clone()),
+                    ));
                 }
                 continue;
             }
         }
-        jobs.push((cue.start, cue.end, cue.text.clone()));
+        jobs.push((cue.start, cue.end, cue.text.clone(), None));
     }
     if jobs.len() > 200 {
         return Err(Error::input(
@@ -141,7 +146,16 @@ fn burn_overlay(
         Some(c) => Some((caption_hex(c)?, 3u32)),
         None => None,
     };
-    for (i, (_, _, text)) in jobs.iter().enumerate() {
+    let hl_fg = match &args.highlight {
+        Some(c) => {
+            if !args.karaoke {
+                return Err(Error::input("--highlight needs --karaoke"));
+            }
+            Some(caption_hex(c)?)
+        }
+        None => None,
+    };
+    for (i, (_, _, text, full)) in jobs.iter().enumerate() {
         let owned;
         let text = match args.wrap {
             Some(n) if n >= 4 => {
@@ -160,32 +174,44 @@ fn burn_overlay(
             Some(_) => return Err(Error::input("--wrap must be ≥ 4 columns")),
             None => text,
         };
-        let img = match (outline, args.align) {
-            (None, Some(al)) => crate::raster::render_caption_aligned(
-                text,
-                &font_bytes,
-                vw,
-                cap_fg,
-                args.size as f32,
-                al,
-            )?,
-            _ => match outline {
-                Some(oc) => crate::raster::render_caption_outlined(
-                    text,
+        let render = |t: &str, fg: [u8; 3]| -> Result<image::RgbaImage, Error> {
+            match (outline, args.align) {
+                (None, Some(al)) => crate::raster::render_caption_aligned(
+                    t,
                     &font_bytes,
                     vw,
-                    cap_fg,
+                    fg,
                     args.size as f32,
-                    oc,
-                )?,
-                None => crate::raster::render_caption_styled(
-                    text,
-                    &font_bytes,
-                    vw,
-                    cap_fg,
-                    args.size as f32,
-                )?,
-            },
+                    al,
+                ),
+                _ => match outline {
+                    Some(oc) => crate::raster::render_caption_outlined(
+                        t,
+                        &font_bytes,
+                        vw,
+                        fg,
+                        args.size as f32,
+                        oc,
+                    ),
+                    None => crate::raster::render_caption_styled(
+                        t,
+                        &font_bytes,
+                        vw,
+                        fg,
+                        args.size as f32,
+                    ),
+                },
+            }
+        };
+        let img = match (full, hl_fg) {
+            (Some(full), Some(hl)) => {
+                // sung prefix painted in highlight over the dim full cue
+                let mut base = render(full, cap_fg)?;
+                let top = render(text, hl)?;
+                image::imageops::overlay(&mut base, &top, 0, 0);
+                base
+            }
+            _ => render(text, cap_fg)?,
         };
         let mut img = img;
         if let Some(bc) = &args.box_color {
@@ -218,7 +244,7 @@ fn burn_overlay(
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    for (i, (_, end, _)) in jobs.iter().enumerate() {
+    for (i, (_, end, _, _)) in jobs.iter().enumerate() {
         if args.fade > 0.0 {
             argv.extend([
                 "-loop",
@@ -246,7 +272,7 @@ fn burn_overlay(
     };
     let mut fc = String::new();
     let mut last = "0:v".to_string();
-    for (i, (start, end, _)) in jobs.iter().enumerate() {
+    for (i, (start, end, _, _)) in jobs.iter().enumerate() {
         let ov_idx = i + 1;
         let out_lab = if i + 1 == jobs.len() {
             "vout".to_string()
