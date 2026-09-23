@@ -5,6 +5,14 @@ use crate::contract::{Contract, Status};
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
+fn parse_regions(s: &str) -> Result<Vec<(u32, u32, u32, u32)>, Error> {
+    s.split(',')
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .map(parse_region)
+        .collect()
+}
+
 fn parse_region(s: &str) -> Result<(u32, u32, u32, u32), Error> {
     let parts: Vec<&str> = s.split(':').collect();
     if parts.len() != 4 {
@@ -26,18 +34,23 @@ fn parse_region(s: &str) -> Result<(u32, u32, u32, u32), Error> {
 }
 
 pub fn run(args: CensorArgs, g: &Globals) -> Result<Contract, Error> {
-    let (x, y, w, h) = parse_region(&args.region)?;
+    let regions = parse_regions(&args.region)?;
+    if regions.is_empty() {
+        return Err(Error::input("--region must look like x:y:w:h"));
+    }
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "censor")?;
     let (iw, ih) = (probe.width.unwrap_or(0), probe.height.unwrap_or(0));
-    if iw > 0 && (x + w > iw || y + h > ih) {
-        return Err(Error::input(format!(
-            "--region {x}:{y}:{w}:{h} falls outside the {iw}x{ih} frame"
-        )));
+    for (x, y, w, h) in &regions {
+        if iw > 0 && (x + w > iw || y + h > ih) {
+            return Err(Error::input(format!(
+                "--region {x}:{y}:{w}:{h} falls outside the {iw}x{ih} frame"
+            )));
+        }
     }
 
     // pixelize is ffmpeg 5+; downscale/upscale-nearest mosaics everywhere.
-    let effect = match args.mode {
+    let effect_of = |w: u32, h: u32| match args.mode {
         CensorMode::Pixel => format!(
             "scale=w={bw}:h={bh}:flags=neighbor,scale={w}:{h}:flags=neighbor",
             bw = (w as f64 / args.strength.max(2.0)).max(2.0) as u32,
@@ -82,11 +95,24 @@ pub fn run(args: CensorArgs, g: &Globals) -> Result<Contract, Error> {
         (None, Some(_)) => return Err(Error::input("--dur needs --at")),
         (None, None) => String::new(),
     };
-    let fc = format!(
-        "[0:v]split[base][top];\
-         [top]crop={w}:{h}:{x}:{y},{effect}[cens];\
-         [base][cens]overlay={x}:{y}:shortest=1{enable}[vout]"
-    );
+    // One crop+effect+overlay arm per region, chained on the main video.
+    let mut fc = String::new();
+    let mut prev = "0:v".to_string();
+    for (i, (x, y, w, h)) in regions.iter().enumerate() {
+        let last = i + 1 == regions.len();
+        let out = if last {
+            "vout".to_string()
+        } else {
+            format!("v{i}")
+        };
+        fc.push_str(&format!(
+            "[{prev}]split[b{i}][t{i}];             [t{i}]crop={w}:{h}:{x}:{y},{eff}[c{i}];             [b{i}][c{i}]overlay={x}:{y}:shortest=1{en}[{out}];",
+            eff = effect_of(*w, *h),
+            en = enable,
+        ));
+        prev = out;
+    }
+    fc.pop();
 
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
@@ -102,7 +128,7 @@ pub fn run(args: CensorArgs, g: &Globals) -> Result<Contract, Error> {
 
     let c = engine::write_job("censor", &[&args.input], &args.output, vec![argv], g)?;
     let mut extra = json!({
-        "region": args.region,
+        "regions": regions.iter().map(|(x,y,w,h)| format!("{x}:{y}:{w}:{h}")).collect::<Vec<_>>(),
         "mode": format!("{:?}", args.mode).to_lowercase(),
     });
     if let Some(at) = &args.at {

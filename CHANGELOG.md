@@ -7,6 +7,14 @@
 ### Added
 - `delogo --regions x:y:w:h,...` — remove several logos/watermarks in one pass; `--soft` masks every box. Single `--x/--y/--w/--h` still works.
 
+
+## [0.181.0] — 2026-09-22
+
+### Added
+- `censor --region` comma list — censor several regions in one pass (per-region crop+effect+overlay arms).
+- `subs --burn-si N` — burn the input's own subtitle stream N (multi-track inputs).
+
+
 ## [0.180.0] — 2026-09-22
 
 ### Added

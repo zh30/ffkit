@@ -962,6 +962,9 @@ pub struct SubsArgs {
     /// Burn this subtitle file into the video instead of extracting (--file subs.srt)
     #[arg(long)]
     pub burn: Option<PathBuf>,
+    /// With --burn omitted: burn the input's own subtitle stream N (multi-track files)
+    #[arg(long)]
+    pub burn_si: Option<u32>,
     /// With --burn: opaque plate behind each line (semi-black box style)
     #[arg(long = "box")]
     pub burn_box: bool,
@@ -2804,7 +2807,7 @@ pub struct CensorArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Region to censor, x:y:w:h in pixels
+    /// Region to censor, x:y:w:h in pixels — comma list covers several spots at once
     #[arg(long)]
     pub region: String,
     /// Mosaic blocks or gaussian blur
