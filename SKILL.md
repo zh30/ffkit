@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.225.0
+version: 0.226.0
 
 
 
@@ -73,6 +73,8 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | hiss between sentences | `gate` (`--threshold`, `--preset`, `--at/--dur` — `agate` closes on quiet parts) |
 | pad in room tone / breath | `silence` (`--at`, comma list pads several points, `--dur` inserts quiet; `--detect` reports ranges; video holds: `freeze`) |
 | one-click look | `grade --preset cinematic|vivid|vintage|soft|sepia|teal|noir|bleach|neon` (stacks under the sliders) |
+| warm faces only | `grade --skin -1..1` (selectivecolor reds channel — warms skin, leaves the rest) |
+| HALD image LUT | `grade --lut look.png` (PNG/JPG → haldclut; Darktable/RawTherapee exports) |
 | karaoke / keep only the vocal | `vocal` (`--at`/`--dur` window, `--mode karaoke` drops the center, `isolate` keeps it — stereo only; `--amount` partial) |
 | container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart); `--audio` rips the track, `--video` video-only, `--aspect 16:9` fixes display AR |
 | top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline`, `--at/--dur` window — `--at end` covers the tail), `--position` center/bottom, `--wrap` + `--align` multiline, `--fade` edge fades (needs --at/--dur), `--opacity` ghost text |
@@ -164,7 +166,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | drop duplicate frames | `dedup` (`--frac`, VFR out) |
 | audiogram CQT music spectrum | `audiogram --mode cqt` |
 | audiogram scrolling spectrogram | `audiogram --mode spectro` |
-| find black/frozen stretches (QC) | `scan` (JSON extras; no -o) |
+| find black/frozen stretches (QC) | `scan` (JSON extras; no -o) — also `interlaced`/frames_* from idet |
 | beauty/skin smoothing | `smooth` (`--engine` smartblur/bilateral — bilateral keeps edges sharper; `--strength`, `--at`/`--dur` window) |
 | reframe 360/equirect footage | `v360` (`--yaw`/`--pitch`/`--fov`, `--in` projection, `--size`) |
 | noisy clip, pick denoiser | `vdenoise --engine nlmeans\|hqdn3d\|atadenoise\|vaguedenoise\|bm3d` (bm3d/dctdnoiz/owdenoise strongest, no --at; `median` salt&pepper, `chroma` color speckle), `denoise --engine auto\|wavel\|fftdn` |
@@ -234,7 +236,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | animated gradient card | `solid` (`--gradient ff0000:0000ff`) |
 | reframe / crop out an edge | `crop` (`--region x:y:w:h` or `--aspect 1:1`/`9:16` centered) |
 | motion / loop | `speed`, `reverse`, `loop`, `stabilize` (`--edge` fill), `fade` |
-| picture | `grade` (+ `--lut` .cube), `bw`, `vignette`, `sharpen`, `blur` |
+| picture | `grade` (+ `--lut` .cube/.png), `bw`, `vignette`, `sharpen`, `blur` |
 | logo / PiP | `overlay` |
 | green screen | `key` (`--bg`, `--color`/`--similarity`/`--blend`, `--despill` for fringe, `--mode luma` keys a brightness band (`--threshold` pivot) instead of a color, `--at`/`--dur` window — comma list ok) |
 | reaction / multi-cam grid | `grid` (`--layout 2x2`, `--size`, `--gap`/`--bg` gutters, `--time` stamps every tile) |

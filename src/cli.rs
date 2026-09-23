@@ -2750,6 +2750,10 @@ pub struct GradeArgs {
     /// Rotate the hue by N degrees (-180..180): white-balance rescue or color FX
     #[arg(long, default_value_t = 0.0, allow_hyphen_values = true)]
     pub hue: f64,
+    /// Skin warmth -1..1: selectivecolor on the reds channel only — warms
+    /// faces without touching the rest of the grade
+    #[arg(long, default_value_t = 0.0, allow_hyphen_values = true)]
+    pub skin: f64,
     /// Grade only from this time — dream sequences, flashbacks; comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,

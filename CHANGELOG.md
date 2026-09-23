@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+- `grade --lut look.png` — HALD image LUTs via `haldclut` (PNG/JPG; Darktable/RawTherapee exports); `.cube` keeps `lut3d`. `lut_engine` extra reports which path ran
+- `grade --skin -1..1` — selectivecolor on the reds channel only: warms faces without touching the rest of the grade
+- `scan` — interlace QC: `interlaced` verdict + `frames_tff`/`frames_bff`/`frames_progressive`/`frames_undetermined` (idet, same pass)
+
 ## [0.225.0] - 2026-09-23
 
 ### Added

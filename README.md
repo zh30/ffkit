@@ -153,7 +153,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section, `end` ok, `--fade` seamless joints) |
 | `stabilize` | Handheld deshake — `--rx`/`--ry` radius, `--edge` fill (blank|original|clamped|mirror) |
 | `reverse` | Play picture and sound backwards |
-| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops) | Presets `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` stack under the sliders; `--lut look.cube` applies a 3D LUT | `--at`/`--dur`
+| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops), `--skin` warmth | Presets `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` stack under the sliders; `--lut look.cube` applies a 3D LUT, `--lut look.png` a HALD image LUT (haldclut — Darktable/RawTherapee exports); `--skin -1..1` warms faces only (selectivecolor reds) | `--at`/`--dur`
 | `zoom` | Punch-in (`--factor 1.25`, `--center X,Y` target; `--at`/`--dur` window — comma list for several, `end` ok) | `--out`
 | `sharpen` | Unsharp mask, whole clip or a window (`--amount`, `--at`, `--dur`) |
 | `vignette` | Corner darkening, whole clip or a window (`--angle`, `--at`, `--dur`) |
@@ -194,7 +194,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `dedup` | Drops near-duplicate frames via `mpdecimate` — shrinks static stretches, `--frac` sensitivity |
 | `audiogram --mode cqt` | Constant-Q music spectrum (`showcqt`) — piano-roll spectrum look for music clips |
 | `audiogram --mode spectro` | Scrolling spectrogram (`showspectrum`) — colour time/frequency roll |
-| `scan` | QC report: black stretches, frozen frames, black-frame hits + strobe `flash_frames`/`flash_max_badness` (photosensitive-epilepsy; JSON extras; writes no media) |
+| `scan` | QC report: black stretches, frozen frames, black-frame hits + strobe `flash_frames`/`flash_max_badness` + interlace verdict `interlaced`/`frames_tff`/`frames_bff`/`frames_progressive` (idet; JSON extras; writes no media) |
 | `smooth` | Edge-preserving beauty/skin blur (`--engine` smartblur/bilateral; `--strength`, `--at`/`--dur`) |
 | `upscale` | Up-res footage: `zscale` spline36 (better than lanczos) + light unsharp, `--factor` 1.05-4 (2 doubles dims), `--strength` edge acuity |
 | `v360` | Reframe 360 footage to flat (`--in` equirect/fisheye/dfisheye/cubemap/EAC/barrel/half-equirect, `--yaw`/`--pitch`/`--fov`, `--size`) |

@@ -22318,3 +22318,129 @@ fn wb_median_chroma_scan_flash() {
         "smooth clip should not flag: {v}"
     );
 }
+
+#[test]
+fn grade_lut_hald_skin_scan_idet() {
+    if !has_ffmpeg() || !has_filter("haldclut") || !has_filter("selectivecolor") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // skin-tone dominant clip (warm should push R up, B down)
+    let skin = dir.path().join("skin.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=0xC08060:size=128x128:rate=25",
+            "-t",
+            "1",
+            "-y",
+        ])
+        .arg(&skin)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    // identity HALD PNG
+    let hald = dir.path().join("hald.png");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "haldclutsrc=8",
+            "-frames:v",
+            "1",
+            "-y",
+        ])
+        .arg(&hald)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    // interlaced fixture
+    let inter = dir.path().join("inter.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=rate=25,tinterlace=4",
+            "-t",
+            "1",
+            "-y",
+        ])
+        .arg(&inter)
+        .status()
+        .unwrap();
+    assert!(st.success());
+
+    // --skin warm: R up, B down
+    let warm = dir.path().join("warm.mp4");
+    run_json(&[
+        "grade",
+        skin.to_str().unwrap(),
+        "-o",
+        warm.to_str().unwrap(),
+        "--skin",
+        "0.8",
+    ]);
+    let px = |f: &Path| -> (i64, i64, i64) {
+        let out = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-i"])
+            .arg(f)
+            .args([
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-y",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        (
+            out.stdout[0] as i64,
+            out.stdout[1] as i64,
+            out.stdout[2] as i64,
+        )
+    };
+    let (r0, _g0, b0) = px(&skin);
+    let (r1, _g1, b1) = px(&warm);
+    assert!(
+        r1 > r0 && b1 < b0,
+        "skin warm should push R+ B-: {r0},{b0} -> {r1},{b1}"
+    );
+
+    // --lut png → haldclut engine, output exists
+    let luted = dir.path().join("luted.mp4");
+    let v = run_json(&[
+        "grade",
+        skin.to_str().unwrap(),
+        "-o",
+        luted.to_str().unwrap(),
+        "--lut",
+        hald.to_str().unwrap(),
+    ]);
+    assert_eq!(v["extra"]["lut_engine"], "haldclut");
+    let (lr, lg, lb) = px(&luted);
+    // identity HALD → output within encode tolerance of input
+    assert!((lr - r0).abs() < 20 && (lg - _g0).abs() < 20 && (lb - b0).abs() < 20);
+
+    // scan idet: interlaced fixture flags
+    let v = run_json(&["scan", inter.to_str().unwrap()]);
+    assert_eq!(v["extra"]["interlaced"], true);
+    assert!(v["extra"]["frames_tff"].as_u64().unwrap() > 0);
+    let v = run_json(&["scan", skin.to_str().unwrap()]);
+    assert_eq!(v["extra"]["interlaced"], false);
+}

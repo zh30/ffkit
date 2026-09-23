@@ -83,10 +83,30 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
     if matches!(args.preset, Some(crate::cli::GradePreset::Noir)) {
         vf.push_str(",hue=s=0");
     }
+    let hald_lut = args
+        .lut
+        .as_ref()
+        .filter(|p| {
+            matches!(
+                p.extension().and_then(|e| e.to_str()),
+                Some("png") | Some("jpg") | Some("jpeg") | Some("webp")
+            )
+        })
+        .cloned();
     if let Some(lut) = &args.lut {
-        // Single quotes group literal path text; escape internal quotes.
-        let esc = lut.display().to_string().replace('\'', "\\'");
-        vf.push_str(&format!(",lut3d=file='{esc}'"));
+        if hald_lut.is_none() {
+            // Single quotes group literal path text; escape internal quotes.
+            let esc = lut.display().to_string().replace('\'', "\\'");
+            vf.push_str(&format!(",lut3d=file='{esc}'"));
+        }
+    }
+    if args.skin != 0.0 {
+        let w = args.skin.clamp(-1.0, 1.0);
+        vf.push_str(&format!(
+            ",selectivecolor=reds='0 {:.3} {:.3} 0'",
+            0.15 * w,
+            0.25 * w
+        ));
     }
     if args.warm != 0.0 {
         let k = 6500.0 - args.warm * 3500.0;
@@ -95,21 +115,39 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
     if args.grain > 0.0 {
         vf.push_str(&format!(",noise=alls={}:allf=t+u", args.grain.min(30.0)));
     }
-    if let Some(s) = &args.at {
-        let win = crate::time::enable_expr(s, args.dur, probe.duration)?;
+    let win_expr = match &args.at {
+        Some(s) => Some(crate::time::enable_expr(s, args.dur, probe.duration)?),
+        None => {
+            if args.dur.is_some() {
+                return Err(Error::input("--dur needs --at"));
+            }
+            None
+        }
+    };
+    if let Some(win) = &win_expr {
         vf = vf
             .split(',')
             .map(|seg| format!("{seg}:enable='{win}'"))
             .collect::<Vec<_>>()
             .join(",");
-    } else if args.dur.is_some() {
-        return Err(Error::input("--dur needs --at"));
     }
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
+    if let Some(lut) = &hald_lut {
+        argv.push("-i");
+        argv.push(lut);
+        let hald = match &win_expr {
+            Some(w) => format!("haldclut:enable='{w}'"),
+            None => "haldclut".to_string(),
+        };
+        let fc = format!("[0:v]{vf}[g];[g][1:v]{hald}[out]");
+        argv.extend(["-filter_complex", &fc, "-map", "[out]", "-map", "0:a?"]);
+    } else {
+        argv.extend(["-vf", &vf, "-map", "0:v", "-map", "0:a?"]);
+    }
     argv.extend([
-        "-vf", &vf, "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
     ]);
     if probe.has_audio {
         argv.extend(["-c:a", "copy"]);
@@ -126,6 +164,8 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         "saturation": args.saturation,
         "brightness": args.brightness,
         "lut": args.lut,
+        "lut_engine": if hald_lut.is_some() { "haldclut" } else if args.lut.is_some() { "lut3d" } else { "none" },
+        "skin": args.skin,
         "grain": args.grain,
         "warm": args.warm,
         "hue": args.hue,
