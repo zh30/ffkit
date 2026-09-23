@@ -136,6 +136,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | test card | `bars` (`--size`/`--dur`/`--hd`/`--tone` 1kHz) |
 | QC scope overlay | `scope` (`--mode vector|wave`, `--position` corner, `--at` window) |
 | anamorphic restore | `desqueeze` (`--factor` lens ratio, `--axis`) |
+| comic look | `cartoon` (`--levels` posterize, `--at` window) |
+| thermal luma map | `heat` (`--preset` pseudocolor, `--at` window) |
+| mandala mirror | `kaleido` (`--at` window) |
 | mirror symmetry (dance) | `mirror` (`--axis x` left→right / `--axis y` top→bottom, `--at`/`--dur` window) |
 | retro pixelation | `pix` (`--strength` 2-64 block divisor, `--at`/`--dur` window) |
 | unmirror selfie / flip art | `flip` (`--axis x` horizontal / `--axis y`, `--at`/`--dur` window) |

@@ -233,6 +233,12 @@ pub enum Cmd {
     Scope(ScopeArgs),
     /// Anamorphic restore: stretch one axis by the lens factor
     Desqueeze(DesqueezeArgs),
+    /// Comic look: posterized base + ink outlines
+    Cartoon(CartoonArgs),
+    /// Thermal / false-color luma map
+    Heat(HeatArgs),
+    /// 2x2 mirrored mandala from the top-left quadrant
+    Kaleido(KaleidoArgs),
     /// Music-video flash cuts: periodic opaque color flashes
     Strobe(StrobeArgs),
     /// Neon edge-detect outline look (wires | colormix)
@@ -1031,6 +1037,67 @@ pub struct DesqueezeArgs {
     /// Stretch axis: y (vertical, classic anamorphic) | x
     #[arg(long, default_value = "y")]
     pub axis: String,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct CartoonArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Posterize levels 2-16 (fewer = chunkier color blocks)
+    #[arg(long, default_value_t = 6)]
+    pub levels: u32,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum HeatPreset {
+    Magma,
+    Inferno,
+    Plasma,
+    Viridis,
+    Turbo,
+    Cividis,
+    Range1,
+    Range2,
+    Shadows,
+    Highlights,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct HeatArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    #[arg(long, value_enum, default_value_t = HeatPreset::Inferno)]
+    pub preset: HeatPreset,
+    /// Blend strength 0-1
+    #[arg(long, default_value_t = 1.0)]
+    pub opacity: f64,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct KaleidoArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]

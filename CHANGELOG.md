@@ -10,6 +10,14 @@
 - `scope` — QC scope overlay (`--mode vector|wave`, corner `--position`, `--size` fraction), `--at`/`--dur` windows via overlay enable.
 - `desqueeze` — anamorphic restore: `--factor` lens ratio stretches one axis (`--axis y|x`).
 
+## [0.198.0] — 2026-09-23
+
+### Added
+
+- `cartoon` — comic look: posterized base (`elbg --levels`) with dark ink outlines (`edgedetect=mode=wires` + `blend=multiply`), `--at`/`--dur` windows.
+- `heat` — false-color thermal luma map (`pseudocolor --preset`, `--opacity`), `--at`/`--dur` windows.
+- `kaleido` — 2x2 mirrored mandala from the top-left quadrant (crop + hflip/vflip + hstack/vstack), `--at`/`--dur` windows.
+
 ## [0.197.0] — 2026-09-23
 
 ### Added

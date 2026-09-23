@@ -164,6 +164,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `bars` | SMPTE test card: `--size`/`--dur`/`--hd`/`--tone` (1kHz bed), for QC slates and leader |
 | `scope` | QC scope overlay: `--mode vector|wave` in a corner (`--position`, `--size` fraction), `--at` windows |
 | `desqueeze` | Anamorphic restore: `--factor` lens ratio (1.33/1.5/1.8/2.0), `--axis y|x` |
+| `cartoon` | Comic look: posterized base (`--levels` 2-16) + ink outlines from edge-detect, `--at` windows |
+| `heat` | Thermal / false-color luma map: `--preset` magma|inferno|plasma|viridis|turbo|cividis|range1|range2|shadows|highlights, `--opacity`, `--at` windows |
+| `kaleido` | 2x2 mirrored mandala from the top-left quadrant, `--at` windows |
 | `strobe` | Music-video flash cuts: `--rate` flashes/sec, `--duty` on-fraction, `--color`, `--at` windows |
 | `edge` | Neon edge-detect outlines: `--mode wires|colormix`, `--low`/`--high` thresholds, `--at` windows |
 | `lens` | Lens distortion: `--k1`/`--k2` — negative values give a fisheye look, positive defish action cams; `--at` windows |
