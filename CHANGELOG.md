@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.170.0] — 2026-09-22
+
+### Added
+- `grid --time` — stamps the same mm:ss readout on every tile's bottom-right (one shared digit sprite; no libass/drawtext needed) for multi-cam/review grids.
+
 ## [0.169.0] — 2026-09-22
 
 ### Added
