@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.149.0] — 2026-09-22
+
+### Added
+- `split --fade N` — fade video+audio around every cut boundary (each part reads as its own clip).
+- `spectrogram --separate` — one band per channel (spot a hum living in only one side).
+
 ## [0.148.0] — 2026-09-22
 
 ### Added

@@ -39,6 +39,7 @@ pub fn run(args: SpectrogramArgs, g: &Globals) -> Result<Contract, Error> {
         }
         None => String::new(),
     };
+    let sep = if args.separate { ":mode=separate" } else { "" };
     let (w, h) = args
         .size
         .split_once('x')
@@ -76,7 +77,7 @@ pub fn run(args: SpectrogramArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.input);
     argv.extend([
         "-filter_complex",
-        &format!("[0:a]{slice}showspectrumpic=s={w}x{h}:legend={lg}{color}{sc}[v]"),
+        &format!("[0:a]{slice}showspectrumpic=s={w}x{h}:legend={lg}{color}{sc}{sep}[v]"),
         "-map",
         "[v]",
         "-frames:v",

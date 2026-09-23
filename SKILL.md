@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.148.0
+version: 0.149.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -36,7 +36,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 |-----------|-------|
 | inspect | `doctor`, `probe`, `look` (`--tiles` / `--at`) |
 
-| trim / join | `cut`, `concat` (`--transition` any xfade, N clips, `--level -14` loudnorms each), `split` (`--every` story chunks, `--at` chapter points, `--chapters` embedded marks), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps, `--by-scene` split at cuts) |
+| trim / join | `cut`, `concat` (`--transition` any xfade, N clips, `--level -14` loudnorms each), `split` (`--every` story chunks, `--at` chapter points, `--chapters` embedded marks, `--fade N` soft part edges), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps, `--by-scene` split at cuts) |
 | platform loudness | `loudnorm` (`--target`, `-I/--tp/--lra`; `--measure` report-only, `--dynamic` per-frame) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur --strength`), `zoom`, `--position` top/bottom/corners |
 
@@ -56,7 +56,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | speech / music | `jumpcut`, `denoise`, `music`, `replace` (`--loop` short beds, `--audio` swap the track, `--at`/`--dur` windowed swap, `--mix` keep the original under it), `loudnorm` (`--target` platform preset), `volume` |
 | grainy low-light footage | `vdenoise` (`--strength`, nlmeans — slow; `--at`/`--dur` windows it) |
 | waveform PNG of audio | `waveform` (`--size`, `--color`, `--scale`, `--bg` card, `--at/--dur`) — podcast art, thumbnails |
-| audio spectrogram PNG | `spectrogram` (`--size`, `--color`, `--at/--dur`) — inspect hum/noise before cleanup |
+| audio spectrogram PNG | `spectrogram` (`--size`, `--color`, `--separate` per-channel, `--at/--dur`) — inspect hum/noise before cleanup |
 | watch loudness while it plays | `meter` (`--size`, `--meter 9|18`, `--at/--dur` — EBU R128 video; podcast/voice QC) |
 | mains hum / electrical buzz | `dehum` (`--at`/`--dur` window, `--mains 50|60` or `--freq HZ` custom hum, `--harmonics`) — notches the fundamental + harmonics |
 | faster/slower podcast | `tempo` (`--factor 1.5` — pitch held; video inputs: use `speed`), `--at/--dur` window |

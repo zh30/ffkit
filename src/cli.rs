@@ -343,6 +343,9 @@ pub struct SplitArgs {
     /// Cut at the input's embedded chapter marks (lectures, courses, books)
     #[arg(long)]
     pub chapters: bool,
+    /// Fade audio+video N seconds around every boundary (soft story chunks)
+    #[arg(long)]
+    pub fade: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2443,6 +2446,9 @@ pub struct SpectrogramArgs {
     /// Drop the axis/scale legend strip
     #[arg(long)]
     pub no_legend: bool,
+    /// One band per channel instead of a combined picture
+    #[arg(long)]
+    pub separate: bool,
     /// Render only this slice (h:mm:ss or seconds)
     #[arg(long)]
     pub at: Option<String>,

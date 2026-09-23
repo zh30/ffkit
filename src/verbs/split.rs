@@ -208,6 +208,47 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
+    if let Some(f) = args.fade {
+        // soft edges: fade out before + in after every boundary, plus the
+        // head/tail — each part then reads as its own little clip
+        let mut bounds = vec![0.0];
+        bounds.extend_from_slice(&cuts);
+        bounds.push(probe.duration);
+        let fmax = bounds
+            .windows(2)
+            .map(|w| (w[1] - w[0]) / 2.0)
+            .fold(f64::INFINITY, f64::min);
+        let f = f.min(fmax - 0.01).max(0.0);
+        if f <= 0.0 {
+            return Err(Error::input("--fade is longer than the shortest part"));
+        }
+        let mut vf = format!("fade=t=in:d={f:.3}");
+        let mut af = format!("afade=t=in:d={f:.3}");
+        for c in &cuts {
+            vf.push_str(&format!(
+                ",fade=t=out:st={:.3}:d={f:.3},fade=t=in:st={c:.3}:d={f:.3}",
+                c - f
+            ));
+            af.push_str(&format!(
+                ",afade=t=out:st={:.3}:d={f:.3},afade=t=in:st={c:.3}:d={f:.3}",
+                c - f
+            ));
+        }
+        vf.push_str(&format!(
+            ",fade=t=out:st={:.3}:d={f:.3}",
+            probe.duration - f
+        ));
+        af.push_str(&format!(
+            ",afade=t=out:st={:.3}:d={f:.3}",
+            probe.duration - f
+        ));
+        if probe.has_video {
+            argv.extend(["-vf", &vf]);
+        }
+        if probe.has_audio {
+            argv.extend(["-af", &af]);
+        }
+    }
     if probe.has_video {
         argv.extend([
             "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
