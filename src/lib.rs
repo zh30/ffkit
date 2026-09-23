@@ -141,6 +141,8 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Impact(args) => verbs::impact::run(args, &g),
         Cmd::Wave(args) => verbs::wave::run(args, &g),
         Cmd::Spin(args) => verbs::spin::run(args, &g),
+        Cmd::Iris(args) => verbs::iris::run(args, &g),
+        Cmd::Burst(args) => verbs::burst::run(args, &g),
         Cmd::Pick(args) => verbs::pick::run(args, &g),
         Cmd::Diff(args) => verbs::diff::run(args, &g),
         Cmd::Selective(args) => verbs::selective::run(args, &g),

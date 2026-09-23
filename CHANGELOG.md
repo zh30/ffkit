@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.205.0] — 2026-09-23
+
+### Added
+- `iris`, `burst`, `grade --preset bleach`/`neon`.
+
 ## [0.204.0] — 2026-09-23
 
 ### Added

@@ -237,6 +237,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 178)
+
+- `iris` — hard-edged spotlight circle via `blend=all_expr` distance test (`hypot`), `--x`/`--y`/`--radius` + windowed `--at`; 4.4 `all_expr` has no `and()` — mask and window multiply instead.
+- `burst` — radial zoom smear: `scale↑ + crop + gblur` copy behind the sharp frame, `--strength` drives zoom + blur + opacity.
+- `grade --preset bleach|neon` — bleach-bypass crushed-desat contrast; cyberpunk cyan-shadow/magenta-highlight colorbalance.
+
 ## Shipped this run (round 177)
 
 - `impact` — beat-synced punch: a white flash (~80ms) plus a decaying sine shake on a padded crop; one flag (`--at`) times the hit for drops/impacts.

@@ -152,7 +152,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section, `end` ok, `--fade` seamless joints) |
 | `stabilize` | Handheld deshake — `--rx`/`--ry` radius, `--edge` fill (blank|original|clamped|mirror) |
 | `reverse` | Play picture and sound backwards |
-| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops) | Presets `cinematic`/`vivid`/`vintage`/`soft`/`teal`/`noir` stack under the sliders; `--lut look.cube` applies a 3D LUT | `--at`/`--dur`
+| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops) | Presets `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` stack under the sliders; `--lut look.cube` applies a 3D LUT | `--at`/`--dur`
 | `zoom` | Punch-in (`--factor 1.25`, `--center X,Y` target; `--at`/`--dur` window — comma list for several, `end` ok) | `--out`
 | `sharpen` | Unsharp mask, whole clip or a window (`--amount`, `--at`, `--dur`) |
 | `vignette` | Corner darkening, whole clip or a window (`--angle`, `--at`, `--dur`) |
@@ -174,6 +174,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `impact` | Beat-hit punch: white flash + decaying sine shake at `--at`, `--amp`/`--flash` |
 | `wave` | Watery horizontal wave distortion (`geq` resample), `--amp`/`--speed`, `--at` windows |
 | `spin` | Pendulum sway: frame rotates by a slow sine, `--deg`/`--rate`, `--at` windows |
+| `iris` | Spotlight disc: dim + desat outside a hard circle at `--x`/`--y`/`--radius`, `--at` windows |
+| `burst` | Radial zoom smear: blurred blown-up copy blended behind the sharp frame, `--strength` |
 | `pick` | Dominant-color report at a timestamp: mean hex + 3x2 zone swatches (JSON only) |
 | `diff` | Visual diff between two clips: amplified difference blend, `--side` shows reference |
 | `selective` | Keep one color, desaturate the rest: `--color` + `--similarity`, `--at` windows |

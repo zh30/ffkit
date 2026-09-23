@@ -47,6 +47,12 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         // desat lands at the chain tail so the default eq sliders can't
         // re-add saturation
         Some(crate::cli::GradePreset::Noir) => String::from("eq=contrast=1.28:brightness=-0.02"),
+        Some(crate::cli::GradePreset::Bleach) => {
+            String::from("eq=contrast=1.30:brightness=0.02:saturation=0.55,colorbalance=bs=0.04")
+        }
+        Some(crate::cli::GradePreset::Neon) => String::from(
+            "eq=contrast=1.15:saturation=1.5,colorbalance=bs=0.20:gs=0.10:rh=0.15:bh=0.15",
+        ),
         None => String::new(),
     };
     if !vf.is_empty() {
