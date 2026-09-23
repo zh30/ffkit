@@ -677,6 +677,9 @@ pub struct AudiogramArgs {
     /// Frequency scale for --mode spectrum: lin|log|rlog (music→log)
     #[arg(long)]
     pub fscale: Option<String>,
+    /// Output frame rate (default 30; 60 for smooth bars)
+    #[arg(long)]
+    pub fps: Option<f64>,
     /// Background colour when no --image (name or 0xRRGGBB, default 101418)
     #[arg(long)]
     pub bg: Option<String>,
@@ -1865,6 +1868,9 @@ pub struct CountdownArgs {
     /// Label shown above the digits for the whole count ("STARTING SOON")
     #[arg(long)]
     pub text: Option<String>,
+    /// Card plate behind the numerals (name or RRGGBB)
+    #[arg(long)]
+    pub bg: Option<String>,
     /// Digit placement (default center): top|bottom|corners|edges
     #[arg(long)]
     pub position: Option<String>,

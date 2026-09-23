@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.127.0
+version: 0.128.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -46,7 +46,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | dutch-angle tilt | `rotate` (`--angle 15`) |
 | chapters already in the file | `chapter` (`--list`) or `split` (`--chapters`) |
 | thumbnail candidates | `thumb` (`--scenes` grabs stills at every cut) |
-| spectrum-bar audiogram | `audiogram` (`--mode spectrum`) |
+| spectrum-bar audiogram | `audiogram` (`--mode spectrum`, `--fscale`/`--fps`) |
 | news-ticker crawl | `scroll` (`--mode ticker`, `--bg` opaque bar) |
 | AV1 delivery | `transcode` (`--preset av1`) |
 | cover still | `cover` |
@@ -71,7 +71,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | blend two audio files | `crossfade` (`--second`, `--dur` overlap — acrossfade) |
 | strip location/device tags | `strip` — drops all container metadata + chapters, stream copy |
 | stills every N seconds | `frames` (`--every`, `--width`) → `stem_001.png…` |
-| 3-2-1 intro countdown | `countdown` (`--from`, `--each`, `--go`, `--at`, `--text`, `--position`, `--beep` + `--tone` Hz) |
+| 3-2-1 intro countdown | `countdown` (`--from`, `--each`, `--go`, `--at`, `--text`, `--position`, `--bg` plate, `--beep` + `--tone` Hz) |
 | invert / negative look | `invert` — `negate` the picture |
 | split to fit a size cap | `split --size 9MB` — even grid aimed at Discord/WhatsApp caps |
 | merge two audio sources at full level | `mix` `A B` (`--vol-a/--vol-b`, `--longest`, `--at/--dur`), `--duck` bed dips under voice, `--normalize` halves the sum |

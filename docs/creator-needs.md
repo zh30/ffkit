@@ -237,6 +237,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 101)
+
+- `countdown --bg` — 200-alpha card plate rendered under each numeral PNG (streamable "3-2-1" on busy backdrops).
+- `audiogram --fps` — `rate=` on showwaves AND showfreqs; showfreqs only gained `rate` in ffmpeg 7 → on 4.x `--fps` + `--mode spectrum` errors instead of emitting a dead flag (caught on the 4.4.8 keg).
+
 ## Shipped this run (round 100)
 
 - `subs --burn --from/--to` — temp-srt rewrite keeps only cues overlapping the window: burn just the translated slice of a long take.

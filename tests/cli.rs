@@ -13783,3 +13783,51 @@ fn caption_from_to_filters_cues() {
     assert_eq!(v["status"], "ok", "{v}");
     assert_eq!(v["extra"]["cues"], 1, "only the overlapping cue: {v}");
 }
+
+#[test]
+fn audiogram_fps_sets_showwaves_rate() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("a.mp4");
+    let v = run_json(&[
+        "audiogram",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--fps",
+        "60",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains(":rate=60"), "{cmds}");
+}
+
+#[test]
+fn countdown_bg_plates_numerals() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("c.mp4");
+    let v = run_json(&[
+        "countdown",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--from",
+        "2",
+        "--bg",
+        "101418",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+}

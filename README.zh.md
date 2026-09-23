@@ -110,7 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | 压到目标体积（`--size 10MB` 两遍、`--target discord|whatsapp|gmail` 平台预设）；`--crf` 画质单遍、`--res` 缩分辨率腾码率 |
 | `deliver` | 一键 9:16 社交成片（Reels / TikTok / Shorts，−14 LUFS） |
 
-| `audiogram` | 波形视频 | `--mode`、`--scale` 幅度、`--split` 分声道、`--fscale` 频率轴（spectrum）、`--text`、`--bg`、`--progress` 进度条 ，`--subs` 烧字幕；`--mode spectrum` 频谱条 |
+| `audiogram` | 波形视频 | `--mode`、`--scale` 幅度、`--split` 分声道、`--fscale` 频率轴（spectrum）、`--fps` 帧率、`--text`、`--bg`、`--progress` 进度条 ，`--subs` 烧字幕；`--mode spectrum` 频谱条 |
 
 | `split` | 按 `--every`/`--at`/`--scenes`/`--size`/`--parts`/`--silence`/`--chapters` 内嵌章节切分；`--subs` 输出重定时分段 .srt |
 | `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐、`--size` 画布） |
@@ -172,7 +172,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `crossfade` | 两段音频淡接，`--dur` 秒重叠（`acrossfade`） |
 | `strip` | 去掉全部元数据/章节（发片前隐私清理），无损 `-c copy` |
 | `frames` | 每 `--every`、`--at` 秒抽一帧 → `stem_001.png…`（`--width` 缩放） |
-| `countdown` | 画面倒数（`--from`、`--beep` + `--tone` 蜂鸣频率、`--text`、`--position` 位置） |
+| `countdown` | 画面倒数（`--from`、`--beep` + `--tone` 蜂鸣频率、`--text`、`--position`、`--bg` 数字底板） |
 | `invert` | 全帧或定时反色（`--at`、`--dur`） |
 | `mix` | 双音轨叠加（`--vol-a/--vol-b`、`--at/--dur`、`--loop`、`--duck` 人声闪避音乐） ，`--normalize` 归一求和、`--fade` 淡入淡出 |
 | `mute` | 去掉音轨（其余流直接封装，不重编码） ，`--at/--dur` 局部静音 |

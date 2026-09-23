@@ -61,11 +61,24 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
     if args.fscale.is_some() && !matches!(args.mode, WaveMode::Spectrum) {
         return Err(Error::input("--fscale applies to --mode spectrum only"));
     }
+    let fps = args.fps.unwrap_or(30.0);
+    if !(1.0..=120.0).contains(&fps) {
+        return Err(Error::input("--fps must be 1..=120"));
+    }
+    // showfreqs gained `rate` only in ffmpeg 7; on 4.x the option is absent.
+    let freq_rate = if engine::ffmpeg_major().unwrap_or(9) >= 7 {
+        format!(":rate={fps}")
+    } else {
+        if args.fps.is_some() && matches!(args.mode, WaveMode::Spectrum) {
+            return Err(Error::input("--fps needs ffmpeg ≥7 with --mode spectrum"));
+        }
+        String::new()
+    };
     // Spectrum renders frequency bars via showfreqs; the rest use showwaves.
     let (wave_src, mode) = match args.mode {
         WaveMode::Spectrum => (
             format!(
-                "[0:a]showfreqs=s={{ww}}x{{wh}}:mode=bar:colors={}{fs}[wv];",
+                "[0:a]showfreqs=s={{ww}}x{{wh}}:mode=bar{freq_rate}:colors={}{fs}[wv];",
                 crate::color::lavfi(&args.color)
             ),
             "spectrum",
@@ -83,7 +96,7 @@ pub fn run(args: AudiogramArgs, g: &Globals) -> Result<Contract, Error> {
                     let sc = wave_scale(&args)?;
                     let sp = if args.split { ":split_channels=1" } else { "" };
                     format!(
-                        "[0:a]showwaves=s={{ww}}x{{wh}}:mode={name}:rate=30:colors={}:draw=full{sc}{sp}[wv];",
+                        "[0:a]showwaves=s={{ww}}x{{wh}}:mode={name}:rate={fps}:colors={}:draw=full{sc}{sp}[wv];",
                         crate::color::lavfi(&args.color)
                     )
                 },

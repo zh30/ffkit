@@ -71,9 +71,25 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
     };
     let mut segs = Vec::new();
     let mut prev = "[0:v]".to_string();
+    let bg_rgb = match &args.bg {
+        Some(c) => Some(crate::color::rgb(c)?),
+        None => None,
+    };
     for (i, text) in runs.iter().enumerate() {
         let img = crate::raster::render_title_styled(text, &font_bytes, vw, fg, args.size as f32)?;
         let png = tmp.path().join(format!("n{i}.png"));
+        let img = match &bg_rgb {
+            Some([r, g, b]) => {
+                let pad = (img.height() / 3).max(8);
+                let mut card = image::RgbaImage::new(img.width() + 2 * pad, img.height() + pad);
+                for px in card.pixels_mut() {
+                    *px = image::Rgba([*r, *g, *b, 200]);
+                }
+                image::imageops::overlay(&mut card, &img, pad as i64, (pad / 2) as i64);
+                card
+            }
+            None => img,
+        };
         img.save(&png)
             .map_err(|e| Error::output(format!("write countdown png: {e}")))?;
         argv.push("-i");

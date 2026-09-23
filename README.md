@@ -110,7 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | Fit a size budget (`--size 10MB` two-pass, `--target discord|whatsapp|gmail`); `--crf` quality one-pass, `--res` downscale to free bitrate |
 | `deliver` | One-shot 9:16 social pack (Reels / TikTok / Shorts, −14 LUFS) |
 
-| `audiogram` | Waveform video | `--mode`, `--scale`, `--split` channels, `--fscale` freq axis (spectrum), `--text`, `--bg`, `--progress` bar , `--subs` burn an .srt on it; `--mode spectrum` bars |
+| `audiogram` | Waveform video | `--mode`, `--scale`, `--split` channels, `--fscale` freq axis (spectrum), `--fps` rate, `--text`, `--bg`, `--progress` bar , `--subs` burn an .srt on it; `--mode spectrum` bars |
 
 | `split` | Split by `--every`/`--at`/`--scenes`/`--size`/`--parts`/`--silence`/`--chapters`; `--subs` writes re-timed per-part .srt |
 | `slideshow` | Still images → video montage (`--per`, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed, `--size` canvas) |
@@ -172,7 +172,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `crossfade` | Blend two audio files with `--dur`s overlap (`acrossfade`) |
 | `strip` | Remove all metadata + chapters, lossless `-c copy` |
 | `frames` | Still dump every `--every`, `--at` seconds → `stem_001.png…` (`--width`) |
-| `countdown` | Overlay a counting leader (`--from`, `--beep` + `--tone` Hz, `--text`, `--position`) |
+| `countdown` | Overlay a counting leader (`--from`, `--beep` + `--tone` Hz, `--text`, `--position`, `--bg` numeral plate) |
 | `invert` | Full-frame or windowed color inversion (`--at`, `--dur`) |
 | `mix` | Blend two sources (`--vol-a/--vol-b`, `--at/--dur`, `--loop`, `--duck` sidechain bed under voice) , `--normalize`, `--fade` bed edges |
 | `mute` | Drop the audio track, stream-copy the rest , `--at/--dur` silences only that window |

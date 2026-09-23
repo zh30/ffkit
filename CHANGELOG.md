@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.128.0] — 2026-09-22
+
+### Added
+
+- `countdown --bg` — card plate behind numerals
+- `audiogram --fps` — render frame rate (`rate=`; spectrum mode needs ffmpeg ≥7)
+
 ## [0.127.0] — 2026-09-22
 
 ### Added
