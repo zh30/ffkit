@@ -310,6 +310,10 @@ pub struct ConcatArgs {
     /// loudness, e.g. -14) — one-pass per clip
     #[arg(long, allow_hyphen_values = true)]
     pub level: Option<f64>,
+    /// Insert N seconds of black+silence between clips (beat gap between
+    /// montage sections) — exclusive with --transition
+    #[arg(long)]
+    pub gap: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

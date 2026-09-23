@@ -98,7 +98,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `probe` | Duration, size, codecs, channels |
 | `look` | Contact sheet (`--tiles`) or timestamps (`--at`, repeatable) |
 | `cut` | Trim; lossless copy by default, `--accurate`, `--ranges`, `--drop` for frame-exact (bounds take `end`: `T-end` through the tail, `end-N` last N secs); `--fade N` softens the cut edges |
-| `concat` | Join N clips (any xfade `--transition`, comma list picks one per joint); `--level -14` loudnorms each clip first |
+| `concat` | Join N clips (any xfade `--transition`, comma list picks one per joint); `--level -14` loudnorms each clip first; `--gap N` inserts black+silence between clips |
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop , `--position` anchors the picture in the bars , `--strength` sigma |
 | `extract` | Still frame or `--gif` clip (`--bounce` palindrome) | `--at` (`end` = last frame / last --dur sec), `--width`, `--fps` , `--loop` GIF repeat count, `--colors` palette size |
 | `overlay` | Image/video overlay; position/scale/`--tile`, `--fade`, `--angle`, `--at`/`--dur`, `--mode`, `--opacity` blend composite, `--loop` repeat short clips | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture; `--border` PiP ring |

@@ -9,6 +9,7 @@ use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 use crate::paths;
 use crate::probe::Probe;
+use serde_json::json;
 
 pub fn run(args: ConcatArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(l) = args.level {
@@ -43,6 +44,13 @@ pub fn run(args: ConcatArgs, g: &Globals) -> Result<Contract, Error> {
             )));
         }
         return transition_chain(&args, g, &input_refs, &probes, &kinds);
+    }
+
+    if let Some(gap) = args.gap {
+        if !(0.05..=60.0).contains(&gap) {
+            return Err(Error::input("concat: --gap must be 0.05..60 seconds"));
+        }
+        return gap_concat(&args, g, &input_refs, &probes, gap);
     }
 
     if can_copy(&probes) {
@@ -252,4 +260,91 @@ fn transition_chain(
         "clips": n,
     }));
     Ok(c)
+}
+
+/// Black+silent spacer between every pair of clips (beat gap between
+/// montage sections). Always goes through filter concat so the generated
+/// pads match the common canvas.
+fn gap_concat(
+    args: &ConcatArgs,
+    g: &Globals,
+    inputs: &[&Path],
+    probes: &[Probe],
+    gap: f64,
+) -> Result<Contract, Error> {
+    let first = &probes[0];
+    let has_v = first.has_video;
+    let has_a = first.has_audio;
+    if !has_v && !has_a {
+        return Err(Error::input("concat: no streams"));
+    }
+    let tw = paths::even(first.width.unwrap_or(1280));
+    let th = paths::even(first.height.unwrap_or(720));
+    let fps = first.fps.unwrap_or(30.0);
+    let n = inputs.len();
+
+    let mut argv = ffmpeg_base(g.progress);
+    for p in &args.inputs {
+        argv.push("-i");
+        argv.push(p);
+    }
+
+    let mut fc = String::new();
+    let mut concat_ins = String::new();
+    let mut k = 0usize;
+    for i in 0..n {
+        if has_v {
+            fc.push_str(&format!(
+                "[{i}:v]scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={fps},format=yuv420p[v{k}];"
+            ));
+            concat_ins.push_str(&format!("[v{k}]"));
+        }
+        if has_a {
+            concat_ins.push_str(&format!("[{i}:a]"));
+        }
+        k += 1;
+        if i + 1 < n {
+            if has_v {
+                fc.push_str(&format!(
+                    "color=black:s={tw}x{th}:r={fps}:d={gap:.3}[v{k}];"
+                ));
+                concat_ins.push_str(&format!("[v{k}]"));
+            }
+            if has_a {
+                concat_ins.push_str(&format!("[g{k}]"));
+                fc.push_str(&format!("anullsrc=r=48000:cl=stereo:d={gap:.3}[g{k}];"));
+            }
+            k += 1;
+        }
+    }
+    let v = if has_v { 1 } else { 0 };
+    let a = if has_a { 1 } else { 0 };
+    let segs = concat_ins.matches('[').count() / (v + a);
+    fc.push_str(&format!("{concat_ins}concat=n={segs}:v={v}:a={a}[vout]"));
+    if has_a {
+        fc.push_str("[aout]");
+    }
+
+    argv.extend(["-filter_complex", &fc]);
+    if has_v {
+        argv.extend(["-map", "[vout]"]);
+    }
+    if has_a {
+        argv.extend(["-map", "[aout]"]);
+    }
+    if has_v {
+        argv.extend([
+            "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+        ]);
+    }
+    if has_a {
+        argv.extend(["-c:a", "aac"]);
+    }
+    argv.push(&args.output);
+
+    let c = engine::write_job("concat", inputs, &args.output, vec![argv], g)?;
+    let mut extra = serde_json::Map::new();
+    extra.insert("gap".to_string(), json!(gap));
+    extra.insert("inputs".to_string(), json!(n));
+    Ok(c.with_extra(serde_json::Value::Object(extra)))
 }

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.166.0] — 2026-09-22
+
+### Added
+- `concat --gap N` — inserts N seconds of black + silence between every pair of clips (beat gap between montage sections): generated `color=black` + `anullsrc` pads sit inside the filter-concat chain, so all outputs share one canvas. Exclusive with `--transition`.
+
 ## [0.165.0] — 2026-09-22
 
 ### Added

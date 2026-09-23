@@ -237,6 +237,9 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 139)
+- `concat --gap N` — inserts N seconds of black + silence between every pair of clips (beat gap between montage sections); exclusive with `--transition`.
+
 ## Shipped this run (round 138)
 - `replace --at a,b,...` — comma list swaps the audio track inside several windows; the new track is laid across them **in order** (window i plays the slice after window i−1's), `--fade` eases each window.
 

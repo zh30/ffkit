@@ -15444,6 +15444,38 @@ fn bleep_comma_list_censors_every_window() {
 }
 
 #[test]
+fn concat_gap_inserts_black_silence() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 0.5);
+    let b = lavfi_fixture(dir.path(), "b.mp4", "550", 0.5);
+    let v = run_json(&[
+        "concat",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "-o",
+        dir.path().join("g.mp4").to_str().unwrap(),
+        "--gap",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("color=black"), "{cmds}");
+    assert!(cmds.contains("anullsrc"), "{cmds}");
+    assert!(cmds.contains("concat=n=3"), "{cmds}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.3).abs() < 0.35, "0.5+0.3+0.5 = 1.3s, got {d}; {v}");
+}
+
+#[test]
 fn replace_comma_windows() {
     if !has_ffmpeg() {
         return;
