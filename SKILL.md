@@ -163,7 +163,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | stroked TikTok captions | `caption` (`--outline RRGGBB`) |
 | branded audiogram title font | `audiogram` (`--font`) |
 | name each tile in a grid | `grid` (`--labels "a,b"`), `--fill` crop-fill cells |
-| gentle logo cleanup | `delogo` (`--soft`) |
+| gentle logo cleanup | `delogo` (`--soft`; `--regions x:y:w:h,...` covers several spots) |
 | animated gradient card | `solid` (`--gradient ff0000:0000ff`) |
 | reframe / crop out an edge | `crop` (`--region x:y:w:h` or `--aspect 1:1`/`9:16` centered) |
 | motion / loop | `speed`, `reverse`, `loop`, `stabilize` (`--edge` fill), `fade` |
@@ -198,7 +198,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | animated push-in | `zoom --motion kenburns` |
 | still-image cutaway | `broll --insert img.png --still` |
 | wrong-orientation phone clip | `rotate` (`--deg`/`--flip`) |
-| burned-in logo/watermark | `delogo` (`--x --y --w --h`; `--at`/`--dur` only some of the time) |
+| burned-in logo/watermark | `delogo` (`--x --y --w --h` or `--regions x:y:w:h,...` for several; `--at`/`--dur` only some of the time) |
 | smooth slow-mo | `speed --factor 0.5 --interp` |
 | styled title text | `title --size 2 --color ff0000` |
 | lower-third placement | `title --position bottom` (or `top`/`center`) |
