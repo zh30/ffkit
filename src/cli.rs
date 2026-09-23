@@ -805,6 +805,10 @@ pub enum TranscodePreset {
     Prores,
     /// AV1 (svt-av1 on ffmpeg ≥7, libaom on 4.x) — smallest web delivery
     Av1,
+    /// Audio-only MP3 (podcast/voice delivery; -vn, libmp3lame)
+    Mp3,
+    /// Audio-only AAC in .m4a (Apple uploads, voice notes)
+    Aac,
 }
 
 #[derive(clap::Args, Debug)]

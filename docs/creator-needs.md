@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 106)
+
+- `transcode --preset mp3` / `--preset aac` — audio-only delivery (`-vn` + libmp3lame/aac 192k): podcast exports and voice-note uploads without knowing codec flags; `--copy-audio` stream-copies when the container already holds the codec.
+
 ## Shipped this run (round 105)
 
 - `chapter --shift SEC` — re-times every mark (negative pulls earlier): after adding/removing an intro card the marks slide once instead of re-authoring the file.

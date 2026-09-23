@@ -1,3 +1,5 @@
+use serde_json::json;
+
 use crate::cli::{Globals, TranscodeArgs, TranscodePreset};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
@@ -22,6 +24,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
 
     match preset {
+        TranscodePreset::Mp3 | TranscodePreset::Aac => audio_only(&args, g, preset),
         TranscodePreset::Gif => gif(&args, g),
         TranscodePreset::H264 => h264(&args, g),
         TranscodePreset::Hevc => hevc(&args, g),
@@ -212,6 +215,36 @@ fn gif(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     );
     drop(palette);
     result
+}
+
+/// Audio-only delivery: -vn + one codec. `--copy-audio` stream-copies instead
+/// of re-encoding (e.g. mp4 → mp3 keeps nothing — copy only fits same-codec).
+fn audio_only(
+    args: &TranscodeArgs,
+    g: &Globals,
+    preset: TranscodePreset,
+) -> Result<Contract, Error> {
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_audio {
+        return Err(Error::input(
+            "transcode --preset mp3/aac: input has no audio",
+        ));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.push("-vn");
+    if args.copy_audio {
+        argv.extend(["-c:a", "copy"]);
+    } else {
+        match preset {
+            TranscodePreset::Mp3 => argv.extend(["-c:a", "libmp3lame", "-b:a", "192k"]),
+            _ => argv.extend(["-c:a", "aac", "-b:a", "192k"]),
+        }
+    }
+    argv.push(&args.output);
+    let c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    Ok(c.with_extra(json!({"audio_only": true})))
 }
 
 fn prores(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {

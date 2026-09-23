@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.133.0] — 2026-09-22
+
+### Added
+
+- `transcode --preset mp3` / `--preset aac` — audio-only delivery (`-vn` + libmp3lame/aac at 192k); `--copy-audio` stream-copies when the input already holds the codec
+
 ## [0.132.0] — 2026-09-22
 
 ### Added
