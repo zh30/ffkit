@@ -22,18 +22,30 @@ pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
             "insert: clip must have an audio stream when the base does",
         ));
     }
-    let at = if args.at == "end" {
-        // splice just before the tail (the bound below requires strictly-inside)
-        base.duration - 0.06
-    } else {
-        parse_time(&args.at)?
-    };
-    if !(0.05..base.duration - 0.05).contains(&at) {
-        return Err(Error::input(format!(
-            "--at must sit inside the {:.2}s base",
-            base.duration
-        )));
+    let mut ats = Vec::new();
+    for part in args.at.split(',') {
+        let p = part.trim();
+        let at = if p == "end" {
+            // splice just before the tail (the bound below requires strictly-inside)
+            base.duration - 0.06
+        } else {
+            parse_time(p)?
+        };
+        if !(0.05..base.duration - 0.05).contains(&at) {
+            return Err(Error::input(format!(
+                "--at must sit inside the {:.2}s base",
+                base.duration
+            )));
+        }
+        ats.push(at);
     }
+    ats.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    for w in ats.windows(2) {
+        if w[1] - w[0] < 0.05 {
+            return Err(Error::input("insert: --at points need ≥0.05s between them"));
+        }
+    }
+    let at = ats[0];
     let bw = base.width.unwrap_or(1280);
     let bh = base.height.unwrap_or(720);
 
@@ -47,28 +59,73 @@ pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
         None => String::new(),
     };
     if let Some(tr) = &args.transition {
+        if ats.len() > 1 {
+            return Err(Error::input(
+                "insert: a comma list of --at points needs a plain splice (no --transition)",
+            ));
+        }
         return run_xfade(&args, &base, &clip, at, clip_len, bw, bh, tr, &vol, g);
     }
 
-    // Three segments: base head, the clip (scaled to base size, --dur capped),
-    // base tail. Same trim/atrim→concat chain as the windowed verbs.
-    let mut seg = vec![format!(
-        "[0:v]trim=0:{at:.3},setpts=PTS-STARTPTS[v0];\
-         [1:v]trim=0:{clip_len:.3},setpts=PTS-STARTPTS,scale={bw}:{bh}:force_original_aspect_ratio=decrease,pad={bw}:{bh}:(ow-iw)/2:(oh-ih)/2,setsar=1[v1];\
-         [0:v]trim={at:.3}:,setpts=PTS-STARTPTS[v2]"
-    )];
-    let mut pins = String::from("[v0][v1][v2]");
-    if base.has_audio {
+    // Alternating segments: base head, clip, base slice, clip, ..., base tail.
+    // The clip input repeats once per --at point (scaled to base size, --dur capped).
+    let mut seg = Vec::new();
+    let mut pins = String::new();
+    let mut apins = String::new();
+    let mut prev = 0.0f64;
+    let nseg = ats.len() * 2 + 1;
+    let mut k = 0usize;
+    for (i, &a) in ats.iter().enumerate() {
         seg.push(format!(
-            "[0:a]atrim=0:{at:.3},asetpts=PTS-STARTPTS[a0];\
-             [1:a]atrim=0:{clip_len:.3},asetpts=PTS-STARTPTS{vol}[a1];\
-             [0:a]atrim={at:.3}:,asetpts=PTS-STARTPTS[a2]"
+            "[0:v]trim={prev:.3}:{a:.3},setpts=PTS-STARTPTS[v{k}]"
         ));
-        // concat pads interleave per segment: v0,a0,v1,a1,v2,a2
-        pins = "[v0][a0][v1][a1][v2][a2]".to_string();
-        seg.push(format!("{pins}concat=n=3:v=1:a=1[vout][aout]"));
+        if base.has_audio {
+            seg.push(format!(
+                "[0:a]atrim={prev:.3}:{a:.3},asetpts=PTS-STARTPTS[a{k}]"
+            ));
+        }
+        pins.push_str(&format!("[v{k}]"));
+        apins.push_str(&format!("[a{k}]"));
+        k += 1;
+        seg.push(format!(
+            "[1:v]trim=0:{clip_len:.3},setpts=PTS-STARTPTS,scale={bw}:{bh}:force_original_aspect_ratio=decrease,pad={bw}:{bh}:(ow-iw)/2:(oh-ih)/2,setsar=1[v{k}]"
+        ));
+        if base.has_audio {
+            seg.push(format!(
+                "[1:a]atrim=0:{clip_len:.3},asetpts=PTS-STARTPTS{vol}[a{k}]"
+            ));
+        }
+        pins.push_str(&format!("[v{k}]"));
+        apins.push_str(&format!("[a{k}]"));
+        k += 1;
+        prev = a;
+        let _ = i;
+    }
+    seg.push(format!("[0:v]trim={prev:.3}:,setpts=PTS-STARTPTS[v{k}]"));
+    if base.has_audio {
+        seg.push(format!("[0:a]atrim={prev:.3}:,asetpts=PTS-STARTPTS[a{k}]"));
+    }
+    pins.push_str(&format!("[v{k}]"));
+    apins.push_str(&format!("[a{k}]"));
+    if base.has_audio {
+        // concat pads interleave per segment: v,a,v,a,...
+        let v: Vec<&str> = pins
+            .split(']')
+            .filter(|s| !s.is_empty())
+            .map(|s| s.trim_start_matches('['))
+            .collect();
+        let a: Vec<&str> = apins
+            .split(']')
+            .filter(|s| !s.is_empty())
+            .map(|s| s.trim_start_matches('['))
+            .collect();
+        let mut inter = String::new();
+        for i in 0..v.len() {
+            inter.push_str(&format!("[{}][{}]", v[i], a[i]));
+        }
+        seg.push(format!("{inter}concat=n={nseg}:v=1:a=1[vout][aout]"));
     } else {
-        seg.push(format!("{pins}concat=n=3:v=1:a=0[vout]"));
+        seg.push(format!("{pins}concat=n={nseg}:v=1:a=0[vout]"));
     }
 
     let mut argv = ffmpeg_base(g.progress);
@@ -96,7 +153,11 @@ pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
 
     let inputs: Vec<&Path> = vec![&args.input, &args.clip];
     let mut c = engine::write_job("insert", &inputs, &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "at": at }));
+    c = c.with_extra(if ats.len() == 1 {
+        json!({ "at": at })
+    } else {
+        json!({ "at": ats })
+    });
     Ok(c)
 }
 

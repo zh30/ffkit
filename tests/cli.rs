@@ -15444,6 +15444,65 @@ fn bleep_comma_list_censors_every_window() {
 }
 
 #[test]
+fn insert_and_broll_comma_windows() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    let clip = lavfi_fixture(dir.path(), "c.mp4", "660", 0.3);
+    // insert the same clip at two points
+    let v = run_json(&[
+        "insert",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("i.mp4").to_str().unwrap(),
+        "--clip",
+        clip.to_str().unwrap(),
+        "--at",
+        "0.2,0.6",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("concat=n=5"), "{cmds}");
+    // 1.0 + 2*0.3 = 1.6
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.6).abs() < 0.4, "insert x2 ≈1.6s, got {d}; {v}");
+
+    // broll flashes the insert at two points
+    let v = run_json(&[
+        "broll",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("b.mp4").to_str().unwrap(),
+        "--insert",
+        clip.to_str().unwrap(),
+        "--at",
+        "0.1,0.6",
+        "--duration",
+        "0.3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("split=2"), "{cmds}");
+    assert!(cmds.contains("between(t,0.600"), "{cmds}");
+    let d = v["probe"]["duration"].as_f64().unwrap();
+    assert!((d - 1.0).abs() < 0.3, "broll keeps A length, got {d}; {v}");
+}
+
+#[test]
 fn concat_transition_list_channel_split_remux_aspect() {
     if !has_ffmpeg() {
         return;

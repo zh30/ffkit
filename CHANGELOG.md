@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.160.0] — 2026-09-22
+
+### Added
+- `insert --at a,b,...` — comma list splices the clip at several points in one pass (a sponsor sting at every chapter mark). Plain splice only; `--transition` still needs a single `--at`.
+- `broll --at a,b,...` — comma list re-flashes the same cutaway at several points: per-window `split` overlay branches restart the insert each time, and `--fade`/`--audio` apply to every window.
+
 ## [0.159.0] — 2026-09-22
 
 ### Added

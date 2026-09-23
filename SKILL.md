@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.159.0
+version: 0.160.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -89,7 +89,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | fix audio/video sync drift | `sync` (`--ms ±N` — pad or trim audio start) |
 | sync a second take to the camera master | `align` (`ref target -o out` — auto-detects offset by audio cross-correlation; multi-cam, external recorder; `--window` bounds long takes) |
 | rolling end credits | `scroll` (`--text`/`--file`, `--at`, `--dur`, `--align`, `--wrap` — text rolls bottom→top) |
-| splice a clip into the middle | `insert` (`--clip x.mp4 --at T`, `end` appends — b-roll/ad read without manual split+concat; `--dur N` first N sec only), `--transition` xfade both joints, `--volume` clip audio |
+| splice a clip into the middle | `insert` (`--clip x.mp4 --at T`, comma list splices at several points, `end` appends — b-roll/ad read without manual split+concat; `--dur N` first N sec only), `--transition` xfade both joints, `--volume` clip audio |
 | two-camera angle switching | `multicam` (`A B --at t1,t2,...` (`end` ok) — run `align` first if the takes aren't synced; `--keep-audio` stays on cam A, `--transition` soft cuts) |
 | reframe 9:16 keeping faces | `crop` (`--aspect 9:16 --anchor top` keeps the face) |
 | attach album cover art | `art` (`--image cover.png`) → mp3/m4a/mp4/mkv, `--extract` pull cover out |
@@ -210,7 +210,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | rip embedded subtitles | `subs` (`--stream N`, `--all` every stream) |
 | bleep out a word | `bleep` (`--at`/`--dur`, comma list for several spots; `--freq`/`--level`) |
 | warm/cool white balance | `grade --warm -1..1` |
-| B-roll cutaway | `broll` (`--insert --at --duration`; A-roll audio stays; `--loop` replays short inserts) |
+| B-roll cutaway | `broll` (`--insert --at --duration`, comma `--at` flashes it at several points; A-roll audio stays; `--loop` replays short inserts) |
 | extract | `extract` |
 | many files | `batch` |
 | no verb | `graph` — [graph.md](references/graph.md) |

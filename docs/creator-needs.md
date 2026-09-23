@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 133)
+- `insert --at a,b,...` — comma list splices the clip at several points (sponsor sting at every chapter; plain splice only, `--transition` stays single-point).
+- `broll --at a,b,...` — comma list re-flashes the same cutaway at several points: per-window `split` overlay branches restart the insert, `--fade`/`--audio` apply per window.
+
 ## Shipped this run (round 132)
 - `concat --transition a,b,...` — comma list picks a different xfade per joint (single value still applies to all).
 - `channel --mode split` — stereo → `<stem>_L.wav` + `<stem>_R.wav` mono stems (host/guest mic separation for podcast cleanup).
