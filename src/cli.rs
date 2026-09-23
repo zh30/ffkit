@@ -2058,6 +2058,9 @@ pub struct CountdownArgs {
     /// Digit placement (default center): top|bottom|corners|edges
     #[arg(long)]
     pub position: Option<String>,
+    /// Draw at this % opacity (0-100 — ghost/watermark overlay)
+    #[arg(long)]
+    pub opacity: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2133,6 +2136,9 @@ pub struct TimerArgs {
     /// Count DOWN to the window end instead of up from --at
     #[arg(long)]
     pub down: bool,
+    /// Draw at this % opacity (0-100 — ghost/watermark overlay)
+    #[arg(long)]
+    pub opacity: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -2305,6 +2311,9 @@ pub struct ScrollArgs {
     /// Opaque bar behind ticker text (name or RRGGBB; ticker only)
     #[arg(long)]
     pub bg: Option<String>,
+    /// Draw at this % opacity (0-100 — ghost/watermark overlay)
+    #[arg(long)]
+    pub opacity: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]

@@ -17230,3 +17230,86 @@ fn subs_encoding_gbk_and_deliver_subs() {
     assert!(vf.contains("subtitles=filename="), "{vf}");
     assert_eq!(v["probe"]["width"].as_u64(), Some(1080));
 }
+
+#[test]
+fn timer_countdown_scroll_opacity_ghost_overlays() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let bg = dir.path().join("bg.mp4");
+    // black frame so the overlay peak is measurable
+    Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=black:size=320x240:duration=2:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&bg)
+        .output()
+        .unwrap();
+    // each verb runs ok with --opacity
+    let cred = dir.path().join("cred.txt");
+    std::fs::write(&cred, "ONE\nTWO\n").unwrap();
+    for (verb, extra) in [
+        ("timer", vec!["--at", "0", "--dur", "2", "--size", "40"]),
+        ("countdown", vec!["--from", "3"]),
+        ("scroll", vec!["--dur", "2"]),
+    ] {
+        let out = dir.path().join(format!("{verb}50.mp4"));
+        let mut a = vec![verb];
+        a.push(bg.to_str().unwrap());
+        a.extend(extra.iter().copied());
+        if verb == "scroll" {
+            a.push("--file");
+            a.push(cred.to_str().unwrap());
+        }
+        a.extend(["--opacity", "50", "-o"]);
+        a.push(out.to_str().unwrap());
+        a.push("--json");
+        let v = run_json(&a);
+        assert_eq!(v["status"], "ok", "{verb} --opacity failed: {v}");
+    }
+    // timer peak at 50% is dimmed vs 100%
+    let full = dir.path().join("t100.mp4");
+    let v = run_json(&[
+        "timer",
+        bg.to_str().unwrap(),
+        "--at",
+        "0",
+        "--dur",
+        "2",
+        "--size",
+        "40",
+        "-o",
+        full.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok");
+    let peak = |mp4: &Path| -> u8 {
+        let pgm = mp4.with_extension("pgm");
+        let out = Command::new("ffmpeg")
+            .args(["-y", "-loglevel", "error", "-ss", "1", "-i"])
+            .arg(mp4)
+            .args(["-frames:v", "1", "-pix_fmt", "gray"])
+            .arg(&pgm)
+            .output()
+            .unwrap();
+        assert!(out.status.success());
+        let d = std::fs::read(&pgm).unwrap();
+        *d.iter().skip(d.len() - 320 * 240).max().unwrap()
+    };
+    let p100 = peak(&full);
+    let p50 = peak(&dir.path().join("timer50.mp4"));
+    assert!(p100 > 200, "baseline too dark: {p100}");
+    assert!(
+        p50 < p100.saturating_sub(60),
+        "50% not dimmed: {p50} vs {p100}"
+    );
+}

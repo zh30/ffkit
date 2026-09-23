@@ -98,6 +98,10 @@ pub fn run(args: ScrollArgs, g: &Globals) -> Result<Contract, Error> {
         )?,
         None => render_title_styled(text, &font_bytes, canvas_w, fg, args.size as f32)?,
     };
+    let mut img = img;
+    if let Some(op) = args.opacity {
+        crate::raster::alpha_scale(&mut img, op)?;
+    }
     let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
     let png = tmp.path().join("credits.png");
     img.save(&png)

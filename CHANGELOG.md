@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.188.0] — 2026-09-22
+
+### Added
+
+- `timer --opacity`, `countdown --opacity`, `scroll --opacity` — semi-transparent HUD clock, leader countdown, and rolling credits via a shared `raster::alpha_scale` pass; every raster text overlay now takes `--opacity` (title, meme, caption, timer, countdown, scroll)
+
 ## [0.187.0] — 2026-09-22
 
 ### Added

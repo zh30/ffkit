@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.187.0
+version: 0.188.0
 
 
 
@@ -78,14 +78,14 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | blend two audio files | `crossfade` (`--second`, `--dur` overlap — acrossfade) |
 | strip location/device tags | `strip` — drops all container metadata + chapters, stream copy |
 | stills every N seconds | `frames` (`--every`, `--width`) → `stem_001.png…` |
-| 3-2-1 intro countdown | `countdown` (`--from` up to 600, `--each`, `--go`, `--at`, `--text`, `--position`, `--bg` plate, `--beep` + `--tone` Hz, `--format` mm:ss/h:mm:ss for long counts) |
+| 3-2-1 intro countdown | `countdown` (`--from` up to 600, `--each`, `--go`, `--at`, `--text`, `--position`, `--bg` plate, `--beep` + `--tone` Hz, `--format` mm:ss/h:mm:ss long counts, `--opacity` ghost) |
 | invert / negative look | `invert` — `negate` the picture |
 | split to fit a size cap | `split --size 9MB` — even grid aimed at Discord/WhatsApp caps |
 | merge two audio sources at full level | `mix` `A B` (`--vol-a/--vol-b`, `--longest`, `--at/--dur`), `--duck` bed dips under voice, `--normalize` halves the sum |
 | captions on top instead of bottom | `caption --position top` |
 | lift/crush mid-tones | `grade --gamma` |
 | drop the audio track entirely | `mute` (stream-copy video, no re-encode), `--at/--dur` window |
-| elapsed-time corner counter | `timer`/`countdown` (`--at` takes `end`) (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds), `--down` countdown, `--start` seed the readout |
+| elapsed-time corner counter | `timer`/`countdown` (`--at` takes `end`) (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds), `--down` countdown, `--start` seed, `--opacity` ghost HUD |
 | web-embed HLS package | `hls` (`--seg` seconds, `--single` one-file, `--copy` repack, `--poster` writes poster.jpg, `--poster-at T` picks the frame, `--encrypt`/`--key HEX`/`--key-uri URI` AES-128 segments + key.bin/key.info) → dir/`index.m3u8` + `seg_*.ts`; `--ladder 1080,720,480` → ABR variant playlists + `master.m3u8`; `--audio-only` podcast HLS; `--fmp4` CMAF `.m4s` segments |
 
 | check encode quality loss | `qa` `ref.mp4 test.mp4` → psnr/ssim numbers |
@@ -93,7 +93,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | light-leak / screen-blend overlay | `overlay --video leak.mp4 --mode screen` |
 | fix audio/video sync drift | `sync` (`--ms ±N` — pad or trim audio start) |
 | sync a second take to the camera master | `align` (`ref target -o out` — auto-detects offset by audio cross-correlation; multi-cam, external recorder; `--window` bounds long takes) |
-| rolling end credits | `scroll` (`--text`/`--file`, `--at` comma list replays the roll at several marks / `end` with `--dur`, `--align`, `--wrap`, `--speed` px/s — text rolls bottom→top) |
+| rolling end credits | `scroll` (`--text`/`--file`, `--at` comma list replays the roll at several marks / `end` with `--dur`, `--align`, `--wrap`, `--speed` px/s, `--opacity` ghost credits — text rolls bottom→top) |
 | splice a clip into the middle | `insert` (`--clip x.mp4 --at T`, comma list splices at several points, `end` appends — b-roll/ad read without manual split+concat; `--dur N` first N sec only), `--transition` xfade both joints, `--volume` clip audio |
 | two-camera angle switching | `multicam` (`A B --at t1,t2,...` (`end` ok) — run `align` first if the takes aren't synced; `--keep-audio` stays on cam A, `--transition` soft cuts) |
 | reframe 9:16 keeping faces | `crop` (`--aspect 9:16 --anchor top` keeps the face) |
