@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.184.0] — 2026-09-22
+
+### Added
+- `scroll --speed N` — px/s scroll pacing (each window's duration = travel/N; conflicts `--dur`).
+- `countdown --format` — `s` (default), `mm:ss`, `h:mm:ss`; `--from` cap raised to 600.
+
 ## [0.182.0] — 2026-09-22
 
 ### Added

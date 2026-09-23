@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 156)
+
+- `scroll --speed N` — px/s pacing for end-credit rolls and tickers (sets each window's duration from travel distance; conflicts `--dur`). `countdown --format` — `s`/`mm:ss`/`h:mm:ss` digit formats + `--from` cap raised to 600 for livestream "starting soon" counters.
+
 ## Shipped this run (round 154)
 
 - `delogo --regions x:y:w:h,...` — one pass covers several logos/watermarks (comma list); `--soft` draws every box into the removelogo mask. Membership/course footage with dual watermarks.
