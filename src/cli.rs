@@ -237,6 +237,13 @@ pub enum Cmd {
     Poster(PosterArgs),
     /// Two-color duotone map (shadows -> highlight ramp)
     Duotone(DuotoneArgs),
+    /// Dreamy bloom: blurred copy screen-blended back (highlights bleed)
+    Glow(GlowArgs),
+    /// Retro tape look: noise + chroma shift + scanlines
+    Vhs(VhsArgs),
+    /// Shutter smear: temporal frame average
+    #[command(name = "motionblur")]
+    MotionBlur(MotionBlurArgs),
     /// Run one verb on every media file in a directory
     Batch(BatchArgs),
     /// Run a structured filter graph from JSON
@@ -1049,6 +1056,54 @@ pub struct DuotoneArgs {
     #[arg(long)]
     pub at: Option<String>,
     /// Seconds the duotone lasts per --at point (default: to end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct GlowArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Bloom radius (gblur sigma 0.5-40)
+    #[arg(long, default_value_t = 6.0)]
+    pub strength: f64,
+    /// Timestamp(s) to start the glow — comma list allowed; `end` = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Seconds the glow lasts per --at point (default: to end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct VhsArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Tape damage intensity 0-3 (noise + chroma shift + scanlines)
+    #[arg(long, default_value_t = 1.0)]
+    pub strength: f64,
+    /// Timestamp(s) to start the VHS look — comma list allowed; `end` = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Seconds the VHS look lasts per --at point (default: to end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct MotionBlurArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Frames blended together 2-8 (2 = true shutter smear, more = ghost trail)
+    #[arg(long, default_value_t = 2)]
+    pub frames: u32,
+    /// Timestamp(s) to start the blur — comma list allowed; `end` = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Seconds the blur lasts per --at point (default: to end)
     #[arg(long)]
     pub dur: Option<f64>,
 }

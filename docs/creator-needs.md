@@ -695,6 +695,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `caption --margin N` — pixel offset from the chosen edge (overrides the safe-zone percent placement).
 - `grade --preset teal` — orange-and-teal (colorbalance bs/bm only; 4.4 lacks ms). `grade --preset noir` — true B&W (hue=s=0 appended at chain tail so default eq sliders can't re-add saturation).
 
+## Shipped this run (round 169)
+
+- `glow` — bloom: `split[a][b] → gblur → blend=all_mode=screen` (screen lightens; enable= sits on the blend for `--at`/`--dur` windows).
+- `vhs` — tape look: `noise + rgbashift + drawgrid=w=iw:h=3:c=black@0.30` scanlines. drawgrid has no timeline flag — windowed uses the split+blend T-expr branch.
+- `motionblur` — `tblend=all_mode=average` (2 frames = true shutter smear) or `tmix=frames=N` for longer ghost trails. Note `tmix` mixes FORWARD — the smear lags, which reads naturally for speed.
+
 ## Shipped this run (round 165)
 
 - `waveform --vertical` — `transpose=1` on the final output stage (wave runs top→bottom for reels/vertical art; PNG comes out h×w). Works with `--bg` (transpose lands on the composited card) and comma `--at` (each window transposed).
