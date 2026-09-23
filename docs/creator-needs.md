@@ -666,6 +666,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `glitch --strength` — datamosh-style look (`format=rgba,rgbashift=±N,noise=alls=N*4:allf=t+u`).
 - `fade --curve` — afade curve shape for the audio side (tri/qsin/esin/hsin/log/qua/cub/exp); video stays linear.
 
+## Shipped this run (round 168)
+
+- `flip` — hflip/vflip with `--at`/`--dur` (unmirror front-camera footage; timeline flag makes `enable=` work directly).
+- `poster` — `elbg=l=N` palette quantization (2-64 colors). elbg has NO timeline flag — windowed runs through the split+blend T-expr branch like mirror/pix.
+- `duotone` — true two-color ramp: `format=gray` then per-channel `lutrgb=r='Sr+val*(Hr-Sr)/255'`. Windowed needs the blend trick too (gating only lutrgb would still gray the off-window frames).
+
 ## Shipped this run (round 164)
 
 - `caption --karaoke --highlight RRGGBB` — sung words painted in the highlight color over the dim full cue (two-layer render: base cue + prefix overlay at tight-crop origin).

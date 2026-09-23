@@ -163,6 +163,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `glitch` | 故障风 RGB 错位：`--strength` 0.5-20 控制通道偏移+噪点强度 |
 | `mirror` | 半画面中心镜像（`--axis x`/`y`、`--at`/`--dur` 窗口）——舞蹈/对称效果 |
 | `pix` | 复古马赛克像素化：`--strength` 2-64 分块因子（`--at`/`--dur` 窗口） |
+| `flip` | 水平/垂直翻转（`--axis x` 自拍去镜像、`--at`/`--dur` 窗口） |
+| `poster` | 波普海报化：`--levels` 2-64 调色板色数（`--at`/`--dur` 窗口） |
+| `duotone` | 双色调映射：`--shadow`/`--highlight` 亮度渐变（`--at`/`--dur` 窗口） |
 | `vdenoise` | 视频降噪（暗光噪点）：`--strength` 0.5–30、`--at`/`--dur` 只处理一段——逗号列表可多段（nlmeans，长片较慢），支持 `end` |
 | `crop` | 裁剪 `--region` 区域，或 `--aspect` 重构（`--anchor center|top|bottom|left|right` 可选锚点） |
 | `waveform` | 音频波形 → PNG（`--size`、`--color`, `--scale`、`--peak` 峰值、`--split` 逐声道、`--full` 密集、`--bg` 不透明底卡、`--vertical` 竖向波形（自上而下，PNG 为 高×宽）），播客封面/缩略图用（`--at/--dur` 只画片段，支持 `end`，逗号 `--at` 每窗一张 `<stem>_N.png`） |

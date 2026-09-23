@@ -163,6 +163,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `glitch` | Datamosh-style glitch: `--strength` 0.5-20 drives RGB channel shift + temporal noise |
 | `mirror` | Mirror half the frame across the center axis (`--axis x`/`y`, `--at`/`--dur` window) — dance/symmetry look |
 | `pix` | Chunky retro pixelation: `--strength` 2-64 block divisor (`--at`/`--dur` window) |
+| `flip` | Horizontal/vertical flip (`--axis x` unmirror selfie footage, `--at`/`--dur` window) |
+| `poster` | Pop-art posterization: `--levels` 2-64 palette colors (`--at`/`--dur` window) |
+| `duotone` | Two-tone color map: `--shadow`/`--highlight` ramp over luminance (`--at`/`--dur` window) |
 | `vdenoise` | Spatial video denoise for grainy footage: `--strength` 0.5–30, `--at`/`--dur` window — comma list ok (nlmeans; slow on long clips), `end` ok |
 | `crop` | Crop `--region x:y:w:h`, or `--aspect` reframe with `--anchor center|top|bottom|left|right` |
 | `waveform` | Audio waveform → PNG (`--size`, `--color`, `--scale`, `--peak` transients, `--split` per-channel rows, `--full` dense draw, `--bg` opaque card) for podcast art/thumbnails (`--at/--dur` slice, `end` ok, comma `--at` renders `<stem>_N.png` per window, `--vertical` top→bottom wave) |
