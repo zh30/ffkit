@@ -13,13 +13,27 @@ pub fn run(args: PitchArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_audio {
         return Err(Error::input("pitch needs an audio stream"));
     }
-    // asetrate shifts pitch AND speed; atempo restores duration.
     let factor = (args.semitones / 12.0).exp2();
-    let sr = probe.sample_rate.unwrap_or(48000).max(8000);
-    let af = format!(
-        "asetrate={sr}*{factor:.6},aresample={sr},atempo={inv:.6}",
-        inv = 1.0 / factor
-    );
+    let af = if args.formant {
+        // rubberband pitch-shifts without the speed bump, and
+        // formant=preserved keeps the voice's timbre — no chipmunk sweep.
+        if !crate::doctor::list_filters()
+            .map(|f| f.contains("rubberband"))
+            .unwrap_or(false)
+        {
+            return Err(Error::input(
+                "--formant needs ffmpeg built with librubberband",
+            ));
+        }
+        format!("rubberband=pitch={factor:.6}:formant=preserved")
+    } else {
+        // asetrate shifts pitch AND speed; atempo restores duration.
+        let sr = probe.sample_rate.unwrap_or(48000).max(8000);
+        format!(
+            "asetrate={sr}*{factor:.6},aresample={sr},atempo={inv:.6}",
+            inv = 1.0 / factor
+        )
+    };
     let fc = match &args.at {
         Some(raw) => Some(engine::audio_window_for(
             &af,
@@ -53,5 +67,6 @@ pub fn run(args: PitchArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c.with_extra(json!({
         "semitones": args.semitones,
         "factor": factor,
+        "formant": args.formant,
     })))
 }

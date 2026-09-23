@@ -84,7 +84,7 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         if args.copy_audio {
             argv.extend(["-c:a", "copy"]);
         } else {
-            argv.extend(["-c:a", "aac", "-b:a", "192k"]);
+            argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "192k")]);
         }
     }
     cap_bitrate(&mut argv, &args.vbitrate);
@@ -121,7 +121,7 @@ fn hevc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         if args.copy_audio {
             argv.extend(["-c:a", "copy"]);
         } else {
-            argv.extend(["-c:a", "aac", "-b:a", "192k"]);
+            argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "192k")]);
         }
     }
     cap_bitrate(&mut argv, &args.vbitrate);
@@ -156,7 +156,7 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         if args.copy_audio {
             argv.extend(["-c:a", "copy"]);
         } else {
-            argv.extend(["-c:a", "libopus", "-b:a", "128k"]);
+            argv.extend(["-c:a", "libopus", "-b:a", abitrate(args, "128k")]);
         }
     }
     cap_bitrate(&mut argv, &args.vbitrate);
@@ -189,7 +189,7 @@ fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         if args.copy_audio {
             argv.extend(["-c:a", "copy"]);
         } else {
-            argv.extend(["-c:a", "libopus", "-b:a", "128k"]);
+            argv.extend(["-c:a", "libopus", "-b:a", abitrate(args, "128k")]);
         }
     }
     cap_bitrate(&mut argv, &args.vbitrate);
@@ -263,11 +263,15 @@ fn audio_only(
         argv.extend(["-c:a", "copy"]);
     } else {
         match preset {
-            TranscodePreset::Mp3 => argv.extend(["-c:a", "libmp3lame", "-b:a", "192k"]),
+            TranscodePreset::Mp3 => {
+                argv.extend(["-c:a", "libmp3lame", "-b:a", abitrate(args, "192k")])
+            }
             TranscodePreset::Wav => argv.extend(["-c:a", "pcm_s16le"]),
             TranscodePreset::Flac => argv.extend(["-c:a", "flac"]),
-            TranscodePreset::Opus => argv.extend(["-c:a", "libopus", "-b:a", "128k"]),
-            _ => argv.extend(["-c:a", "aac", "-b:a", "192k"]),
+            TranscodePreset::Opus => {
+                argv.extend(["-c:a", "libopus", "-b:a", abitrate(args, "128k")])
+            }
+            _ => argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "192k")]),
         }
     }
     argv.push(&args.output);
@@ -327,6 +331,10 @@ fn prores(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     cap_bitrate(&mut argv, &args.vbitrate);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
+}
+
+fn abitrate<'a>(args: &'a TranscodeArgs, default: &'a str) -> &'a str {
+    args.abitrate.as_deref().unwrap_or(default)
 }
 
 fn cap_bitrate(argv: &mut crate::spawn::Argv, rate: &Option<String>) {
