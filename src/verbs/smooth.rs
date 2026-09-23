@@ -34,6 +34,10 @@ pub fn run(args: SmoothArgs, g: &Globals) -> Result<Contract, Error> {
             vec!["inflate".to_string(); (args.strength * 6.0).ceil().clamp(1.0, 3.0) as usize]
                 .join(",")
         }
+        SmoothEngine::Pp7 => {
+            let qp = (1.0 + args.strength * 5.0).round() as u32;
+            format!("pp7=qp={qp}:mode=medium")
+        }
         SmoothEngine::Uspp => {
             // postproc quality 0..8; strength scales the deblock strength
             let q = (args.strength * 8.0).round() as u32;

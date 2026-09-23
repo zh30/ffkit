@@ -171,10 +171,26 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
             .collect::<Vec<_>>()
             .join(",");
     }
+    if args.match_.is_some() && hald_lut.is_some() {
+        return Err(Error::input("--match can't combine with a HALD --lut"));
+    }
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    if let Some(lut) = &hald_lut {
+    if let Some(m) = &args.match_ {
+        argv.push("-i");
+        argv.push(m);
+        // scale2ref: [scaled ref][src passthrough] — src dims kept; then
+        // midequalizer pulls the source histogram toward the reference's
+        let en = win_expr
+            .as_ref()
+            .map(|w| format!(":enable='{w}'"))
+            .unwrap_or_default();
+        let fc = format!(
+            "[0:v]{vf}[g];[1:v][g]scale2ref[mr][gs];[gs][mr]midequalizer=planes=15{en}[out]"
+        );
+        argv.extend(["-filter_complex", &fc, "-map", "[out]", "-map", "0:a?"]);
+    } else if let Some(lut) = &hald_lut {
         argv.push("-i");
         argv.push(lut);
         let hald = match &win_expr {
@@ -208,6 +224,7 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         "skin": args.skin,
         "grain": args.grain,
         "warm": args.warm,
+        "match": args.match_,
         "hue": args.hue,
     })))
 }

@@ -153,18 +153,18 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section, `end` ok, `--fade` seamless joints) |
 | `stabilize` | Handheld deshake — `--rx`/`--ry` radius, `--edge` fill (blank|original|clamped|mirror) |
 | `reverse` | Play picture and sound backwards |
-| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops), `--skin` warmth ，含 `--kelvin` 开尔文白平衡、`--split` 青橙分调 | Presets `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` stack under the sliders; `--lut look.cube` applies a 3D LUT, `--lut look.png` a HALD image LUT (haldclut — Darktable/RawTherapee exports); `--skin -1..1` warms faces only (selectivecolor reds), `--vibrance -1..1` smarter saturation (boosts muted, protects skin), `--curve "x/y …"` freeform master curve (matte fade, S-curve) | `--at`/`--dur` `--wash C` colour veil |
+| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops), `--skin` warmth ，含 `--kelvin` 开尔文白平衡、`--split` 青橙分调 | Presets `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` stack under the sliders; `--lut look.cube` applies a 3D LUT, `--lut look.png` a HALD image LUT (haldclut — Darktable/RawTherapee exports); `--skin -1..1` warms faces only (selectivecolor reds), `--vibrance -1..1` smarter saturation (boosts muted, protects skin), `--curve "x/y …"` freeform master curve (matte fade, S-curve) | `--at`/`--dur` `--wash C` colour veil | `--match ref.mp4` histogram match |
 | `zoom` | Punch-in (`--factor 1.25`, `--center X,Y` target; `--at`/`--dur` window — comma list for several, `end` ok) | `--out`
 | `sharpen` | Unsharp mask, whole clip or a window (`--amount`, `--at`, `--dur`) `--engine unsharp\|cas\|halo` (halo = maskedclamp, no overshoot) |
 | `vignette` | Corner darkening, whole clip or a window (`--angle`, `--at`, `--dur`) |
 | `bw` | Desaturate to B&W, whole clip or a window (`--at`, `--dur`, `--strength` keeps muted color) ，`--weights r,g,b` 胶片通道权重，`--cut 0-1` hard threshold (xerox/graphic B&W) |
 | `volume` | Gain ±dB; `--at/--dur` limits it to a window — comma list covers several spots (needs `--dur`) (platform loudness is `loudnorm`) |
-| `blur` | Full-frame or windowed gaussian blur (`--sigma`, `--at`/`--dur`; `--at end` = tail) |
+| `blur` | Full-frame or windowed gaussian blur (`--sigma`, `--at`/`--dur`; `--at end` = tail) | `--engine directional --angle` streaks |
 | `trail` | Motion trails: `--mode echo` ghost smear behind movement (`--frames` 2-16, `--at`/`--dur` window), `--mode light` bright-pixel persistence (`--decay` 0.5-0.99) | `--mode diff` motion ghost |
 | `glitch` | Datamosh-style glitch: `--strength` 0.5-20 drives RGB channel shift + temporal noise |
 | `bars` | SMPTE test card: `--size`/`--dur`/`--hd`/`--tone` (1kHz bed), for QC slates and leader |
 | `scope --mode hist` | Rolling temporal histogram of luma — color/exposure drift QC over time |
-| `scope` | QC scope overlay: `--mode vector|wave` in a corner (`--position`, `--size` fraction), `--at` windows |
+| `scope` | QC scope overlay: `--mode vector|wave` in a corner (`--position`, `--size` fraction), `--at` windows | `--mode mvs` MV overlay |
 | `desqueeze` | Anamorphic restore: `--factor` lens ratio (1.33/1.5/1.8/2.0), `--axis y|x` |
 | `solarize` | Psychedelic partial invert: pixels above `--threshold` luma invert, `--at` windows |
 | `pulse` | Breathing zoom bounce: `--rate` cycles/sec, `--depth` amplitude, `--at` windows |
@@ -195,7 +195,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `audiogram --mode cqt` | Constant-Q music spectrum (`showcqt`) — piano-roll spectrum look for music clips |
 | `audiogram --mode spectro` | Scrolling spectrogram (`showspectrum`) — colour time/frequency roll |
 | `scan` | QC report: black stretches, frozen frames, black-frame hits + strobe `flash_frames`/`flash_max_badness` + interlace verdict (idet) + stereo `phase_corr` (~-1 = mono-collapse) — JSON extras; writes no media , audio peak/mean dB (`audio_max_db`, `audio_mean_db`) | +blur QC |
-| `smooth` | Edge-preserving beauty/skin blur (`--engine` smartblur/bilateral; `--strength`, `--at`/`--dur`) | `--engine uspp` postproc deblock |
+| `smooth` | Edge-preserving beauty/skin blur (`--engine` smartblur/bilateral; `--strength`, `--at`/`--dur`) | `--engine uspp` postproc deblock | `--engine pp7` light postproc |
 | `upscale` | Up-res footage: `zscale` spline36 (better than lanczos) + light unsharp, `--factor` 1.05-4 (2 doubles dims), `--strength` edge acuity | `--engine spline|xbr|two-xsai` (pixel-art integer scalers) |
 | `v360` | Reframe 360 footage to flat (`--in` equirect/fisheye/dfisheye/cubemap/EAC/barrel/half-equirect, `--yaw`/`--pitch`/`--fov`, `--size`) |
 | `perspective` | Deskew a filmed screen/whiteboard: `--points x0,y0,x1,y1,x2,y2,x3,y3` (TL,TR,BL,BR quad in source, px), `--interp linear|cubic` |

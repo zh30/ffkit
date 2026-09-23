@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- `grade --match ref.mp4` — midequalizer histogram matching: pull your footage's colour distribution toward a reference clip (camera matching, "grade it like that film"); the reference is scaled to fit via scale2ref
+- `blur --engine directional --angle` — dblur directed streaks (speed-line / fake-motion look)
+- `smooth --engine pp7` — lighter/faster postproc deblock for when uspp is too slow
+- `scope --mode mvs` — codecview motion-vector overlay (compression QC: coherent arrows on pans, jittery arrows on noisy blocks); runs on the full frame since MV side-data doesn't survive scaling
+
+### Added
 - `edge --engine link` — hysteresis edge linking: blurred strong edges grow into the weak map so connected contours survive and specks drop
 - `smooth --engine uspp` — MPEG post-processor deblock+dering for over-compressed rips (`--strength` scales postproc quality)
 - `trail --mode diff` — tblend frame difference: only moving pixels survive, static background fades to black

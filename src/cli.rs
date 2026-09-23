@@ -1179,6 +1179,9 @@ pub enum ScopeMode {
     Wave,
     /// Temporal histogram — luma distribution rolling over time
     Hist,
+    /// codecview motion vectors — macroblock arrows overlay (compression QC:
+    /// panning shots should show coherent arrows; noise means jittery bits)
+    Mvs,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2852,6 +2855,10 @@ pub struct GradeArgs {
     /// protecting already-saturated skin — safer than --saturation on faces)
     #[arg(long, default_value_t = 0.0, allow_hyphen_values = true)]
     pub vibrance: f64,
+    /// Borrow a reference clip's colour histogram (midequalizer) — camera
+    /// matching / "grade it like that film". Second input, scaled to fit
+    #[arg(long)]
+    pub match_: Option<PathBuf>,
     /// Colour wash over the frame (colorize) — mood veil that keeps luma
     #[arg(long)]
     pub wash: Option<String>,
@@ -3326,6 +3333,8 @@ pub enum SmoothEngine {
     /// uspp — MPEG post-processor deblock+dering: rescues over-compressed
     /// rips (re-uploads, low-bitrate sources) without the soft look of blur
     Uspp,
+    /// pp7 — lighter/faster postproc deblock (spp sibling): when uspp is too slow
+    Pp7,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -4856,12 +4865,26 @@ pub struct BlurArgs {
     /// Gaussian sigma (0.5–20)
     #[arg(long, default_value_t = 2.0)]
     pub sigma: f64,
+    /// Engine: gblur (default) | directional — linear streaks along --angle
+    /// (speed-line / motion-smear look)
+    #[arg(long, value_enum)]
+    pub engine: Option<BlurEngine>,
+    /// Streak direction degrees 0..360 for --engine directional (default 45)
+    #[arg(long)]
+    pub angle: Option<f64>,
     /// Blur only from this time — comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
     /// ..for this many seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum BlurEngine {
+    Gblur,
+    /// dblur — directed streaks (speed lines, fake motion)
+    Directional,
 }
 
 #[derive(clap::Args, Debug)]

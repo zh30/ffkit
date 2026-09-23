@@ -23843,6 +23843,117 @@ fn edge_link_smooth_uspp_trail_diff_monitor_wash() {
 }
 
 #[test]
+fn grade_match_blur_dir_smooth_pp7_scope_mvs() {
+    if !has_ffmpeg()
+        || !has_filter("midequalizer")
+        || !has_filter("dblur")
+        || !has_filter("pp7")
+        || !has_filter("codecview")
+    {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let refr = dir.path().join("ref.mp4");
+    // desaturated reference: gradients is soft pastel vs testsrc saturation
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("gradients=size=320x240:rate=25")
+        .args(["-t", "2"])
+        .arg(&refr)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let o = dir.path().join("gm.mp4");
+    let v = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--match",
+        refr.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let sat = |p: &std::path::Path| -> f64 {
+        let out = Command::new("ffmpeg")
+            .args(["-hide_banner", "-i"])
+            .arg(p)
+            .args([
+                "-vf",
+                "signalstats,metadata=print:file=-",
+                "-frames:v",
+                "30",
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let log = format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stderr),
+            String::from_utf8_lossy(&out.stdout)
+        );
+        let mut sum = 0.0;
+        let mut n = 0usize;
+        for line in log.lines() {
+            if let Some(rest) = line.split("SATAVG=").nth(1) {
+                if let Ok(v) = rest.trim().split(' ').next().unwrap_or("").parse::<f64>() {
+                    sum += v;
+                    n += 1;
+                }
+            }
+        }
+        if n == 0 {
+            -1.0
+        } else {
+            sum / n as f64
+        }
+    };
+    let (s_in, s_out) = (sat(&src), sat(&o));
+    assert!(
+        s_in > 0.0 && s_out < s_in * 0.9,
+        "match pulls histogram {s_in} -> {s_out}"
+    );
+
+    // blur --engine directional + smooth pp7 + scope mvs all run
+    let o = dir.path().join("bd.mp4");
+    let v = run_json(&[
+        "blur",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--engine",
+        "directional",
+        "--angle",
+        "30",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["filter"], "dblur", "{v}");
+    let o = dir.path().join("sp.mp4");
+    let v = run_json(&[
+        "smooth",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--engine",
+        "pp7",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let o = dir.path().join("sc.mp4");
+    let v = run_json(&[
+        "scope",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--mode",
+        "mvs",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["mode"], "mvs", "{v}");
+}
+
+#[test]
 fn legalize_levels_aberrate() {
     if !has_ffmpeg() || !has_filter("limiter") || !has_filter("colorlevels") {
         return;

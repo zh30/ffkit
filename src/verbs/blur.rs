@@ -15,17 +15,26 @@ pub fn run(args: BlurArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
+    let base = match args.engine.unwrap_or(crate::cli::BlurEngine::Gblur) {
+        crate::cli::BlurEngine::Gblur => format!("gblur=sigma={}", args.sigma),
+        crate::cli::BlurEngine::Directional => {
+            let a = args.angle.unwrap_or(45.0);
+            if !(0.0..=360.0).contains(&a) {
+                return Err(Error::input("--angle must be 0..360"));
+            }
+            format!("dblur=angle={a}:radius={:.1}", args.sigma * 4.0)
+        }
+    };
     let vf = match &args.at {
         Some(s) => format!(
-            "gblur=sigma={}:enable='{}'",
-            args.sigma,
+            "{base}:enable='{}'",
             crate::time::enable_expr(s, args.dur, probe.duration)?
         ),
         None => {
             if args.dur.is_some() {
                 return Err(Error::input("--dur needs --at"));
             }
-            format!("gblur=sigma={}", args.sigma)
+            base
         }
     };
     argv.extend([
@@ -39,6 +48,9 @@ pub fn run(args: BlurArgs, g: &Globals) -> Result<Contract, Error> {
     let c = engine::write_job("blur", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({
         "sigma": args.sigma,
-        "filter": "gblur",
+        "filter": match args.engine.unwrap_or(crate::cli::BlurEngine::Gblur) {
+            crate::cli::BlurEngine::Gblur => "gblur",
+            crate::cli::BlurEngine::Directional => "dblur",
+        },
     })))
 }
