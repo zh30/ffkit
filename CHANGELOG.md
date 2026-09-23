@@ -10,6 +10,14 @@
 - `poster` — pop-art posterization (`elbg=l=N`, `--levels` 2-64, `--at`/`--dur` via blend branch)
 - `duotone` — two-color luminance ramp (`--shadow`/`--highlight`, `format=gray` + per-channel `lutrgb`)
 
+## [0.193.0] — 2026-09-23
+
+### Added
+
+- `censor --mode solid` — black-bar redact (drawbox=t=fill; combines with --shape circle)
+- `caption --margin N` — pixel offset from the caption edge
+- `grade --preset teal` / `noir` — orange-and-teal look; true B&W (tail desaturation)
+
 ## [0.192.0] — 2026-09-23
 
 ### Added

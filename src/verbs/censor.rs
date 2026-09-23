@@ -57,6 +57,7 @@ pub fn run(args: CensorArgs, g: &Globals) -> Result<Contract, Error> {
             bh = (h as f64 / args.strength.max(2.0)).max(2.0) as u32,
         ),
         CensorMode::Blur => format!("gblur=sigma={:.0}", args.strength.max(1.0)),
+        CensorMode::Solid => "drawbox=c=black:t=fill".to_string(),
     };
     let enable = match (&args.at, args.dur) {
         (Some(at), dur) => {
