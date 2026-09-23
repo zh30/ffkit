@@ -176,6 +176,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `spin` | 钟摆式摇摆：画面按缓正弦旋转，`--deg`/`--rate`，`--at` 窗口 |
 | `iris` | 聚光圆盘：圆外画面变暗去饱和，`--x`/`--y`/`--radius`，`--at` 窗口 |
 | `burst` | 径向变焦拖影：放大模糊副本叠在清晰画面下，`--strength` |
+| `thump` | `--at` 时刻低音冲击：55Hz 正弦带快速衰减混入音轨，`--freq`/`--gain`/`--dur` |
+| `riser` | 上行音调扫频（200→2000Hz）在 `--at` 时刻落地，`--dur` 上升时长，`--gain` |
+| `whoosh` | 棕色噪声气声渐强在 `--at` 落地（转场音效），`--dur`/`--gain` |
 | `pick` | 主色提取：某时刻均色 + 3x2 分区色板（仅 JSON 报告） |
 | `diff` | 双片视觉差异：放大差值混合，`--side` 并排参考 |
 | `selective` | 单色保留：仅留 `--color` 其余去饱和，`--similarity` 容差，`--at` 窗口 |

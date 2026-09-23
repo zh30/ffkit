@@ -1,3 +1,4 @@
+pub mod accent;
 pub mod align;
 pub mod art;
 pub mod audiogram;

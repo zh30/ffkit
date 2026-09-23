@@ -19392,3 +19392,77 @@ fn iris_burst_and_neon_bleach_grade() {
     let g = dir.path().join("g-bleach.mp4");
     assert!(sat(&g) + 40 < sat(&flat), "bleach should drop chroma");
 }
+
+#[test]
+fn thump_riser_whoosh_accents() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("tone.wav");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=2:sample_rate=44100",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+
+    let peak = |f: &Path, ss: f64, t: f64| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-v", "info", "-ss"])
+            .arg(format!("{ss:.3}"))
+            .args(["-t"])
+            .arg(format!("{t:.3}"))
+            .args(["-i"])
+            .arg(f)
+            .args(["-af", "volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let err = String::from_utf8_lossy(&o.stderr);
+        let m = err.split("max_volume:").nth(1).unwrap_or("");
+        m.trim_start()
+            .split(' ')
+            .next()
+            .unwrap_or("0")
+            .parse::<f64>()
+            .unwrap_or(0.0)
+    };
+
+    // each accent lands on --at 1.0: louder at the hit than the bare tone
+    for v in ["thump", "riser", "whoosh"] {
+        let out = dir.path().join(format!("{v}.m4a"));
+        let j = run_json(&[
+            v,
+            tone.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--at",
+            "1.0",
+            "--json",
+        ]);
+        assert_eq!(j["status"], "ok", "{v} {j}");
+        // thump peaks at --at; riser/whoosh swell up into it (peak just before)
+        let ss = if v == "thump" { 0.95 } else { 0.7 };
+        let hit = peak(&out, ss, 0.25);
+        let dry = peak(&tone, ss, 0.25);
+        assert!(hit > dry + 1.0, "{v} hit {hit} should exceed dry {dry}");
+        // accents are momentary: outside their span the track stays at tone level
+        let quiet = if v == "thump" {
+            peak(&out, 0.1, 0.3)
+        } else {
+            peak(&out, 1.6, 0.3)
+        };
+        assert!(
+            quiet < dry + 3.0,
+            "{v} outside the accent should stay near dry, got {quiet}"
+        );
+    }
+}

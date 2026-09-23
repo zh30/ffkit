@@ -263,6 +263,12 @@ pub enum Cmd {
     Iris(IrisArgs),
     /// Radial zoom smear: blurred blown-up copy behind the sharp frame
     Burst(BurstArgs),
+    /// Sub-bass drop at a moment (55Hz thump with decay)
+    Thump(ThumpArgs),
+    /// Rising tonal chirp that lands on --at
+    Riser(RiserArgs),
+    /// Airy noise swell that lands on --at
+    Whoosh(WhooshArgs),
     /// Comic look: posterized base + ink outlines
     Cartoon(CartoonArgs),
     /// Thermal / false-color luma map
@@ -1224,6 +1230,57 @@ pub struct SpinArgs {
     /// Window length in seconds (required with --at)
     #[arg(long)]
     pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ThumpArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Moment of the drop in seconds (default 0.5)
+    #[arg(long)]
+    pub at: Option<f64>,
+    /// Thump frequency 20-120 Hz
+    #[arg(long, default_value_t = 55)]
+    pub freq: u32,
+    /// Thump level 0.05-1.0
+    #[arg(long, default_value_t = 0.5)]
+    pub gain: f64,
+    /// Thump tail seconds
+    #[arg(long, default_value_t = 0.6)]
+    pub dur: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct RiserArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Moment the rise lands on, seconds (default 0.5)
+    #[arg(long)]
+    pub at: Option<f64>,
+    /// Rise length 0.2-10 s
+    #[arg(long, default_value_t = 1.0)]
+    pub dur: f64,
+    /// Riser level 0.05-1.0
+    #[arg(long, default_value_t = 0.4)]
+    pub gain: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct WhooshArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Moment the swell lands on, seconds (default 0.5)
+    #[arg(long)]
+    pub at: Option<f64>,
+    /// Swell length 0.2-10 s
+    #[arg(long, default_value_t = 1.0)]
+    pub dur: f64,
+    /// Swell level 0.05-1.0
+    #[arg(long, default_value_t = 0.4)]
+    pub gain: f64,
 }
 
 #[derive(clap::Args, Debug)]

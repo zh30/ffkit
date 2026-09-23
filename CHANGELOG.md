@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.206.0] — 2026-09-23
+
+### Added
+- `thump`, `riser`, `whoosh`.
+
 ## [0.205.0] — 2026-09-23
 
 ### Added
