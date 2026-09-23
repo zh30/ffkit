@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.193.0
+version: 0.197.0
 version: 0.191.0
 
 
@@ -134,6 +134,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | blur just a moment | `blur` (`--at`/`--dur`) |
 | motion trails / ghost smears | `trail` (`--mode echo` tmix smear, `--frames`, `--at`/`--dur`; `--mode light` bright-pixel persistence via lagfun, `--decay`) |
 | datamosh glitch | `glitch` (`--strength` channel-shift + noise) |
+| flash cut | `strobe` (`--rate`/`--duty`/`--color`, `--at` window) |
+| neon outline | `edge` (`--mode wires|colormix`, `--at` window) |
+| fisheye / defish | `lens` (`--k1`/`--k2`, `--at` window) |
 | text in a corner | `title` (`--position top-right` …) |
 | B&W only for a moment | `bw` (`--at`/`--dur`) |
 | sharpen only the key shot | `sharpen` (`--at`/`--dur`) |

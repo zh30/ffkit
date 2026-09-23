@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.197.0] — 2026-09-23
+
+### Added
+
+- `strobe` — music-video flash cuts: periodic opaque color flashes (`--rate` flashes/sec, `--duty` on-fraction, `--color`), gated by `--at`/`--dur` windows.
+- `edge` — neon edge-detect outlines (`--mode wires|colormix`, `--low`/`--high`), `--at`/`--dur` windows.
+- `lens` — lens distortion (`--k1`/`--k2`): negative values produce a fisheye look, positive values defish action-cam footage; `--at`/`--dur` windows.
+
 ## [0.193.0] — 2026-09-23
 
 ### Added

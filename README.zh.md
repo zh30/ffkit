@@ -161,6 +161,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`/`--dur`；`--at end` = 片尾） |
 | `trail` | 运动拖影：`--mode echo` 跟随残影（`--frames` 2-16、`--at`/`--dur` 窗口），`--mode light` 亮部拖尾（`--decay` 0.5-0.99） |
 | `glitch` | 故障风 RGB 错位：`--strength` 0.5-20 控制通道偏移+噪点强度 |
+| `strobe` | MV 频闪剪切：`--rate` 每秒闪数、`--duty` 占空比、`--color`、`--at` 窗口 |
+| `edge` | 霓虹描边：`--mode wires|colormix`、`--low`/`--high` 阈值、`--at` 窗口 |
+| `lens` | 镜头畸变：`--k1`/`--k2` —— 负值鱼眼效果，正值运动相机去鱼眼；`--at` 窗口 |
 | `vdenoise` | 视频降噪（暗光噪点）：`--strength` 0.5–30、`--at`/`--dur` 只处理一段——逗号列表可多段（nlmeans，长片较慢），支持 `end` |
 | `crop` | 裁剪 `--region` 区域，或 `--aspect` 重构（`--anchor center|top|bottom|left|right` 可选锚点） |
 | `waveform` | 音频波形 → PNG（`--size`、`--color`, `--scale`、`--peak` 峰值、`--split` 逐声道、`--full` 密集、`--bg` 不透明底卡、`--vertical` 竖向波形（自上而下，PNG 为 高×宽）），播客封面/缩略图用（`--at/--dur` 只画片段，支持 `end`，逗号 `--at` 每窗一张 `<stem>_N.png`） |

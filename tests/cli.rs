@@ -17932,3 +17932,115 @@ fn waveform_vertical_broll_opacity_title_margin() {
         .any(|a| a.as_str().unwrap_or("").contains("W-w-12"));
     assert!(mg, "margin inset missing: {}", v["commands"]);
 }
+
+#[test]
+fn strobe_edge_lens() {
+    if !has_ffmpeg() || !has_filter("edgedetect") || !has_filter("lenscorrection") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("s.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:duration=2:rate=24",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&src)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let frame_luma = |mp4: &Path, t: &str| -> u8 {
+        let raw = dir.path().join(format!(
+            "{}_{}.raw",
+            mp4.file_stem().unwrap().to_string_lossy(),
+            t.replace('.', "_")
+        ));
+        let o = Command::new("ffmpeg")
+            .args(["-y", "-loglevel", "error", "-ss", t, "-i"])
+            .arg(mp4)
+            .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray"])
+            .arg(&raw)
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+        let d = std::fs::read(&raw).unwrap();
+        (d.iter().map(|p| *p as u64).sum::<u64>() / d.len() as u64) as u8
+    };
+    let src_luma = frame_luma(&src, "0.5");
+
+    // strobe: at t=0.5 mod(0.5,0.25)=0 < duty*period -> white flash inside window
+    let st = dir.path().join("st.mp4");
+    let v = run_json(&[
+        "strobe",
+        src.to_str().unwrap(),
+        "-o",
+        st.to_str().unwrap(),
+        "--rate",
+        "4",
+        "--at",
+        "0.4",
+        "--dur",
+        "0.4",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(frame_luma(&st, "0.5"), 255, "flash frame must be white");
+    assert!(
+        (frame_luma(&st, "0.2") as i16 - src_luma as i16).abs() <= 3,
+        "outside window unchanged"
+    );
+
+    // edge window: edge-detected frame is much darker than source
+    let ed = dir.path().join("ed.mp4");
+    let v = run_json(&[
+        "edge",
+        src.to_str().unwrap(),
+        "-o",
+        ed.to_str().unwrap(),
+        "--at",
+        "0.3",
+        "--dur",
+        "0.5",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let on = frame_luma(&ed, "0.5");
+    let off = frame_luma(&ed, "0.9");
+    assert!(on < src_luma - 20, "edge frame should be mostly dark: {on}");
+    assert!(
+        (off as i16 - src_luma as i16).abs() <= 3,
+        "outside window unchanged"
+    );
+
+    // lens fisheye: valid output, lenscorrection in argv
+    let ln = dir.path().join("ln.mp4");
+    let v = run_json(&[
+        "lens",
+        src.to_str().unwrap(),
+        "-o",
+        ln.to_str().unwrap(),
+        "--k1",
+        "-0.3",
+        "--json",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let joined: String = v["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|a| a.as_str().unwrap_or(""))
+        })
+        .collect();
+    assert!(joined.contains("lenscorrection=k1=-0.3"));
+}
