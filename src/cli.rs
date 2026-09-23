@@ -829,6 +829,9 @@ pub struct TranscodeArgs {
     /// Peak video bitrate cap like `8M`/`3500k` — sets -maxrate R -bufsize 2R
     #[arg(long)]
     pub vbitrate: Option<String>,
+    /// Audio bitrate like `64k`/`128k` (voice posts → 64k frees video bitrate)
+    #[arg(long)]
+    pub abitrate: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1588,6 +1591,9 @@ pub struct PitchArgs {
     /// Window length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Preserve formants (natural voice pitch, not chipmunk) — needs librubberband
+    #[arg(long)]
+    pub formant: bool,
 }
 
 #[derive(clap::Args, Debug)]

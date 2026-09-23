@@ -2,7 +2,8 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.184.0
+version: 0.185.0
+
 
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
@@ -41,7 +42,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | platform loudness | `loudnorm` (`--target`, `-I/--tp/--lra`; `--measure` report-only, `--gate N` fails when input tops N LUFS, `--dynamic` per-frame) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur --strength`), `zoom`, `--position` top/bottom/corners |
 
-| export | `deliver`, `transcode` (`--copy-audio`, `--vbitrate` peak cap, `--preset mp3`/`aac`/`wav`/`flac`/`opus` audio-only), `compress` (`--size 10MB` two-pass, `--crf` quality one-pass, `--res` downscale), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores`, `--target` platform sizes |
+| export | `deliver`, `transcode` (`--copy-audio`, `--vbitrate` peak cap, `--abitrate` audio bitrate, `--preset mp3`/`aac`/`wav`/`flac`/`opus` audio-only), `compress` (`--size 10MB` two-pass, `--crf` quality one-pass, `--res` downscale), `audiogram` (`--progress`, `--mode`/`--color`), `slideshow` (`--motion kenburns`, `--transition`), `split`, `--subs` captions, `--preset prores`, `--target` platform sizes |
 | captions / mute | `caption` (`--karaoke` word reveal, `--box-color` card, `--mode burn` social safe-zone, `--chunk N` word groups, `--align`, `--from/--to` window, or `--mode mux`), `--fade` |
 | hook text | `title` (`--wrap` auto line breaks, `--align` left/right lower-thirds, `--box`/`--outline`/`--shadow`) |
 | dutch-angle tilt (full clip or windowed) | `rotate` (`--angle 15`, `--at`/`--dur` window — comma list for several tilts) |
@@ -183,7 +184,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | player seek-preview thumbnails | `sprite` (`--every` secs → `<stem>-N.jpg` sheets + `.vtt` with `#xywh` cues) |
 | title card mid-clip | `title` (`--text`, `--at` S for lower-third timing) |
 | voice-over on video's own audio | `replace --audio V --mix G --duck` (sidechain) |
-| pitch-shift voice/music | `pitch` (`--at`/`--dur` window, `--semitones N`, duration preserved) |
+| pitch-shift voice/music | `pitch` (`--at`/`--dur` window, `--semitones N`, duration preserved; `--formant` natural timbre via librubberband) |
 | film grain | `grade --grain N` |
 | auto cut on scene changes | `split --scenes 0.3` |
 | strip dead air head+tail (audio) | `cutsil` (`--thresh -45`) |

@@ -237,9 +237,14 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 157)
+
+- `pitch --formant` — pitch-shift that keeps the voice's timbre via `rubberband=formant=preserved` (natural-sounding voice drops for trailers/characters; errors cleanly when ffmpeg lacks librubberband). `transcode --abitrate R` — audio bitrate for every encode path (64k voice posts free video bitrate on a size budget).
+
 ## Shipped this run (round 156)
 
 - `scroll --speed N` — px/s pacing for end-credit rolls and tickers (sets each window's duration from travel distance; conflicts `--dur`). `countdown --format` — `s`/`mm:ss`/`h:mm:ss` digit formats + `--from` cap raised to 600 for livestream "starting soon" counters.
+
 
 ## Shipped this run (round 155)
 

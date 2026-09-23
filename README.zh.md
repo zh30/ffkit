@@ -106,7 +106,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `caption` | 烧录字幕（`--srt`、`--chunk`、`--karaoke`、`--box-color` 底板、`--wrap` 折行、`--from/--to` 只烧窗口内字幕（支持 `end`/`end-N`）） ，`--fade` 淡入淡出 |
 | `loudnorm` | EBU R128 两遍响度归一（`--target spotify|podcast|broadcast`）；`--measure` 只测不写（`--gate N` 超过 N LUFS 即失败）；`--dynamic` 逐帧动态增益 |
 | `denoise` | 音频降噪（`--strength`、`--highpass`、`--at/--dur` 窗口），支持 `end`，逗号列表可多段 |
-| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`/`--colors`） | 预设 `h264`/`webm`/`gif`/`hevc`/`mp3`/`aac`/`wav`/`flac`/`opus`/`av1`/`prores`；`--fps` 也可给视频变速帧率；`--vbitrate` 峰值码率帽；`--alpha` 保留透明通道（webm/prores） |
+| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`/`--colors`） | 预设 `h264`/`webm`/`gif`/`hevc`/`mp3`/`aac`/`wav`/`flac`/`opus`/`av1`/`prores`；`--fps` 也可给视频变速帧率；`--vbitrate` 峰值码率帽、`--abitrate` 音频码率（人声帖用 64k 更省）；`--alpha` 保留透明通道（webm/prores） |
 | `compress` | 压到目标体积（`--size 10MB` 两遍、`--target discord|whatsapp|gmail` 平台预设）；`--crf` 画质单遍、`--res` 缩分辨率腾码率 |
 | `deliver` | 一键平台成片（Reels / TikTok / Shorts 为 9:16，`square` 为 1:1，`youtube` 为 16:9；−14 LUFS；`--fps 60` 高帧率，`--crf` 画质） |
 
@@ -127,7 +127,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`；`--buffer N` 向外扩 N 像素） |
 | `sheet` | 宫格预览图（`--cols`x`--rows`、`--time` 每格时间戳、`--title` 标题行、`--from`/`--to` 采样窗口） |
 | `sprite` | 播放条预览雪碧图 + WebVTT（`--every` 间隔秒、`--width` 缩略图宽、`--cols`x`--rows` 每张格数、`--vtt` 路径、`--from`/`--to` 限定范围，支持 `end`）——播放器悬停预览 |
-| `pitch` | ±12 半音变调不变速（`--at/--dur` 窗口），支持 `end`，逗号列表可多段 |
+| `pitch` | ±12 半音变调不变速（`--at/--dur` 窗口，逗号列表）；`--formant` 保留人声音色不失真（需 librubberband） |
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
 | `channel` | 声道手术：`--mode dualmono|mono|swap|invert|mix51|pan|widen|split`（`split` 立体声→`_L/_R.wav` 双人声分轨）；`--pan -1..1` 声像定位 |
 | `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡） ，`--band` 参量频段，`--tilt` 暖↔亮，支持 `end`，逗号列表可多段 |
