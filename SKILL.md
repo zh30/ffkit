@@ -144,6 +144,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | dreamy bloom | `glow` (`--strength` blur radius, `--at`/`--dur` window) |
 | retro tape look | `vhs` (`--strength` 0-3 noise + chroma shift + scanlines, `--at`/`--dur` window) |
 | shutter smear | `motionblur` (`--frames` 2-8 temporal blend, `--at`/`--dur` window) |
+| flash cut | `strobe` (`--rate`/`--duty`/`--color`, `--at` window) |
+| neon outline | `edge` (`--mode wires|colormix`, `--at` window) |
+| fisheye / defish | `lens` (`--k1`/`--k2`, `--at` window) |
 | text in a corner | `title` (`--position top-right` …) |
 | B&W only for a moment | `bw` (`--at`/`--dur`) |
 | sharpen only the key shot | `sharpen` (`--at`/`--dur`) |

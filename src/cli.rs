@@ -233,6 +233,12 @@ pub enum Cmd {
     Heat(HeatArgs),
     /// 2x2 mirrored mandala from the top-left quadrant
     Kaleido(KaleidoArgs),
+    /// Music-video flash cuts: periodic opaque color flashes
+    Strobe(StrobeArgs),
+    /// Neon edge-detect outline look (wires | colormix)
+    Edge(EdgeArgs),
+    /// Lens distortion: fisheye look or action-cam defish
+    Lens(LensArgs),
     /// Mirror half the frame across the center axis (dance/symmetry look)
     Mirror(MirrorArgs),
     /// Chunky retro pixelation over the whole frame
@@ -1171,6 +1177,76 @@ pub struct MotionBlurArgs {
     #[arg(long)]
     pub at: Option<String>,
     /// Seconds the blur lasts per --at point (default: to end)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct StrobeArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Flashes per second
+    #[arg(long, default_value_t = 4.0)]
+    pub rate: f64,
+    /// Fraction of each period the flash is on (0.05-0.8)
+    #[arg(long, default_value_t = 0.25)]
+    pub duty: f64,
+    /// Flash color (name or hex)
+    #[arg(long, default_value = "white")]
+    pub color: String,
+    /// Only flash inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum EdgeMode {
+    /// White wireframe lines on black
+    Wires,
+    /// Neon colored outlines over the picture
+    Colormix,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct EdgeArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    #[arg(long, value_enum, default_value_t = EdgeMode::Colormix)]
+    pub mode: EdgeMode,
+    /// Edge low threshold 0-1
+    #[arg(long, default_value_t = 0.2)]
+    pub low: f64,
+    /// Edge high threshold 0-1
+    #[arg(long, default_value_t = 0.4)]
+    pub high: f64,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct LensArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Radial correction: negative = fisheye look, positive = defish
+    #[arg(long, default_value_t = -0.2, allow_negative_numbers = true)]
+    pub k1: f64,
+    /// Secondary radial term
+    #[arg(long, default_value_t = -0.05, allow_negative_numbers = true)]
+    pub k2: f64,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
     #[arg(long)]
     pub dur: Option<f64>,
 }

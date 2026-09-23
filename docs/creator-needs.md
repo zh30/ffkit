@@ -241,6 +241,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 
 - `cartoon` (posterize + ink outlines), `heat` (pseudocolor thermal presets, `--opacity`), `kaleido` (2x2 mirrored mandala).
 
+## Shipped this run (round 170)
+
+- `strobe` (periodic color flash cuts, `--at` windows), `edge` (neon outlines, `wires`/`colormix`), `lens` (fisheye look / action-cam defish via `--k1`/`--k2`).
+
 ## Shipped this run (round 157)
 
 - `pitch --formant` — pitch-shift that keeps the voice's timbre via `rubberband=formant=preserved` (natural-sounding voice drops for trailers/characters; errors cleanly when ffmpeg lacks librubberband). `transcode --abitrate R` — audio bitrate for every encode path (64k voice posts free video bitrate on a size budget).
