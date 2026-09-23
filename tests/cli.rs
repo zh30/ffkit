@@ -15211,3 +15211,42 @@ fn end_bounds_on_subs_audiogram_bleep() {
         .join(" ");
     assert!(cmds.contains("adelay=600"), "{cmds}"); // beep at duration-0.4
 }
+
+#[test]
+fn cut_fade_edges_and_deliver_square() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "cut",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("fc.mp4").to_str().unwrap(),
+        "--duration",
+        "0.8",
+        "--fade",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("fade=t=in"), "{cmds}");
+    assert!(cmds.contains("afade"), "{cmds}");
+    let v = run_json(&[
+        "deliver",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("sq.mp4").to_str().unwrap(),
+        "--platform",
+        "square",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["frame"], "1080x1080", "{v}");
+}

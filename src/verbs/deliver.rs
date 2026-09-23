@@ -17,6 +17,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
 
     let (fw, fh) = match args.platform {
         DeliverPlatform::Youtube => (1920, 1080),
+        DeliverPlatform::Square => (1080, 1080),
         _ => (1080, 1920),
     };
     let vf = format!(
@@ -110,6 +111,7 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Reels => "reels",
         DeliverPlatform::Tiktok => "tiktok",
         DeliverPlatform::Shorts => "shorts",
+        DeliverPlatform::Square => "square",
         DeliverPlatform::Youtube => "youtube",
     }
 }

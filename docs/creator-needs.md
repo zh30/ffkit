@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 121)
+- `cut --fade N` — fade in/out at the trimmed edges (re-encodes, clamps to half the cut).
+- `deliver --platform square` — 1080x1080 Instagram-grid / LinkedIn pack.
+
 ## Shipped this run (round 120)
 - `end` sweep leftovers: `subs --burn --to end`, `audiogram --to end`, `bleep --at end --dur` (via `time::resolve_at`).
 

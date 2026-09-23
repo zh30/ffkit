@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.148.0] — 2026-09-22
+
+### Added
+- `cut --fade N` — fade in/out at the trimmed edges (re-encode).
+- `deliver --platform square` — 1080x1080 feed-grid pack.
+
 ## [0.147.0] — 2026-09-22
 
 ### Added

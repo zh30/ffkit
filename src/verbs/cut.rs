@@ -53,7 +53,45 @@ pub fn run(args: CutArgs, g: &Globals) -> Result<Contract, Error> {
     }
 
     let mut argv = ffmpeg_base(g.progress);
-    if args.accurate {
+    if let Some(f) = args.fade {
+        // fade edges need re-encode; clamp f so in+out never overlap
+        let total = match dur {
+            Some(d) => d,
+            None => engine::probe_or_err(&args.input, g)?.duration - start,
+        };
+        if f <= 0.0 {
+            return Err(Error::input("--fade must be > 0"));
+        }
+        let f = f.min(total / 2.0 - 0.01).max(0.0);
+        if f <= 0.0 {
+            return Err(Error::input("--fade is longer than the cut"));
+        }
+        argv.push("-i");
+        argv.push(&args.input);
+        if start > 0.0 {
+            argv.extend(["-ss", &fmt_time(start)]);
+        }
+        if let Some(d) = dur {
+            argv.extend(["-t", &fmt_time(d)]);
+        }
+        argv.extend([
+            "-vf",
+            &format!("fade=t=in:d={f:.3},fade=t=out:st={:.3}:d={f:.3}", total - f),
+            "-af",
+            &format!(
+                "afade=t=in:d={f:.3},afade=t=out:st={:.3}:d={f:.3}",
+                total - f
+            ),
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "18",
+            "-c:a",
+            "aac",
+        ]);
+    } else if args.accurate {
         argv.push("-i");
         argv.push(&args.input);
         if start > 0.0 {

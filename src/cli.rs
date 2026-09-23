@@ -282,6 +282,9 @@ pub struct CutArgs {
     /// Re-encode for frame-exact cuts
     #[arg(long)]
     pub accurate: bool,
+    /// Fade in/out N seconds at the trimmed edges (forces re-encode)
+    #[arg(long)]
+    pub fade: Option<f64>,
     /// Keep several ranges joined into one file ("10-20,40-50", seconds or h:mm:ss)
     #[arg(long)]
     pub ranges: Option<String>,
@@ -842,6 +845,8 @@ pub enum DeliverPlatform {
     Reels,
     Tiktok,
     Shorts,
+    /// 1:1 feed grid (1080x1080, -14 LUFS)
+    Square,
     /// 16:9 landscape upload (1920x1080, -14 LUFS)
     Youtube,
 }

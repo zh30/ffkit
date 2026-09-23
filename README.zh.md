@@ -97,7 +97,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `doctor` | 本机 ffmpeg 是否可用、有哪些 encoder/filter |
 | `probe` | 时长、分辨率、编码、声道 |
 | `look` | 联系表（`--tiles`）或指定时间点（`--at`，可重复） |
-| `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges`、`--drop` 才帧精确（边界支持 `end`：`T-end` 到结尾、`end-N` 最后 N 秒） |
+| `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges`、`--drop` 才帧精确（边界支持 `end`：`T-end` 到结尾、`end-N` 最后 N 秒）；`--fade N` 切口淡入淡出 |
 | `concat` | 拼接 N 段（任意 xfade `--transition`、`--audio-fade`）；`--level -14` 先统一各段响度 |
 | `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 ，`--position` 画面对齐黑边位置 ，`--strength` 模糊力度 |
 | `extract` | 抓静帧或 `--gif` 动图（`--bounce` 往返循环） | `--at`（`end` = 最后一帧 / 最后 --dur 秒）、`--width`、`--fps` ，`--loop` GIF 循环次数、`--colors` 调色板大小 |
@@ -108,7 +108,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `denoise` | 音频降噪（`--strength`、`--highpass`、`--at/--dur` 窗口），支持 `end` |
 | `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`/`--colors`） | 预设 `h264`/`webm`/`gif`/`hevc`/`mp3`/`aac`/`wav`/`flac`/`opus`；`--fps` 也可给视频变速帧率 ，`--preset prores` 剪辑交付；`av1` 预设；`--alpha` 保留透明通道（webm/prores） |
 | `compress` | 压到目标体积（`--size 10MB` 两遍、`--target discord|whatsapp|gmail` 平台预设）；`--crf` 画质单遍、`--res` 缩分辨率腾码率 |
-| `deliver` | 一键平台成片（Reels / TikTok / Shorts 为 9:16，`youtube` 为 16:9；−14 LUFS） |
+| `deliver` | 一键平台成片（Reels / TikTok / Shorts 为 9:16，`square` 为 1:1 正方形，`youtube` 为 16:9；−14 LUFS） |
 
 | `audiogram` | 波形视频 | `--mode`、`--scale` 幅度、`--split` 分声道、`--fscale` 频率轴（spectrum）、`--fps` 帧率、`--text`、`--bg`、`--progress` 进度条 ，`--subs` 烧字幕、`--from`/`--to` 只取一段（`--to` 可用 `end`）；`--mode spectrum` 频谱条 |
 
