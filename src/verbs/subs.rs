@@ -25,8 +25,17 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("subs --case works with --burn or --convert"));
     }
     let _probe = engine::probe_or_err(&args.input, g)?;
+    if let Some(si) = args.burn_si {
+        let n_subs = _probe.subtitle_streams;
+        if n_subs <= si {
+            return Err(Error::input(format!(
+                "--burn-si {si}: input only has {n_subs} subtitle stream(s)"
+            )));
+        }
+        return burn(&args, &args.input.clone(), g, Some(si));
+    }
     if let Some(subs) = &args.burn {
-        return burn(&args, subs, g);
+        return burn(&args, subs, g, None);
     }
     if args.burn_box {
         return Err(Error::input("subs --box needs --burn"));
@@ -210,7 +219,12 @@ fn mux(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract,
     })))
 }
 
-fn burn(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract, Error> {
+fn burn(
+    args: &SubsArgs,
+    subs: &std::path::Path,
+    g: &Globals,
+    stream_index: Option<u32>,
+) -> Result<Contract, Error> {
     if !subs.is_file() {
         return Err(Error::input(format!(
             "no such subtitle file: {}",
@@ -355,7 +369,8 @@ fn burn(args: &SubsArgs, subs: &std::path::Path, g: &Globals) -> Result<Contract
 OutlineColour=&H80000000,BorderStyle={bs}{back},Outline={outline},Shadow={shadow},\
 MarginV={margin_v},Alignment={align}"
     );
-    let vf = format!("subtitles=filename='{path}':force_style='{style}'");
+    let si = stream_index.map(|i| format!(":si={i}")).unwrap_or_default();
+    let vf = format!("subtitles=filename='{path}'{si}:force_style='{style}'");
 
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
