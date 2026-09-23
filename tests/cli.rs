@@ -16,10 +16,12 @@ fn has_ffmpeg() -> bool {
 }
 
 // ahistogram exists on Ubuntu's ffmpeg 4.4.2 but heap-crashes
-// (malloc_consolidate): probe it renders the production shape
-// (940x320, 1s of audio, colorkey tail) before asserting.
-fn ahistogram_works() -> bool {
-    Command::new("ffmpeg")
+// (malloc_consolidate) inside the full audiogram graph: replicate the
+// whole production command (AAC-decoded mp4 input + cover + colorkey +
+// overlay + shortest) and skip if this environment's build crashes.
+fn ahistogram_works(dir: &Path) -> bool {
+    let src = dir.join("ahp.mp4");
+    let mk = Command::new("ffmpeg")
         .args([
             "-hide_banner",
             "-loglevel",
@@ -28,14 +30,42 @@ fn ahistogram_works() -> bool {
             "-f",
             "lavfi",
             "-i",
-            "sine=frequency=440:duration=1",
-            "-filter_complex",
-            "ahistogram=s=940x320:slide=scroll,format=rgb24,colorkey=0x000000:0.12:0.1",
-            "-frames:v",
-            "30",
+            "testsrc=size=320x240:rate=30:duration=1",
             "-f",
-            "null",
-            "-",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&src)
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !mk {
+        return false;
+    }
+    Command::new("ffmpeg")
+        .args([
+            "-hide_banner", "-loglevel", "error", "-y", "-nostdin",
+        ])
+        .arg("-i")
+        .arg(&src)
+        .args(["-f", "lavfi", "-i", "color=c=0x101418:s=1080x1920:r=30"])
+        .args([
+            "-filter_complex",
+            "[1:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg];\
+             [0:a]ahistogram=s=940x320:slide=scroll,format=rgb24[wv];\
+             [wv]colorkey=0x000000:0.12:0.1[wvk];\
+             [bg][wvk]overlay=(W-w)/2:(H-h)*0.62:shortest=1[vout]",
+            "-map", "[vout]", "-map", "0:a", "-c:v", "libx264", "-preset", "ultrafast",
+            "-crf", "30", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest",
+            "-f", "null", "-",
         ])
         .status()
         .map(|s| s.success())
@@ -26434,7 +26464,7 @@ fn r228_chromakey_shelf_notch_brickwall_boxblur_ahist() {
     }
 
     // audiogram --mode hist — ahistogram amplitude-distribution video
-    if has_filter("ahistogram") && ahistogram_works() {
+    if has_filter("ahistogram") && ahistogram_works(dir.path()) {
         let o = dir.path().join("hist.mp4");
         let j = run_json(&[
             "audiogram",
