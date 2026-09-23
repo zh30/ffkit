@@ -145,6 +145,70 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
         };
         chain.push(format!("aemphasis=type={ty}"));
     }
+    // --shelf SIDE:FREQ:GAIN — lowshelf/highshelf shelving EQ
+    for s in &args.shelf {
+        let mut it = s.split(':');
+        let side = it.next().unwrap_or("");
+        let f: f64 = it
+            .next()
+            .and_then(|v| v.parse().ok())
+            .ok_or_else(|| Error::input(format!("--shelf wants SIDE:FREQ:GAIN, got '{s}'")))?;
+        let g2: f64 = it
+            .next()
+            .and_then(|v| v.parse().ok())
+            .ok_or_else(|| Error::input(format!("--shelf wants SIDE:FREQ:GAIN, got '{s}'")))?;
+        if !(20.0..=20000.0).contains(&f) {
+            return Err(Error::input("--shelf FREQ must be 20..20000 Hz"));
+        }
+        if !(-20.0..=20.0).contains(&g2) {
+            return Err(Error::input("--shelf GAIN must be -20..=20 dB"));
+        }
+        let filter = match side {
+            "low" => "lowshelf",
+            "high" => "highshelf",
+            _ => return Err(Error::input("--shelf SIDE: low|high")),
+        };
+        chain.push(format!("{filter}=f={f:.0}:g={g2:.1}"));
+    }
+    // --notch FREQ[:WIDTH] — bandreject resonance/ring kill
+    for n in &args.notch {
+        let mut it = n.split(':');
+        let f: f64 = it
+            .next()
+            .and_then(|v| v.parse().ok())
+            .ok_or_else(|| Error::input(format!("--notch wants FREQ[:WIDTH], got '{n}'")))?;
+        let w: f64 = it.next().and_then(|v| v.parse().ok()).unwrap_or(f / 2.0);
+        if !(20.0..=20000.0).contains(&f) {
+            return Err(Error::input("--notch FREQ must be 20..20000 Hz"));
+        }
+        if !(1.0..=f).contains(&w) {
+            return Err(Error::input("--notch WIDTH must be 1..=FREQ Hz"));
+        }
+        chain.push(format!("bandreject=f={f:.0}:w={w:.0}"));
+    }
+    // --brickwall LO,HI — afftfilt zero-phase FFT bandpass; the mirror
+    // image of the passband must be kept too (real-signal symmetry)
+    if let Some(bw) = &args.brickwall {
+        let mut it = bw.split(',');
+        let lo: f64 = it
+            .next()
+            .and_then(|v| v.parse().ok())
+            .ok_or_else(|| Error::input("--brickwall wants LO,HI Hz"))?;
+        let hi: f64 = it
+            .next()
+            .and_then(|v| v.parse().ok())
+            .ok_or_else(|| Error::input("--brickwall wants LO,HI Hz"))?;
+        let rate = probe.sample_rate.unwrap_or(44100) as f64;
+        if !(0.0..rate / 2.0).contains(&lo) || !(lo..rate / 2.0).contains(&hi) {
+            return Err(Error::input("--brickwall wants 0 < LO < HI < Nyquist"));
+        }
+        const WS: f64 = 4096.0;
+        let lb = (lo * WS / rate).ceil() as u32;
+        let hb = (hi * WS / rate).floor() as u32;
+        chain.push(format!(
+            "afftfilt=win_size={WS:.0}:real='re*(between(b,{lb},{hb})+between(b,nb-{hb},nb-{lb}))':imag='im*(between(b,{lb},{hb})+between(b,nb-{hb},nb-{lb}))'"
+        ));
+    }
     if bass != 0.0 {
         chain.push(format!("bass=g={}", bass));
     }

@@ -24,6 +24,12 @@ pub fn run(args: BlurArgs, g: &Globals) -> Result<Contract, Error> {
             }
             format!("dblur=angle={a}:radius={:.1}", args.sigma * 4.0)
         }
+        // boxblur: the classic box kernel — cheaper than gblur, blockier
+        // texture; luma_radius is px (0-23), power = kernel passes
+        crate::cli::BlurEngine::Box => {
+            let r = (args.sigma / 3.0).round().clamp(1.0, 23.0) as u32;
+            format!("boxblur=luma_radius={r}:luma_power=2:chroma_radius={r}:chroma_power=1")
+        }
     };
     let vf = match &args.at {
         Some(s) => format!(
@@ -51,6 +57,7 @@ pub fn run(args: BlurArgs, g: &Globals) -> Result<Contract, Error> {
         "filter": match args.engine.unwrap_or(crate::cli::BlurEngine::Gblur) {
             crate::cli::BlurEngine::Gblur => "gblur",
             crate::cli::BlurEngine::Directional => "dblur",
+            crate::cli::BlurEngine::Box => "boxblur",
         },
     })))
 }

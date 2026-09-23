@@ -395,3 +395,19 @@ an atempo'd whole-file render would shift the window.
 - **`field` outputs HALF-HEIGHT frames** — it extracts one field, so
   320x240 → 320x120 progressive, no interpolation. Cheapest
   deinterlace; pair with an upscale if full height is needed.
+- **`-af` appears twice → second overrides first** — when measuring with
+  volumedetect, chain it into the SAME `-af` (`-af "filter,volumedetect"`);
+  two `-af` args don't concatenate.
+- **bandreject on broadband looks like a no-op** — it only carves a
+  narrow slice; on pink-noise-like material mean_volume barely moves.
+  Verify on a sine at the notch frequency instead (-11dB on 440Hz).
+- **`afftfilt` has no `f` variable on ffmpeg 4.x** — frequency must be
+  computed as bin index: `b ∈ [lo*win_size/rate, hi*win_size/rate]`, and
+  the negative-frequency mirror `[nb-hi, nb-lo]` must be kept too or the
+  band passes at half amplitude / distorts.
+- **`chromakey` keys in YUV chroma space** — better than RGB colorkey on
+  wrinkled greenscreens; output goes through the same despill tail.
+- **`ahistogram` stamps one column per frame like showspectrum** —
+  `slide=scroll` keeps it scrolling; no rate arg needed.
+- **`boxblur` radius is px (0-23), not sigma** — ffkit maps sigma→radius
+  /3 clamped; power = kernel passes (2 = near-gaussian).

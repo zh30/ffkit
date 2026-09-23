@@ -26213,3 +26213,210 @@ fn r227_vif_cubebars_hald_widen_sab_compand_field_alpha() {
         assert_eq!(j2["status"], "failed");
     }
 }
+
+#[test]
+fn r228_chromakey_shelf_notch_brickwall_boxblur_ahist() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // key --mode chroma — chromakey (YUV-domain) keys a green slate onto bg:
+    // output should track the background, not the green input
+    if has_filter("chromakey") {
+        let green = dir.path().join("green.mp4");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=0x00FF00:s=320x240:d=1,format=yuv420p",
+            ])
+            .arg(&green)
+            .status()
+            .unwrap()
+            .success());
+        let bg = dir.path().join("bg.mp4");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc2=s=320x240:d=1:r=30",
+            ])
+            .arg(&bg)
+            .status()
+            .unwrap()
+            .success());
+        let o = dir.path().join("keyed.mov");
+        let j = run_json(&[
+            "key",
+            &green.to_string_lossy(),
+            "--bg",
+            &bg.to_string_lossy(),
+            "--mode",
+            "chroma",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["mode"], "chroma");
+        // keyed ≈ bg (green removed), far from green
+        let p = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&o)
+            .args(["-i"])
+            .arg(&bg)
+            .args(["-filter_complex", "psnr", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&p.stderr);
+        let psnr: f64 = s
+            .split("average:")
+            .nth(1)
+            .and_then(|v| v.split_whitespace().next())
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0.0);
+        assert!(psnr > 20.0, "chroma keyed to bg, psnr {psnr}");
+    }
+
+    // eq --shelf high:F:G — highshelf lifts content above F
+    if has_filter("highshelf") {
+        let tone = dir.path().join("s5k.wav");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=5000:duration=1",
+            ])
+            .arg(&tone)
+            .status()
+            .unwrap()
+            .success());
+        let o = dir.path().join("shelf.m4a");
+        let j = run_json(&[
+            "eq",
+            &tone.to_string_lossy(),
+            "--shelf",
+            "high:2000:10",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+        let vd = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&o)
+            .args(["-af", "volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&vd.stderr);
+        let max: f64 = s
+            .lines()
+            .find_map(|l| l.split("max_volume:").nth(1))
+            .and_then(|v| v.trim_end_matches(" dB").trim().parse().ok())
+            .unwrap_or(0.0);
+        assert!(max > -12.0, "shelf boosted 5kHz max {max}");
+    }
+
+    // eq --notch F — bandreject kills a tone at F
+    if has_filter("bandreject") {
+        let tone = dir.path().join("s440.wav");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=1",
+            ])
+            .arg(&tone)
+            .status()
+            .unwrap()
+            .success());
+        let o = dir.path().join("notch.m4a");
+        let j = run_json(&[
+            "eq",
+            &tone.to_string_lossy(),
+            "--notch",
+            "440",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+        let vd = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(&o)
+            .args(["-af", "volumedetect", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&vd.stderr);
+        let mean: f64 = s
+            .lines()
+            .find_map(|l| l.split("mean_volume:").nth(1))
+            .and_then(|v| v.trim_end_matches(" dB").trim().parse().ok())
+            .unwrap_or(0.0);
+        assert!(mean < -28.0, "notch dropped 440Hz mean {mean}");
+    }
+
+    // eq --brickwall LO,HI — afftfilt zero-phase bandpass kills out-of-band
+    if has_filter("afftfilt") {
+        let o = dir.path().join("bw.m4a");
+        let j = run_json(&[
+            "eq",
+            &f.to_string_lossy(),
+            "--brickwall",
+            "2000,8000",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+    }
+
+    // blur --engine box — boxblur kernel renders
+    if has_filter("boxblur") {
+        let o = dir.path().join("box.mp4");
+        let j = run_json(&[
+            "blur",
+            &f.to_string_lossy(),
+            "--engine",
+            "box",
+            "--sigma",
+            "12",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["filter"], "boxblur");
+    }
+
+    // audiogram --mode hist — ahistogram amplitude-distribution video
+    if has_filter("ahistogram") {
+        let o = dir.path().join("hist.mp4");
+        let j = run_json(&[
+            "audiogram",
+            &f.to_string_lossy(),
+            "--mode",
+            "hist",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+    }
+}

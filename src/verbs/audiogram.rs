@@ -213,6 +213,12 @@ fn render_clip(
             format!("{awave}agraphmonitor=s={{ww}}x{{wh}}:m=compact[wv];"),
             "monitor",
         ),
+        // ahistogram stamps one line per audio frame — slide=scroll keeps
+        // it moving like showspectrum; needs no rate resample either
+        WaveMode::Hist => (
+            format!("{awave}ahistogram=s={{ww}}x{{wh}}:slide=scroll[wv];"),
+            "hist",
+        ),
         // w is per-channel; stereo needs half the strip each so the pair
         // lands on the {ww}-wide box.
         WaveMode::Volume => (
@@ -251,7 +257,8 @@ fn render_clip(
                 | WaveMode::Spatial
                 | WaveMode::Volume
                 | WaveMode::Bitscope
-                | WaveMode::Monitor => unreachable!(),
+                | WaveMode::Monitor
+                | WaveMode::Hist => unreachable!(),
             };
             (
                 {

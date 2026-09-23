@@ -956,6 +956,9 @@ pub enum WaveMode {
     Bitscope,
     /// Filtergraph stats monitor (agraphmonitor) — audio pipeline health viz
     Monitor,
+    /// Sample-level histogram (ahistogram) — amplitude distribution over
+    /// time: clipping/headroom QC as a video
+    Hist,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -1798,6 +1801,9 @@ pub enum KeyMode {
     /// External matte — copy --mask's luma into the alpha channel
     /// (alphamerge; outputs prores 4444 with alpha)
     Matte,
+    /// Chroma key — chromakey, the YUV-domain broadcast keyer: handles
+    /// gradient/wrinkled screens better than RGB colorkey on real footage
+    Chroma,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -3236,6 +3242,18 @@ pub struct EqArgs {
     /// (broadcast captures) — undoes the recording's pre-emphasis HF boost
     #[arg(long, value_enum)]
     pub deemph: Option<DeemphType>,
+    /// Shelf filter SIDE:FREQ:GAIN, repeatable — low:200:-3 cuts a rumble
+    /// shelf under 200Hz, high:8000:4 adds an air shelf over 8kHz
+    #[arg(long)]
+    pub shelf: Vec<String>,
+    /// Notch out a frequency FREQ[:WIDTH_HZ], repeatable — resonance/ring
+    /// removal beyond dehum's fixed mains list (e.g. --notch 1250)
+    #[arg(long)]
+    pub notch: Vec<String>,
+    /// Brick-wall bandpass LO,HI Hz — keeps only that band (telephone FX,
+    /// speech-band isolation 300,3400); FFT-domain, zero phase smear
+    #[arg(long)]
+    pub brickwall: Option<String>,
     /// Apply the EQ only from here (bass boost on the drop)
     #[arg(long)]
     pub at: Option<String>,
@@ -5225,6 +5243,9 @@ pub enum BlurEngine {
     Gblur,
     /// dblur — directed streaks (speed lines, fake motion)
     Directional,
+    /// boxblur — classic box kernel: faster than gblur, blockier texture
+    /// (draft blur, stylized defocus)
+    Box,
 }
 
 #[derive(clap::Args, Debug)]

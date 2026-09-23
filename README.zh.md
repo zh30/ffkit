@@ -114,13 +114,13 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `compress` | 压到目标体积（`--size 10MB` 两遍、`--target discord|whatsapp|gmail` 平台预设）；`--crf` 画质单遍、`--res` 缩分辨率腾码率 |
 | `deliver` | 一键平台成片（Reels / TikTok / Shorts 为 9:16，`square` 为 1:1，`youtube` 为 16:9；−14 LUFS；`--fps 60` 高帧率，`--crf` 画质，`--subs file.srt` 成片一步烧字幕） |
 
-| `audiogram` | 波形视频 ，`--mode phase`（aphasemeter 相位表）| `--mode`、`--scale` 幅度、`--split` 分声道、`--fscale` 频率轴（spectrum）、`--fps` 帧率、`--text`、`--bg`、`--progress` 进度条 ，`--subs` 烧字幕、`--from`/`--to` 只取一段（`--to` 可用 `end`），`--at a,b --dur N` 每点一条（`stem_N.mp4`）；`--mode spectrum` 频谱条、`--mode scope` 李萨如矢量示波、`--mode cqt` 钢琴卷帘频谱、`--mode spectro` 滚动频谱图 | `--mode spatial|volume|bitscope` 表桥示波 | `--mode monitor` 管线统计 |
+| `audiogram` | 波形视频 ，`--mode phase`（aphasemeter 相位表）| `--mode`、`--scale` 幅度、`--split` 分声道、`--fscale` 频率轴（spectrum）、`--fps` 帧率、`--text`、`--bg`、`--progress` 进度条 ，`--subs` 烧字幕、`--from`/`--to` 只取一段（`--to` 可用 `end`），`--at a,b --dur N` 每点一条（`stem_N.mp4`）；`--mode spectrum` 频谱条、`--mode scope` 李萨如矢量示波、`--mode cqt` 钢琴卷帘频谱、`--mode spectro` 滚动频谱图 | `--mode spatial|volume|bitscope` 表桥示波 | `--mode monitor` 管线统计 | `--mode hist` 振幅直方图（削波/余量质检） |
 
 | `split` | 按 `--every`/`--at`/`--scenes`/`--size`/`--parts`/`--silence`/`--chapters` 内嵌章节切分；`--subs` 输出重定时分段 .srt；`--fade N` 每段首尾淡化 |
 | `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数或 `--dur` 总时长、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐 + `--volume` 音量、`--size` 画布、`--bg` 底边色） |
 | `speed` | 变速（`--factor`、`--at/--dur` 窗口（逗号列表可多段）、`--ramp` FROM,TO 渐变），支持 `end` |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`、`--at/--dur` 窗口支持 `end`，逗号 `--at` 多处铺底如 `0,end` 首尾双 sting） |
-| `key` | 绿幕合成：`--color` 抠掉后叠到 `--bg` 图片/视频上（`--similarity`、`--blend`、`--despill`、`--mode luma` 改按亮度带抠像（`--threshold` 定亮区/暗区背景）、`--at/--dur` 窗口抠像，支持逗号列表） | `--mode matte --mask` 外部灰度遮罩→α 通道（prores 4444） |
+| `key` | 绿幕合成：`--color` 抠掉后叠到 `--bg` 图片/视频上（`--similarity`、`--blend`、`--despill`、`--mode luma` 改按亮度带抠像（`--threshold` 定亮区/暗区背景）、`--mode chroma` YUV 色域抠像（广播级 chromakey，褶皱/光照不匀的幕布更稳）、`--at/--dur` 窗口抠像，支持逗号列表） | `--mode matte --mask` 外部灰度遮罩→α 通道（prores 4444） |
 | `grid` | 多画面宫格（`--layout`、`--audio` 选音轨、`--labels`、`--gap`、`--bg` 格缝颜色、`--fill` 裁满代替黑边、`--time` 每格叠加统一 mm:ss 时间戳、`--focus` 主角布局——首输入占左 2/3 大格，其余纵向排右侧） |
 | `progress` | 任意边进度条，整段或定时窗口（`--color`、`--height`、`--edge` bottom/top/left/right、`--at`、`--dur`、`--reverse` 倒计时缩减、`--opacity` 半透明） |
 | `freeze` | 定格画面（`--at` 逗号列表多处定格、`--dur`、`--end`、`--ease` 减速、`--reverse` 倒放、`--zoom` 推近定格） |
@@ -135,7 +135,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
 | `channel --mode ms` | 解码 M/S 录音立体声回 L/R（stereotools ms>lr） |
 | `channel` | 声道手术：`--mode dualmono|mono|swap|invert|mix51|pan|widen|split|ambience|mid|side|haas|surround|base|bal|bands|sync|earwax`（`split` 立体声→`_L/_R.wav` 双人声分轨）；`--pan -1..1` 声像定位（`bal` 校正偏听立体声，`base` 模式下 -1 折叠为单声道、+1 加宽）；`ambience --amount` 削侧链去房间混响；`haas` 延迟法立体声加宽；`surround` 立体声上混 5.1；`bands --freqs 300,3000` → `<stem>_bandN.wav` 频段分轨（acrossover，重混低/中/高）；`sync --side right --cm 34` 按拾音距离延迟单侧声道（双麦克梳状滤波修复，34cm≈1ms）；`earwax` 耳机向立体声加宽；`stereowiden` M/S 加宽（`--amount` 控制 crossfeed） |
-| `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡），`--band` 参量频段，`--curve` 手绘 F,G;F,G 曲线（firequalizer 插值），`--graphic` 18 段图示均衡，`--tilt` 暖↔亮，`--deemph riaa/cd/fm50/fm75` 去黑胶/调频/CD 预加重，支持 `end`，逗号列表可多段 |
+| `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡），`--band` 参量频段，`--curve` 手绘 F,G;F,G 曲线（firequalizer 插值），`--graphic` 18 段图示均衡，`--tilt` 暖↔亮，`--deemph riaa/cd/fm50/fm75` 去黑胶/调频/CD 预加重，`--shelf low|high:FREQ:GAIN` 架式滤波（低频隆隆声削/空气感），`--notch FREQ[:WIDTH]` 陷波除共振，`--brickwall LO,HI` FFT 砖墙带通（电话音/语音带 300,3400），支持 `end`，逗号列表可多段 |
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet`（`--at`/`--dur` 局部回声），支持 `end`，逗号列表可多段；`--ir 文件.wav` 卷积混响（脉冲响应包：教堂/大厅/钢板），`--tail` 让尾音延出尾端 |
 | `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio/saturate/excite/bass/muffled/crystal/sub/crossfeed/autopan（`--kind`、`--strength`、`--at`/`--dur`），支持 `end`，逗号列表可多段 | `--kind ringmod` 真环形调制（amultiply 乘正弦载波，`--strength` 扫 25-500Hz） | `--kind crush` 位深+采样率破坏（数字低保真） | `--kind fshift` 移频（金属外星声，`--strength` 扫 50→2000Hz） | `--kind contrast` 动态倾斜（>0.5 更冲击，<0.5 更平稳） |
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip`、`--angle` 任意角度倾斜、`--at`/`--dur` 窗口倾斜（支持逗号列表） |
@@ -159,7 +159,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `vignette` | 暗角，整段或定时窗口（`--angle`、`--at`、`--dur`） |
 | `bw` | 黑白化，整段或定时窗口（`--at`、`--dur`、`--strength` 保留部分色彩） ，`--weights r,g,b` 胶片通道权重  `--cut 0-1` 硬阈值（复印风） |
 | `volume` | 音量 ±dB；`--at/--dur` 局部增益，逗号列表可作用多处（需 `--dur`）（平台响度请用 `loudnorm`） |
-| `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`/`--dur`；`--at end` = 片尾） | `--engine directional` 速度线 |
+| `blur` | 全帧或定时高斯模糊（`--sigma`、`--at`/`--dur`；`--at end` = 片尾） | `--engine gblur|directional|box`（directional `--angle` 速度线；box = 更快的方块核） |
 | `trail` | 运动拖影：`--mode echo` 跟随残影（`--frames` 2-16、`--at`/`--dur` 窗口），`--mode light` 亮部拖尾（`--decay` 0.5-0.99） | `--mode diff` 运动残影 |
 | `glitch` | 故障风 RGB 错位：`--strength` 0.5-20 控制通道偏移+噪点强度 | `--engine planes` 通道轮换 | `--engine swapuv` 色度翻转 | `--engine stutter` 抽帧抖动 | `--engine pixels` 像素块打散 | `--engine swaprect` 象限互换 | `--engine random` 帧序乱打 |
 | `bars` | SMPTE 测试卡：`--size`/`--dur`/`--hd`/`--tone`（1kHz 音床），用于质检片头 | `--kind sd|pal100|pal75|rgb|yuv|allrgb|allyuv` 其他广播测试图（`allrgb`/`allyuv` = 全色域立方体检质图） |

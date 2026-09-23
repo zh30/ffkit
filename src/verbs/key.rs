@@ -74,6 +74,13 @@ pub fn run(args: KeyArgs, g: &Globals) -> Result<Contract, Error> {
             )
         }
         KeyMode::Matte => unreachable!("matte returns early"),
+        // chromakey: same color/similarity/blend knobs but operates in the
+        // YUV chroma plane — the broadcast keyer; tolerates wrinkled or
+        // unevenly lit screens that trip RGB colorkey
+        KeyMode::Chroma => format!(
+            "chromakey={color}:{:.3}:{:.3}{despill}",
+            args.similarity, args.blend
+        ),
     };
     let enable = match &args.at {
         Some(s) => format!(
@@ -99,7 +106,7 @@ pub fn run(args: KeyArgs, g: &Globals) -> Result<Contract, Error> {
     let inputs: Vec<&Path> = vec![&args.input, bg_path];
     let mut c = engine::write_job("key", &inputs, &args.output, vec![argv], g)?;
     c = c.with_extra(json!({
-        "mode": match args.mode.unwrap_or(KeyMode::Color) { KeyMode::Color => "color", KeyMode::Luma => "luma", KeyMode::Matte => "matte" },
+        "mode": match args.mode.unwrap_or(KeyMode::Color) { KeyMode::Color => "color", KeyMode::Luma => "luma", KeyMode::Matte => "matte", KeyMode::Chroma => "chroma" },
         "color": color,
         "threshold": args.threshold,
         "similarity": args.similarity,

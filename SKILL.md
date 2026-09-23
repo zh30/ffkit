@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.254.0
+version: 0.255.0
 
 
 
@@ -50,7 +50,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | dutch-angle tilt (full clip or windowed) | `rotate` (`--angle 15`, `--at`/`--dur` window — comma list for several tilts) |
 | chapters already in the file | `chapter` (`--list`) or `split` (`--chapters`) |
 | thumbnail candidates | `thumb` (`--scenes` grabs stills at every cut) |
-| spectrum-bar audiogram | `audiogram` (`--mode spectrum`, `--fscale`/`--fps`) |
+| spectrum-bar audiogram | `audiogram` (`--mode spectrum`, `--fscale`/`--fps`); `--mode hist` = amplitude-histogram video (clipping QC) |
 | lissajous vectorscope video | `audiogram` (`--mode scope` — trippy stereo scope) |
 | news-ticker crawl | `scroll` (`--mode ticker`, `--bg` opaque bar, `--speed` px/s) |
 | AV1 delivery | `transcode` (`--preset av1`) |
@@ -128,7 +128,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | subtle watermark | `overlay` (`--opacity` on `--image`) |
 | split a podcast on pauses | `split` (`--silence=-35` — cuts at gap midpoints) |
 | music bed that eases in/out | `music` (`--fade` on the bed) |
-| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass/warm/air`), `--band` parametric, `--tilt`, `--deemph riaa/cd/fm50/fm75` undoes vinyl/FM/CD pre-emphasis |
+| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass/warm/air`), `--band` parametric, `--tilt`, `--deemph riaa/cd/fm50/fm75` undoes vinyl/FM/CD pre-emphasis, `--shelf low|high:FREQ:GAIN` shelves (rumble cut / air shelf), `--notch FREQ[:WIDTH]` kills a resonance, `--brickwall LO,HI` FFT bandpass (telephone / speech-band 300,3400) |
 | soft b-roll cutaway edges | `broll` (`--fade`), `--position` pip (+`--border` ring), `--opacity` ghost insert |
 | stills at exact moments | `frames` (`--at 12,45,90`) |
 | audiogram on any canvas | `audiogram` (`--size` — 1080x1920, 1920x1080, 1080x1080) |
@@ -136,7 +136,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | audiogram with a title | `audiogram` (`--text "EP 12"` near the top) |
 | thumbnail at a given size | `thumb` (`--width`) |
 | inverted flash/accent | `invert` (`--at`/`--dur`) |
-| blur just a moment | `blur` (`--at`/`--dur`) |
+| blur just a moment | `blur` (`--at`/`--dur`; `--engine gblur|directional|box` — box = fast blocky kernel) |
 | motion trails / ghost smears | `trail` (`--mode echo` tmix smear, `--frames`, `--at`/`--dur`; `--mode light` bright-pixel persistence via lagfun, `--decay`) |
 | datamosh glitch | `glitch` (`--strength` channel-shift + noise; `--engine planes|swapuv|stutter|pixels|swaprect|random` variants) |
 | partial invert | `solarize` (`--threshold`, `--at` window) |
@@ -306,7 +306,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | motion / loop | `speed`, `reverse`, `loop`, `stabilize` (`--edge` fill), `fade` |
 | picture | `grade` (+ `--lut` .cube/.png), `bw`, `vignette`, `sharpen`, `blur` |
 | logo / PiP | `overlay` |
-| green screen | `key` (`--bg`, `--color`/`--similarity`/`--blend`, `--despill` for fringe, `--mode luma` keys a brightness band (`--threshold` pivot) instead of a color, `--at`/`--dur` window — comma list ok) |
+| green screen | `key` (`--bg`, `--color`/`--similarity`/`--blend`, `--despill` for fringe, `--mode luma` keys a brightness band (`--threshold` pivot) instead of a color, `--mode chroma` is the YUV-domain keyer (broadcast chromakey — better on wrinkled/uneven screens), `--at`/`--dur` window — comma list ok) |
 | hand-drawn matte → alpha | `key --mode matte --mask` (mask luma becomes alpha → prores 4444) |
 | reaction / multi-cam grid | `grid` (`--layout 2x2`, `--size`, `--gap`/`--bg` gutters, `--time` stamps every tile, `--focus` hero layout — first input big left ~2/3, rest stack right) |
 | watch-time progress bar | `progress` (`--color`, `--height`, `--edge`, `--bg` track, `--reverse` depletes the bar) |

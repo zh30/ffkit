@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.255.0] — 2026-09-23
+
+### Added
+
+- `key --mode chroma` — YUV-domain chromakey (broadcast keyer): same
+  --color/--similarity/--blend/--despill knobs, tolerates wrinkled and
+  unevenly lit screens better than RGB colorkey.
+- `eq --shelf low|high:FREQ:GAIN` — shelving EQ via lowshelf/highshelf
+  (rumble shelf cut, air shelf; repeatable).
+- `eq --notch FREQ[:WIDTH_HZ]` — two-pole Butterworth bandreject kills a
+  resonance or ring (extends dehum beyond the fixed mains list).
+- `eq --brickwall LO,HI` — afftfilt zero-phase FFT bandpass; keeps only
+  the band (telephone FX, speech-band isolation).
+- `blur --engine box` — boxblur, the classic fast box kernel (blockier
+  texture than gblur; sigma maps to luma radius).
+- `audiogram --mode hist` — ahistogram amplitude-distribution video:
+  sample-level histogram scrolling over time (clip/headroom QC).
+
 ## [0.254.0] — 2026-09-23
 
 ### Added
