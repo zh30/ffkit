@@ -179,6 +179,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `spin` | Pendulum sway: frame rotates by a slow sine, `--deg`/`--rate`, `--at` windows |
 | `iris` | Spotlight disc: dim + desat outside a hard circle at `--x`/`--y`/`--radius`, `--at` windows |
 | `burst` | Radial zoom smear: blurred blown-up copy blended behind the sharp frame, `--strength` |
+| `thump` | Sub-bass drop at `--at`: 55Hz sine with fast decay mixed under the track, `--freq`/`--gain`/`--dur` |
+| `riser` | Tonal chirp sweep (200→2000Hz) that lands on `--at`, `--dur` rise length, `--gain` |
+| `whoosh` | Airy brown-noise swell that lands on `--at` (transition accent), `--dur`/`--gain` |
 | `pick` | Dominant-color report at a timestamp: mean hex + 3x2 zone swatches (JSON only) |
 | `diff` | Visual diff between two clips: amplified difference blend, `--side` shows reference |
 | `selective` | Keep one color, desaturate the rest: `--color` + `--similarity`, `--at` windows |

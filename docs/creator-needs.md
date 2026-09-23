@@ -237,6 +237,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 179)
+
+- `thump` — sub-bass drop: `sine` 55Hz × `volume` exp decay, `adelay` to `--at`, amix normalize=0. (4.4 `sine` has no `amplitude` — its 1/8 level is compensated inside the volume envelope.)
+- `riser` — tonal sweep `aevalsrc` chirp ending on `--at` (`--dur` rise, lands before the hit moment).
+- `whoosh` — brown noise + highpass swell that lands on `--at` (transition accent).
+
 ## Shipped this run (round 172)
 
 - `bars` (SMPTE test card + 1kHz tone), `scope` (vectorscope/waveform corner overlay), `desqueeze` (anamorphic restore).
