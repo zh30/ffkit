@@ -283,6 +283,8 @@ pub enum Cmd {
     Dedup(DedupArgs),
     /// Auto-contrast for flat/washed footage (histeq)
     Equalize(EqualizeArgs),
+    /// QC scan: report black/frozen stretches, writes no media
+    Scan(ScanArgs),
     /// Comic look: posterized base + ink outlines
     Cartoon(CartoonArgs),
     /// Thermal / false-color luma map
@@ -947,6 +949,17 @@ pub struct TranscodeArgs {
     /// Audio bitrate like `64k`/`128k` (voice posts → 64k frees video bitrate)
     #[arg(long)]
     pub abitrate: Option<String>,
+    /// Tag output as limited|full range (broadcast masters want limited)
+    #[arg(long, value_enum)]
+    pub range: Option<TranscodeRange>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum TranscodeRange {
+    /// tv / MPEG range 16-235 — broadcast + most player-safe
+    Limited,
+    /// pc / JPEG range 0-255 — computer playback
+    Full,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -3542,6 +3555,31 @@ pub struct DehumArgs {
     pub dur: Option<f64>,
 }
 
+#[derive(clap::ValueEnum, Clone, Copy, Debug, Default)]
+pub enum VDenoiseEngine {
+    /// nlmeans — best quality, slowest (per-pixel patch search)
+    #[default]
+    Nlmeans,
+    /// hqdn3d — fast 3D denoiser for previews / long clips
+    Hqdn3d,
+    /// atadenoise — temporal frame-averaging, best on static shots
+    Atadenoise,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ScanArgs {
+    pub input: PathBuf,
+    /// Minimum frozen stretch to report, seconds (default 1.0)
+    #[arg(long)]
+    pub freeze_min: Option<f64>,
+    /// Minimum black stretch to report, seconds (default 0.3)
+    #[arg(long)]
+    pub black_min: Option<f64>,
+    /// Pixel luma below this counts as black, 0-255 (default 32)
+    #[arg(long)]
+    pub thresh: Option<f64>,
+}
+
 #[derive(clap::Args, Debug)]
 pub struct VdenoiseArgs {
     pub input: PathBuf,
@@ -3550,6 +3588,9 @@ pub struct VdenoiseArgs {
     /// Denoise strength 0.5..=30 (default 4; heavier is slower and softer)
     #[arg(long, default_value_t = 4.0)]
     pub strength: f64,
+    /// Engine: nlmeans (quality), hqdn3d (fast), atadenoise (static shots)
+    #[arg(long, value_enum)]
+    pub engine: Option<VDenoiseEngine>,
     /// Denoise only from this time on (h:mm:ss or seconds) — nlmeans is
     /// slow, so window it when only one scene is grainy — comma list for several (needs --dur)
     #[arg(long)]

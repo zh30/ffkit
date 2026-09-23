@@ -13,18 +13,33 @@ pub fn run(args: VdenoiseArgs, g: &Globals) -> Result<Contract, Error> {
     engine::need_video(&probe, "vdenoise")?;
 
     let s = args.strength;
-    // --at/--dur: nlmeans accepts timeline `enable`, so a window is a flag
-    // on the filter, not a split graph — cheap to keep the rest untouched.
+    // all three engines accept the timeline `enable` option, so a window is a
+    // flag on the filter, not a split graph — cheap to keep the rest untouched.
+    let (base, filter_name) = match args.engine.unwrap_or_default() {
+        crate::cli::VDenoiseEngine::Nlmeans => (format!("nlmeans=s={s:.1}"), "nlmeans"),
+        crate::cli::VDenoiseEngine::Hqdn3d => (
+            format!(
+                "hqdn3d=luma_spatial={:.2}:chroma_spatial={:.2}",
+                s / 4.0,
+                s / 6.0
+            ),
+            "hqdn3d",
+        ),
+        crate::cli::VDenoiseEngine::Atadenoise => (
+            format!("atadenoise=s={:.0}", (5.0 + s * 4.0).min(129.0)),
+            "atadenoise",
+        ),
+    };
     let vf = match &args.at {
         Some(raw) => format!(
-            "nlmeans=s={s:.1}:enable='{}'",
+            "{base}:enable='{}'",
             crate::time::enable_expr(raw, args.dur, probe.duration)?
         ),
         None => {
             if args.dur.is_some() {
                 return Err(Error::input("--dur needs --at"));
             }
-            format!("nlmeans=s={s:.1}")
+            base
         }
     };
     let mut argv = ffmpeg_base(g.progress);
@@ -41,6 +56,6 @@ pub fn run(args: VdenoiseArgs, g: &Globals) -> Result<Contract, Error> {
     let c = engine::write_job("vdenoise", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({
         "strength": s,
-        "filter": "nlmeans",
+        "filter": filter_name,
     })))
 }

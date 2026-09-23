@@ -237,6 +237,15 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 183)
+
+- `scan` — QC pass reporting black stretches, frozen frames and black-frame
+  hits in JSON extras (blackdetect + blackframe + freezedetect; no -o).
+- `vdenoise --engine` — `nlmeans` (default quality), `hqdn3d` (fast),
+  `atadenoise` (temporal average for static shots).
+- `transcode --range` — `setparams` limited(tv)/full(pc) colour-range tag
+  on video presets incl. prores for broadcast delivery.
+
 ## Shipped this run (round 182)
 
 - `audiogram --mode spectro` — scrolling showspectrum roll for music clips.

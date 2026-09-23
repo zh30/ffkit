@@ -91,6 +91,7 @@ pub mod reverb;
 pub mod reverse;
 pub mod rotate;
 pub mod rough;
+pub mod scan;
 pub mod scope;
 pub mod scroll;
 pub mod selective;

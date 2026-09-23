@@ -23,6 +23,19 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         ));
     }
 
+    if args.range.is_some()
+        && matches!(
+            preset,
+            TranscodePreset::Gif
+                | TranscodePreset::Mp3
+                | TranscodePreset::Aac
+                | TranscodePreset::Wav
+                | TranscodePreset::Flac
+                | TranscodePreset::Opus
+        )
+    {
+        return Err(Error::input("--range applies to video presets only"));
+    }
     if args.vbitrate.is_some()
         && matches!(
             preset,
@@ -55,6 +68,14 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
 }
 
+fn range_tag(args: &TranscodeArgs) -> &'static str {
+    match args.range {
+        Some(crate::cli::TranscodeRange::Limited) => ",setparams=range=tv",
+        Some(crate::cli::TranscodeRange::Full) => ",setparams=range=pc",
+        None => "",
+    }
+}
+
 fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     let crf = args.crf.unwrap_or(23);
@@ -78,6 +99,7 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(fps) = args.fps {
             vf.push_str(&format!(",fps={fps}"));
         }
+        vf.push_str(range_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -115,6 +137,7 @@ fn hevc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(fps) = args.fps {
             vf.push_str(&format!(",fps={fps}"));
         }
+        vf.push_str(range_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -150,6 +173,7 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(fps) = args.fps {
             vf.push_str(&format!(",fps={fps}"));
         }
+        vf.push_str(range_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -183,6 +207,7 @@ fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(fps) = args.fps {
             vf.push_str(&format!(",fps={fps}"));
         }
+        vf.push_str(range_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -317,8 +342,10 @@ fn prores(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 "yuv422p10le",
             ]);
         }
-        if let Some(fps) = args.fps {
-            argv.extend(["-vf", &format!("fps={fps}")]);
+        let fps_vf = args.fps.map(|fps| format!("fps={fps}")).unwrap_or_default();
+        let prores_vf = format!("{fps_vf}{}", range_tag(args));
+        if !prores_vf.is_empty() {
+            argv.extend(["-vf", prores_vf.trim_start_matches(',')]);
         }
     }
     if probe.has_audio {

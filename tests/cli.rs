@@ -20057,3 +20057,108 @@ fn spectro_audiogram_speechnorm_saturate() {
         vol(&sat, "max")
     );
 }
+
+#[test]
+fn scan_detects_black_and_vdenoise_engines_range() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // 1s normal + 0.8s black + 1s normal -> one black range in the middle
+    let qc = dir.path().join("qc.mp4");
+    let o = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-f", "lavfi", "-i"])
+        .arg("testsrc=size=320x240:rate=10:duration=1")
+        .args(["-f", "lavfi", "-i"])
+        .arg("color=c=black:s=320x240:rate=10:d=0.8")
+        .args(["-f", "lavfi", "-i"])
+        .arg("testsrc=size=320x240:rate=10:duration=1")
+        .args([
+            "-filter_complex",
+            "[0:v][1:v][2:v]concat=n=3:v=1",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&qc)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+
+    let j = run_json(&[
+        "scan",
+        qc.to_str().unwrap(),
+        "--black-min",
+        "0.3",
+        "--freeze-min",
+        "0.3",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(
+        j["extra"]["black_ranges"]
+            .as_array()
+            .map(|r| !r.is_empty())
+            .unwrap_or(false),
+        "scan should report the black stretch: {j}"
+    );
+    assert!(
+        j["extra"]["black_frames"].as_u64().unwrap_or(0) >= 6,
+        "scan should count black frames: {j}"
+    );
+
+    // vdenoise --engine hqdn3d/atadenoise run to completion (nlmeans is default)
+    let noisy = dir.path().join("noisy.mp4");
+    let o = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-f", "lavfi", "-i"])
+        .arg("testsrc=size=320x240:rate=10:duration=1,noise=alls=40:allf=t")
+        .args(["-pix_fmt", "yuv420p"])
+        .arg(&noisy)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    for eng in ["hqdn3d", "atadenoise"] {
+        let out = dir.path().join(format!("vd-{eng}.mp4"));
+        let j = run_json(&[
+            "vdenoise",
+            noisy.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--engine",
+            eng,
+            "--json",
+        ]);
+        assert_eq!(j["status"], "ok", "{eng}: {j}");
+        assert_eq!(j["extra"]["filter"], eng);
+    }
+
+    // transcode --range limited tags prores output as tv-range
+    let mov = dir.path().join("r.mov");
+    let j = run_json(&[
+        "transcode",
+        qc.to_str().unwrap(),
+        "-o",
+        mov.to_str().unwrap(),
+        "--preset",
+        "prores",
+        "--range",
+        "limited",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=color_range",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&mov)
+        .output()
+        .unwrap();
+    assert!(
+        String::from_utf8_lossy(&o.stdout).contains("tv"),
+        "prores should be tagged tv range"
+    );
+}

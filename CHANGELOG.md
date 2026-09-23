@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.210.0] — 2026-09-23
+
+### Added
+
+- `scan` (QC report: black/frozen stretches + black frames, JSON extras)
+- `vdenoise --engine` (nlmeans | hqdn3d | atadenoise)
+- `transcode --range` (limited/full colour-range tag)
+
+
 ## [0.209.0] — 2026-09-23
 
 ### Added
