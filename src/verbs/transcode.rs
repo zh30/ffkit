@@ -23,6 +23,23 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         ));
     }
 
+    if args.vbitrate.is_some()
+        && matches!(
+            preset,
+            TranscodePreset::Mp3
+                | TranscodePreset::Aac
+                | TranscodePreset::Wav
+                | TranscodePreset::Flac
+                | TranscodePreset::Opus
+                | TranscodePreset::Gif
+                | TranscodePreset::Prores
+        )
+    {
+        return Err(Error::input(
+            "--vbitrate applies to video presets (h264/hevc/webm/av1)",
+        ));
+    }
+
     match preset {
         TranscodePreset::Mp3
         | TranscodePreset::Aac
@@ -70,6 +87,7 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-c:a", "aac", "-b:a", "192k"]);
         }
     }
+    cap_bitrate(&mut argv, &args.vbitrate);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -106,6 +124,7 @@ fn hevc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-c:a", "aac", "-b:a", "192k"]);
         }
     }
+    cap_bitrate(&mut argv, &args.vbitrate);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -140,6 +159,7 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-c:a", "libopus", "-b:a", "128k"]);
         }
     }
+    cap_bitrate(&mut argv, &args.vbitrate);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -172,6 +192,7 @@ fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-c:a", "libopus", "-b:a", "128k"]);
         }
     }
+    cap_bitrate(&mut argv, &args.vbitrate);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -303,6 +324,21 @@ fn prores(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-c:a", "pcm_s16le"]);
         }
     }
+    cap_bitrate(&mut argv, &args.vbitrate);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
+}
+
+fn cap_bitrate(argv: &mut crate::spawn::Argv, rate: &Option<String>) {
+    let Some(r) = rate else { return };
+    argv.extend(["-maxrate", r.as_str(), "-bufsize", &double_rate(r)]);
+}
+
+fn double_rate(r: &str) -> String {
+    let (num, suf) = match r.chars().last() {
+        Some(c) if c.is_ascii_alphabetic() => (&r[..r.len() - 1], &r[r.len() - 1..]),
+        _ => (r, ""),
+    };
+    let n: f64 = num.parse().unwrap_or(0.0);
+    format!("{}{}", (n * 2.0).round() as i64, suf)
 }

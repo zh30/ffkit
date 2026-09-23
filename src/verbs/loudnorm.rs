@@ -65,10 +65,25 @@ pub fn run(args: LoudnormArgs, g: &Globals) -> Result<Contract, Error> {
     let stderr = spawn::stderr_str(&spawned);
     let meas = parse_measured(&stderr)?;
     if args.measure {
+        if let Some(gate) = args.gate {
+            let i = meas["input_i"]
+                .as_str()
+                .and_then(|s| s.parse::<f64>().ok())
+                .or_else(|| meas["input_i"].as_f64())
+                .unwrap_or(0.0);
+            if i > gate {
+                return Err(Error::input(format!(
+                    "input loudness {i:.1} LUFS exceeds --gate {gate:.1}"
+                )));
+            }
+        }
         let mut c = Contract::ok("loudnorm", None, Some(probe))
             .with_commands(engine::commands_of(&[measure]));
         c = c.with_extra(json!({ "measured": meas }));
         return Ok(c);
+    }
+    if args.gate.is_some() {
+        return Err(Error::input("--gate needs --measure"));
     }
     let second = apply_filter(i, tp, lra, &meas, args.dynamic);
 
