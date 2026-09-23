@@ -234,6 +234,13 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
 
+## Shipped this run (round 95)
+
+- `meter` — live EBU R128 loudness meter video (`ebur128 video=1`; QC pass for podcast/voice delivery).
+- `caption --wrap N` — word-wrap cue lines at N columns (shared title wrap helper).
+- `title --opacity PCT` — ghost/watermark titles (post-multiplies card alpha).
+- `solid --align` — per-line `--text` alignment (completes align across title/caption/meme/scroll/solid).
+
 ## Shipped this run (round 94)
 
 - `solid --noise N` — animated film grain on color/gradient cards (`noise=alls=N:allf=t`).

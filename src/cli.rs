@@ -202,6 +202,8 @@ pub enum Cmd {
     Waveform(WaveformArgs),
     /// Render the audio spectrogram to a PNG
     Spectrogram(SpectrogramArgs),
+    /// Live EBU R128 loudness meter video (QC: watch I/TP/LRA bars)
+    Meter(MeterArgs),
     /// Remove mains hum (50/60 Hz) and harmonics
     Dehum(DehumArgs),
     /// Spatial video denoise for grainy low-light footage
@@ -572,6 +574,9 @@ pub struct CaptionArgs {
     /// Per-line alignment inside each caption card (burn only)
     #[arg(long, value_enum)]
     pub align: Option<crate::raster::TextAlign>,
+    /// Word-wrap each cue line at N columns (≥4, burn only)
+    #[arg(long)]
+    pub wrap: Option<u32>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1256,6 +1261,9 @@ pub struct TitleArgs {
     /// Multi-line text alignment inside the title card
     #[arg(long, value_enum)]
     pub align: Option<crate::raster::TextAlign>,
+    /// Draw the title at this % opacity (0-100 — ghost/watermark titles)
+    #[arg(long)]
+    pub opacity: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1295,6 +1303,9 @@ pub struct SolidArgs {
     /// Animated film-grain on the card (0-100 strength)
     #[arg(long)]
     pub noise: Option<u32>,
+    /// Per-line alignment of --text on the card (with --wrap)
+    #[arg(long, value_enum)]
+    pub align: Option<crate::raster::TextAlign>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2244,6 +2255,20 @@ pub struct WaveformArgs {
     /// Slice length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct MeterArgs {
+    /// Audio or video file to meter
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Meter video size WxH (default 640x480)
+    #[arg(long, default_value = "640x480")]
+    pub size: String,
+    /// EBU meter scale 9..=18 (default 9 = -18..+9 LUFS window)
+    #[arg(long, default_value_t = 9)]
+    pub meter: u32,
 }
 
 #[derive(clap::Args, Debug)]

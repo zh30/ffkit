@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.122.0] — 2026-09-22
+
+### Added
+
+- `meter` — live EBU R128 loudness meter video (`ebur128 video=1`; `--size`, `--meter 9|18`)
+- `caption --wrap N` — word-wrap burned cue lines at N columns
+- `title --opacity PCT` — ghost/watermark titles (1–100)
+- `solid --align` — per-line `--text` alignment on cards
+
 ## [0.121.0] — 2026-09-22
 
 ### Added

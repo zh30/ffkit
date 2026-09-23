@@ -68,7 +68,7 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     if !(0.25..=8.0).contains(&args.size) {
         return Err(Error::input("--size must be 0.25..8"));
     }
-    let img = match &args.outline {
+    let mut img = match &args.outline {
         Some(c) => {
             let oc = crate::color::rgb(c)?;
             // stroke ~6% of glyph height so it scales with --size
@@ -123,6 +123,14 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
             }
         },
     };
+    if let Some(op) = args.opacity {
+        if !(1.0..=100.0).contains(&op) {
+            return Err(Error::input("--opacity must be 1..=100"));
+        }
+        for px in img.pixels_mut() {
+            px.0[3] = (px.0[3] as f64 * op / 100.0).round() as u8;
+        }
+    }
     let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
     let png = tmp.path().join("title.png");
     img.save(&png)

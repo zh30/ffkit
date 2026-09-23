@@ -65,7 +65,10 @@ pub fn run(args: SolidArgs, g: &Globals) -> Result<Contract, Error> {
             Some(_) => return Err(Error::input("--wrap must be ≥ 4 columns")),
             None => text.clone(),
         };
-        let img = crate::raster::render_title_styled(&text, &font_bytes, w, fg, 1.0)?;
+        let img = match args.align {
+            Some(al) => crate::raster::render_title_aligned(&text, &font_bytes, w, fg, 1.0, al)?,
+            None => crate::raster::render_title_styled(&text, &font_bytes, w, fg, 1.0)?,
+        };
         let png = tmp.as_ref().unwrap().path().join("t.png");
         img.save(&png)
             .map_err(|e| Error::output(format!("write solid text png: {e}")))?;

@@ -125,6 +125,24 @@ fn burn_overlay(
         None => None,
     };
     for (i, (_, _, text)) in jobs.iter().enumerate() {
+        let owned;
+        let text = match args.wrap {
+            Some(n) if n >= 4 => {
+                owned = crate::verbs::title::wrap(text, n as usize);
+                owned.as_str()
+            }
+            Some(_) => return Err(Error::input("--wrap must be ≥ 4 columns")),
+            None => text,
+        };
+        let owned;
+        let text = match args.wrap {
+            Some(n) if n >= 4 => {
+                owned = crate::verbs::title::wrap(text, n as usize);
+                owned.as_str()
+            }
+            Some(_) => return Err(Error::input("--wrap must be ≥ 4 columns")),
+            None => text,
+        };
         let img = match (outline, args.align) {
             (None, Some(al)) => crate::raster::render_caption_aligned(
                 text,

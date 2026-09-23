@@ -49,6 +49,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Crop(args) => verbs::crop::run(args, &g),
         Cmd::Vdenoise(args) => verbs::vdenoise::run(args, &g),
         Cmd::Waveform(args) => verbs::waveform::run(args, &g),
+        Cmd::Meter(args) => verbs::meter::run(args, &g),
         Cmd::Spectrogram(args) => verbs::spectrogram::run(args, &g),
         Cmd::Dehum(args) => verbs::dehum::run(args, &g),
         Cmd::Tempo(args) => verbs::tempo::run(args, &g),

@@ -45,6 +45,7 @@ pub mod r#loop;
 pub mod loudnorm;
 pub mod meme;
 pub mod meta;
+pub mod meter;
 pub mod mix;
 pub mod multicam;
 pub mod music;
