@@ -319,6 +319,9 @@ pub enum Cmd {
     Deblock(DeblockArgs),
     /// Shift chroma planes by pixels — fix tape/capture chroma misregistration
     Chromashift(ChromashiftArgs),
+    /// Temporal median: remove anything present <half the window (moving
+    /// people/cars on tripod shots, rain streaks)
+    Tmedian(TmedianArgs),
     /// Mirror half the frame across the center axis (dance/symmetry look)
     Mirror(MirrorArgs),
     /// Chunky retro pixelation over the whole frame
@@ -1468,6 +1471,10 @@ pub struct DeclipArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
+    /// Repair engine: clip (blown-out peaks, default) | click (vinyl pops,
+    /// mouth clicks, digital dropouts)
+    #[arg(long, value_enum)]
+    pub engine: Option<DeclipEngine>,
     /// Analysis window in ms (10-100; bigger = smoother repair on music)
     #[arg(long, default_value_t = 55.0)]
     pub window: f64,
@@ -1635,6 +1642,26 @@ pub struct ChromashiftArgs {
     /// Edge handling: wrap (default) | smear
     #[arg(long, value_enum, default_value_t = ChromaEdge::Wrap)]
     pub edge: ChromaEdge,
+    /// Only apply inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct TmedianArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Frames of temporal history each side (1-127; bigger removes longer
+    /// intrusions, drops 2*radius output frames)
+    #[arg(long, default_value_t = 15)]
+    pub radius: u32,
+    /// Percentile 0-1 (0.5 = median; lower also darkens, higher brightens)
+    #[arg(long, default_value_t = 0.5)]
+    pub percentile: f64,
     /// Only apply inside window(s); comma list, 'end' = tail
     #[arg(long)]
     pub at: Option<String>,
@@ -3152,6 +3179,22 @@ pub struct DeinterlaceArgs {
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum DeclipEngine {
+    /// adeclip — interpolate clipped peaks back
+    Clip,
+    /// adeclick — remove impulsive clicks and pops
+    Click,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum SmoothEngine {
+    /// smartblur — box blur that skips real edges (default beauty mode)
+    Smartblur,
+    /// bilateral — edge-aware Gaussian (skin texture kept, noise dropped)
+    Bilateral,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum DeintEngine {
     Yadif,
     Bwdif,
@@ -3843,6 +3886,9 @@ pub struct SmoothArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
+    /// Smoothing engine: smartblur (default) | bilateral (edge-aware)
+    #[arg(long, value_enum)]
+    pub engine: Option<SmoothEngine>,
     /// Blur strength 0.1..1 (default 0.5 — skin/sky flattening)
     #[arg(long, default_value_t = 0.5)]
     pub strength: f64,

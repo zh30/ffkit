@@ -183,15 +183,16 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `riser` | 上行音调扫频（200→2000Hz）在 `--at` 时刻落地，`--dur` 上升时长，`--gain` |
 | `whoosh` | 棕色噪声气声渐强在 `--at` 落地（转场音效），`--dur`/`--gain` |
 | `deesser` | 人声去齿音：压制 4-8kHz 齿音频段，`--amount`/`--freq`/`--at` 窗口 |
-| `declip` | 修复削波爆音：`adeclip` 插值重建压平的波形峰（`--window` 毫秒、`--threshold` 1-100、`--overlap-save`、`--at` 窗口） |
+| `declip` | 修复削波爆音与爆点：`--engine clip` = `adeclip` 插值重建压平波形峰，`--engine click` = `adeclick` 去黑胶爆点/数字丢样（`--window` 毫秒、`--threshold` 1-100、`--overlap-save`、`--at` 窗口） |
 | `deband` | `gradfun` 平滑天空/背景色带，`--strength`/`--radius`/`--at` 窗口 |
 | `deblock` | 消除高压缩素材的 DCT 块边界（`--strength` 检测强度、`--at` 窗口） |
 | `chromashift` | 按像素平移色度平面，修磁带/采集彩色镶边（`--x`/`--y`、`--edge` wrap/smear、`--at` 窗口） |
+| `tmedian` | 时间中值——抹去窗口内出现不足一半时长的东西：三脚架画面中的行人/车辆、雨丝（`--radius` 历史帧、`--percentile`、`--at` 窗口；输出首尾各丢 radius 帧） |
 | `dedup` | `mpdecimate` 丢弃近似重复帧——压缩静态片段，`--frac` 灵敏度 |
 | `audiogram --mode cqt` | 恒 Q 音乐频谱（`showcqt`）——钢琴卷帘式频谱，适合音乐片段 |
 | `audiogram --mode spectro` | 滚动频谱图（`showspectrum`）——彩色时频滚动 |
 | `scan` | 质检：报告黑屏/冻结区间 + 频闪帧（`flash_frames`/`flash_max_badness`，光敏性癫痫检查；JSON extras，不写媒体） |
-| `smooth` | 边缘保留美颜/皮肤模糊（smartblur，`--strength`、`--at/--dur` 窗口） |
+| `smooth` | 边缘保留美颜/皮肤模糊（`--engine` smartblur/bilateral——bilateral 边缘更锐利；`--strength`、`--at/--dur` 窗口） |
 | `upscale` | 老素材升分辨率：`zscale` spline36（优于 lanczos）+ 轻度锐化，`--factor` 1.05-4（2 = 宽高翻倍），`--strength` 边缘锐度 |
 | `v360` | 360° 画面重取景为平面（`--in` 支持 equirect/fisheye/dfisheye/cubemap/EAC/barrel/半等距，`--yaw`/`--pitch`/`--fov`、`--size`） |
 | `perspective` | 斜拍屏幕/白板矫正：`--points x0,y0,x1,y1,x2,y2,x3,y3`（源画面四角 TL,TR,BL,BR，像素），`--interp linear|cubic` |

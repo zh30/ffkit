@@ -174,6 +174,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Wb(args) => verbs::wb::run(args, &g),
         Cmd::Deblock(args) => verbs::deblock::run(args, &g),
         Cmd::Chromashift(args) => verbs::chromashift::run(args, &g),
+        Cmd::Tmedian(args) => verbs::tmedian::run(args, &g),
         Cmd::Mirror(args) => verbs::mirror::run(args, &g),
         Cmd::Pix(args) => verbs::pix::run(args, &g),
         Cmd::Flip(args) => verbs::flip::run(args, &g),

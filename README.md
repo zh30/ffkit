@@ -183,15 +183,16 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `riser` | Tonal chirp sweep (200→2000Hz) that lands on `--at`, `--dur` rise length, `--gain` |
 | `whoosh` | Airy brown-noise swell that lands on `--at` (transition accent), `--dur`/`--gain` |
 | `deesser` | Voice de-essing: tames the 4-8kHz sibilance band, `--amount`/`--freq`/`--at` window |
-| `declip` | Repairs clipped/blown-out audio: `adeclip` interpolates flattened peaks (`--window` ms, `--threshold` 1-100, `--overlap-save`, `--at` window) |
+| `declip` | Repairs clipped/blown-out audio (`--engine clip` = `adeclip` peak interpolation, `--engine click` = `adeclick` vinyl pops/dropouts; `--window` ms, `--threshold` 1-100, `--overlap-save`, `--at` window) |
 | `deband` | Smooths gradient banding (sky/backdrop steps) via `gradfun`, `--strength`/`--radius`/`--at` window |
 | `deblock` | Removes DCT block edges from heavy compression (`--strength` scales detection, `--at` window) |
 | `chromashift` | Shift chroma planes by px to fix misregistration halos (`--x`/`--y`, `--edge` wrap/smear, `--at` window) |
+| `tmedian` | Temporal median — erase anything visible <half the window: moving people/cars on tripod shots, rain streaks (`--radius` history frames, `--percentile`, `--at` window; output loses 2*radius edge frames) |
 | `dedup` | Drops near-duplicate frames via `mpdecimate` — shrinks static stretches, `--frac` sensitivity |
 | `audiogram --mode cqt` | Constant-Q music spectrum (`showcqt`) — piano-roll spectrum look for music clips |
 | `audiogram --mode spectro` | Scrolling spectrogram (`showspectrum`) — colour time/frequency roll |
 | `scan` | QC report: black stretches, frozen frames, black-frame hits + strobe `flash_frames`/`flash_max_badness` (photosensitive-epilepsy; JSON extras; writes no media) |
-| `smooth` | Edge-preserving beauty/skin blur (smartblur; `--strength`, `--at`/`--dur`) |
+| `smooth` | Edge-preserving beauty/skin blur (`--engine` smartblur/bilateral; `--strength`, `--at`/`--dur`) |
 | `upscale` | Up-res footage: `zscale` spline36 (better than lanczos) + light unsharp, `--factor` 1.05-4 (2 doubles dims), `--strength` edge acuity |
 | `v360` | Reframe 360 footage to flat (`--in` equirect/fisheye/dfisheye/cubemap/EAC/barrel/half-equirect, `--yaw`/`--pitch`/`--fov`, `--size`) |
 | `perspective` | Deskew a filmed screen/whiteboard: `--points x0,y0,x1,y1,x2,y2,x3,y3` (TL,TR,BL,BR quad in source, px), `--interp linear|cubic` |

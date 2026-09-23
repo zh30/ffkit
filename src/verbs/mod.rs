@@ -126,6 +126,7 @@ pub mod thumb;
 pub mod tilt;
 pub mod timer;
 pub mod title;
+pub mod tmedian;
 pub mod trail;
 pub mod transcode;
 pub mod upscale;

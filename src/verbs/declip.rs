@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::cli::{DeclipArgs, Globals};
+use crate::cli::{DeclipArgs, DeclipEngine, Globals};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -19,12 +19,17 @@ pub fn run(args: DeclipArgs, g: &Globals) -> Result<Contract, Error> {
     if !(1.0..=100.0).contains(&args.threshold) {
         return Err(Error::input("--threshold must be 1..=100"));
     }
-    let af = format!(
-        "adeclip=w={:.0}:t={:.0}:m={}",
-        args.window,
-        args.threshold,
-        if args.overlap_save { "save" } else { "add" },
-    );
+    let method = if args.overlap_save { "save" } else { "add" };
+    let af = match args.engine.unwrap_or(DeclipEngine::Clip) {
+        DeclipEngine::Clip => format!(
+            "adeclip=w={:.0}:t={:.0}:m={method}",
+            args.window, args.threshold
+        ),
+        DeclipEngine::Click => format!(
+            "adeclick=w={:.0}:o=75:arorder=2:t={:.0}:b=2:m={method}",
+            args.window, args.threshold
+        ),
+    };
     let fc = match &args.at {
         Some(raw) => Some(engine::audio_window_for(
             &af,
@@ -65,6 +70,6 @@ pub fn run(args: DeclipArgs, g: &Globals) -> Result<Contract, Error> {
         "window_ms": args.window,
         "threshold": args.threshold,
         "overlap": if args.overlap_save { "save" } else { "add" },
-        "filter": "adeclip",
+        "filter": if matches!(args.engine, Some(DeclipEngine::Click)) { "adeclick" } else { "adeclip" },
     })))
 }

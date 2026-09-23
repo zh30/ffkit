@@ -21773,6 +21773,178 @@ fn deblock_chromashift_lumakey() {
 }
 
 #[test]
+fn tmedian_declip_engines_smooth_bilateral() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // Moving-object removal: gray base + red box sliding across
+    let tm_in = dir.path().join("tm_in.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=gray:size=128x128:rate=25",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:size=20x20:rate=25",
+            "-filter_complex",
+            "[0][1]overlay=x='mod(t*120,108)':y=54:eval=frame",
+            "-t",
+            "3",
+        ])
+        .arg(&tm_in)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let tm_out = dir.path().join("tm_out.mp4");
+    let v = run_json(&[
+        "tmedian",
+        tm_in.to_str().unwrap(),
+        "-o",
+        tm_out.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok");
+    let raw_out = dir.path().join("tm.rgb");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            tm_out.to_str().unwrap(),
+            "-vf",
+            "select='eq(n,40)'",
+            "-frames:v",
+            "1",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+        ])
+        .arg(&raw_out)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let raw = std::fs::read(&raw_out).unwrap();
+    assert_eq!(raw.len(), 128 * 128 * 3);
+    let reds = (0..raw.len() / 3)
+        .filter(|i| raw[i * 3] > 200 && raw[i * 3 + 1] < 80)
+        .count();
+    assert_eq!(reds, 0, "tmedian should erase the moving box");
+
+    // declip --engine click: ~1-sample spikes every 100ms on a sine
+    let click_in = dir.path().join("click.wav");
+    let st = Command::new("ffmpeg")
+        .args(["-hide_banner","-loglevel","error","-y",
+            "-f","lavfi","-i",
+            "sine=frequency=440,aeval='val(0)*0.3+0.9*(gt(mod(t,0.1),0.095)-gt(mod(t,0.1),0.09502))'",
+            "-t","2","-c:a","pcm_s16le"])
+        .arg(&click_in)
+        .status().unwrap();
+    assert!(st.success());
+    let click_out = dir.path().join("click_out.wav");
+    let v = run_json(&[
+        "declip",
+        click_in.to_str().unwrap(),
+        "-o",
+        click_out.to_str().unwrap(),
+        "--engine",
+        "click",
+    ]);
+    assert_eq!(v["status"], "ok");
+    let hi = |p: &std::path::Path| -> usize {
+        let o = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-i"])
+            .arg(p)
+            .args(["-f", "s16le", "-ac", "1", "-ar", "44100", "-"])
+            .output()
+            .unwrap();
+        o.stdout
+            .chunks_exact(2)
+            .filter(|c| {
+                (c[1] as i16)
+                    .unsigned_abs()
+                    .max((c[0] as i16).unsigned_abs())
+                    > 0
+                    && i16::from_le_bytes([c[0], c[1]]).unsigned_abs() > 20000
+            })
+            .count()
+    };
+    let before = hi(&click_in);
+    let after = hi(&click_out);
+    assert!(
+        before > 10 && after < before,
+        "declick spikes {before}->{after}"
+    );
+
+    // smooth --engine bilateral: luma noise drops on a noisy flat patch
+    let noisy = dir.path().join("noisy.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=128x128:rate=25,format=gray,noise=alls=20:allf=t",
+            "-t",
+            "2",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&noisy)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let bil = dir.path().join("bil.mp4");
+    let v = run_json(&[
+        "smooth",
+        noisy.to_str().unwrap(),
+        "-o",
+        bil.to_str().unwrap(),
+        "--engine",
+        "bilateral",
+        "--strength",
+        "1",
+    ]);
+    assert_eq!(v["status"], "ok");
+    let ystdev = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-i"])
+            .arg(p)
+            .args([
+                "-vf",
+                "select='eq(n,10)',format=gray",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let d = o.stdout;
+        if d.is_empty() {
+            return 99.0;
+        }
+        let m = d.iter().map(|v| *v as f64).sum::<f64>() / d.len() as f64;
+        (d.iter().map(|v| (*v as f64 - m).powi(2)).sum::<f64>() / d.len() as f64).sqrt()
+    };
+    let (si, so) = (ystdev(&noisy), ystdev(&bil));
+    assert!(so < si * 0.9, "bilateral stdev {si:.1}->{so:.1}");
+}
+
+#[test]
 fn wb_median_chroma_scan_flash() {
     if !has_ffmpeg() {
         return;

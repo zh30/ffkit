@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.224.0] - 2026-09-23
+
+### Added
+- `tmedian` verb — temporal median filter removes anything visible for less than half the window (people/cars crossing tripod shots, timelapse intruders, rain streaks). `--radius` sets frames of history each side, `--percentile` shifts the pick, `--at`/`--dur` windowing supported; output drops `2*radius` edge frames.
+- `declip --engine clip|click` — new `adeclick` engine repairs impulsive damage (vinyl pops, mouth clicks, digital dropouts) alongside the existing `adeclip` peak interpolation.
+- `smooth --engine smartblur|bilateral` — edge-aware bilateral alternative: keeps skin texture edges, drops luma noise.
+
+
 ## [0.223.0] — RSI round 196
 
 - `deblock` — DCT block-edge removal for heavily compressed sources (phone screen recordings, re-uploads): `deblock=filter=strong` with `--strength` scaling all three detection thresholds (stock defaults are a near no-op; measured HF block energy −7%). `--at`/`--dur` windows.

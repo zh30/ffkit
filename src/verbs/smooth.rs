@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::cli::{Globals, SmoothArgs};
+use crate::cli::{Globals, SmoothArgs, SmoothEngine};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -16,12 +16,20 @@ pub fn run(args: SmoothArgs, g: &Globals) -> Result<Contract, Error> {
     engine::need_video(&probe, "smooth")?;
 
     let s = args.strength;
-    let chain = format!(
-        "smartblur=lr={:.2}:ls={:.2}:lt={:.0}",
-        0.5 + 2.0 * s,
-        0.3 + 0.65 * s,
-        5.0 + 20.0 * s
-    );
+    let chain = match args.engine.unwrap_or(SmoothEngine::Smartblur) {
+        SmoothEngine::Smartblur => format!(
+            "smartblur=lr={:.2}:ls={:.2}:lt={:.0}",
+            0.5 + 2.0 * s,
+            0.3 + 0.65 * s,
+            5.0 + 20.0 * s
+        ),
+        // bilateral keeps chroma+edges, drops luma noise — planes=1 = luma only
+        SmoothEngine::Bilateral => format!(
+            "bilateral=sigmaS={:.1}:sigmaR={:.2}:planes=1",
+            4.0 + 12.0 * s,
+            0.10 + 0.40 * s
+        ),
+    };
 
     let chain = match &args.at {
         Some(raw) => format!(
