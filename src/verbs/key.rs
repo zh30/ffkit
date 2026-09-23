@@ -49,10 +49,17 @@ pub fn run(args: KeyArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         ""
     };
+    let enable = match &args.at {
+        Some(s) => format!(
+            ":enable='{}'",
+            crate::time::enable_expr(s, args.dur, fg.duration)?
+        ),
+        None => String::new(),
+    };
     let fc = format!(
         "[0:v]fps={fps:.3},format=yuv420p,colorkey={color}:{:.3}:{:.3}{despill}[keyed];\
          [1:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps={fps:.3},format=yuv420p[bg];\
-         [bg][keyed]overlay=0:0:shortest=1[vout]",
+         [bg][keyed]overlay=0:0:shortest=1{enable}[vout]",
         args.similarity, args.blend
     );
     argv.extend(["-filter_complex", &fc, "-map", "[vout]"]);

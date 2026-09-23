@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.164.0] — 2026-09-22
+
+### Added
+- `key --at/--dur` — green-screen composite only inside a window: `overlay` gains `enable='{enable_expr}'`, so comma `--at` lists work too; outside the window the background shows through.
+- `subs --shift --from/--to` — bounds the retiming to cues overlapping the window (`end` ok) for when only part of the track is late.
+
 ## [0.163.0] — 2026-09-22
 
 ### Added

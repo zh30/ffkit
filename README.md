@@ -116,7 +116,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `slideshow` | Still images → video montage (`--per` or `--dur` total runtime, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed + `--volume`, `--size` canvas, `--bg` letterbox) |
 | `speed` | Change playback speed (`--factor`, `--at/--dur` (comma list = several windows), `--ramp` FROM,TO); `end` ok |
 | `music` | Bed under speech with ducking (`--track`, `--at`/`--dur` window, `end` ok; comma `--at` = multi-entrance bed) |
-| `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`) |
+| `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`, `--at`/`--dur` window — comma list ok) |
 | `grid` | Multi-up collage (`--layout`, `--audio` pick, `--labels`, `--gap`, `--bg` gutter color, `--fill` crop instead of letterbox) |
 | `progress` | Progress bar on any edge, whole clip or a window (`--color`, `--height`, `--edge` bottom/top/left/right, `--at`, `--dur`) |
 | `freeze` | Hold a frame (`--at`, comma list freezes at several points, `--dur`, `--end`, `--ease`, `--reverse`, `--zoom` push-in) |
@@ -136,7 +136,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip`, free `--angle` tilt |
 | `delogo` | Blend out a burned-in logo box: `--x --y --w --h`; `--at`/`--dur` for a window, `--at end` the tail (`--soft` removelogo) |
 | `meta` | Container tags (`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--comment`) + `--rotate`, `--clear`, stream-copy |
-| `subs` | Extract (`--stream`, `--all`)/burn/mux subtitles (`--shift/--merge/--rate`, burn style + `--outline`/`--box` plate/`--align`/`--margin` px/`--from`/`--to` window (`end`/`end-N` ok), `--safe`); `--convert` .srt↔.vtt; `--case` cue text |
+| `subs` | Extract (`--stream`, `--all`)/burn/mux subtitles (`--shift` (±N; `--from`/`--to` bounds it)/`--merge`/`--rate`, burn style + `--outline`/`--box` plate/`--align`/`--margin` px/`--from`/`--to` window (`end`/`end-N` ok), `--safe`); `--convert` .srt↔.vtt; `--case` cue text |
 | `thumb` | One-frame cover grab (`--at` — `end` = last frame / `--frame`, `--count` N stills (`--from`/`--to` bounds the spread, `end`/`end-N` ok), `--width`) → jpg/png/webp; `--scenes` stills at cuts |
 | `solid` | Solid-color clip card (`--color`, `--size`, `--dur`, `--fps` rate; silent stereo optional) (`--gradient` animated, `--noise` grain) , `--text` end-card text (`--wrap` folds, `--align` lines) |
 | `replace` | Swap the audio track (`--mix`, `--duck`, `--fade`, `--loop` short beds, `--at`/`--dur` window) |

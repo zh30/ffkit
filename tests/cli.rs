@@ -15444,6 +15444,64 @@ fn bleep_comma_list_censors_every_window() {
 }
 
 #[test]
+fn key_window_and_subs_shift_bounds() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    let bg = lavfi_fixture(dir.path(), "bg.mp4", "550", 1.0);
+    // key only inside a comma window
+    let v = run_json(&[
+        "key",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("k.mp4").to_str().unwrap(),
+        "--bg",
+        bg.to_str().unwrap(),
+        "--at",
+        "0.1,0.6",
+        "--dur",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("between(t,0.100,0.300)+between(t,0.600,0.800)"),
+        "{cmds}"
+    );
+
+    // subs --shift bounded to a cue window
+    let srt = dir.path().join("in.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,100 --> 00:00:00,300\nEARLY\n\n2\n00:00:00,600 --> 00:00:00,900\nLATE\n",
+    )
+    .unwrap();
+    let out = dir.path().join("out.srt");
+    let v = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--shift",
+        "1.0",
+        "--from",
+        "0.4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let txt = std::fs::read_to_string(&out).unwrap();
+    assert!(txt.contains("00:00:00,100"), "{txt}");
+    assert!(txt.contains("00:00:01,600"), "{txt}");
+}
+
+#[test]
 fn freeze_and_fade_dip_comma_windows() {
     if !has_ffmpeg() {
         return;

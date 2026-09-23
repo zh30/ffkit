@@ -385,7 +385,39 @@ fn shift(args: &SubsArgs, offset: f64, g: &Globals) -> Result<Contract, Error> {
     let raw = std::fs::read_to_string(&args.input)
         .map_err(|e| Error::input(format!("{}: {e}", args.input.display())))?;
     let mut cues = crate::srt::parse_srt(&raw)?;
+    // --from/--to bounds the retiming to the cues overlapping that window
+    // (only part of the track is late, e.g. after an inserted segment).
+    let win = match (&args.from, &args.to) {
+        (None, None) => None,
+        (f, t) => {
+            let dur = cues.iter().map(|c| c.end).fold(0.0, f64::max);
+            let at = |s: &str| -> Result<f64, Error> {
+                if s.trim().eq_ignore_ascii_case("end") {
+                    Ok(dur)
+                } else {
+                    crate::time::parse_time(s)
+                }
+            };
+            let from = match f {
+                Some(s) => at(s)?,
+                None => 0.0,
+            };
+            let to = match t {
+                Some(s) => at(s)?,
+                None => dur,
+            };
+            if to <= from {
+                return Err(Error::input("--from/--to window is empty"));
+            }
+            Some((from, to))
+        }
+    };
     for c in cues.iter_mut() {
+        if let Some((f, t)) = win {
+            if c.end <= f || c.start >= t {
+                continue;
+            }
+        }
         c.start = (c.start + offset).max(0.0);
         c.end = (c.end + offset).max(0.0);
     }
@@ -403,6 +435,7 @@ fn shift(args: &SubsArgs, offset: f64, g: &Globals) -> Result<Contract, Error> {
     Ok(c.with_extra(json!({
         "shift": offset,
         "cues": cues.len(),
+        "window": win.map(|(f, t)| json!({"from": f, "to": t})),
     })))
 }
 

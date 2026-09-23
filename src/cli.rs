@@ -1178,6 +1178,12 @@ pub struct KeyArgs {
     /// Remove color spill ringing on the keyed edges
     #[arg(long)]
     pub despill: bool,
+    /// Key only inside this window — comma list for several windows (needs --dur)
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length for --at (seconds; default = to the end)
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
