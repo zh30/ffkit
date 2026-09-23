@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.159.0] — 2026-09-22
+
+### Added
+- `concat --transition` accepts a comma list (`fade,wipeleft,...`) — picks a different xfade per joint; a single value still applies to every joint.
+- `channel --mode split` — splits a stereo track into `<stem>_L.wav` and `<stem>_R.wav` mono files (host/guest mic separation for per-voice cleanup).
+- `remux --aspect 16:9` — rewrites the display aspect ratio while stream-copying (fix anamorphic/wrong-AR files without re-encoding).
+
 ## [0.158.0] — 2026-09-22
 
 ### Added

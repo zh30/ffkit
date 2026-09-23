@@ -15444,6 +15444,84 @@ fn bleep_comma_list_censors_every_window() {
 }
 
 #[test]
+fn concat_transition_list_channel_split_remux_aspect() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = lavfi_fixture(dir.path(), "a.mp4", "440", 1.0);
+    let b = lavfi_fixture(dir.path(), "b.mp4", "550", 1.0);
+    let c = lavfi_fixture(dir.path(), "c.mp4", "660", 1.0);
+    // per-joint transitions
+    let v = run_json(&[
+        "concat",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        c.to_str().unwrap(),
+        "-o",
+        dir.path().join("j.mp4").to_str().unwrap(),
+        "--transition",
+        "fade,wipeleft",
+        "--duration",
+        "0.2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("xfade=transition=fade"), "{cmds}");
+    assert!(cmds.contains("xfade=transition=wipeleft"), "{cmds}");
+
+    // stereo → two mono wavs
+    let v = run_json(&[
+        "channel",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("ch.wav").to_str().unwrap(),
+        "--mode",
+        "split",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(dir.path().join("ch_L.wav").exists());
+    assert!(dir.path().join("ch_R.wav").exists());
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("channelsplit"), "{cmds}");
+
+    // remux DAR fix (stream copy)
+    let v = run_json(&[
+        "remux",
+        a.to_str().unwrap(),
+        "-o",
+        dir.path().join("r.mp4").to_str().unwrap(),
+        "--aspect",
+        "16:9",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-aspect 16:9"), "{cmds}");
+    assert!(
+        cmds.contains("-c copy") || cmds.contains("-c:v copy"),
+        "{cmds}"
+    );
+}
+
+#[test]
 fn boomerang_and_mix_comma_windows() {
     if !has_ffmpeg() {
         return;

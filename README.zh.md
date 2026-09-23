@@ -98,7 +98,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `probe` | 时长、分辨率、编码、声道 |
 | `look` | 联系表（`--tiles`）或指定时间点（`--at`，可重复） |
 | `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges`、`--drop` 才帧精确（边界支持 `end`：`T-end` 到结尾、`end-N` 最后 N 秒）；`--fade N` 切口淡入淡出 |
-| `concat` | 拼接 N 段（任意 xfade `--transition`、`--audio-fade`）；`--level -14` 先统一各段响度 |
+| `concat` | 拼接 N 段（任意 xfade `--transition`，逗号列表逐接缝选转场）；`--level -14` 先统一各段响度 |
 | `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 ，`--position` 画面对齐黑边位置 ，`--strength` 模糊力度 |
 | `extract` | 抓静帧或 `--gif` 动图（`--bounce` 往返循环） | `--at`（`end` = 最后一帧 / 最后 --dur 秒）、`--width`、`--fps` ，`--loop` GIF 循环次数、`--colors` 调色板大小 |
 | `overlay` | logo/画中画；`--tile N` 全屏草稿水印 | logo、水印、画中画 | `--angle`、`--loop` 短视频循环、`--border` 画中画描边
@@ -129,7 +129,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sprite` | 播放条预览雪碧图 + WebVTT（`--every` 间隔秒、`--width` 缩略图宽、`--cols`x`--rows` 每张格数、`--vtt` 路径、`--from`/`--to` 限定范围，支持 `end`）——播放器悬停预览 |
 | `pitch` | ±12 半音变调不变速（`--at/--dur` 窗口），支持 `end`，逗号列表可多段 |
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
-| `channel` | 声道手术：`--mode dualmono|mono|swap|invert|mix51|pan`；`widen` 立体声加宽、`--pan -1..1` 声像定位 |
+| `channel` | 声道手术：`--mode dualmono|mono|swap|invert|mix51|pan|widen|split`（`split` 立体声→`_L/_R.wav` 双人声分轨）；`--pan -1..1` 声像定位 |
 | `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡） ，`--band` 参量频段，`--tilt` 暖↔亮，支持 `end`，逗号列表可多段 |
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet`（`--at`/`--dur` 局部回声），支持 `end`，逗号列表可多段 |
 | `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio（`--kind`、`--strength`、`--at`/`--dur`），支持 `end`，逗号列表可多段 |
@@ -166,7 +166,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`）（`--preset voice|podcast|studio`，`--at/--dur` 局部生效），支持 `end`，逗号列表可多段 |
 | `silence` | 在 `--at`/`--end` 插入 `--dur` 秒静音；`--detect` 以 JSON 报告静音区间 |
 | `vocal` | 消/留中置人声（`--mode`、`--amount` 强度、`--at/--dur` 窗口），支持 `end`，逗号列表可多段 |
-| `remux` | 换容器不重编码（mkv→mp4 等，`-c copy` + faststart）；`--audio` 只提音轨，`--video` 只留视频 |
+| `remux` | 换容器不重编码（`-c copy` + faststart）；`--audio` 只提音轨，`--video` 只留视频，`--aspect 16:9` 修显示宽高比 |
 | `meme` | 上下说明文字梗图（`--outline`、`--at/--dur` 时间窗，逗号列表可打多处；`--at end` 片尾） ，`--position` 文字块上/中/下；`--wrap` 折行、`--align` 行对齐 |
 | `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`、`--at`/`--dur` 只处理一段，支持 `end`，逗号列表可多段） |
 | `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序、`--engine` yadif/bwdif） |

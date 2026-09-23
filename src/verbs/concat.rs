@@ -1,7 +1,9 @@
 use std::io::Write;
 use std::path::Path;
 
-use crate::cli::{ConcatArgs, Globals};
+use clap::ValueEnum;
+
+use crate::cli::{ConcatArgs, Globals, XfadeTransition};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -25,8 +27,22 @@ pub fn run(args: ConcatArgs, g: &Globals) -> Result<Contract, Error> {
         .map(|p| engine::probe_or_err(p, g))
         .collect::<Result<_, _>>()?;
 
-    if let Some(t) = args.transition {
-        return transition_chain(&args, g, &input_refs, &probes, t);
+    if let Some(t) = &args.transition {
+        let mut kinds = Vec::new();
+        for part in t.split(',') {
+            let name = part.trim();
+            let kind = XfadeTransition::from_str(name, true)
+                .map_err(|_| Error::input(format!("concat: unknown --transition '{name}'")))?;
+            kinds.push(kind);
+        }
+        if kinds.len() > 1 && kinds.len() != args.inputs.len() - 1 {
+            return Err(Error::input(format!(
+                "concat: {} transitions but {} joints — give one per joint or a single one",
+                kinds.len(),
+                args.inputs.len() - 1
+            )));
+        }
+        return transition_chain(&args, g, &input_refs, &probes, &kinds);
     }
 
     if can_copy(&probes) {
@@ -145,7 +161,7 @@ fn transition_chain(
     g: &Globals,
     inputs: &[&Path],
     probes: &[Probe],
-    kind: crate::cli::XfadeTransition,
+    kinds: &[crate::cli::XfadeTransition],
 ) -> Result<Contract, Error> {
     engine::need_video(&probes[0], "concat")?;
     let fade = args.duration.max(0.01);
@@ -163,7 +179,11 @@ fn transition_chain(
     let th = paths::even(probes[0].height.unwrap_or(720));
     let fps = probes[0].fps.unwrap_or(30.0);
     let n = args.inputs.len();
-    let name = kind.xfade_name();
+    let names: Vec<&'static str> = if kinds.len() == 1 {
+        vec![kinds[0].xfade_name(); n - 1]
+    } else {
+        kinds.iter().map(|k| k.xfade_name()).collect()
+    };
 
     let mut argv = ffmpeg_base(g.progress);
     for p in &args.inputs {
@@ -198,7 +218,8 @@ fn transition_chain(
         };
         let offset = cum + probes[i - 1].duration - i as f64 * fade;
         seg.push(format!(
-            "[{prev_v}][v{i}]xfade=transition={name}:duration={fade:.3}:offset={offset:.3}[{out_v}]"
+            "[{prev_v}][v{i}]xfade=transition={}:duration={fade:.3}:offset={offset:.3}[{out_v}]",
+            names[i - 1]
         ));
         prev_v = out_v;
         if all_audio {
@@ -222,7 +243,11 @@ fn transition_chain(
     argv.push(&args.output);
     let mut c = engine::write_job("concat", inputs, &args.output, vec![argv], g)?;
     c = c.with_extra(serde_json::json!({
-        "transition": name,
+        "transition": if names.iter().all(|n| *n == names[0]) {
+            serde_json::json!(names[0])
+        } else {
+            serde_json::json!(names)
+        },
         "transition_duration": fade,
         "clips": n,
     }));

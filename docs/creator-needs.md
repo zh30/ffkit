@@ -237,8 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
-## Shipped this run (round 131)
-- Comma-list `--at` on `boomerang` (per-window split/reverse/loop boomerang segment chains) + `mix` (OR'd bed-gate + per-window `afade`). `music` stays single-window — `mix` covers multi-entrance beds.
+## Shipped this run (round 132)
+- `concat --transition a,b,...` — comma list picks a different xfade per joint (single value still applies to all).
+- `channel --mode split` — stereo → `<stem>_L.wav` + `<stem>_R.wav` mono stems (host/guest mic separation for podcast cleanup).
+- `remux --aspect 16:9` — display-aspect fix while stream-copying (anamorphic → square pixels w/o re-encode).
 
 ## Shipped this run (round 130)
 - Comma-list `--at` on trim/concat verbs — `speed`, `tempo`, `zoom` (alternating normal/FX N-segment graph via new `time::window_list` merge) + `vdenoise` (enable_expr).

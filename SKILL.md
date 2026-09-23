@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.158.0
+version: 0.159.0
 compatibility: Requires ffmpeg, ffprobe, and the ffkit binary on PATH.
 ---
 
@@ -36,7 +36,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 |-----------|-------|
 | inspect | `doctor`, `probe`, `look` (`--tiles` / `--at`) |
 
-| trim / join | `cut`, `concat` (`--transition` any xfade, N clips, `--level -14` loudnorms each), `split` (`--every` story chunks, `--at` chapter points, `--chapters` embedded marks, `--fade N` soft part edges), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps, `--by-scene` split at cuts) |
+| trim / join | `cut`, `concat` (`--transition` any xfade (comma list picks one per joint), N clips, `--level -14` loudnorms each), `split` (`--every` story chunks, `--at` chapter points, `--chapters` embedded marks, `--fade N` soft part edges), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps, `--by-scene` split at cuts) |
 | platform loudness | `loudnorm` (`--target`, `-I/--tp/--lra`; `--measure` report-only, `--dynamic` per-frame) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur --strength`), `zoom`, `--position` top/bottom/corners |
 
@@ -65,7 +65,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | pad in room tone / breath | `silence` (`--at`, `--dur` inserts quiet; `--detect` reports ranges; video holds: `freeze`) |
 | one-click look | `grade --preset cinematic|vivid|vintage|soft` (stacks under the sliders) |
 | karaoke / keep only the vocal | `vocal` (`--at`/`--dur` window, `--mode karaoke` drops the center, `isolate` keeps it — stereo only; `--amount` partial) |
-| container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart); `--audio` rips the track, `--video` video-only |
+| container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart); `--audio` rips the track, `--video` video-only, `--aspect 16:9` fixes display AR |
 | top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline`, `--at/--dur` window — `--at end` covers the tail), `--position` center/bottom, `--wrap` + `--align` multiline |
 | fix my podcast voice | `voice` — one-shot chain: gate hiss → compress swings → loudnorm `--lufs` (default −16); `--at`/`--dur` windows it |
 | slideshow that runs exactly N seconds | `slideshow` (`--dur` spreads the runtime across the stills, `--bg` letterbox color) |
@@ -189,7 +189,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | draft/tiled watermark | `overlay --tile N` (diagonal watermark pass) |
 | shift subtitle timing | `caption --shift SEC` |
 | gif tuning | `transcode --preset gif --fps --width`, `extract --gif --bounce` (palindrome loop), `extract --colors` palette size |
-| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear) |
+| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `split` → `_L/_R.wav` host/guest stems) |
 | loop to a length | `loop --until SEC` |
 | text draft watermark | `title --tile N` |
 | audio EQ polish | `eq` (`--bass`/`--treble`/`--presence` dB) |

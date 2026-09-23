@@ -299,9 +299,10 @@ pub struct ConcatArgs {
     pub inputs: Vec<PathBuf>,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// xfade between clips: fade | wipe* | slide* | dissolve | radial | circleopen
-    #[arg(long, value_enum)]
-    pub transition: Option<XfadeTransition>,
+    /// xfade between clips: fade | wipe* | slide* | dissolve | radial | circleopen —
+    /// comma list picks a different transition per joint (one per junction)
+    #[arg(long)]
+    pub transition: Option<String>,
     /// Transition duration in seconds
     #[arg(long, default_value_t = 0.5)]
     pub duration: f64,
@@ -1633,7 +1634,7 @@ pub struct ChannelArgs {
     pub pan: Option<f64>,
 }
 
-#[derive(Clone, Copy, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 pub enum ChannelMode {
     Dualmono,
     Mono,
@@ -1645,6 +1646,8 @@ pub enum ChannelMode {
     Widen,
     /// Stereo pan --pan -1..1 (push the mix to one ear)
     Pan,
+    /// Split stereo into two mono files <stem>_L.wav / <stem>_R.wav (host/guest mics)
+    Split,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1779,6 +1782,9 @@ pub struct RemuxArgs {
     /// Keep only the video — repack muted (no re-encode)
     #[arg(long)]
     pub video: bool,
+    /// Fix the display aspect ratio without re-encoding (16:9, 9:16, 1:1, ...)
+    #[arg(long)]
+    pub aspect: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

@@ -61,6 +61,15 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         argv.extend(["-map", "0", "-c", "copy"]);
     }
+    if let Some(a) = &args.aspect {
+        if args.audio || !probe.has_video {
+            return Err(Error::input("remux --aspect needs a video stream"));
+        }
+        if a.trim().is_empty() {
+            return Err(Error::input("remux: empty --aspect"));
+        }
+        argv.extend(["-aspect", a.trim()]);
+    }
     if matches!(ext.as_str(), "mp4" | "m4a" | "mov") {
         argv.extend(["-movflags", "+faststart"]);
     }

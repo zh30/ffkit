@@ -98,7 +98,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `probe` | Duration, size, codecs, channels |
 | `look` | Contact sheet (`--tiles`) or timestamps (`--at`, repeatable) |
 | `cut` | Trim; lossless copy by default, `--accurate`, `--ranges`, `--drop` for frame-exact (bounds take `end`: `T-end` through the tail, `end-N` last N secs); `--fade N` softens the cut edges |
-| `concat` | Join N clips (any xfade `--transition`, `--audio-fade`); `--level -14` loudnorms each clip first |
+| `concat` | Join N clips (any xfade `--transition`, comma list picks one per joint); `--level -14` loudnorms each clip first |
 | `fit` | Frame / rotate / flip (9:16, 1:1, 16:9, …); `--fit blur` fills with a blurred backdrop , `--position` anchors the picture in the bars , `--strength` sigma |
 | `extract` | Still frame or `--gif` clip (`--bounce` palindrome) | `--at` (`end` = last frame / last --dur sec), `--width`, `--fps` , `--loop` GIF repeat count, `--colors` palette size |
 | `overlay` | Image/video overlay; position/scale/`--tile`, `--fade`, `--angle`, `--at`/`--dur`, `--mode`, `--opacity` blend composite, `--loop` repeat short clips | Logo/picture-in-picture; `--tile N` draft watermark | Logo, watermark, picture-in-picture; `--border` PiP ring |
@@ -129,7 +129,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sprite` | Seek-preview sprite sheets + WebVTT (`--every` secs, `--width` tile px, `--cols`x`--rows` per sheet, `--vtt` path, `--from`/`--to` bounds -- `end` ok) — hover thumbnails for video players |
 | `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window); `end` ok, comma list = several windows |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
-| `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51|pan`; `widen` stereo, `--pan -1..1` pan |
+| `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51|pan|widen|split` (stereo→`_L/_R.wav` stems); `--pan -1..1` pan |
 | `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--tilt` warm↔bright; `end` ok, comma list = several windows |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window); `end` ok, comma list = several windows |
 | `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio (`--kind`, `--strength`, `--at`/`--dur`); `end` ok, comma list = several windows |
@@ -166,7 +166,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `gate` | Noise gate — silence below `--threshold` dB (`agate`) (`--preset voice|podcast|studio`, `--at/--dur` window); `end` ok, comma list = several windows |
 | `silence` | Insert `--dur` secs of silence at `--at` or `--end`; `--detect` reports silence ranges as JSON |
 | `vocal` | Remove/isolate center vocals (`--mode`, `--at/--dur` window, `--amount` strength); `end` ok, comma list = several windows |
-| `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov); `--audio` rips the track, `--video` video-only repack |
+| `remux` | Container swap, no re-encode (`-c copy` + faststart on mp4/mov); `--audio` rips the track, `--video` video-only repack, `--aspect 16:9` display-AR fix |
 | `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window — comma list for several spots; `--at end` tail) , `--position` text block top/center/bottom; `--wrap` folds, `--align` line alignment |
 | `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`, `--at`/`--dur` window, `end` ok, comma list = several windows) |
 | `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order, `--engine` yadif/bwdif) |
