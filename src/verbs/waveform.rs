@@ -28,10 +28,14 @@ pub fn run(args: WaveformArgs, g: &Globals) -> Result<Contract, Error> {
     // --at/--dur: crop the rendered wave to the window, then stretch to --size.
     let flt = if args.peak { ":filter=peak" } else { "" };
     let dr = if args.full { ":draw=full" } else { "" };
+    let tr = if args.vertical { ",transpose=1" } else { "" };
+    // transpose lands on whichever node is mapped: [wout] when bg composites,
+    // otherwise the wave itself ([v] / per-window [oN]).
+    let tr_v = if args.bg.is_some() { "" } else { tr };
     let (bg_pre, bg_post) = match &args.bg {
         Some(b) => (
             format!("color=c={c}:s={w}x{h}[bgr];", c = crate::color::lavfi(b)),
-            ";[bgr][v]overlay=0:0[wout]".to_string(),
+            format!(";[bgr][v]overlay=0:0{tr}[wout]"),
         ),
         None => (String::new(), String::new()),
     };
@@ -55,7 +59,7 @@ pub fn run(args: WaveformArgs, g: &Globals) -> Result<Contract, Error> {
                 .min(probe.duration);
             (
                 format!(
-                    ";[w0]crop=w=iw*{fw:.6}:x=iw*{fx:.6}:h=ih,scale={w}:{h}[v]",
+                    ";[w0]crop=w=iw*{fw:.6}:x=iw*{fx:.6}:h=ih,scale={w}:{h}{tr_v}[v]",
                     fw = (end - at) / probe.duration,
                     fx = at / probe.duration
                 ),
@@ -82,7 +86,7 @@ pub fn run(args: WaveformArgs, g: &Globals) -> Result<Contract, Error> {
             let mut files = Vec::new();
             for (i, &(s, e)) in ws.iter().enumerate() {
                 tail.push_str(&format!(
-                    ";[sp{i}]crop=w=iw*{fw:.6}:x=iw*{fx:.6}:h=ih,scale={w}:{h}[o{i}]",
+                    ";[sp{i}]crop=w=iw*{fw:.6}:x=iw*{fx:.6}:h=ih,scale={w}:{h}{tr}[o{i}]",
                     fw = (e - s) / probe.duration,
                     fx = s / probe.duration
                 ));
@@ -95,7 +99,11 @@ pub fn run(args: WaveformArgs, g: &Globals) -> Result<Contract, Error> {
                 return Err(Error::input("--dur needs --at"));
             }
             (
-                ";[w0]copy[v]".to_string(),
+                if args.vertical && args.bg.is_none() {
+                    ";[w0]transpose=1[v]".to_string()
+                } else {
+                    ";[w0]copy[v]".to_string()
+                },
                 vec![crate::paths::display(&args.output)],
             )
         }
