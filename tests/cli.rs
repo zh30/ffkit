@@ -24215,6 +24215,120 @@ fn grade_lut1d_deflicker_tmide_gen_audio_glitch_swapuv() {
 }
 
 #[test]
+fn grade_color_from_vdenoise_fft_smooth_spp_glitch_stutter() {
+    if !has_ffmpeg()
+        || !has_filter("mergeplanes")
+        || !has_filter("fftdnoiz")
+        || !has_filter("spp")
+        || !has_filter("shuffleframes")
+    {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let reff = dir.path().join("ref.mp4");
+    // solid-red ref: chroma borrow should push output toward red
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=red:size=320x240:rate=25:duration=2",
+            "-pix_fmt",
+            "yuv420p",
+            reff.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(st.status.success());
+
+    let o = dir.path().join("cf.mp4");
+    let v = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--color-from",
+        reff.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["color_from"], reff.to_str().unwrap(), "{v}");
+    // output should read strongly red at a sample point (red chroma won)
+    let o2 = Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(&o)
+        .args([
+            "-vf",
+            "crop=32:32:10:10,format=rgb24",
+            "-frames:v",
+            "1",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    assert!(o2.status.success());
+    let mean = |ch: usize| {
+        o2.stdout
+            .chunks(3)
+            .filter(|c| c.len() == 3)
+            .map(|c| c[ch] as u64)
+            .sum::<u64>()
+            / (o2.stdout.len() / 3) as u64
+    };
+    assert!(
+        mean(0) > mean(2) + 40,
+        "expected red-tinted chroma: r={} g={} b={}",
+        mean(0),
+        mean(1),
+        mean(2)
+    );
+
+    let o = dir.path().join("vf.mp4");
+    let v = run_json(&[
+        "vdenoise",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--engine",
+        "fftdnoiz",
+        "--strength",
+        "4",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["filter"], "fftdnoiz", "{v}");
+
+    for eng in ["spp", "fspp"] {
+        let o = dir.path().join(format!("sm_{eng}.mp4"));
+        let v = run_json(&[
+            "smooth",
+            src.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--engine",
+            eng,
+        ]);
+        assert_eq!(v["status"], "ok", "{v}");
+    }
+
+    let o = dir.path().join("st.mp4");
+    let v = run_json(&[
+        "glitch",
+        src.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--engine",
+        "stutter",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["filter"], "shuffleframes", "{v}");
+}
+
+#[test]
 fn legalize_levels_aberrate() {
     if !has_ffmpeg() || !has_filter("limiter") || !has_filter("colorlevels") {
         return;

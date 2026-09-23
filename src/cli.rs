@@ -1168,6 +1168,8 @@ pub enum GlitchEngine {
     Planes,
     /// swapuv — U/V chroma swap (magenta↔green flip, weird-Terry look)
     Swapuv,
+    /// stutter — shuffleframes: repeats every 4th frame → VHS-style stutter
+    Stutter,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2920,6 +2922,10 @@ pub struct GradeArgs {
     /// matching / "grade it like that film". Second input, scaled to fit
     #[arg(long)]
     pub match_: Option<PathBuf>,
+    /// Borrow the chroma (U/V) of another clip — mergeplanes: your luma,
+    /// their color grade. Incompatible with --match / HALD --lut / --at
+    #[arg(long, value_name = "REF")]
+    pub color_from: Option<PathBuf>,
     /// Colour wash over the frame (colorize) — mood veil that keeps luma
     #[arg(long)]
     pub wash: Option<String>,
@@ -3398,6 +3404,10 @@ pub enum SmoothEngine {
     Pp7,
     /// yaepblur — edge-preserving smoothing (bilateral-class, keeps contours)
     Yaep,
+    /// spp — simple postprocess DCT deblock (lighter than uspp/pp7)
+    Spp,
+    /// fspp — fast spp variant (oldest, blockiest sources)
+    Fspp,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -4501,6 +4511,8 @@ pub enum VDenoiseEngine {
     /// dotcrawl — dedot: removes dot-crawl + rainbow edges from composite /
     /// analog captures (VHS rips, capture-card footage)
     Dotcrawl,
+    /// fftdnoiz — FFT-domain denoise (film grain); prev/next add temporal
+    Fftdnoiz,
 }
 
 #[derive(clap::Args, Debug)]

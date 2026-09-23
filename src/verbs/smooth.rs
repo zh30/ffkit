@@ -53,6 +53,16 @@ pub fn run(args: SmoothArgs, g: &Globals) -> Result<Contract, Error> {
             4.0 + 12.0 * s,
             0.10 + 0.40 * s
         ),
+        // spp: simple postproc — soft-threshold DCT deblock, strength→quality 0..6
+        SmoothEngine::Spp => {
+            let q = (args.strength * 6.0).round() as u32;
+            format!("spp=quality={q}:mode=soft")
+        }
+        // fspp: fastest sibling for the blockiest sources — strength −15..32
+        SmoothEngine::Fspp => {
+            let st = (args.strength * 32.0).round() as i32;
+            format!("fspp=quality=5:strength={st}")
+        }
     };
 
     let chain = match &args.at {

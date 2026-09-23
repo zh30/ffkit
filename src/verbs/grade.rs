@@ -181,6 +181,16 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
     if args.match_.is_some() && hald_lut.is_some() {
         return Err(Error::input("--match can't combine with a HALD --lut"));
     }
+    if args.color_from.is_some() && (args.match_.is_some() || hald_lut.is_some()) {
+        return Err(Error::input(
+            "--color-from can't combine with --match or a HALD --lut (one ref clip max)",
+        ));
+    }
+    if args.color_from.is_some() && win_expr.is_some() {
+        return Err(Error::input(
+            "--color-from has no timeline support — it can't combine with --at",
+        ));
+    }
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
@@ -195,6 +205,15 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
             .unwrap_or_default();
         let fc = format!(
             "[0:v]{vf}[g];[1:v][g]scale2ref[mr][gs];[gs][mr]midequalizer=planes=15{en}[out]"
+        );
+        argv.extend(["-filter_complex", &fc, "-map", "[out]", "-map", "0:a?"]);
+    } else if let Some(r) = &args.color_from {
+        argv.push("-i");
+        argv.push(r);
+        // mergeplanes=0x001020: out_y←in0.plane0, out_u←in1.plane0,
+        // out_v←in2.plane0 — scale2ref sizes the ref's chroma to the source
+        let fc = format!(
+            "[0:v]{vf},format=yuv420p[g];[1:v][g]scale2ref[rs][gm];[gm]extractplanes=y,setsar=1[y];[rs]format=yuv420p,split[r1][r2];[r1]extractplanes=u,setsar=1[u];[r2]extractplanes=v,setsar=1[v];[y][u][v]mergeplanes=0x001020:yuv420p,setsar=1[out]"
         );
         argv.extend(["-filter_complex", &fc, "-map", "[out]", "-map", "0:a?"]);
     } else if let Some(lut) = &hald_lut {
@@ -221,6 +240,9 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(lut) = &args.lut {
         inputs.push(lut);
     }
+    if let Some(r) = &args.color_from {
+        inputs.push(r);
+    }
     let c = engine::write_job("grade", &inputs, &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({
         "contrast": args.contrast,
@@ -232,6 +254,7 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         "grain": args.grain,
         "warm": args.warm,
         "match": args.match_,
+        "color_from": args.color_from,
         "hue": args.hue,
     })))
 }

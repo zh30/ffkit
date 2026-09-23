@@ -77,6 +77,12 @@ pub fn run(args: VdenoiseArgs, g: &Globals) -> Result<Contract, Error> {
             ),
             "dedot",
         ),
+        // fftdnoiz: FFT-domain sigma denoise (film grain); prev/next add
+        // temporal context — timeline-capable
+        crate::cli::VDenoiseEngine::Fftdnoiz => (
+            format!("fftdnoiz=sigma={:.1}:amount=1:prev=1:next=1", s.min(30.0)),
+            "fftdnoiz",
+        ),
     };
     let edge_merge = matches!(filter_name, "edge");
     let vf = match &args.at {

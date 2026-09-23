@@ -25,6 +25,7 @@ pub fn run(args: GlitchArgs, g: &Globals) -> Result<Contract, Error> {
             "format=gbrp,shuffleplanes=1:2:0:3,format=yuv420p".to_string()
         }
         crate::cli::GlitchEngine::Swapuv => "swapuv".to_string(),
+        crate::cli::GlitchEngine::Stutter => "shuffleframes=0 1 1 2".to_string(),
     };
 
     let mut argv = ffmpeg_base(g.progress);
@@ -45,6 +46,7 @@ pub fn run(args: GlitchArgs, g: &Globals) -> Result<Contract, Error> {
             crate::cli::GlitchEngine::Shift => "rgbashift+noise",
             crate::cli::GlitchEngine::Planes => "shuffleplanes",
             crate::cli::GlitchEngine::Swapuv => "swapuv",
+            crate::cli::GlitchEngine::Stutter => "shuffleframes",
         },
     })))
 }

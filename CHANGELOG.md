@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- `grade --color-from ref.mp4` — mergeplanes chroma borrow: keep your luma, take the reference's U/V colour grade (scale2ref-sized, SAR-normalized; no --at support)
+- `vdenoise --engine fftdnoiz` — FFT-domain denoise for film grain (temporal prev/next context)
+- `smooth --engine spp|fspp` — simple/fast postproc deblock for the blockiest sources
+- `glitch --engine stutter` — shuffleframes frame-drop stutter (VHS skip/jitter)
+
+### Added
 - `grade --lut` now auto-routes 1D `.cube` files (LUT_1D_SIZE) to `lut1d` — lut3d rejects them outright, so tonal 1D LUTs previously failed
 - `deflicker --engine tmide` — tmidequalizer temporal histogram midpoint for stubborn timelapse/strobe flicker
 - `gen --pattern noise|tone` — audio beds without input files: pink-noise roomtone/dither bed, `--freq` sine reference tone
