@@ -5411,6 +5411,37 @@ fn extract_cover_comma_at_grab_one_still_each() {
 }
 
 #[test]
+fn extract_gif_comma_at_writes_one_gif_each() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = lavfi_fixture(dir.path(), "f.mp4", "440", 1.0);
+    let gif = dir.path().join("g.gif");
+    let v = run_json(&[
+        "extract",
+        src.to_str().unwrap(),
+        "-o",
+        gif.to_str().unwrap(),
+        "--at",
+        "0.2,0.6",
+        "--gif",
+        "--dur",
+        "0.3",
+        "--width",
+        "160",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let one = dir.path().join("g_1.gif");
+    let two = dir.path().join("g_2.gif");
+    assert!(
+        one.exists() && two.exists(),
+        "extract writes _1/_2 gifs: {v}"
+    );
+    assert_eq!(v["extra"]["files"].as_array().unwrap().len(), 2, "{v}");
+}
+
+#[test]
 fn waveform_spectrogram_comma_at_render_one_png_each() {
     if !has_ffmpeg() {
         return;

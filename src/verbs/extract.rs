@@ -77,6 +77,30 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
 
+    // comma --at + --gif: one GIF clip per timepoint → `<stem>_N.gif`
+    if args.gif {
+        if let Some(raw) = &args.at {
+            if raw.split(',').count() > 1 {
+                let probe = engine::probe_or_err(&args.input, g)?;
+                engine::need_video(&probe, "extract")?;
+                let mut files = Vec::new();
+                let mut first = None;
+                for (i, part) in raw.split(',').enumerate() {
+                    let secs = crate::time::resolve_frame_at(part.trim(), probe.duration)?;
+                    let out = derive_output(&args.output, i + 1);
+                    let c = render_gif(&args, g, Some(secs), std::path::Path::new(&out))?;
+                    if i == 0 {
+                        first = Some(c);
+                    }
+                    files.push(out);
+                }
+                return Ok(first
+                    .unwrap()
+                    .with_extra(serde_json::json!({ "files": files })));
+            }
+        }
+    }
+
     // `--at end`: last frame (stills) or the last --dur seconds (--gif).
     let at_secs = match &args.at {
         Some(a) if a.trim().eq_ignore_ascii_case("end") => {
@@ -90,60 +114,7 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
 
     match ext.as_str() {
         _ if args.gif => {
-            // --bounce handled below in the paletteuse pass
-            // 2-pass palette GIF from the window, like transcode --preset gif
-            let mut gen = ffmpeg_base(g.progress);
-            if let Some(at) = at_secs {
-                gen.extend(["-ss", &fmt_time(at)]);
-            }
-            if let Some(d) = args.dur {
-                gen.extend(["-t", &fmt_time(d)]);
-            }
-            gen.push("-i");
-            gen.push(&args.input);
-            let fps = args.fps.unwrap_or(10).clamp(1, 30);
-            let w = args.width.unwrap_or(480).clamp(16, 1920);
-            let scale = format!("fps={fps},scale={w}:-2:flags=lanczos");
-            let palette = tempfile::Builder::new()
-                .suffix(".png")
-                .tempfile()
-                .map_err(|e| Error::output(e.to_string()))?;
-            let palette_path = palette.path().to_path_buf();
-            let max_colors = args.colors.unwrap_or(256).clamp(2, 256);
-            gen.extend([
-                "-vf",
-                &format!("{scale},palettegen=stats_mode=full:max_colors={max_colors}"),
-            ]);
-            gen.push(&palette_path);
-
-            let mut use_p = ffmpeg_base(g.progress);
-            if let Some(at) = at_secs {
-                use_p.extend(["-ss", &fmt_time(at)]);
-            }
-            if let Some(d) = args.dur {
-                use_p.extend(["-t", &fmt_time(d)]);
-            }
-            use_p.push("-i");
-            use_p.push(&args.input);
-            use_p.push("-i");
-            use_p.push(&palette_path);
-            let seq = if args.bounce {
-                format!("{scale},split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1:a=0[x]")
-            } else {
-                format!("{scale}[x]")
-            };
-            use_p.extend([
-                "-lavfi",
-                &format!("{seq};[x][1:v]paletteuse=dither=bayer"),
-                "-an",
-            ]);
-            if let Some(n) = args.loop_count {
-                use_p.extend(["-loop", &n.to_string()]);
-            }
-            use_p.push(&args.output);
-            let r = engine::write_job("extract", &[&args.input], &args.output, vec![gen, use_p], g);
-            drop(palette);
-            return r;
+            return render_gif(&args, g, at_secs, &args.output);
         }
         "png" | "jpg" | "jpeg" | "webp" => {
             if let Some(t) = at_secs {
@@ -202,4 +173,66 @@ fn derive_output(base: &std::path::Path, i: usize) -> String {
     base.with_file_name(format!("{stem}_{i}.{ext}"))
         .to_string_lossy()
         .to_string()
+}
+
+fn render_gif(
+    args: &ExtractArgs,
+    g: &Globals,
+    at_secs: Option<f64>,
+    output: &std::path::Path,
+) -> Result<Contract, Error> {
+    // --bounce handled below in the paletteuse pass
+    // 2-pass palette GIF from the window, like transcode --preset gif
+    let mut gen = ffmpeg_base(g.progress);
+    if let Some(at) = at_secs {
+        gen.extend(["-ss", &fmt_time(at)]);
+    }
+    if let Some(d) = args.dur {
+        gen.extend(["-t", &fmt_time(d)]);
+    }
+    gen.push("-i");
+    gen.push(&args.input);
+    let fps = args.fps.unwrap_or(10).clamp(1, 30);
+    let w = args.width.unwrap_or(480).clamp(16, 1920);
+    let scale = format!("fps={fps},scale={w}:-2:flags=lanczos");
+    let palette = tempfile::Builder::new()
+        .suffix(".png")
+        .tempfile()
+        .map_err(|e| Error::output(e.to_string()))?;
+    let palette_path = palette.path().to_path_buf();
+    let max_colors = args.colors.unwrap_or(256).clamp(2, 256);
+    gen.extend([
+        "-vf",
+        &format!("{scale},palettegen=stats_mode=full:max_colors={max_colors}"),
+    ]);
+    gen.push(&palette_path);
+
+    let mut use_p = ffmpeg_base(g.progress);
+    if let Some(at) = at_secs {
+        use_p.extend(["-ss", &fmt_time(at)]);
+    }
+    if let Some(d) = args.dur {
+        use_p.extend(["-t", &fmt_time(d)]);
+    }
+    use_p.push("-i");
+    use_p.push(&args.input);
+    use_p.push("-i");
+    use_p.push(&palette_path);
+    let seq = if args.bounce {
+        format!("{scale},split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1:a=0[x]")
+    } else {
+        format!("{scale}[x]")
+    };
+    use_p.extend([
+        "-lavfi",
+        &format!("{seq};[x][1:v]paletteuse=dither=bayer"),
+        "-an",
+    ]);
+    if let Some(n) = args.loop_count {
+        use_p.extend(["-loop", &n.to_string()]);
+    }
+    use_p.push(output);
+    let r = engine::write_job("extract", &[&args.input], output, vec![gen, use_p], g);
+    drop(palette);
+    r
 }
