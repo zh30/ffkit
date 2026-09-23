@@ -13,6 +13,9 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
     if !(0.0..=3.0).contains(&args.saturation) {
         return Err(Error::input("--saturation must be 0..=3"));
     }
+    if !(-1.0..=1.0).contains(&args.vibrance) {
+        return Err(Error::input("--vibrance must be -1..=1"));
+    }
     if !(-0.5..=0.5).contains(&args.brightness) {
         return Err(Error::input("--brightness must be -0.5..=0.5"));
     }
@@ -69,6 +72,9 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         "eq=contrast={}:brightness={}:saturation={}:gamma={}",
         args.contrast, args.brightness, args.saturation, args.gamma
     ));
+    if args.vibrance != 0.0 {
+        vf.push_str(&format!(",vibrance=intensity={:.3}", args.vibrance * 2.0));
+    }
     if let Some(ev) = args.exposure {
         if !(-3.0..=3.0).contains(&ev) {
             return Err(Error::input("--exposure must be -3..=3 (EV stops)"));

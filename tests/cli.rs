@@ -23424,6 +23424,124 @@ fn displace_sharpen_halo_eqviz() {
 }
 
 #[test]
+fn upscale_xbr_grade_vibrance_edge_kernels() {
+    if !has_ffmpeg() || !has_filter("xbr") || !has_filter("vibrance") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let small = dir.path().join("small.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("testsrc=size=160x90:rate=25")
+        .args(["-t", "1"])
+        .arg(&small)
+        .status()
+        .unwrap();
+    assert!(st.success());
+
+    // xbr snaps to integer scale 3 → 480x270; 2xsai is fixed 2x → 320x180
+    let xb = dir.path().join("xb.mp4");
+    let v = run_json(&[
+        "upscale",
+        small.to_str().unwrap(),
+        "-o",
+        xb.to_str().unwrap(),
+        "--engine",
+        "xbr",
+        "--factor",
+        "3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"], 480, "{v}");
+    assert_eq!(v["probe"]["height"], 270, "{v}");
+    let sai = dir.path().join("sai.mp4");
+    let v = run_json(&[
+        "upscale",
+        small.to_str().unwrap(),
+        "-o",
+        sai.to_str().unwrap(),
+        "--engine",
+        "two-xsai",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["probe"]["width"], 320, "{v}");
+
+    // vibrance: chroma deviation rises on a muted source (mandelbrot's
+    // pastel ramp sits exactly in vibrance's boost band)
+    let src = dir.path().join("muted.mp4");
+    let st = Command::new("ffmpeg")
+        .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
+        .arg("mandelbrot=size=320x240:rate=30")
+        .args(["-t", "0.5"])
+        .arg(&src)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let plain = dir.path().join("plain.mp4");
+    let v = run_json(&[
+        "transcode",
+        src.to_str().unwrap(),
+        "-o",
+        plain.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let vib = dir.path().join("vib.mp4");
+    let v = run_json(&[
+        "grade",
+        src.to_str().unwrap(),
+        "-o",
+        vib.to_str().unwrap(),
+        "--vibrance",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let chroma_dev = |p: &std::path::Path| -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args([
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "yuv420p",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+        let px = 320 * 240;
+        let u = &o.stdout[px..px + px / 4];
+        let v = &o.stdout[px + px / 4..px + px / 2];
+        let du: f64 = u.iter().map(|b| (*b as f64 - 128.0).abs()).sum();
+        let dv: f64 = v.iter().map(|b| (*b as f64 - 128.0).abs()).sum();
+        (du + dv) / (px as f64 / 2.0)
+    };
+    let d_plain = chroma_dev(&plain);
+    let d_vib = chroma_dev(&vib);
+    assert!(
+        d_vib > d_plain * 1.2,
+        "vibrance boosts muted chroma {d_plain} -> {d_vib}"
+    );
+
+    // edge kernels: classic convolution detectors render ok
+    for e in ["sobel", "kirsch", "roberts", "prewitt"] {
+        let out = dir.path().join(format!("e_{e}.mp4"));
+        let v = run_json(&[
+            "edge",
+            src.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--engine",
+            e,
+        ]);
+        assert_eq!(v["status"], "ok", "{e}: {v}");
+        assert_eq!(v["extra"]["engine"], e, "{v}");
+    }
+}
+
+#[test]
 fn legalize_levels_aberrate() {
     if !has_ffmpeg() || !has_filter("limiter") || !has_filter("colorlevels") {
         return;

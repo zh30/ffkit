@@ -240,3 +240,5 @@ an atempo'd whole-file render would shift the window.
 - `displace`, `maskedclamp` each take THREE inputs (src + two map/ref pads) — a labeled link can be consumed only once, so `split` the map before feeding two pads.
 - `maskfun`/`geq` per-plane semantics on 4.4 don't match docs (threshold scale/plane resolution) — luma-band isolation was cut this round; use `key --mode luma` or `levels` for band work.
 - `lumakey` keys the [threshold±tolerance] band to alpha=0 (not single-side); outside pixels keep partial alpha with softness — not a hard binary mask.
+- `ffmpeg -h filter=NAME` exits 0 even for filters that don't exist ("Unknown filter" on stdout) — verify by actually running the filter. `scharr` is missing on ffmpeg 4.4 (sobel/kirsch/roberts/prewitt exist).
+- `vibrance` barely moves on fully-saturated or gray content — test with muted sources (mandelbrot) where its protect-saturated-skin band actually bites.

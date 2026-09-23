@@ -153,7 +153,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `loop` | `--times` or `--until` seconds | Repeat the clip N times (Shorts replay length) (`--from`/`--to` loops only a section, `end` ok, `--fade` seamless joints) |
 | `stabilize` | Handheld deshake — `--rx`/`--ry` radius, `--edge` fill (blank|original|clamped|mirror) |
 | `reverse` | Play picture and sound backwards |
-| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops), `--skin` warmth ，含 `--kelvin` 开尔文白平衡、`--split` 青橙分调 | Presets `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` stack under the sliders; `--lut look.cube` applies a 3D LUT, `--lut look.png` a HALD image LUT (haldclut — Darktable/RawTherapee exports); `--skin -1..1` warms faces only (selectivecolor reds), `--curve "x/y …"` freeform master curve (matte fade, S-curve) | `--at`/`--dur`
+| `grade` | `--preset` look, `--contrast/--saturation/--brightness/--gamma/--hue/--lut/--grain/--warm/--exposure` (EV stops), `--skin` warmth ，含 `--kelvin` 开尔文白平衡、`--split` 青橙分调 | Presets `cinematic`/`vivid`/`vintage`/`soft`/`sepia`/`teal`/`noir`/`bleach`/`neon` stack under the sliders; `--lut look.cube` applies a 3D LUT, `--lut look.png` a HALD image LUT (haldclut — Darktable/RawTherapee exports); `--skin -1..1` warms faces only (selectivecolor reds), `--vibrance -1..1` smarter saturation (boosts muted, protects skin), `--curve "x/y …"` freeform master curve (matte fade, S-curve) | `--at`/`--dur`
 | `zoom` | Punch-in (`--factor 1.25`, `--center X,Y` target; `--at`/`--dur` window — comma list for several, `end` ok) | `--out`
 | `sharpen` | Unsharp mask, whole clip or a window (`--amount`, `--at`, `--dur`) `--engine unsharp\|cas\|halo` (halo = maskedclamp, no overshoot) |
 | `vignette` | Corner darkening, whole clip or a window (`--angle`, `--at`, `--dur`) |
@@ -196,7 +196,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `audiogram --mode spectro` | Scrolling spectrogram (`showspectrum`) — colour time/frequency roll |
 | `scan` | QC report: black stretches, frozen frames, black-frame hits + strobe `flash_frames`/`flash_max_badness` + interlace verdict (idet) + stereo `phase_corr` (~-1 = mono-collapse) — JSON extras; writes no media , audio peak/mean dB (`audio_max_db`, `audio_mean_db`) |
 | `smooth` | Edge-preserving beauty/skin blur (`--engine` smartblur/bilateral; `--strength`, `--at`/`--dur`) |
-| `upscale` | Up-res footage: `zscale` spline36 (better than lanczos) + light unsharp, `--factor` 1.05-4 (2 doubles dims), `--strength` edge acuity |
+| `upscale` | Up-res footage: `zscale` spline36 (better than lanczos) + light unsharp, `--factor` 1.05-4 (2 doubles dims), `--strength` edge acuity | `--engine spline|xbr|two-xsai` (pixel-art integer scalers) |
 | `v360` | Reframe 360 footage to flat (`--in` equirect/fisheye/dfisheye/cubemap/EAC/barrel/half-equirect, `--yaw`/`--pitch`/`--fov`, `--size`) |
 | `perspective` | Deskew a filmed screen/whiteboard: `--points x0,y0,x1,y1,x2,y2,x3,y3` (TL,TR,BL,BR quad in source, px), `--interp linear|cubic` |
 | `wb` | Auto white balance / cast removal: `--strength` 0..1, `--independence` 0 keeps the grade (contrast only), `--smooth` temporal frames, `--at`/`--dur` window |
@@ -212,7 +212,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `heat` | Thermal / false-color luma map: `--preset` magma|inferno|plasma|viridis|turbo|cividis|range1|range2|shadows|highlights, `--opacity`, `--at` windows |
 | `kaleido` | 2x2 mirrored mandala from the top-left quadrant, `--at` windows |
 | `strobe` | Music-video flash cuts: `--rate` flashes/sec, `--duty` on-fraction, `--color`, `--at` windows |
-| `edge` | Neon edge-detect outlines: `--mode wires|colormix`, `--low`/`--high` thresholds, `--at` windows |
+| `edge` | Neon edge-detect outlines: `--mode wires|colormix`, `--low`/`--high` thresholds, `--at` windows | `--engine edgedetect|sobel|kirsch|roberts|prewitt` |
 | `lens` | Lens distortion: `--k1`/`--k2` — negative values give a fisheye look, positive defish action cams; `--at` windows |
 | `mirror` | Mirror half the frame across the center axis (`--axis x`/`y`, `--at`/`--dur` window) — dance/symmetry look |
 | `pix` | Chunky retro pixelation: `--strength` 2-64 block divisor (`--at`/`--dur` window) |

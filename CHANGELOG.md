@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- `upscale --engine xbr|two-xsai` — integer-scale pixel-art upscalers (retro game captures, sprite sheets): xbr snaps `--factor` to 2/3/4, super2xsai is fixed 2x
+- `grade --vibrance -1..1` — smarter saturation that boosts muted colors while protecting saturated skin tones (mandelbrot pastel chroma +84% at 0.8 vs flat response on saturated testsrc)
+- `edge --engine sobel|kirsch|roberts|prewitt` — classic convolution edge kernels (bright edges on black, no thresholds — cruder, crunchier look than edgedetect's Canny pass)
+
+### Added
 - `displace` — warp the picture by a second clip's luma displacement map (displace + scale2ref; `--edge` wrap/mirror/smear/blank, timeline `--at`/`--dur`): heat ripple, liquid glitch, water reflections
 - `sharpen --engine halo` — unsharp clamped to a blurred base via maskedclamp: strongest sharpening available, zero overshoot halos
 - `eqviz` — apply EQ bands (anequalizer params) and render the frequency-response curve as the video: `--bands "f=200 w=100 g=10 t=h"` low-shelf, " | "-separated per-channel; mix QC card

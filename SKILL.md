@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.235.0
+version: 0.236.0
 
 
 
@@ -194,6 +194,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | heat ripple / liquid warp | `displace` --map clip.mp4 (warp by another clip's luma; `--edge` wrap/mirror/smear/blank, `--at` window) |
 | sharpen without halos | `sharpen --engine halo` (unsharp clamped to blurred base — strongest option, zero overshoot) |
 | EQ applied + curve shown | `eqviz` --bands "f=200 w=100 g=10 t=h" (EQ'd audio + its response curve as video — mix QC card) |
+| pixel-art / retro upscale | `upscale --engine xbr|two-xsai` (integer-scale sprite edges, no ringing; factor snaps to 2/3/4) |
+| smarter saturation | `grade --vibrance -1..1` (boosts muted colors, protects saturated skin — safer than --saturation on faces) |
+| crunchy edge outlines | `edge --engine sobel|kirsch|roberts|prewitt` (classic convolution kernels vs Canny-style edgedetect) |
 | cheap-lens fringe | `aberrate` --amount 5 (rgbashift: red left/blue right — VHS/glitch edge) |
 | mono-compat visual | `audiogram --mode phase` (aphasemeter scope — thin line = mono, cloud = decorrelated) |
 | beauty/skin smoothing | `smooth` (`--engine` smartblur/bilateral — bilateral keeps edges sharper; `--strength`, `--at`/`--dur` window) |

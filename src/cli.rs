@@ -2026,6 +2026,10 @@ pub struct EdgeArgs {
     pub output: PathBuf,
     #[arg(long, value_enum, default_value_t = EdgeMode::Colormix)]
     pub mode: EdgeMode,
+    /// Detector: edgedetect (default, honors --mode) or a classic kernel —
+    /// sobel | kirsch | roberts | prewitt (cruder, crunchier look)
+    #[arg(long, value_enum)]
+    pub engine: Option<EdgeEngine>,
     /// Edge low threshold 0-1
     #[arg(long, default_value_t = 0.2)]
     pub low: f64,
@@ -2038,6 +2042,15 @@ pub struct EdgeArgs {
     /// Window length in seconds (required with --at)
     #[arg(long)]
     pub dur: Option<f64>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum EdgeEngine {
+    Edgedetect,
+    Sobel,
+    Kirsch,
+    Roberts,
+    Prewitt,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2813,6 +2826,10 @@ pub struct GradeArgs {
     /// "0/0 0.25/0.18 0.75/0.82 1/1", matte "0/0.08 1/0.92"
     #[arg(long)]
     pub curve: Option<String>,
+    /// Smarter saturation -1..1 (vibrance: boosts muted colors while
+    /// protecting already-saturated skin — safer than --saturation on faces)
+    #[arg(long, default_value_t = 0.0, allow_hyphen_values = true)]
+    pub vibrance: f64,
     /// Grade only from this time — dream sequences, flashbacks; comma list for several windows (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
@@ -4243,6 +4260,17 @@ pub struct UpscaleArgs {
     /// Unsharp amount 0-1 restores edge acuity after the resize
     #[arg(long, default_value_t = 0.3)]
     pub strength: f64,
+    /// Scaler: spline (default, photographic) | xbr / 2xsai (pixel-art /
+    /// retro game captures — crisp sprite edges, no ringing)
+    #[arg(long, value_enum)]
+    pub engine: Option<UpscaleEngine>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum UpscaleEngine {
+    Spline,
+    Xbr,
+    TwoXsai,
 }
 
 #[derive(clap::Args, Debug)]

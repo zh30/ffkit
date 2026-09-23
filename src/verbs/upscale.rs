@@ -17,10 +17,27 @@ pub fn run(args: UpscaleArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "upscale")?;
-    let mut vf = format!(
-        "zscale=w=trunc(iw*{:.4}/2)*2:h=trunc(ih*{:.4}/2)*2:filter=spline36",
-        args.factor, args.factor
-    );
+    let engine_name;
+    let mut vf = match args.engine.unwrap_or(crate::cli::UpscaleEngine::Spline) {
+        crate::cli::UpscaleEngine::Spline => {
+            engine_name = "spline";
+            format!(
+                "zscale=w=trunc(iw*{:.4}/2)*2:h=trunc(ih*{:.4}/2)*2:filter=spline36",
+                args.factor, args.factor
+            )
+        }
+        // pixel-art scalers take integer scales only — xbr does 2x/3x/4x,
+        // super2xsai is fixed 2x (factor is snapped, not arbitrary)
+        crate::cli::UpscaleEngine::Xbr => {
+            engine_name = "xbr";
+            let n = args.factor.round().clamp(2.0, 4.0) as u32;
+            format!("xbr=n={n}")
+        }
+        crate::cli::UpscaleEngine::TwoXsai => {
+            engine_name = "2xsai";
+            String::from("super2xsai")
+        }
+    };
     if args.strength > 0.0 {
         vf.push_str(&format!(",unsharp=5:5:{:.2}", args.strength));
     }
@@ -38,6 +55,7 @@ pub fn run(args: UpscaleArgs, g: &Globals) -> Result<Contract, Error> {
 
     let c = engine::write_job("upscale", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({
+        "engine": engine_name,
         "factor": args.factor,
         "strength": args.strength,
         "filter": vf,

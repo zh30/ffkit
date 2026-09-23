@@ -11,6 +11,13 @@ pub fn run(args: EdgeArgs, g: &Globals) -> Result<Contract, Error> {
         EdgeMode::Wires => "wires",
         EdgeMode::Colormix => "colormix",
     };
+    let kernel = args.engine.and_then(|e| match e {
+        crate::cli::EdgeEngine::Edgedetect => None,
+        crate::cli::EdgeEngine::Sobel => Some("sobel"),
+        crate::cli::EdgeEngine::Kirsch => Some("kirsch"),
+        crate::cli::EdgeEngine::Roberts => Some("roberts"),
+        crate::cli::EdgeEngine::Prewitt => Some("prewitt"),
+    });
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "edge")?;
     let en = match &args.at {
@@ -26,10 +33,15 @@ pub fn run(args: EdgeArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    let vf = format!(
-        "edgedetect=mode={mode}:low={:.3}:high={:.3}{en}",
-        args.low, args.high
-    );
+    let vf = match kernel {
+        // classic convolution kernels: bright edges on black, no thresholds —
+        // cruder and crunchier than the Canny-style edgedetect path
+        Some(k) => format!("{k}=planes=15{en}"),
+        None => format!(
+            "edgedetect=mode={mode}:low={:.3}:high={:.3}{en}",
+            args.low, args.high
+        ),
+    };
     argv.extend(["-vf", &vf]);
     argv.extend([
         "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
@@ -40,5 +52,5 @@ pub fn run(args: EdgeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
 
     let c2 = engine::write_job("edge", &[&args.input], &args.output, vec![argv], g)?;
-    Ok(c2.with_extra(json!({ "mode": mode })))
+    Ok(c2.with_extra(json!({ "mode": mode, "engine": kernel.unwrap_or("edgedetect") })))
 }
