@@ -42,10 +42,16 @@ pub fn run(args: StackArgs, g: &Globals) -> Result<Contract, Error> {
 
     let n = args.inputs.len();
     let pads: String = (0..n).map(|i| format!("[{i}:v]")).collect();
-    let fc = format!(
-        "{pads}xmedian=inputs={n}:percentile={:.2}[v]",
-        args.percentile
-    );
+    let fc = match args.mode {
+        crate::cli::StackMode::Median => {
+            format!(
+                "{pads}xmedian=inputs={n}:percentile={:.2}[v]",
+                args.percentile.clamp(0.0, 1.0)
+            )
+        }
+        crate::cli::StackMode::Max => format!("{pads}maskedmax[v]"),
+        crate::cli::StackMode::Min => format!("{pads}maskedmin[v]"),
+    };
 
     let mut argv = ffmpeg_base(g.progress);
     for i in &args.inputs {
@@ -66,6 +72,7 @@ pub fn run(args: StackArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c.with_extra(json!({
         "inputs": n,
         "percentile": args.percentile,
-        "filter": "xmedian"
+        "mode": format!("{:?}", args.mode).to_lowercase(),
+        "filter": match args.mode { crate::cli::StackMode::Median => "xmedian", crate::cli::StackMode::Max => "maskedmax", crate::cli::StackMode::Min => "maskedmin" }
     })))
 }

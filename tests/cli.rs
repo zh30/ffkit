@@ -22676,3 +22676,136 @@ fn tonemap_telecine_premult() {
         assert!(pr.exists());
     }
 }
+
+#[test]
+fn dejudder_stack_modes_scan_phase() {
+    if !has_ffmpeg() || !has_filter("maskedmax") || !has_filter("dejudder") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    // three inputs each with a different-position white box
+    let mut ins: Vec<PathBuf> = Vec::new();
+    for i in 1..=3u32 {
+        let p = dir.path().join(format!("s{i}.mp4"));
+        let st = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=gray:size=128x128:rate=25",
+                "-vf",
+                &format!("drawbox=x={}:y=30:w=20:h=20:c=white:t=fill", i * 30),
+                "-t",
+                "1",
+                "-y",
+            ])
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(st.success());
+        ins.push(p);
+    }
+    let luma = |f: &Path, x: usize, y: usize| -> i64 {
+        let out = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-i"])
+            .arg(f)
+            .args([
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-y",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        out.stdout[y * 128 + x] as i64
+    };
+
+    // stack --mode max: all three boxes survive (light trails)
+    let mx = dir.path().join("mx.mp4");
+    let v = run_json(&[
+        "stack",
+        ins[0].to_str().unwrap(),
+        ins[1].to_str().unwrap(),
+        ins[2].to_str().unwrap(),
+        "-o",
+        mx.to_str().unwrap(),
+        "--mode",
+        "max",
+    ]);
+    assert_eq!(v["extra"]["mode"], "max");
+    assert!(luma(&mx, 65, 35) > 200 && luma(&mx, 95, 35) > 200);
+
+    // stack --mode min: all boxes gone (darkest composite)
+    let mn = dir.path().join("mn.mp4");
+    run_json(&[
+        "stack",
+        ins[0].to_str().unwrap(),
+        ins[1].to_str().unwrap(),
+        ins[2].to_str().unwrap(),
+        "-o",
+        mn.to_str().unwrap(),
+        "--mode",
+        "min",
+    ]);
+    assert!(luma(&mn, 65, 35) < 200 && luma(&mn, 95, 35) < 200);
+
+    // dejudder runs on the fixture
+    let dj = dir.path().join("dj.mp4");
+    run_json(&[
+        "dejudder",
+        ins[0].to_str().unwrap(),
+        "-o",
+        dj.to_str().unwrap(),
+    ]);
+    assert!(dj.exists());
+
+    // scan phase_corr: in-phase stereo → ~1, anti-phase → ~-1
+    let av = |name: &str, rphase: &str| -> PathBuf {
+        let p = dir.path().join(name);
+        let st = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=rate=25",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440",
+                "-f",
+                "lavfi",
+                "-i",
+                rphase,
+                "-filter_complex",
+                "[1][2]amerge",
+                "-map",
+                "0:v",
+                "-map",
+                "1:a",
+                "-t",
+                "1",
+                "-y",
+            ])
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(st.success());
+        p
+    };
+    let same = av("same.mp4", "sine=frequency=440");
+    let v = run_json(&["scan", same.to_str().unwrap()]);
+    assert_eq!(v["extra"]["phase_corr"], 1.0);
+    let anti = av("anti.mp4", "sine=frequency=440,aeval='-val(0)'");
+    let v = run_json(&["scan", anti.to_str().unwrap()]);
+    assert_eq!(v["extra"]["phase_corr"], -1.0);
+}

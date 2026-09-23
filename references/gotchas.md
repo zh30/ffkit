@@ -228,3 +228,6 @@ an atempo'd whole-file render would shift the window.
 - `fieldmatch`+`decimate` drops duplicate frames so output fps falls (25→20 on uniform testsrc, 29.97→23.976 on real telecine) — assert fps < input in tests, not a fixed rate.
 
 - `asdr` does not exist on ffmpeg 4.4. `tonemap` needs `format=gbrpf32le` before it; the zscale pre/post legs only work when input carries HDR tags (PQ/HLG) — SDR input with explicit tin/pin fails ("Generic error in an external library").
+
+- `maskedmax`/`maskedmin` take NO `inputs=` option (framesync auto-detects) — only xmedian wants the count.
+- `spawn::run` waits for process exit BEFORE draining stdout — any filter emitting >64KB on stdout deadlocks until timeout. Route large raw output (PCM extraction) through a temp file instead.

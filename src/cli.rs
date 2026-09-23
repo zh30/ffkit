@@ -202,6 +202,8 @@ pub enum Cmd {
     Tonemap(TonemapArgs),
     /// Telecine — pull 24p film content up to interlaced NTSC fields
     Telecine(TelecineArgs),
+    /// Remove pullup judder from frame-rate-converted footage
+    Dejudder(DejudderArgs),
     /// Straight ↔ premultiplied alpha conversion for graphics handoffs
     Premult(PremultArgs),
     /// Stretch edge pixels to fill border strips (chroma-key rims, leftover letterbox)
@@ -1695,6 +1697,18 @@ pub struct StackArgs {
     /// Percentile 0-1 across inputs (0.5 = median; lower darkens, higher brightens)
     #[arg(long, default_value_t = 0.5)]
     pub percentile: f64,
+    /// Combine mode: median (default, object removal), max (star/light
+    /// trails), min (noise floor / darkest composite)
+    #[arg(long, value_enum, default_value_t = StackMode::Median)]
+    pub mode: StackMode,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum StackMode {
+    #[default]
+    Median,
+    Max,
+    Min,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3225,6 +3239,10 @@ pub enum SmoothEngine {
     Smartblur,
     /// bilateral — edge-aware Gaussian (skin texture kept, noise dropped)
     Bilateral,
+    /// deflate — morphological: pulls bright peaks down (pore/texture smooth)
+    Deflate,
+    /// inflate — morphological: lifts dark valleys up
+    Inflate,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -3296,6 +3314,16 @@ pub struct ExtendArgs {
     /// Fill mode: smear (default edge-stretch), mirror, fixed, reflect, wrap, fade
     #[arg(long, value_enum, default_value_t = ExtendMode::Smear)]
     pub mode: ExtendMode,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DejudderArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Pullup cycle length (default 4 for 3:2 telecine judder)
+    #[arg(long, default_value_t = 4)]
+    pub cycle: u32,
 }
 
 #[derive(clap::Args, Debug)]

@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- `stack --mode max|min` — maskedmax composites every input's brightest pixels (star trails, light painting); maskedmin = darkest composite. median keeps the object-removal default
+- `dejudder` — remove pullup judder from fps-converted footage (`--cycle 4` for 3:2 telecine)
+- `smooth --engine deflate|inflate` — morphological texture smoothing (pore/grain), zero blur halo; `--strength` maps to pass count
+- `scan` — stereo mono-compat QC: `phase_corr` extra (Pearson L/R); ~-1 means the mix cancels on mono speakers (phone/podcast playback)
+
+### Added
 - `tonemap` — HDR → SDR: zscale to linear light, tonemap curve (`--algo hable|reinhard|gamma|clip|linear`, `--peak` nits), back to bt709. PQ/HLG phone footage for SDR platforms
 - `telecine` — pull 24p film up to interlaced NTSC fields (`--pattern 23` 3:2 pulldown, `--field`) — inverse of `deinterlace --engine fieldmatch`
 - `premult` — straight ↔ premultiplied alpha in place (`--mode premultiply|unpremultiply`); alpha-safe prores4444 output for AE/Motion handoffs

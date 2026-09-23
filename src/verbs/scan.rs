@@ -94,6 +94,75 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+    // stereo mono-compat QC: Pearson r between L/R decoded in one extra pass.
+    // Near +1 = mono-like (fine), near 0 = decorrelated, <0 = out-of-phase —
+    // the last one collapses on mono speakers (podcast/phone playback).
+    let phase_corr = if probe.channels == Some(2) {
+        // pipe-buffer deadlock guard: PCM exceeds the 64KB pipe fast, and
+        // spawn::run waits for exit before draining — write to a temp file
+        let tmp = match tempfile::NamedTempFile::new() {
+            Ok(t) => t,
+            Err(_) => {
+                return Ok(
+                    Contract::ok("scan", None, Some(probe)).with_extra(json!({"phase_corr": null}))
+                )
+            }
+        };
+        let pcm_path = tmp.path().to_path_buf();
+        let mut argv = Argv::ffmpeg();
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend([
+            "-vn",
+            "-f",
+            "s16le",
+            "-acodec",
+            "pcm_s16le",
+            "-t",
+            "10",
+            "-y",
+        ]);
+        argv.push(&pcm_path);
+        spawn::run(&argv, g.timeout, false)
+            .ok()
+            .filter(|sp| sp.status_ok)
+            .and_then(|_| std::fs::read(&pcm_path).ok())
+            .map(|pcm| {
+                let pcm = &pcm[..];
+                let mut sx = 0f64;
+                let mut sy = 0f64;
+                let mut sxx = 0f64;
+                let mut syy = 0f64;
+                let mut sxy = 0f64;
+                let mut n = 0usize;
+                // cap at ~10s of 44.1k stereo to bound CPU
+                for pair in pcm.chunks_exact(4).take(44100 * 10) {
+                    let l = i16::from_le_bytes([pair[0], pair[1]]) as f64;
+                    let r = i16::from_le_bytes([pair[2], pair[3]]) as f64;
+                    sx += l;
+                    sy += r;
+                    sxx += l * l;
+                    syy += r * r;
+                    sxy += l * r;
+                    n += 1;
+                }
+                if n == 0 {
+                    return None;
+                }
+                let nf = n as f64;
+                let num = sxy - sx * sy / nf;
+                let den = ((sxx - sx * sx / nf) * (syy - sy * sy / nf)).sqrt();
+                if den > 0.0 {
+                    Some((num / den * 1000.0).round() / 1000.0)
+                } else {
+                    Some(1.0)
+                }
+            })
+            .and_then(|x| x)
+    } else {
+        None
+    };
+
     let freeze_ranges: Vec<serde_json::Value> = freeze_starts
         .iter()
         .enumerate()
@@ -120,5 +189,7 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         "frames_bff": idet_counts.1,
         "frames_progressive": idet_counts.2,
         "frames_undetermined": idet_counts.3,
+        // L/R phase correlation, stereo inputs only: <0 collapses in mono
+        "phase_corr": phase_corr,
     })))
 }

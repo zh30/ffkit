@@ -35,6 +35,7 @@ pub mod deesser;
 pub mod deflicker;
 pub mod dehum;
 pub mod deinterlace;
+pub mod dejudder;
 pub mod deliver;
 pub mod delogo;
 pub mod denoise;

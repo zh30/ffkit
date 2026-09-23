@@ -24,6 +24,16 @@ pub fn run(args: SmoothArgs, g: &Globals) -> Result<Contract, Error> {
             5.0 + 20.0 * s
         ),
         // bilateral keeps chroma+edges, drops luma noise — planes=1 = luma only
+        // morphological close/open — texture smoothing with zero blur halo;
+        // strength → pass count (1-3)
+        SmoothEngine::Deflate => {
+            vec!["deflate".to_string(); (args.strength * 6.0).ceil().clamp(1.0, 3.0) as usize]
+                .join(",")
+        }
+        SmoothEngine::Inflate => {
+            vec!["inflate".to_string(); (args.strength * 6.0).ceil().clamp(1.0, 3.0) as usize]
+                .join(",")
+        }
         SmoothEngine::Bilateral => format!(
             "bilateral=sigmaS={:.1}:sigmaR={:.2}:planes=1",
             4.0 + 12.0 * s,
