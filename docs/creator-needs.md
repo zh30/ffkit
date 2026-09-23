@@ -237,6 +237,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 152)
+
+- `progress --reverse` — countdown-depleting progress bar ("time left" overlays); `meme --fade` — alpha fades at the `--at/--dur` window edges on each text card (looped-PNG pre-chain like `title --fade`).
+
 ## Shipped this run (round 150)
 - `scroll --at` — comma list replays the roll/ticker at several marks (per-window overlay chain, `extra.windows`); `end` resolves via `resolve_at` (needs --dur). Last `parse_time` `--at` straggler gone.
 
