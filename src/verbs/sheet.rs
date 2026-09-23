@@ -54,9 +54,9 @@ pub fn run(args: SheetArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-t", &format!("{span:.3}")]);
     }
     argv.extend(["-vf", &vf, "-frames:v", "1"]);
-    if args.time {
-        // Two passes: tile → sheet.png in a tempdir, then overlay per-tile
-        // timestamps rendered as caption PNGs (tile has no drawtext anyway).
+    if args.time || args.title.is_some() {
+        // Two passes: tile → sheet.png in a tempdir, then overlay rendered
+        // PNGs (per-tile timestamps / a title header — no drawtext needed).
         let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
         let sheet_png = tmp.path().join("sheet.png");
         let mut a1 = argv.clone();
@@ -73,6 +73,7 @@ pub fn run(args: SheetArgs, g: &Globals) -> Result<Contract, Error> {
         a2.extend(["-i".to_string(), sheet_png.display().to_string()]);
         let mut fc = String::new();
         let mut cur = "0:v".to_string();
+        let mut n_in = 1usize;
         for k in 0..n_tiles {
             let secs = t0 + span * (k as f64 + 0.5) / n_tiles as f64;
             let text = crate::time::fmt_time(secs.max(0.0));
@@ -93,6 +94,7 @@ pub fn run(args: SheetArgs, g: &Globals) -> Result<Contract, Error> {
                 "-i".to_string(),
                 png.display().to_string(),
             ]);
+            n_in += 1;
             let r = k / args.cols as usize;
             let c = k % args.cols as usize;
             let x = margin + c as u32 * (tw + pad);
@@ -103,6 +105,32 @@ pub fn run(args: SheetArgs, g: &Globals) -> Result<Contract, Error> {
                 k + 1
             ));
             cur = out;
+        }
+        if let Some(ttl) = &args.title {
+            // Header row: pad the sheet down by the title card height.
+            let sheet_w = margin * 2 + args.cols * tw + pad * (args.cols - 1);
+            let card = crate::raster::render_title_outlined(
+                ttl,
+                &font_bytes,
+                sheet_w,
+                [255, 255, 255],
+                0.7,
+                ([0, 0, 0], 2),
+            )?;
+            let tpng = tmp.path().join("title.png");
+            let th_ = card.height();
+            card.save(&tpng)
+                .map_err(|e| Error::output(format!("write title png: {e}")))?;
+            a2.extend([
+                "-loop".to_string(),
+                "1".to_string(),
+                "-i".to_string(),
+                tpng.display().to_string(),
+            ]);
+            fc.push_str(&format!(
+                ";[{cur}]pad=iw:ih+{th_}+8:0:{th_}+8:0x101010[pp];[pp][{n_in}:v]overlay=x=(W-w)/2:y=4:shortest=1[vttl]"
+            ));
+            cur = "vttl".to_string();
         }
         a2.extend([
             "-filter_complex".to_string(),
@@ -118,7 +146,8 @@ pub fn run(args: SheetArgs, g: &Globals) -> Result<Contract, Error> {
             "rows": args.rows,
             "tile": format!("{tw}x{th}"),
             "frames": args.cols * args.rows,
-            "time": true,
+            "time": args.time,
+            "title": args.title,
         })));
     }
     argv.push(&args.output);

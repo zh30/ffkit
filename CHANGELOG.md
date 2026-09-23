@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.130.0] — 2026-09-22
+
+### Added
+
+- `progress --edge left|right` — vertical progress bars (bottom-up fill) for vertical video
+- `sheet --title` — big header label above the contact sheet grid
+
 ## [0.129.0] — 2026-09-22
 
 ### Added

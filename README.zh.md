@@ -118,14 +118,14 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`） |
 | `key` | 绿幕合成：`--color` 抠掉后叠到 `--bg` 图片/视频上（`--similarity`、`--blend`、`--despill` 去边缘绿色） |
 | `grid` | 多画面宫格（`--layout`、`--audio` 选音轨、`--labels`、`--gap`、`--fill` 裁满代替黑边） |
-| `progress` | 底/顶部进度条，整段或定时窗口（`--color`、`--height`、`--edge`、`--at`、`--dur`） |
+| `progress` | 任意边进度条，整段或定时窗口（`--color`、`--height`、`--edge` bottom/top/left/right、`--at`、`--dur`） |
 | `freeze` | 定格画面（`--at`、`--dur`、`--end`、`--ease` 减速、`--reverse` 倒放） |
 | `censor` | 区域打码（`--mode`、`--strength` 强度、`--at`） |
 | `bleep` | 消音哔声：`--at`/`--dur` 选段，`--freq`/`--level` 调音 |
 | `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法）（`--times` 循环次数） ，`--at/--dur` 局部往返 |
 | `chapter` | 在 `TIME|TITLE` 写入章节或 `--import` 导入标记文件；`--auto` / `--export`；`--list` 列出；`--remove` 清除全部章节 |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`；`--buffer N` 向外扩 N 像素） |
-| `sheet` | 宫格预览图（`--cols`x`--rows`、`--time` 每格时间戳、`--from`/`--to` 采样窗口） |
+| `sheet` | 宫格预览图（`--cols`x`--rows`、`--time` 每格时间戳、`--title` 标题行、`--from`/`--to` 采样窗口） |
 | `pitch` | ±12 半音变调不变速（`--at/--dur` 窗口） |
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
 | `channel` | 声道手术：`--mode dualmono|mono|swap|invert|mix51`；`widen` 立体声加宽 |

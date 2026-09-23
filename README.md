@@ -118,14 +118,14 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `music` | Bed under speech with ducking (`--track`) |
 | `key` | Green-screen composite: `--color` keyed out over `--bg` image/video (`--similarity`, `--blend`, `--despill`) |
 | `grid` | Multi-up collage (`--layout`, `--audio` pick, `--labels`, `--gap`, `--fill` crop instead of letterbox) |
-| `progress` | Bottom/top progress bar, whole clip or a window (`--color`, `--height`, `--edge`, `--at`, `--dur`) |
+| `progress` | Progress bar on any edge, whole clip or a window (`--color`, `--height`, `--edge` bottom/top/left/right, `--at`, `--dur`) |
 | `freeze` | Hold a frame (`--at`, `--dur`, `--end`, `--ease`, `--reverse`) |
 | `censor` | Blur/mosaic a region (`--mode`, `--strength`, `--at`) |
 | `bleep` | Tone over a word/segment: `--at`/`--dur`, `--freq`, `--level` |
 | `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) , `--at/--dur` bounces just that window |
 | `chapter` | Embed chapter marks at `TIME|TITLE` or `--import` a marks file; `--auto` / `--export`; `--list` dumps; `--remove` strips all |
 | `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`; `--buffer N` keeps N px edge context) |
-| `sheet` | Contact sheet grid (`--cols`x`--rows`, `--time` stamps, `--from`/`--to` window) |
+| `sheet` | Contact sheet grid (`--cols`x`--rows`, `--time` stamps, `--title` header, `--from`/`--to` window) |
 | `pitch` | Shift pitch ±12 semitones, duration kept (`--at/--dur` window) |
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51`; `widen` stereo |

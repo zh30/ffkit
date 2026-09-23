@@ -42,8 +42,8 @@ Researched 2026-09-22 against **ffkit 0.78.0** (`main` + round-34 branch). Same-
 - [x] `caption --lang` — dropped: burned captions carry no lang tag; `subs --mux --lang` covers selectable subs.
 - [x] `rough --by-scene` — shipped round 97.
 - [x] `spectrogram --scale` — shipped round 92.
-- [ ] `timer --bg` — plate behind the sprite-cell readout (needs raster-plate pass, not drawtext).
-- [ ] `subs --burn --from/--to` — burn only cues inside a time window (srt filter + enable).
+- [x] `timer --bg` — covered by `timer --box-color` (raster plate, shipped earlier).
+- [x] `subs --burn --from/--to` — shipped round 100.
 - [ ] `insert --transition` already; `--transition` on `multicam` shipped r87 — `concat --level` shipped r75.
 
 1. **`grid --labels`** — "cada tile con su nombre" → raster PNG labels overlaid per cell (no drawtext needed — local ffmpeg 9 lacks it).
@@ -236,6 +236,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `gate --at/--dur`, `mix --at/--dur` (same window family)
 - [ ] `audiogram --subs` burn captions on the waveform video
 - [ ] `broll --volume` scale insert audio
+
+## Shipped this run (round 103)
+
+- `progress --edge left|right` — vertical progress bar (bottom-up fill) for 9:16 shorts; `--bg` track works on the vertical edges too.
+- `sheet --title` — header row above the contact sheet (raster PNG card padded on top; combines with `--time` stamps).
 
 ## Shipped this run (round 102)
 

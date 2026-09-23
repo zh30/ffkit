@@ -16,9 +16,14 @@ pub fn run(args: ProgressArgs, g: &Globals) -> Result<Contract, Error> {
 
     // drawbox's w is init-only, so the bar is a strip sliding in:
     // tip lands at W*t/duration linearly.
+    let vertical = matches!(args.edge, BarEdge::Left | BarEdge::Right);
+    let x = match args.edge {
+        BarEdge::Right => "main_w-overlay_w".to_string(),
+        _ => "0".to_string(),
+    };
     let y = match args.edge {
         BarEdge::Bottom => "main_h-overlay_h".to_string(),
-        BarEdge::Top => "0".to_string(),
+        _ => "0".to_string(),
     };
     let enable = match &args.at {
         Some(s) => {
@@ -40,17 +45,29 @@ pub fn run(args: ProgressArgs, g: &Globals) -> Result<Contract, Error> {
             String::new()
         }
     };
-    let fc = if args.bg.is_some() {
-        // Static full-width track bar, then the fill bar sliding across it.
-        format!(
-            "[0:v][2:v]overlay=x=0:y='{y}':shortest=1[tb];[tb][1:v]overlay=x='-main_w+main_w*t/{dur:.3}':y='{y}':shortest=1{enable}[vout]",
-            dur = probe.duration,
-        )
+    // Vertical bars fill bottom-up: the strip slides down from y=-H.
+    let slide = if vertical {
+        format!("y='main_h-main_h*t/{:.3}'", probe.duration)
     } else {
-        format!(
-            "[0:v][1:v]overlay=x='-main_w+main_w*t/{dur:.3}':y='{y}':shortest=1{enable}[vout]",
-            dur = probe.duration,
-        )
+        format!("x='-main_w+main_w*t/{:.3}'", probe.duration)
+    };
+    let (tx, ty) = if vertical {
+        (x.as_str(), "0")
+    } else {
+        ("0", y.as_str())
+    };
+    // fill_pos = the moving overlay arg: `x=...` for horizontal, `y=...` for vertical;
+    // track sits at the fixed edge (tx, ty) behind it.
+    let fill = if vertical {
+        format!("overlay=x={x}:{slide}:shortest=1{enable}")
+    } else {
+        format!("overlay={slide}:y={y}:shortest=1{enable}")
+    };
+    let fc = if args.bg.is_some() {
+        // Static full-length track bar, then the fill bar sliding across it.
+        format!("[0:v][2:v]overlay=x={tx}:y={ty}:shortest=1[tb];[tb][1:v]{fill}[vout]")
+    } else {
+        format!("[0:v][1:v]{fill}[vout]")
     };
 
     let mut argv = ffmpeg_base(g.progress);
@@ -59,11 +76,16 @@ pub fn run(args: ProgressArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-f");
     argv.push("lavfi");
     argv.push("-i");
+    let (sw, sh) = if vertical {
+        (args.height, probe.height.unwrap_or(180))
+    } else {
+        (probe.width.unwrap_or(320), args.height)
+    };
     let bar_src = format!(
         "color=c={c}:size={w}x{h}:d={d:.3}",
         c = crate::color::lavfi(&args.color),
-        w = probe.width.unwrap_or(320),
-        h = args.height,
+        w = sw,
+        h = sh,
         d = probe.duration,
     );
     argv.push(&bar_src);

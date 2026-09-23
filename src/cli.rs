@@ -1624,6 +1624,9 @@ pub struct SheetArgs {
     /// Stamp each tile's source timestamp under it (review sheets)
     #[arg(long)]
     pub time: bool,
+    /// Big label rendered above the grid (header row, e.g. project name)
+    #[arg(long)]
+    pub title: Option<String>,
     /// Sample tiles only from this time on (h:mm:ss or seconds)
     #[arg(long)]
     pub from: Option<String>,
@@ -2503,6 +2506,8 @@ pub enum BarEdge {
     #[default]
     Bottom,
     Top,
+    Left,
+    Right,
 }
 
 #[derive(clap::Args, Debug)]

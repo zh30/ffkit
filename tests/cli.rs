@@ -13884,3 +13884,55 @@ fn insert_at_end_appends_near_tail() {
         "insert should nearly double duration: {probe}"
     );
 }
+
+#[test]
+fn progress_edge_right_vertical() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("p.mp4");
+    let v = run_json(&[
+        "progress",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--edge",
+        "right",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("main_h-main_h*t/"), "vertical slide: {cmds}");
+}
+
+#[test]
+fn sheet_title_header() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let out = dir.path().join("s.png");
+    let v = run_json(&[
+        "sheet",
+        src.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--title",
+        "MY CUT",
+        "--cols",
+        "2",
+        "--rows",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["title"], "MY CUT");
+    assert!(out.exists());
+}
