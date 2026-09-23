@@ -154,6 +154,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | dominant colors | `pick` (mean + 6-zone swatch, `--at`) |
 | visual diff | `diff` (`--side` reference beside diff) |
 | keep one color | `selective` (`--color C`/`--similarity`, `--at` window) |
+| test card | `bars` (`--size`/`--dur`/`--hd`/`--tone` 1kHz) |
+| QC scope overlay | `scope` (`--mode vector|wave`, `--position` corner, `--at` window) |
+| anamorphic restore | `desqueeze` (`--factor` lens ratio, `--axis`) |
 | comic look | `cartoon` (`--levels` posterize, `--at` window) |
 | thermal luma map | `heat` (`--preset` pseudocolor, `--at` window) |
 | mandala mirror | `kaleido` (`--at` window) |

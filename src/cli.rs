@@ -227,6 +227,12 @@ pub enum Cmd {
     Trail(TrailArgs),
     /// Datamosh-style RGB-shift glitch look
     Glitch(GlitchArgs),
+    /// SMPTE bars test card (+1kHz tone)
+    Bars(BarsArgs),
+    /// QC scope overlay (vectorscope / waveform) in a corner
+    Scope(ScopeArgs),
+    /// Anamorphic restore: stretch one axis by the lens factor
+    Desqueeze(DesqueezeArgs),
     /// Psychedelic partial invert above a luma threshold
     Solarize(SolarizeArgs),
     /// Breathing zoom bounce (music video)
@@ -1013,6 +1019,66 @@ pub struct GlitchArgs {
     /// Glitch intensity 0.5-20 (channel shift px + noise)
     #[arg(long, default_value_t = 3.0)]
     pub strength: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct BarsArgs {
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Canvas WxH
+    #[arg(long, default_value = "1920x1080")]
+    pub size: String,
+    /// Card length in seconds
+    #[arg(long, default_value_t = 2.0)]
+    pub dur: f64,
+    /// HD bars (smptehdbars) instead of SD smptebars
+    #[arg(long, default_value_t = true)]
+    pub hd: bool,
+    /// Add a 1kHz tone bed
+    #[arg(long, default_value_t = true)]
+    pub tone: bool,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum ScopeMode {
+    /// Color vectorscope
+    Vector,
+    /// Luma/RGB waveform monitor
+    Wave,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct ScopeArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    #[arg(long, value_enum, default_value_t = ScopeMode::Vector)]
+    pub mode: ScopeMode,
+    /// Scope box as a fraction of frame width (0.1-0.6)
+    #[arg(long, default_value_t = 0.25)]
+    pub size: f64,
+    /// Corner: bottom-right | top-right | bottom-left | top-left
+    #[arg(long, default_value = "bottom-right")]
+    pub position: String,
+    /// Only show inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length in seconds (required with --at)
+    #[arg(long)]
+    pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DesqueezeArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Anamorphic lens factor (1.33, 1.5, 1.8, 2.0)
+    #[arg(long, default_value_t = 1.33)]
+    pub factor: f64,
+    /// Stretch axis: y (vertical, classic anamorphic) | x
+    #[arg(long, default_value = "y")]
+    pub axis: String,
 }
 
 #[derive(clap::Args, Debug)]

@@ -7,6 +7,14 @@
 ### Added
 - `thump`, `riser`, `whoosh`.
 
+## [0.199.0] — 2026-09-23
+
+### Added
+
+- `bars` — SMPTE test card (`smptebars`/`smptehdbars`, `--size`/`--dur`/`--hd`) with optional 1kHz `--tone` bed, for QC slates and tape leaders.
+- `scope` — QC scope overlay (`--mode vector|wave`, corner `--position`, `--size` fraction), `--at`/`--dur` windows via overlay enable.
+- `desqueeze` — anamorphic restore: `--factor` lens ratio stretches one axis (`--axis y|x`).
+
 ## [0.205.0] — 2026-09-23
 
 ### Added

@@ -161,6 +161,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `blur` | Full-frame or windowed gaussian blur (`--sigma`, `--at`/`--dur`; `--at end` = tail) |
 | `trail` | Motion trails: `--mode echo` ghost smear behind movement (`--frames` 2-16, `--at`/`--dur` window), `--mode light` bright-pixel persistence (`--decay` 0.5-0.99) |
 | `glitch` | Datamosh-style glitch: `--strength` 0.5-20 drives RGB channel shift + temporal noise |
+| `bars` | SMPTE test card: `--size`/`--dur`/`--hd`/`--tone` (1kHz bed), for QC slates and leader |
+| `scope` | QC scope overlay: `--mode vector|wave` in a corner (`--position`, `--size` fraction), `--at` windows |
+| `desqueeze` | Anamorphic restore: `--factor` lens ratio (1.33/1.5/1.8/2.0), `--axis y|x` |
 | `solarize` | Psychedelic partial invert: pixels above `--threshold` luma invert, `--at` windows |
 | `pulse` | Breathing zoom bounce: `--rate` cycles/sec, `--depth` amplitude, `--at` windows |
 | `deflicker` | Timelapse flicker fix: temporal luma smoothing `--size` frames |

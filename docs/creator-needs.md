@@ -243,6 +243,10 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - `riser` — tonal sweep `aevalsrc` chirp ending on `--at` (`--dur` rise, lands before the hit moment).
 - `whoosh` — brown noise + highpass swell that lands on `--at` (transition accent).
 
+## Shipped this run (round 172)
+
+- `bars` (SMPTE test card + 1kHz tone), `scope` (vectorscope/waveform corner overlay), `desqueeze` (anamorphic restore).
+
 ## Shipped this run (round 178)
 
 - `iris` — hard-edged spotlight circle via `blend=all_expr` distance test (`hypot`), `--x`/`--y`/`--radius` + windowed `--at`; 4.4 `all_expr` has no `and()` — mask and window multiply instead.
