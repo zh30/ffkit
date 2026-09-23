@@ -1054,6 +1054,10 @@ pub struct TranscodeArgs {
     /// Tag output as limited|full range (broadcast masters want limited)
     #[arg(long, value_enum)]
     pub range: Option<TranscodeRange>,
+    /// Mark the output interlaced (il field interleave + tff flag) —
+    /// broadcast/interlaced-masters delivery
+    #[arg(long)]
+    pub interlaced: bool,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -3217,6 +3221,10 @@ pub struct EqArgs {
     /// e.g. --graphic "0,0,-6,-6,-3,0,0,0,2,2"
     #[arg(long)]
     pub graphic: Option<String>,
+    /// Standard de-emphasis curve: riaa (vinyl rips) / cd / fm50 / fm75
+    /// (broadcast captures) — undoes the recording's pre-emphasis HF boost
+    #[arg(long, value_enum)]
+    pub deemph: Option<DeemphType>,
     /// Apply the EQ only from here (bass boost on the drop)
     #[arg(long)]
     pub at: Option<String>,
@@ -3248,6 +3256,18 @@ pub struct ChannelArgs {
     /// With --mode sync: cm the --side mic sat closer to the source (0-100)
     #[arg(long)]
     pub cm: Option<f64>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum DeemphType {
+    /// RIAA vinyl curve — record-rip correction
+    Riaa,
+    /// Compact Disc 50/15µs curve
+    Cd,
+    /// FM broadcast 50µs (EU/Oceania captures)
+    Fm50,
+    /// FM broadcast 75µs (Americas captures)
+    Fm75,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
@@ -3999,6 +4019,10 @@ pub struct MixArgs {
     /// Sidechain-duck B under A's voice (podcast music bed)
     #[arg(long)]
     pub duck: bool,
+    /// Harder duck: sidechaingate mutes B while A speaks (vs compressor's
+    /// smooth dip) — talk-show music bed
+    #[arg(long)]
+    pub gate: bool,
     /// Let amix normalize the sum (halves level for two hot tracks)
     #[arg(long)]
     pub normalize: bool,
@@ -4124,7 +4148,7 @@ pub struct QaArgs {
     pub a: PathBuf,
     /// Processed clip to measure against A (auto-rescaled to match)
     pub b: PathBuf,
-    /// psnr, ssim, or both (default both)
+    /// psnr, ssim, msad, or both (default both)
     #[arg(long, default_value = "both")]
     pub metric: String,
 }
@@ -4719,6 +4743,14 @@ pub struct ScanArgs {
     /// hit frame count, and top confidence. Needs libtesseract ffmpeg
     #[arg(long)]
     pub text: bool,
+    /// VMAF motion score (motion_avg/motion_max) — bitrate-budget QC:
+    /// static ≈0, busy action ≈7+. Slower leg
+    #[arg(long)]
+    pub motion: bool,
+    /// Read embedded VITC timecode lines (broadcast master QC) — reports
+    /// `vitc`/`vitc_tc`/`vitc_frames` when a code is found
+    #[arg(long)]
+    pub timecode: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5129,6 +5161,10 @@ pub struct GridArgs {
     /// Crop tiles to fill the cell instead of letterboxing
     #[arg(long)]
     pub fill: bool,
+    /// Hero layout: first input fills a big left column (~2/3), the rest
+    /// stack down the right (podcast/interview, ignores --layout grid)
+    #[arg(long)]
+    pub focus: bool,
     /// Gutter / letterbox color behind the tiles (name or RRGGBB; default black)
     #[arg(long)]
     pub bg: Option<String>,

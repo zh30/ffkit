@@ -78,6 +78,17 @@ fn range_tag(args: &TranscodeArgs) -> &'static str {
     }
 }
 
+fn interlace_tag(args: &TranscodeArgs) -> &'static str {
+    // il interleaves fields (progressive → interlaced), setfield tags tff —
+    // broadcast/air-master delivery specs want both the picture woven and
+    // the container flag set
+    if args.interlaced {
+        ",il=luma_mode=i:chroma_mode=i,setfield=tff"
+    } else {
+        ""
+    }
+}
+
 fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     let crf = args.crf.unwrap_or(23);
@@ -102,6 +113,7 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             vf.push_str(&format!(",fps={fps}"));
         }
         vf.push_str(range_tag(args));
+        vf.push_str(interlace_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -140,6 +152,7 @@ fn hevc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             vf.push_str(&format!(",fps={fps}"));
         }
         vf.push_str(range_tag(args));
+        vf.push_str(interlace_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -176,6 +189,7 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             vf.push_str(&format!(",fps={fps}"));
         }
         vf.push_str(range_tag(args));
+        vf.push_str(interlace_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -210,6 +224,7 @@ fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             vf.push_str(&format!(",fps={fps}"));
         }
         vf.push_str(range_tag(args));
+        vf.push_str(interlace_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -345,7 +360,7 @@ fn prores(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             ]);
         }
         let fps_vf = args.fps.map(|fps| format!("fps={fps}")).unwrap_or_default();
-        let prores_vf = format!("{fps_vf}{}", range_tag(args));
+        let prores_vf = format!("{fps_vf}{}{}", range_tag(args), interlace_tag(args));
         if !prores_vf.is_empty() {
             argv.extend(["-vf", prores_vf.trim_start_matches(',')]);
         }
@@ -394,6 +409,7 @@ fn dnxhd(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             vf.push_str(&format!(",fps={fps}"));
         }
         vf.push_str(range_tag(args));
+        vf.push_str(interlace_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {

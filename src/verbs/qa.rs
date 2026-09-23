@@ -31,14 +31,16 @@ pub fn run(args: QaArgs, g: &Globals) -> Result<Contract, Error> {
 
     let psnr = matches!(args.metric.as_str(), "psnr" | "both");
     let ssim = matches!(args.metric.as_str(), "ssim" | "both");
-    if !psnr && !ssim {
-        return Err(Error::input("--metric must be psnr, ssim, or both"));
+    let msad = args.metric == "msad";
+    if !psnr && !ssim && !msad {
+        return Err(Error::input("--metric must be psnr, ssim, msad, or both"));
     }
 
     let mut extra = json!({});
     let mut commands = Vec::new();
-    for metric in ["psnr", "ssim"] {
-        if (metric == "psnr" && !psnr) || (metric == "ssim" && !ssim) {
+    for metric in ["psnr", "ssim", "msad"] {
+        if (metric == "psnr" && !psnr) || (metric == "ssim" && !ssim) || (metric == "msad" && !msad)
+        {
             continue;
         }
         // scale2ref so a resolution-mismatched test file still compares.
@@ -61,7 +63,10 @@ pub fn run(args: QaArgs, g: &Globals) -> Result<Contract, Error> {
                 Contract::failed("qa", &Error::ffmpeg(stderr)).with_commands(commands.clone())
             );
         }
-        let key = if metric == "psnr" { "average" } else { "All" };
+        let key = match metric {
+            "ssim" => "All",
+            _ => "average",
+        };
         let val = last_metric(&stderr, key)
             .ok_or_else(|| Error::verification(format!("no {metric} metric in ffmpeg output")))?;
         extra[metric] = json!(val);

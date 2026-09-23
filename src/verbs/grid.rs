@@ -29,16 +29,19 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let (cols, rows) = parse_wxh(&args.layout, "--layout")?;
     let cells = (cols * rows) as usize;
-    if n > cells {
+    if n > cells && !args.focus {
         return Err(Error::input(format!(
             "{n} inputs don't fit a {}x{} grid ({cells} cells)",
             cols, rows
         )));
     }
+    if args.focus && n < 2 {
+        return Err(Error::input("--focus needs at least 2 inputs"));
+    }
     let (cw, ch) = parse_wxh(&args.size, "--size")?;
     let (tw, th) = (cw / cols, ch / rows);
     let gap = args.gap.unwrap_or(0);
-    if gap >= tw.min(th) / 2 {
+    if gap >= tw.min(th) / 2 && !args.focus {
         return Err(Error::input("--gap is too big for the tile size"));
     }
     // Shrink each tile inside its cell, then pad back to the full cell —
@@ -48,8 +51,34 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
         .as_deref()
         .map(crate::color::lavfi)
         .unwrap_or_else(|| "black".to_string());
-    let (itw, ith) = (tw - gap, th - gap);
-    if tw < 16 || th < 16 {
+    // per-tile rects (x, y, w, h): uniform grid, or --focus hero layout —
+    // tile 0 fills the left ~2/3 column, the rest stack in the right column
+    let hero_w = (cw * 2).div_ceil(3);
+    let side_w = cw - hero_w;
+    let side_h = ch / (n as u32 - 1);
+    let rects: Vec<(u32, u32, u32, u32)> = (0..n)
+        .map(|i| {
+            if args.focus {
+                if i == 0 {
+                    (0, 0, hero_w, ch)
+                } else {
+                    (
+                        hero_w,
+                        (i as u32 - 1) * side_h,
+                        side_w,
+                        if i == n - 1 {
+                            ch - (i as u32 - 1) * side_h
+                        } else {
+                            side_h
+                        },
+                    )
+                }
+            } else {
+                ((i as u32 % cols) * tw, (i as u32 / cols) * th, tw, th)
+            }
+        })
+        .collect();
+    if rects.iter().any(|r| r.2 < 16 || r.3 < 16) {
         return Err(Error::input(
             "--size too small for that --layout (tiles < 16px)",
         ));
@@ -77,9 +106,8 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut seg: Vec<String> = Vec::new();
     let mut layout_str = String::new();
-    for i in 0..n {
-        let col = i as u32 % cols;
-        let row = i as u32 / cols;
+    for (i, &(rx, ry, rw, rh)) in rects.iter().enumerate() {
+        let (itw, ith) = (rw.saturating_sub(gap), rh.saturating_sub(gap));
         let fit = if args.fill {
             // crop-overflow fill: scale up until the cell is covered, then crop
             format!("scale={itw}:{ith}:force_original_aspect_ratio=increase,crop={itw}:{ith}")
@@ -87,12 +115,12 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
             format!("scale={itw}:{ith}:force_original_aspect_ratio=decrease")
         };
         seg.push(format!(
-            "[{i}:v]{fit},pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2:{gutter},setsar=1,fps=30,format=yuv420p[v{i}]"
+            "[{i}:v]{fit},pad={rw}:{rh}:(ow-iw)/2:(oh-ih)/2:{gutter},setsar=1,fps=30,format=yuv420p[v{i}]"
         ));
         if !layout_str.is_empty() {
             layout_str.push('|');
         }
-        layout_str.push_str(&format!("{}_{}", col * tw, row * th));
+        layout_str.push_str(&format!("{rx}_{ry}"));
         if args.audio == Some(i) {
             seg.push(format!(
                 "[{i}:a]aresample=48000,aformat=channel_layouts=stereo[aout]"
@@ -117,7 +145,7 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
             let img = crate::raster::render_caption_outlined(
                 text,
                 &font_bytes,
-                tw,
+                rects[i].2,
                 [255, 255, 255],
                 0.9,
                 ([0, 0, 0], 2),
@@ -138,8 +166,12 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
         let font_bytes =
             std::fs::read(&font_path).map_err(|e| Error::input(format!("read font: {e}")))?;
         // render_title_styled's `size` is a multiplier: px = vw/8 * size —
-        // target px ≈ th/8 ⇒ size = th/tw
-        let fs = (th as f32 / tw as f32).clamp(0.2, 3.0);
+        // target px ≈ tile_h/8 ⇒ size = tile_h/tile_w (smallest tile decides
+        // on --focus so the clock never overflows the skinny column)
+        let (mw, mh) = rects
+            .iter()
+            .fold((u32::MAX, u32::MAX), |(w, h), r| (w.min(r.2), h.min(r.3)));
+        let fs = (mh as f32 / mw as f32).clamp(0.2, 3.0);
         let mut cells: Vec<image::RgbaImage> = Vec::new();
         let (mut cw2, mut ch2) = (0u32, 0u32);
         for i in 0..60u32 {
@@ -196,11 +228,9 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
             feeds = (0..n).map(|i| format!("[tcl{i}]")).collect::<String>(),
         ));
         // overlay mm:ss at each tile's bottom-right, applied on [v{i}] before xstack
-        for i in 0..n {
-            let col = i as u32 % cols;
-            let row = i as u32 / cols;
-            let x = (col + 1) * tw - (total_w + m).min(tw);
-            let y = (row + 1) * th - (ch2 + m).min(th);
+        for (i, &(rx, ry, rw, rh)) in rects.iter().enumerate() {
+            let x = rx + rw - (total_w + m).min(rw);
+            let y = ry + rh - (ch2 + m).min(rh);
             let w1 = format!("[tv{i}a]");
             let w2 = format!("[tv{i}b]");
             seg.push(format!("[v{i}][tmm{i}]overlay={x}:{y}:shortest=1{w1}"));
@@ -234,8 +264,7 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
     if !label_pngs.is_empty() {
         let mut cur = String::from("[vg]");
         for (j, (idx, _, _)) in label_pngs.iter().enumerate() {
-            let col = *idx % cols;
-            let row = *idx / cols;
+            let (rx, ry, rw, rh) = rects[*idx as usize];
             let next = if j + 1 == label_pngs.len() {
                 "[vout]".to_string()
             } else {
@@ -243,10 +272,8 @@ pub fn run(args: GridArgs, g: &Globals) -> Result<Contract, Error> {
             };
             let src = n + j;
             seg.push(format!(
-                "{cur}[{src}:v]overlay={cx}+({tw}-w)/2:{ry}+{th}-h-{pad}:shortest=1{next}",
-                cx = col * tw,
-                ry = row * th,
-                pad = (fs_pad(th)),
+                "{cur}[{src}:v]overlay={rx}+({rw}-w)/2:{ry}+{rh}-h-{pad}:shortest=1{next}",
+                pad = (fs_pad(rh)),
             ));
             cur = next;
         }

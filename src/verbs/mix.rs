@@ -56,14 +56,17 @@ pub fn run(args: MixArgs, g: &Globals) -> Result<Contract, Error> {
         }
     };
 
-    let (split, b1, bed) = if args.duck {
+    let (split, b1, bed) = if args.duck || args.gate {
         // sidechain: the bed (B) compresses whenever the voice (A) is loud —
-        // ffmpeg <7 needs an explicit asplit to feed A to both the key and the mix
-        (
-            ",asplit=2[a0][a0sc]",
-            "[a1pre]",
-            ";[a1pre]aformat=sample_fmts=fltp:channel_layouts=stereo[a1f];[a0sc]aformat=sample_fmts=fltp:channel_layouts=stereo[a0scf];[a1f][a0scf]sidechaincompress=threshold=0.02:ratio=8:attack=25:release=350:makeup=1[a1]",
-        )
+        // ffmpeg <7 needs an explicit asplit to feed A to both the key and the mix.
+        // --gate swaps the compressor for sidechaingate: the bed mutes under
+        // speech instead of smoothly dipping (talk-show bed)
+        let bed = if args.gate {
+            ";[a1pre]aformat=sample_fmts=fltp:channel_layouts=stereo[a1f];[a0sc]aformat=sample_fmts=fltp:channel_layouts=stereo[a0scf];[a1f][a0scf]sidechaingate=threshold=0.02:ratio=8:attack=25:release=350:makeup=1[a1]"
+        } else {
+            ";[a1pre]aformat=sample_fmts=fltp:channel_layouts=stereo[a1f];[a0sc]aformat=sample_fmts=fltp:channel_layouts=stereo[a0scf];[a1f][a0scf]sidechaincompress=threshold=0.02:ratio=8:attack=25:release=350:makeup=1[a1]"
+        };
+        (",asplit=2[a0][a0sc]", "[a1pre]", bed)
     } else {
         ("[a0]", "[a1]", "")
     };
@@ -104,6 +107,8 @@ pub fn run(args: MixArgs, g: &Globals) -> Result<Contract, Error> {
         "vol_a": args.vol_a,
         "vol_b": args.vol_b,
         "kept_video": pa.has_video,
+        "duck": args.duck || args.gate,
+        "gate": args.gate,
     }));
     Ok(c)
 }

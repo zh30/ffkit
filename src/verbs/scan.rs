@@ -20,11 +20,17 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     // emits lavfi.photosensitivity.* metadata; metadata=print mirrors it to the
     // log where we count flash-flagged frames (badness > 0)
     let scdet_leg = if args.scenes { ",scdet=t=8" } else { "" };
+    // --motion: vmafmotion writes lavfi.vmafmotion.score per frame — bitrate
+    // budget QC (static ≈0, busy action ≈7+)
+    let motion_leg = if args.motion { ",vmafmotion" } else { "" };
+    // --timecode: readvitc reads embedded VITC lines — lavfi.readvitc.found
+    // / .tc_str per frame (broadcast master QC)
+    let vitc_leg = if args.timecode { ",readvitc" } else { "" };
     // vfrdet closes the chain: it consumes every frame's timestamps and
     // prints one `VFR:<ratio> (<n>/<N>)` line to stderr at EOF — screen
     // recordings / edit-joined captures come back nonzero
     let vf = format!(
-        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,idet,signalstats,entropy=mode=diff,bitplanenoise{scdet_leg},readeia608,cropdetect=limit=24:round=2,metadata=print:file=-,vfrdet"
+        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,idet,signalstats,entropy=mode=diff,bitplanenoise{scdet_leg},readeia608,cropdetect=limit=24:round=2{motion_leg}{vitc_leg},metadata=print:file=-,vfrdet"
     );
     let mut argv = Argv::ffmpeg();
     argv.push("-i");
@@ -52,6 +58,9 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     let mut scene_cuts: Vec<f64> = Vec::new();
     let mut noise_vals: Vec<f64> = Vec::new();
     let mut cc_lines = 0usize;
+    let mut motion_vals: Vec<f64> = Vec::new();
+    let mut vitc_frames = 0usize;
+    let mut vitc_tc: Option<String> = None;
     let mut vfr_ratio: Option<f64> = None;
     let mut vfr_frames = 0usize;
     let (mut cd_x1, mut cd_x2, mut cd_y1, mut cd_y2) = (-1i64, -1i64, -1i64, -1i64);
@@ -131,6 +140,22 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         // line was decoded this frame (broadcast master QC)
         if line.contains("lavfi.readeia608.") {
             cc_lines += 1;
+        }
+        if let Some(rest) = line.split("lavfi.vmafmotion.score=").nth(1) {
+            if let Ok(v) = rest.trim().split(' ').next().unwrap_or("").parse::<f64>() {
+                motion_vals.push(v);
+            }
+        }
+        if let Some(rest) = line.split("lavfi.readvitc.found=").nth(1) {
+            if rest.trim().starts_with('1') {
+                vitc_frames += 1;
+            }
+        }
+        if let Some(rest) = line.split("lavfi.readvitc.tc_str=").nth(1) {
+            let tc = rest.trim().split(' ').next().unwrap_or("").to_string();
+            if !tc.is_empty() {
+                vitc_tc = Some(tc);
+            }
         }
         // cropdetect letterbox QC: x1/x2/y1/y2 bounds of non-black content
         for (k, slot) in [
@@ -389,7 +414,7 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
             || cd_x2 + 1 < probe.width.unwrap_or(0) as i64
             || cd_y2 + 1 < probe.height.unwrap_or(0) as i64);
 
-    Ok(Contract::ok("scan", None, Some(probe)).with_extra(json!({
+    let mut extra = json!({
         "freeze_min": freeze_min,
         "black_min": black_min,
         "luma_threshold": thresh,
@@ -462,5 +487,31 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         // deliver --platform which re-pads cleanly)
         "crop_hint": crop_hint,
         "letterboxed": letterboxed,
-    })))
+    });
+    // --motion: VMAF motion feature — bitrate-budget QC (static ≈0,
+    // busy action ≈7+; a >5 mean wants real bitrate at delivery)
+    extra["motion_avg"] = if args.motion && !motion_vals.is_empty() {
+        json!(motion_vals.iter().sum::<f64>() / motion_vals.len() as f64)
+    } else {
+        json!(null)
+    };
+    extra["motion_max"] = if args.motion {
+        motion_vals
+            .iter()
+            .cloned()
+            .reduce(f64::max)
+            .map_or(json!(null), |v| json!(v))
+    } else {
+        json!(null)
+    };
+    // --timecode: broadcast-master VITC readout — any frame with a
+    // decoded code reports the latest timecode string + hit count
+    extra["vitc"] = json!(vitc_frames > 0);
+    extra["vitc_tc"] = json!(vitc_tc);
+    extra["vitc_frames"] = if args.timecode {
+        json!(vitc_frames)
+    } else {
+        json!(null)
+    };
+    Ok(Contract::ok("scan", None, Some(probe)).with_extra(extra))
 }

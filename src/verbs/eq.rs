@@ -134,6 +134,17 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
         }
         chain.push(format!("superequalizer={}", parts.join(":")));
     }
+    // --deemph: standard de-emphasis curve (aemphasis reproduction mode) —
+    // undoes the pre-emphasis HF boost baked into vinyl rips / FM / CD captures
+    if let Some(d) = &args.deemph {
+        let ty = match d {
+            crate::cli::DeemphType::Riaa => "riaa",
+            crate::cli::DeemphType::Cd => "cd",
+            crate::cli::DeemphType::Fm50 => "50fm",
+            crate::cli::DeemphType::Fm75 => "75fm",
+        };
+        chain.push(format!("aemphasis=type={ty}"));
+    }
     if bass != 0.0 {
         chain.push(format!("bass=g={}", bass));
     }

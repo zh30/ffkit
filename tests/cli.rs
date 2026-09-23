@@ -25820,3 +25820,197 @@ fn scan_dupe_text_rg_scope_cie_bars_kind_delogo_track() {
         assert_eq!(j["extra"]["track"], true);
     }
 }
+
+/// RSI round 226 — seven verified-unused 4.4 filters wired as features:
+/// scan --motion (vmafmotion), --timecode (readvitc), qa --metric msad,
+/// grid --focus (xstack hero), mix --gate (sidechaingate),
+/// eq --deemph (aemphasis), transcode --interlaced (il+setfield).
+#[test]
+fn r226_motion_timecode_msad_focus_gate_deemph_interlaced() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let busy = fixture(dir.path());
+    // static clip: motion score should collapse to ~0
+    let stat = dir.path().join("stat.mp4");
+    assert!(Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=gray:size=160x120:rate=10:duration=2",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&stat)
+        .status()
+        .unwrap()
+        .success());
+
+    // scan --motion — vmafmotion: busy testsrc2 ≈5+, static = 0
+    if has_filter("vmafmotion") {
+        let j = run_json(&["scan", &busy.to_string_lossy(), "--motion"]);
+        assert_eq!(j["status"], "ok");
+        let avg = j["extra"]["motion_avg"].as_f64().unwrap();
+        // motion score is resolution-dependent: tiny fixtures read ~0.3,
+        // static color reads exactly 0 — the QC separator is >0 vs 0
+        assert!(avg > 0.1, "testsrc2 should score motion: {avg}");
+        let j = run_json(&["scan", &stat.to_string_lossy(), "--motion"]);
+        assert_eq!(j["extra"]["motion_avg"].as_f64().unwrap(), 0.0);
+    }
+
+    // scan --timecode — readvitc: synthetic clips carry no VITC → clean 0s
+    if has_filter("readvitc") {
+        let j = run_json(&["scan", &busy.to_string_lossy(), "--timecode"]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["vitc"], false);
+        assert_eq!(j["extra"]["vitc_frames"], 0);
+    }
+
+    // qa --metric msad — same `average:` parse key as psnr
+    if has_filter("msad") {
+        let j = run_json(&[
+            "qa",
+            &busy.to_string_lossy(),
+            &busy.to_string_lossy(),
+            "--metric",
+            "msad",
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["msad"].as_f64().unwrap(), 0.0);
+    }
+
+    // grid --focus — hero layout: tile 0 left ~2/3, rest stack right
+    let b = dir.path().join("b.mp4");
+    assert!(Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:rate=10:duration=1",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&b)
+        .status()
+        .unwrap()
+        .success());
+    if has_filter("xstack") {
+        let o = dir.path().join("focus.mp4");
+        let j = run_json(&[
+            "grid",
+            &busy.to_string_lossy(),
+            &b.to_string_lossy(),
+            &b.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--focus",
+            "--size",
+            "960x540",
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["probe"]["width"], 960);
+        assert_eq!(j["probe"]["height"], 540);
+    }
+
+    // mix --gate — sidechaingate: harder duck, bed mutes under the key
+    if has_filter("sidechaingate") {
+        let tone = dir.path().join("tone.wav");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=1",
+            ])
+            .arg(&tone)
+            .status()
+            .unwrap()
+            .success());
+        let o = dir.path().join("gate.wav");
+        let j = run_json(&[
+            "mix",
+            &tone.to_string_lossy(),
+            &tone.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--gate",
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["gate"], true);
+        assert_eq!(j["extra"]["duck"], true);
+    }
+
+    // eq --deemph riaa — aemphasis reproduction curve cuts the HF band
+    if has_filter("aemphasis") {
+        let tone = dir.path().join("et.wav");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=1",
+            ])
+            .arg(&tone)
+            .status()
+            .unwrap()
+            .success());
+        let o = dir.path().join("de.wav");
+        let j = run_json(&[
+            "eq",
+            &tone.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--deemph",
+            "riaa",
+        ]);
+        assert_eq!(j["status"], "ok");
+    }
+
+    // transcode --interlaced — il+setfield tff: prores .mov reports field_order
+    if has_filter("il") && has_filter("setfield") {
+        let o = dir.path().join("il.mov");
+        let j = run_json(&[
+            "transcode",
+            &busy.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--preset",
+            "prores",
+            "--interlaced",
+        ]);
+        assert_eq!(j["status"], "ok");
+        let fo = Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=field_order",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(&o)
+            .output()
+            .unwrap();
+        assert_eq!(String::from_utf8_lossy(&fo.stdout).trim(), "tb");
+    }
+}

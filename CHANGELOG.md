@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [0.253.0] — 2026-09-23
+
+### Added
+
+- `scan --motion` — `vmafmotion` leg: `motion_avg`/`motion_max` extras
+  (bitrate-budget QC — static content ≈0, busy action ≈5+; slower leg,
+  so flag-gated).
+- `scan --timecode` — `readvitc` leg: `vitc`/`vitc_tc`/`vitc_frames`
+  extras (embedded VITC timecode on broadcast masters).
+- `qa --metric msad` — third difference metric (mean of absolute
+  differences; same `average:` output key as PSNR).
+- `grid --focus` — hero layout via `xstack` per-tile rects: first input
+  fills the left ~2/3 column, the rest stack down the right
+  (podcast/interview); ignores `--layout`.
+- `mix --gate` — `sidechaingate` duck variant: the bed hard-mutes under
+  speech instead of smoothly dipping (talk-show bed); implies `--duck`.
+- `eq --deemph riaa|cd|fm50|fm75` — `aemphasis` reproduction curve:
+  undoes the pre-emphasis HF boost baked into vinyl rips, FM captures
+  and early CDs.
+- `transcode --interlaced` — `il` field interleave + `setfield tff`:
+  marks the output interlaced for broadcast/air-master delivery
+  (field_order=tb on .mov).
+
 ## [0.252.0] — 2026-09-23
 
 ### Added

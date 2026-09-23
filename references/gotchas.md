@@ -346,3 +346,30 @@ an atempo'd whole-file render would shift the window.
 - **`ocr` finds tessdata by itself** (no datapath needed when tesseract
   is installed under the prefix); each frame costs ~0.5-1s so gate it
   behind `fps=2`.
+- **`aemphasis` `type` is a named enum, not `de`** — valid values:
+  col/emi/bsi/riaa/cd/50fm/75fm/50kf/75kf; `mode=reproduction`
+  (de-emphasis) is the default, `mode=production` re-applies the curve.
+- **`il` uses `luma_mode`/`chroma_mode`, not positional `i:i`** —
+  `il=luma_mode=i:chroma_mode=i` interleaves fields; pair with
+  `setfield=tff` or containers keep reporting progressive. mp4/h264
+  ffprobe still shows `unknown` (the flag lives in SPS/VUI) — verify on
+  .mov (prores → `field_order=tb`).
+- **`vmafmotion` needs no libvmaf** — per-frame
+  `lavfi.vmafmotion.score=` metadata; score is resolution-dependent
+  (tiny clips ≈0.3, 320x240 testsrc2 ≈5-8, static = 0.00 exactly).
+  Costs a per-frame pass — gate it behind a flag.
+- **`readvitc` only finds codes on broadcast masters** — synthetic
+  clips always read `lavfi.readvitc.found=0`; the found=1 path can't be
+  exercised without real VITC lines.
+- **`msad` prints the same `average:` key as psnr** — final line
+  `msad Y:.. average:0.000000 min:.. max:..`; extend the metric loop,
+  reuse the parser.
+- **`grid --focus` ignores `--layout`** — hero mode computes per-tile
+  rects itself (tile 0 = left ~2/3 column); share the rect list with
+  labels/`--time` overlays or they land on grid math.
+- **`sidechaingate` hard-mutes vs `sidechaincompress` smooth-dip** —
+  same asplit key+mix wiring (ffmpeg <7 needs the explicit split);
+  gate is the talk-show bed, compressor the music bed.
+- **`json!` macro recursion limit** — serde_json's json! hits its
+  internal recursion cap around ~40 keys; once extras get that big,
+  assign the tail keys after construction (`extra["k"] = json!(v)`).
