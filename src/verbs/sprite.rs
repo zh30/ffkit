@@ -39,12 +39,27 @@ pub fn run(args: SpriteArgs, g: &Globals) -> Result<Contract, Error> {
     if args.cols == 0 || args.rows == 0 || args.cols * args.rows > 100 {
         return Err(Error::input("--cols x --rows must be 1..=100 tiles"));
     }
+    let t0 = match &args.from {
+        Some(s) => crate::time::parse_time(s)?,
+        None => 0.0,
+    };
+    let t1 = match &args.to {
+        Some(s) if s.trim().eq_ignore_ascii_case("end") => probe.duration,
+        Some(s) => crate::time::parse_time(s)?,
+        None => probe.duration,
+    };
+    if t0 < 0.0 || t1 <= t0 || t0 >= probe.duration {
+        return Err(Error::input(
+            "--from/--to need 0 <= from < to within the input",
+        ));
+    }
+    let span = t1.min(probe.duration) - t0;
     let w = probe.width.unwrap_or(1280);
     let h = probe.height.unwrap_or(720);
     let tw = crate::paths::even(args.width.max(16));
     let th = crate::paths::even((tw as u64 * h as u64 / w as u64).max(2) as u32);
     let per = (args.cols * args.rows) as u64;
-    let n = (probe.duration / args.every).ceil().max(1.0) as u64;
+    let n = (span / args.every).ceil().max(1.0) as u64;
     let sheets = n.div_ceil(per);
 
     let first = sheet_path(&args.output, 1);
@@ -74,8 +89,14 @@ pub fn run(args: SpriteArgs, g: &Globals) -> Result<Contract, Error> {
         r = args.rows,
     );
     let mut argv = ffmpeg_base(g.progress);
+    if t0 > 0.0 {
+        argv.extend(["-ss", &format!("{t0:.3}")]);
+    }
     argv.push("-i");
     argv.push(&args.input);
+    if t1 < probe.duration {
+        argv.extend(["-t", &format!("{:.3}", span)]);
+    }
     argv.extend([
         "-vf",
         &vf,
@@ -122,8 +143,8 @@ pub fn run(args: SpriteArgs, g: &Globals) -> Result<Contract, Error> {
             .unwrap_or_default();
         vtt.push_str(&format!(
             "{} --> {}\n{}#xywh={},{},{},{}\n\n",
-            vtt_ts(k as f64 * args.every),
-            vtt_ts(((k + 1) as f64 * args.every).min(probe.duration)),
+            vtt_ts(t0 + k as f64 * args.every),
+            vtt_ts((t0 + (k + 1) as f64 * args.every).min(t1)),
             name,
             x,
             y,

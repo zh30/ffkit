@@ -237,6 +237,11 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 118)
+- `sprite --from/--to` — bound the seek-preview thumbnail window (`--to end` ok); VTT cues stay on absolute media times.
+- `loop --from/--to` accept `end` — loop the tail section without probing the duration.
+- `frames --count N` — N evenly-spaced stills across the clip (same spacing as `thumb --count`).
+
 ## Shipped this run (round 117)
 - `cut --ranges`/`--drop` accept `end` bounds — `T-end` runs through the tail, `end-N` is the last N seconds (`--drop end-10` trims the outro without probing the duration).
 - `thumb --count --from/--to` — bound the even-spread still window (`--to end` ok).

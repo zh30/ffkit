@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.145.0] — 2026-09-22
+
+### Added
+- `sprite --from/--to` — bound the thumbnail window (`--to end` ok); VTT cues stay on absolute media times.
+- `loop --from/--to` accept `end`.
+- `frames --count N` — N evenly-spaced stills across the clip.
+
 ## [0.144.0] — 2026-09-22
 
 ### Added

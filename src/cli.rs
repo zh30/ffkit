@@ -1695,6 +1695,11 @@ pub struct SpriteArgs {
     /// Seconds between thumbnails
     #[arg(long, default_value_t = 10.0)]
     pub every: f64,
+    /// Bound the thumbnail window (default: whole clip; `end` ok on --to)
+    #[arg(long)]
+    pub from: Option<String>,
+    #[arg(long)]
+    pub to: Option<String>,
     /// Thumbnail width px (height follows aspect, forced even)
     #[arg(long, default_value_t = 160)]
     pub width: u32,
@@ -1898,6 +1903,9 @@ pub struct FramesArgs {
     /// Grab stills at these timestamps instead of an --every grid
     #[arg(long, value_delimiter = ',')]
     pub at: Vec<String>,
+    /// N evenly-spaced stills across the clip (overrides --every)
+    #[arg(long)]
+    pub count: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]

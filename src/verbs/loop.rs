@@ -124,10 +124,12 @@ fn seamless(args: &LoopArgs, g: &Globals, times: u32, fade: f64) -> Result<Contr
 fn section(args: LoopArgs, g: &Globals, times: u32) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     let from = match &args.from {
+        Some(raw) if raw.trim().eq_ignore_ascii_case("end") => probe.duration,
         Some(raw) => crate::time::parse_time(raw)?,
         None => 0.0,
     };
     let to = match &args.to {
+        Some(raw) if raw.trim().eq_ignore_ascii_case("end") => probe.duration,
         Some(raw) => crate::time::parse_time(raw)?,
         None => probe.duration,
     };

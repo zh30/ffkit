@@ -101,6 +101,17 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
                 })),
         );
     }
+    // --count spreads N stills across ~95% of the clip (thumb --count spacing);
+    // a higher rate lands the last pts past EOF and drops a frame.
+    let mut frame_cap: Option<u32> = None;
+    if let Some(n) = args.count {
+        if !(1..=500).contains(&n) {
+            return Err(Error::input("--count must be 1..=500"));
+        }
+        let fps = (n as f64 - 0.5).max(0.5) / probe.duration.max(0.05);
+        vf = format!("fps={fps:.6}");
+        frame_cap = Some(n);
+    }
     if let Some(w) = args.width {
         vf.push_str(&format!(",scale={w}:-2"));
     }
@@ -108,6 +119,9 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-vf", &vf]);
+    if let Some(n) = frame_cap {
+        argv.extend(["-frames:v", &n.to_string()]);
+    }
     argv.push(&template);
 
     let commands = engine::commands_of(std::slice::from_ref(&argv));

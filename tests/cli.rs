@@ -15030,3 +15030,83 @@ fn cut_ranges_accept_end_bounds() {
     assert!(cmds.contains("-t"), "{cmds}");
     assert!(cmds.contains("0.700"), "{cmds}"); // -t span
 }
+
+#[test]
+fn sprite_from_to_bounds_window_and_vtt() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    let v = run_json(&[
+        "sprite",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("sp.jpg").to_str().unwrap(),
+        "--every",
+        "0.2",
+        "--from",
+        "0.2",
+        "--to",
+        "0.8",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmds.contains("-ss"), "{cmds}");
+    assert!(cmds.contains("-t"), "{cmds}");
+    // VTT cues are absolute media times (offset by --from)
+    let vtt = std::fs::read_to_string(dir.path().join("sp.vtt")).unwrap();
+    assert!(vtt.contains("00:00:00.200 -->"), "{vtt}");
+    assert!(!vtt.contains("00:00:00.000 -->"), "{vtt}");
+}
+
+#[test]
+fn loop_and_frames_accept_end_bounds() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let src = fixture(dir.path());
+    // loop --to end → full-clip section loop
+    let v = run_json(&[
+        "loop",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("lp.mp4").to_str().unwrap(),
+        "--from",
+        "0.2",
+        "--to",
+        "end",
+        "--times",
+        "2",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let cmds = v["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmds.contains("end=1.000") || cmds.contains("end=1"),
+        "{cmds}"
+    );
+    // frames --count → N stills, fps derived from duration
+    let v = run_json(&[
+        "frames",
+        src.to_str().unwrap(),
+        "-o",
+        dir.path().join("f_%03d.png").to_str().unwrap(),
+        "--count",
+        "3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["extra"]["count"], 3, "{v}");
+}
