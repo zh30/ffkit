@@ -561,6 +561,9 @@ pub struct BrollArgs {
     /// (default freezes on its last frame)
     #[arg(long = "loop")]
     pub loop_insert: bool,
+    /// Blend the insert at this % opacity (ghost b-roll)
+    #[arg(long)]
+    pub opacity: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1542,6 +1545,9 @@ pub struct TitleArgs {
     /// Draw the title at this % opacity (0-100 — ghost/watermark titles)
     #[arg(long)]
     pub opacity: Option<f64>,
+    /// Pixels from the edge for corner positions (overrides the percent inset)
+    #[arg(long)]
+    pub margin: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2651,6 +2657,9 @@ pub struct WaveformArgs {
     /// Slice length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Rotate the wave 90° (time runs top→bottom — vertical PNG h×w)
+    #[arg(long)]
+    pub vertical: bool,
 }
 
 #[derive(clap::Args, Debug)]

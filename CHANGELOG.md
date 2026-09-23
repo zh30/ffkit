@@ -10,6 +10,14 @@
 - `poster` — pop-art posterization (`elbg=l=N`, `--levels` 2-64, `--at`/`--dur` via blend branch)
 - `duotone` — two-color luminance ramp (`--shadow`/`--highlight`, `format=gray` + per-channel `lutrgb`)
 
+## [0.192.0] — 2026-09-23
+
+### Added
+
+- `waveform --vertical` — transpose the rendered wave (top→bottom, h×w PNG)
+- `broll --opacity` — ghost inserts (colorchannelmixer=aa on the overlay branch)
+- `title --margin N` — pixel corner insets (platform safe-zone margins)
+
 ## [0.191.0] — 2026-09-23
 
 ### Added

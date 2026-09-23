@@ -147,17 +147,31 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
     img.save(&png)
         .map_err(|e| Error::output(format!("write title png: {e}")))?;
 
-    let (x, y) = if args.tile > 0 {
-        ("", "")
+    let (x, y): (String, String) = if args.tile > 0 {
+        (String::new(), String::new())
     } else {
+        let (lx, rx, ty, by) = match args.margin {
+            Some(m) => (
+                m.to_string(),
+                format!("W-w-{m}"),
+                m.to_string(),
+                format!("H-h-{m}"),
+            ),
+            None => (
+                "trunc(W*0.06)".to_string(),
+                "W-w-trunc(W*0.06)".to_string(),
+                "trunc(H*0.10)".to_string(),
+                "H-h-trunc(H*0.10)".to_string(),
+            ),
+        };
         match args.position.as_str() {
-            "center" => ("(W-w)/2", "(H-h)/2"),
-            "top" => ("(W-w)/2", "trunc(H*0.18)"),
-            "bottom" => ("(W-w)/2", "trunc(H*0.78)"),
-            "top-left" => ("trunc(W*0.06)", "trunc(H*0.10)"),
-            "top-right" => ("W-w-trunc(W*0.06)", "trunc(H*0.10)"),
-            "bottom-left" => ("trunc(W*0.06)", "H-h-trunc(H*0.10)"),
-            "bottom-right" => ("W-w-trunc(W*0.06)", "H-h-trunc(H*0.10)"),
+            "center" => ("(W-w)/2".to_string(), "(H-h)/2".to_string()),
+            "top" => ("(W-w)/2".to_string(), "trunc(H*0.18)".to_string()),
+            "bottom" => ("(W-w)/2".to_string(), "trunc(H*0.78)".to_string()),
+            "top-left" => (lx, ty),
+            "top-right" => (rx, ty),
+            "bottom-left" => (lx, by),
+            "bottom-right" => (rx, by),
             other => {
                 return Err(Error::input(format!(
                     "--position {other}: use center, top, bottom or a corner"
