@@ -137,7 +137,10 @@ fn render_clip(
     // alone overshoots because the encoder queue keeps the infinite cover
     // going past audio EOF.
     if (args.scale.is_some() || args.split)
-        && matches!(args.mode, WaveMode::Spectrum | WaveMode::Scope)
+        && matches!(
+            args.mode,
+            WaveMode::Spectrum | WaveMode::Scope | WaveMode::Cqt
+        )
     {
         return Err(Error::input(
             "--scale/--split apply to waveform modes (not spectrum/scope)",
@@ -175,6 +178,10 @@ fn render_clip(
             ),
             "spectrum",
         ),
+        WaveMode::Cqt => (
+            format!("{awave}showcqt=s={{ww}}x{{wh}}:rate={fps}[wv];"),
+            "cqt",
+        ),
         WaveMode::Scope => {
             let [r, g2, b] = crate::color::rgb(&args.color)?;
             (
@@ -190,7 +197,7 @@ fn render_clip(
                 WaveMode::Line => "line",
                 WaveMode::P2p => "p2p",
                 WaveMode::Cline => "cline",
-                WaveMode::Spectrum | WaveMode::Scope => unreachable!(),
+                WaveMode::Spectrum | WaveMode::Scope | WaveMode::Cqt => unreachable!(),
             };
             (
                 {

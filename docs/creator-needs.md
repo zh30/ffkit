@@ -237,6 +237,12 @@ Deliver 1080×1920 −14 LUFS; caption burn without libass + `--safe social` bot
 - [ ] `audiogram --subs` burn captions on the waveform video — shipped
 - [ ] `broll --volume` scale insert audio — shipped
 
+## Shipped this run (round 181)
+
+- `audiogram --mode cqt` — `showcqt` constant-Q spectrum for music videos (accepted by `--fps`/`rate` on 4.4).
+- `sharpen --engine cas` — `cas` contrast-adaptive sharpening (`--amount` 0.3-2 → strength 0.15-1.0); edge-energy +66% on testsrc with no unsharp halos.
+- `equalize` — `histeq` auto-contrast (`--strength`/`--intensity`, T-flagged → `--at` windows via enable); crushed 61-wide luma range → 255.
+
 ## Shipped this run (round 180)
 
 - `deesser` — voice sibilance: `deesser=i=amount:f=freq` through `audio_window_for` (comma `--at` windows); verified −13.7dB on a gated 7kHz ess burst, low band intact.

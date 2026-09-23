@@ -39,6 +39,7 @@ pub mod duotone;
 pub mod edge;
 pub mod emboss;
 pub mod eq;
+pub mod equalize;
 pub mod extract;
 pub mod fade;
 pub mod fit;

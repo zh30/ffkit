@@ -281,6 +281,8 @@ pub enum Cmd {
     Deband(DebandArgs),
     /// Drop near-duplicate frames (screen recordings, slide decks)
     Dedup(DedupArgs),
+    /// Auto-contrast for flat/washed footage (histeq)
+    Equalize(EqualizeArgs),
     /// Comic look: posterized base + ink outlines
     Cartoon(CartoonArgs),
     /// Thermal / false-color luma map
@@ -844,6 +846,16 @@ pub enum WaveMode {
     Spectrum,
     /// Lissajous vectorscope (avectorscope) — trippy stereo scope
     Scope,
+    /// Constant-Q music spectrum (showcqt) — piano-roll look
+    Cqt,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum SharpenEngine {
+    #[default]
+    Unsharp,
+    /// Contrast-adaptive sharpening — crisper edges, no white halos
+    Cas,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1353,6 +1365,25 @@ pub struct WhooshArgs {
     /// Swell level 0.05-1.0
     #[arg(long, default_value_t = 0.4)]
     pub gain: f64,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct EqualizeArgs {
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Equalization strength 0.05-1.0
+    #[arg(long, default_value_t = 0.2)]
+    pub strength: f64,
+    /// Saturation-preserving intensity 0.05-1.0
+    #[arg(long, default_value_t = 0.21)]
+    pub intensity: f64,
+    /// Only equalize inside window(s); comma list, 'end' = tail
+    #[arg(long)]
+    pub at: Option<String>,
+    /// Window length per --at, seconds
+    #[arg(long)]
+    pub dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3543,6 +3574,9 @@ pub struct SharpenArgs {
     /// luma unsharp amount (0.3–2)
     #[arg(long, default_value_t = 1.0)]
     pub amount: f64,
+    /// Engine: unsharp (default) or cas (contrast-adaptive, no halos)
+    #[arg(long, value_enum, default_value_t = SharpenEngine::Unsharp)]
+    pub engine: SharpenEngine,
 }
 
 #[derive(clap::Args, Debug)]

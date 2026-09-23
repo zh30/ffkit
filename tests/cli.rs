@@ -19759,3 +19759,174 @@ fn deesser_deband_dedup() {
         "low band should survive: {lo_before} -> {lo_after}"
     );
 }
+
+#[test]
+fn audiogram_cqt_sharpen_cas_equalize() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let tone = dir.path().join("tone.wav");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=2:sample_rate=44100",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let vid = dir.path().join("v.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=320x240:rate=10:duration=1",
+        ])
+        .arg(&vid)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+
+    // audiogram --mode cqt: showcqt renders a drawn frame
+    let cqt = dir.path().join("cqt.mp4");
+    let j = run_json(&[
+        "audiogram",
+        tone.to_str().unwrap(),
+        "-o",
+        cqt.to_str().unwrap(),
+        "--mode",
+        "cqt",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let o = Command::new("ffmpeg")
+        .args(["-v", "error", "-ss", "0", "-i"])
+        .arg(&cqt)
+        .args([
+            "-frames:v",
+            "1",
+            "-vf",
+            "format=gray",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "gray",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        o.stdout.iter().any(|&p| p > 30),
+        "cqt audiogram should paint spectrum bars"
+    );
+
+    // sharpen --engine cas raises edge energy like unsharp does
+    let cas = dir.path().join("cas.mp4");
+    let j = run_json(&[
+        "sharpen",
+        vid.to_str().unwrap(),
+        "-o",
+        cas.to_str().unwrap(),
+        "--engine",
+        "cas",
+        "--amount",
+        "1.5",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let edges = |f: &Path| -> u64 {
+        let o = Command::new("ffmpeg")
+            .args(["-v", "error", "-i"])
+            .arg(f)
+            .args([
+                "-vf",
+                "edgedetect=mode=wires,format=gray",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let d = o.stdout;
+        if d.is_empty() {
+            0
+        } else {
+            d.iter().map(|&p| p as u64).sum::<u64>() / d.len() as u64
+        }
+    };
+    assert!(edges(&cas) > edges(&vid), "cas should raise edge energy");
+
+    // equalize stretches a crushed-contrast frame's luma range
+    let flat = dir.path().join("flat.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=320x240:rate=10",
+            "-vf",
+            "format=gray,eq=contrast=0.2:brightness=-0.05",
+            "-frames:v",
+            "30",
+        ])
+        .arg(&flat)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let eq = dir.path().join("eq.mp4");
+    let j = run_json(&[
+        "equalize",
+        flat.to_str().unwrap(),
+        "-o",
+        eq.to_str().unwrap(),
+        "--strength",
+        "0.9",
+        "--json",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let range = |f: &Path| -> i64 {
+        let o = Command::new("ffmpeg")
+            .args(["-v", "error", "-ss", "0", "-i"])
+            .arg(f)
+            .args([
+                "-frames:v",
+                "1",
+                "-vf",
+                "format=gray",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let d = o.stdout;
+        if d.is_empty() {
+            0
+        } else {
+            *d.iter().max().unwrap() as i64 - *d.iter().min().unwrap() as i64
+        }
+    };
+    assert!(
+        range(&eq) > range(&flat) + 30,
+        "equalize should stretch luma: {} -> {}",
+        range(&flat),
+        range(&eq)
+    );
+}

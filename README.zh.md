@@ -185,6 +185,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `deesser` | 人声去齿音：压制 4-8kHz 齿音频段，`--amount`/`--freq`/`--at` 窗口 |
 | `deband` | `gradfun` 平滑天空/背景色带，`--strength`/`--radius`/`--at` 窗口 |
 | `dedup` | `mpdecimate` 丢弃近似重复帧——压缩静态片段，`--frac` 灵敏度 |
+| `audiogram --mode cqt` | 恒 Q 音乐频谱（`showcqt`）——钢琴卷帘式频谱，适合音乐片段 |
+| `sharpen --engine cas` | 对比自适应锐化——边缘更脆且无 unsharp 光晕，`--amount` |
+| `equalize` | `histeq` 自动对比度，修复灰暗/洗白画面，`--strength`/`--intensity`/`--at` 窗口 |
 | `pick` | 主色提取：某时刻均色 + 3x2 分区色板（仅 JSON 报告） |
 | `diff` | 双片视觉差异：放大差值混合，`--side` 并排参考 |
 | `selective` | 单色保留：仅留 `--color` 其余去饱和，`--similarity` 容差，`--at` 窗口 |

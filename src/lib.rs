@@ -152,6 +152,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Deesser(args) => verbs::deesser::run(args, &g),
         Cmd::Deband(args) => verbs::deband::run(args, &g),
         Cmd::Dedup(args) => verbs::dedup::run(args, &g),
+        Cmd::Equalize(args) => verbs::equalize::run(args, &g),
         Cmd::Pick(args) => verbs::pick::run(args, &g),
         Cmd::Diff(args) => verbs::diff::run(args, &g),
         Cmd::Selective(args) => verbs::selective::run(args, &g),

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.208.0] — 2026-09-23
+
+### Added
+- `audiogram --mode cqt`, `sharpen --engine cas`, `equalize`.
+
 ## [0.207.0] — 2026-09-23
 
 ### Added

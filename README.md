@@ -185,6 +185,9 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `deesser` | Voice de-essing: tames the 4-8kHz sibilance band, `--amount`/`--freq`/`--at` window |
 | `deband` | Smooths gradient banding (sky/backdrop steps) via `gradfun`, `--strength`/`--radius`/`--at` window |
 | `dedup` | Drops near-duplicate frames via `mpdecimate` — shrinks static stretches, `--frac` sensitivity |
+| `audiogram --mode cqt` | Constant-Q music spectrum (`showcqt`) — piano-roll spectrum look for music clips |
+| `sharpen --engine cas` | Contrast-adaptive sharpening — crisper edges without unsharp halos, `--amount` |
+| `equalize` | Auto-contrast via `histeq` for flat/washed footage, `--strength`/`--intensity`/`--at` window |
 | `pick` | Dominant-color report at a timestamp: mean hex + 3x2 zone swatches (JSON only) |
 | `diff` | Visual diff between two clips: amplified difference blend, `--side` shows reference |
 | `selective` | Keep one color, desaturate the rest: `--color` + `--similarity`, `--at` windows |
