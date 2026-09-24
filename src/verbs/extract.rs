@@ -214,6 +214,42 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
         );
     }
 
+    // --from/--to only window an audio rip (stills use --at, gifs use --dur)
+    if (args.from.is_some() || args.to.is_some()) && !args.audio {
+        return Err(Error::input("extract --from/--to only works with --audio"));
+    }
+    if let Some(f) = args.from {
+        if !f.is_finite() || f < 0.0 {
+            return Err(Error::input("extract --from needs seconds >= 0"));
+        }
+    }
+    if let Some(t) = args.to {
+        if !t.is_finite() || t <= args.from.unwrap_or(0.0) {
+            return Err(Error::input("extract --to must be after --from"));
+        }
+    }
+    if let Some(l) = &args.lang {
+        if !args.audio && !args.subs {
+            return Err(Error::input("extract --lang needs --audio or --subs"));
+        }
+        if l.split(',').count() > 1 {
+            return Err(Error::input(
+                "extract --lang picks one track — use --all for every track",
+            ));
+        }
+        if !l.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+            return Err(Error::input(
+                "extract --lang wants an ISO-639 code (eng, jpn, zh-hans)",
+            ));
+        }
+        if args.track.is_some() {
+            return Err(Error::input("extract --lang or --track, not both"));
+        }
+        if args.all {
+            return Err(Error::input("extract --lang or --all, not both"));
+        }
+    }
+
     // --audio: demux an audio track untouched (music/dialog rip —
     // no decode, no re-encode; -o extension picks the container,
     // --track picks commentary/stem in a multi-track file)
@@ -222,6 +258,9 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
         if !probe.has_audio {
             return Err(Error::input("extract --audio: input has no audio"));
         }
+        // --from seeks input-side; --to is a per-output -t limit on the
+        // shifted timeline, so it lands before each output URL
+        let dur_arg: Option<String> = args.to.map(|t| (t - args.from.unwrap_or(0.0)).to_string());
         if args.all {
             if args.track.is_some() {
                 return Err(Error::input(
@@ -234,6 +273,9 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
                 .file_stem()
                 .map(|s| s.to_string_lossy().into_owned())
                 .unwrap_or_else(|| "audio".to_string());
+            if let Some(f) = args.from {
+                argv.extend(["-ss", f.to_string().as_str()]);
+            }
             argv.push("-i");
             argv.push(&args.input);
             let mut files: Vec<String> = Vec::new();
@@ -244,6 +286,9 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
                     .display()
                     .to_string();
                 argv.extend(["-map", format!("0:a:{i}").as_str(), "-vn", "-c:a", "copy"]);
+                if let Some(t) = &dur_arg {
+                    argv.extend(["-t", t.as_str()]);
+                }
                 argv.push(&f);
                 files.push(f);
             }
@@ -262,17 +307,46 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
                 "files": files,
             })));
         }
-        let track = args.track.unwrap_or(0);
+        if let Some(f) = args.from {
+            argv.extend(["-ss", f.to_string().as_str()]);
+        }
         argv.push("-i");
         argv.push(&args.input);
-        let sel = format!("0:a:{track}");
-        argv.extend(["-map", sel.as_str(), "-vn", "-c:a", "copy"]);
+        if let Some(l) = &args.lang {
+            let n = probe
+                .streams
+                .iter()
+                .filter(|s| s.kind == "audio" && s.language.as_deref() == Some(l.as_str()))
+                .count();
+            if n == 0 {
+                return Err(Error::input(format!(
+                    "extract --lang: no audio track tagged '{l}'"
+                )));
+            }
+            argv.extend([
+                "-map",
+                format!("0:a:m:language:{l}").as_str(),
+                "-vn",
+                "-c:a",
+                "copy",
+            ]);
+        } else {
+            let track = args.track.unwrap_or(0);
+            let sel = format!("0:a:{track}");
+            argv.extend(["-map", sel.as_str(), "-vn", "-c:a", "copy"]);
+        }
+        if let Some(t) = &dur_arg {
+            argv.extend(["-t", t.as_str()]);
+        }
         argv.push(&args.output);
         let c = engine::write_job("extract", &[&args.input], &args.output, vec![argv], g)?;
         return Ok(c.with_extra(serde_json::json!({
             "audio": true,
             "acodec": probe.acodec,
-            "track": track,
+            "track": args.track,
+            "lang": args.lang,
+            "from": args.from,
+            "to": args.to,
         })));
     }
     // --subs: pull an embedded subtitle track into a text container —
@@ -330,28 +404,52 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
                 "files": files,
             })));
         }
-        let track = args.track.unwrap_or(0);
-        if track >= probe.subtitle_streams {
-            return Err(Error::input(format!(
-                "extract --subs: input has {} subtitle stream(s)",
-                probe.subtitle_streams
-            )));
-        }
         let codec = match ext.as_str() {
             "srt" => "srt",
             "ass" | "ssa" => "ass",
             "vtt" => "webvtt",
             _ => return Err(Error::input("extract --subs: -o must be .srt/.ass/.vtt")),
         };
-        argv.push("-i");
-        argv.push(&args.input);
-        let sel = format!("0:s:{track}");
-        argv.extend(["-map", sel.as_str(), "-vn", "-an", "-c:s", codec]);
+        if let Some(l) = &args.lang {
+            let n = probe
+                .streams
+                .iter()
+                .filter(|s| s.kind == "subtitle" && s.language.as_deref() == Some(l.as_str()))
+                .count();
+            if n == 0 {
+                return Err(Error::input(format!(
+                    "extract --lang: no subtitle track tagged '{l}'"
+                )));
+            }
+            argv.push("-i");
+            argv.push(&args.input);
+            argv.extend([
+                "-map",
+                format!("0:s:m:language:{l}").as_str(),
+                "-vn",
+                "-an",
+                "-c:s",
+                codec,
+            ]);
+        } else {
+            let track = args.track.unwrap_or(0);
+            if track >= probe.subtitle_streams {
+                return Err(Error::input(format!(
+                    "extract --subs: input has {} subtitle stream(s)",
+                    probe.subtitle_streams
+                )));
+            }
+            argv.push("-i");
+            argv.push(&args.input);
+            let sel = format!("0:s:{track}");
+            argv.extend(["-map", sel.as_str(), "-vn", "-an", "-c:s", codec]);
+        }
         argv.push(&args.output);
         let c = engine::write_job("extract", &[&args.input], &args.output, vec![argv], g)?;
         return Ok(c.with_extra(serde_json::json!({
             "subs": true,
-            "track": track,
+            "track": args.track,
+            "lang": args.lang,
         })));
     }
     if args.track.is_some() {

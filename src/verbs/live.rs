@@ -28,6 +28,36 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             "live needs an input file (or --test for the built-in card)",
         ));
     }
+    // URL input: relay/re-stream a live source (rtmp:// pull, srt://,
+    // udp://, http://, tcp://) — ffprobe/ffmpeg read it like a file.
+    // File-only flags that seek or replay are refused below.
+    let input_url = args
+        .input
+        .as_ref()
+        .map(|p| p.to_string_lossy().contains("://"))
+        .unwrap_or(false);
+    if input_url {
+        if args.list {
+            return Err(Error::input(
+                "live --list plays a manifest of files — not a URL input",
+            ));
+        }
+        if args.start.is_some() {
+            return Err(Error::input(
+                "live --start seeks into a file — can't seek a live URL",
+            ));
+        }
+        if args.loop_ {
+            return Err(Error::input(
+                "live --loop replays a file — a live URL can't loop",
+            ));
+        }
+        if args.slate.is_some() {
+            return Err(Error::input(
+                "live --slate prepends a card to a file — not to a live URL",
+            ));
+        }
+    }
     if let Some(t) = args.start {
         if !t.is_finite() || t <= 0.0 {
             return Err(Error::input("live --start needs seconds > 0"));
@@ -595,7 +625,10 @@ pub(crate) fn stream_out(
     g: &Globals,
 ) -> Result<Contract, Error> {
     if let Some(i) = input {
-        crate::paths::ensure_input(i)?;
+        // URL inputs (rtmp/srt/udp/http/tcp) aren't files — ffmpeg opens them
+        if !i.to_string_lossy().contains("://") {
+            crate::paths::ensure_input(i)?;
+        }
     }
     let inputs: Vec<&Path> = input.into_iter().collect();
     crate::paths::ensure_output_allowed(Path::new(to), &inputs, g.overwrite)?;

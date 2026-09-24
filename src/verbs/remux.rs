@@ -293,6 +293,81 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+    // --sub-order 1,0: keep + reorder subtitle tracks by per-type index
+    // (the audience's captions first on multi-sub releases; unlisted drop)
+    let sub_order: Vec<usize> = match &args.sub_order {
+        None => Vec::new(),
+        Some(raw) => {
+            let v: Vec<usize> = raw
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(|s| {
+                    s.parse().map_err(|_| {
+                        Error::input("remux --sub-order needs track indices (e.g. 1,0)")
+                    })
+                })
+                .collect::<Result<_, _>>()?;
+            if v.is_empty() {
+                return Err(Error::input("remux --sub-order: no track indices given"));
+            }
+            let mut seen = std::collections::HashSet::new();
+            for i in &v {
+                if !seen.insert(*i) {
+                    return Err(Error::input("remux --sub-order: duplicate track index"));
+                }
+            }
+            v
+        }
+    };
+    if !sub_order.is_empty() {
+        if args.no_subs {
+            return Err(Error::input(
+                "remux --sub-order reorders subtitle tracks — --no-subs drops them all",
+            ));
+        }
+        if !sub_langs.is_empty() {
+            return Err(Error::input(
+                "remux --sub-order re-maps subtitle tracks — drop --sub-lang",
+            ));
+        }
+        if args.audio || args.video {
+            return Err(Error::input(
+                "remux --sub-order only applies to a full repack — drop --audio/--video",
+            ));
+        }
+        if args.audio_delay.is_some() || args.video_delay.is_some() {
+            return Err(Error::input(
+                "remux --sub-order re-maps tracks — drop --audio-delay/--video-delay",
+            ));
+        }
+        if probe.subtitle_streams == 0 {
+            return Err(Error::input(
+                "remux --sub-order: input has no subtitle streams",
+            ));
+        }
+        for i in &sub_order {
+            if *i >= probe.subtitle_streams as usize {
+                return Err(Error::input(format!(
+                    "remux --sub-order {i}: input only has {} subtitle track(s)",
+                    probe.subtitle_streams
+                )));
+            }
+        }
+    }
+    // The subtitle map set used wherever a repack lists subs explicitly:
+    // ordered indices > language tags > every sub (optional so sub-free
+    // sources don't fail)
+    let sub_map_args: Vec<String> = if !sub_order.is_empty() {
+        sub_order.iter().map(|i| format!("0:s:{i}")).collect()
+    } else if !sub_langs.is_empty() {
+        sub_langs
+            .iter()
+            .map(|l| format!("0:s:m:language:{l}"))
+            .collect()
+    } else {
+        vec!["0:s?".to_string()]
+    };
     if args.audio {
         if !probe.has_audio {
             return Err(Error::input("remux --audio: input has no audio"));
@@ -360,12 +435,8 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             for i in &audio_order {
                 argv.extend(["-map", format!("0:a:{i}").as_str()]);
             }
-            if sub_langs.is_empty() {
-                argv.extend(["-map", "0:s?"]);
-            } else {
-                for l in &sub_langs {
-                    argv.extend(["-map", format!("0:s:m:language:{l}").as_str()]);
-                }
+            for m in &sub_map_args {
+                argv.extend(["-map", m.as_str()]);
             }
             argv.extend(["-map", "0:d?", "-c", "copy"]);
         } else if !langs.is_empty() || !sub_langs.is_empty() {
@@ -379,12 +450,16 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
                     argv.extend(["-map", format!("0:a:m:language:{l}").as_str()]);
                 }
             }
-            if sub_langs.is_empty() {
-                argv.extend(["-map", "0:s?"]);
-            } else {
-                for l in &sub_langs {
-                    argv.extend(["-map", format!("0:s:m:language:{l}").as_str()]);
-                }
+            for m in &sub_map_args {
+                argv.extend(["-map", m.as_str()]);
+            }
+            argv.extend(["-map", "0:d?", "-c", "copy"]);
+        } else if !sub_order.is_empty() {
+            // subtitle-ordered repack: every video + all audio + the
+            // listed subtitle tracks in the asked order
+            argv.extend(["-map", "0:v?", "-map", "0:a?"]);
+            for m in &sub_map_args {
+                argv.extend(["-map", m.as_str()]);
             }
             argv.extend(["-map", "0:d?", "-c", "copy"]);
         } else {
@@ -604,7 +679,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     let mut c = c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order }),
     );
     if let Some((key, kid)) = enc_kv {
         c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));

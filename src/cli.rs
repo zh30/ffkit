@@ -653,6 +653,18 @@ pub struct ExtractArgs {
     /// files next to -o (multitrack dubs/captions out in one pass)
     #[arg(long)]
     pub all: bool,
+    /// With --audio or --subs: pull the track tagged with this language
+    /// (eng/jpn/…) — pick the dub by name instead of index; fails when
+    /// no track matches
+    #[arg(long)]
+    pub lang: Option<String>,
+    /// With --audio: rip only from this second onward (segment of the
+    /// track — pull the hook out of a song; stream copy)
+    #[arg(long)]
+    pub from: Option<f64>,
+    /// With --audio: stop the rip at this second (stream copy)
+    #[arg(long)]
+    pub to: Option<f64>,
     /// Keep alpha in the GIF (needs --gif + an alpha-channel input like
     /// prores 4444/qtrle/webm — Discord/Telegram sticker exports)
     #[arg(long)]
@@ -3982,6 +3994,11 @@ pub struct RemuxArgs {
     /// that only play track 0 need the program mix first
     #[arg(long)]
     pub audio_order: Option<String>,
+    /// Keep + reorder subtitle tracks by per-type index (comma list like
+    /// --audio-order) — put the audience's captions first on multi-sub
+    /// releases; unlisted tracks are dropped
+    #[arg(long)]
+    pub sub_order: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4575,6 +4592,10 @@ pub struct CountdownArgs {
     /// Draw at this % opacity (0-100 — ghost/watermark overlay)
     #[arg(long)]
     pub opacity: Option<f64>,
+    /// Read the wall clock in UTC instead of local time (cross-timezone
+    /// premieres — --target HH:MM compares against UTC)
+    #[arg(long)]
+    pub utc: bool,
 }
 
 #[derive(clap::Args, Debug)]

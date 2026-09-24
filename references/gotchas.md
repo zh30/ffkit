@@ -609,3 +609,7 @@ an atempo'd whole-file render would shift the window.
 - **`metadata=print` writes `key=value`, not `key:value`** — scdet timestamps come out as `lavfi.scd.time=1.2` (equals sign). A parser anchored on `key:` never matches — scan --scenes shipped that latent bug (tested stderr? no: file=- goes to STDOUT while detect logs hit STDERR). Match `=` (and keep `:` as a fallback).
 - **scdet scores texture-change, not color-change** — a flat red→flat blue hard cut reads score 0 (the per-pixel difference is uniform → zero variance). Scene detection needs textured content; test fixtures must be testsrc2/smptebars-style, not `color=` flats.
 - **scdet reports a cut on both boundary frames** — `lavfi.scd.time` appears twice ~1 frame apart for one cut; dedupe marks within ~50ms or every scene generates a doubled entry (scene_cuts showed `[1.2, 1.2]`).
+
+- **`live` URL inputs must bypass `ensure_input`** — it stat()s the path and would refuse `rtmp://…`/`udp://…`/`http://…` inputs. Skip the file-exists check whenever the path string contains `://` (probe.rs, live stream_out, and the verb's own flag validation all needed the bypass).
+- **URL inputs can't seek or loop** — `-ss`/`-stream_loop` on a live pull feed are meaningless (and concat slates can't wrap them). Refuse those flags up front instead of letting ffmpeg fail opaquely mid-stream.
+- **Stream-copy `-ss`/`-t` are packet-accurate, not frame-accurate** — `extract --audio --from/--to` lands on demuxer cue boundaries (an aac rip asked for 1.0s came out 1.509s); assert loose windows in tests.

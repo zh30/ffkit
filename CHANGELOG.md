@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.293.0] — 2026-09-24
+
+### Added
+
+- `extract --lang LANG` on `--audio`/`--subs`: pick one track by its language tag (`-map 0:{a,s}:m:language:` — comma list refused, use `--all` for every track); `--from SEC`/`--to SEC` rip just a window of the audio track
+- `countdown --utc` reads the `--target` wall clock in UTC (premieres on a shared schedule across time zones)
+- `live` URL input: relay a live pull source (`rtmp://`/`srt://`/`udp://`/`http://`/`tcp://`) to another ingest — file-only flags `--list`/`--start`/`--loop`/`--slate` refuse clearly
+- `remux --sub-order 1,0`: keep + reorder subtitle tracks by index (audience captions first on multi-sub releases; unlisted tracks drop)
+
+
 ## [0.292.0] — 2026-09-24
 
 ### Added

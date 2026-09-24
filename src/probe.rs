@@ -202,7 +202,10 @@ struct FfprobeFormat {
 }
 
 pub fn probe(path: &Path, timeout: Duration) -> Result<Probe, Error> {
-    crate::paths::ensure_input(path)?;
+    // URL inputs (rtmp/srt/udp/http/tcp) aren't files — ffprobe opens them
+    if !path.to_string_lossy().contains("://") {
+        crate::paths::ensure_input(path)?;
+    }
     let mut argv = Argv::ffprobe();
     argv.extend([
         "-print_format",

@@ -33894,3 +33894,354 @@ fn r265_extract_all_remux_sub_lang_timer_utc_whatsapp_chapter_scenes() {
     ]);
     assert_eq!(j["status"], "failed", "--scenes + --auto must fail");
 }
+
+#[test]
+fn r266_extract_lang_window_countdown_utc_live_url_remux_sub_order() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+
+    // multi-track mkv: eng+jpn audio + eng+fra subs
+    let e = d.path().join("e.srt");
+    std::fs::write(&e, "1\n00:00:00,000 --> 00:00:01,000\nHello eng\n\n").unwrap();
+    let fr = d.path().join("f.srt");
+    std::fs::write(&fr, "1\n00:00:00,000 --> 00:00:01,000\nBonjour fra\n\n").unwrap();
+    let dual = d.path().join("dual.mkv");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=2:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=2",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=550:duration=2",
+            "-i",
+            e.to_str().unwrap(),
+            "-i",
+            fr.to_str().unwrap(),
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map",
+            "2:a",
+            "-map",
+            "3",
+            "-map",
+            "4",
+            "-metadata:s:a:0",
+            "language=eng",
+            "-metadata:s:a:1",
+            "language=jpn",
+            "-metadata:s:s:0",
+            "language=eng",
+            "-metadata:s:s:1",
+            "language=fra",
+            "-c:v",
+            "libx264",
+            "-c:a",
+            "aac",
+            "-c:s",
+            "srt",
+        ])
+        .arg(&dual)
+        .status()
+        .unwrap();
+    assert!(st.success(), "dual mkv fixture failed to build");
+
+    // extract --audio --lang jpn: tag-picked rip lands the jpn track
+    let ja = d.path().join("ja.mka");
+    let j = run_json(&[
+        "extract",
+        dual.to_str().unwrap(),
+        "--audio",
+        "--lang",
+        "jpn",
+        "-o",
+        ja.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["lang"], "jpn");
+    let langs = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream_tags=language",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&ja)
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&langs.stdout).trim(), "jpn");
+
+    // extract --subs --lang fra: french cues only
+    let fs = d.path().join("fra.srt");
+    let j = run_json(&[
+        "extract",
+        dual.to_str().unwrap(),
+        "--subs",
+        "--lang",
+        "fra",
+        "-o",
+        fs.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let text = std::fs::read_to_string(&fs).unwrap();
+    assert!(text.contains("Bonjour"), "{text}");
+    assert!(!text.contains("Hello"), "{text}");
+
+    // --lang refusals: missing tag, comma list, conflicts
+    let j = run_json(&[
+        "extract",
+        dual.to_str().unwrap(),
+        "--audio",
+        "--lang",
+        "kor",
+        "-o",
+        &d.path().join("x1.mka").to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "failed", "unknown --lang must fail");
+    let j = run_json(&[
+        "extract",
+        dual.to_str().unwrap(),
+        "--audio",
+        "--lang",
+        "eng,jpn",
+        "-o",
+        &d.path().join("x2.mka").to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "failed", "comma --lang must fail");
+    let j = run_json(&[
+        "extract",
+        dual.to_str().unwrap(),
+        "--audio",
+        "--lang",
+        "eng",
+        "--track",
+        "1",
+        "-o",
+        &d.path().join("x3.mka").to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "failed", "--lang + --track must fail");
+
+    // extract --audio --from/--to: segment rip
+    let seg = d.path().join("seg.mka");
+    let j = run_json(&[
+        "extract",
+        dual.to_str().unwrap(),
+        "--audio",
+        "--from",
+        "0.5",
+        "--to",
+        "1.5",
+        "-o",
+        seg.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let dur = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&seg)
+        .output()
+        .unwrap();
+    let secs: f64 = String::from_utf8_lossy(&dur.stdout).trim().parse().unwrap();
+    assert!((0.9..=1.7).contains(&secs), "{secs}");
+    let j = run_json(&[
+        "extract",
+        dual.to_str().unwrap(),
+        "--from",
+        "1",
+        "-o",
+        &d.path().join("x4.png").to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "failed", "--from without --audio must fail");
+
+    // countdown --utc --target: UTC wall clock (compute a UTC target ~8s out)
+    let f = fixture(d.path());
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+        + 8;
+    let tgt = format!(
+        "{}:{:02}:{:02}",
+        (secs / 3600) % 24,
+        (secs / 60) % 60,
+        secs % 60
+    );
+    let cd = d.path().join("cd.mp4");
+    let j = run_json(&[
+        "countdown",
+        f.to_str().unwrap(),
+        "--target",
+        &tgt,
+        "--utc",
+        "-o",
+        cd.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["utc"], true);
+    let from = j["extra"]["from"].as_u64().unwrap();
+    assert!((4..=12).contains(&from), "{from}");
+
+    // remux --sub-order 1,0: fra subs lead in the repack
+    let re = d.path().join("re.mkv");
+    let j = run_json(&[
+        "remux",
+        dual.to_str().unwrap(),
+        "--sub-order",
+        "1,0",
+        "-o",
+        re.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let subs = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "s",
+            "-show_entries",
+            "stream_tags=language",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&re)
+        .output()
+        .unwrap();
+    assert_eq!(
+        String::from_utf8_lossy(&subs.stdout)
+            .trim()
+            .split('\n')
+            .collect::<Vec<_>>(),
+        vec!["fra", "eng"]
+    );
+
+    // --sub-order refusals
+    let j = run_json(&[
+        "remux",
+        dual.to_str().unwrap(),
+        "--sub-order",
+        "5",
+        "-o",
+        &d.path().join("x5.mkv").to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "failed", "oob --sub-order must fail");
+    let j = run_json(&[
+        "remux",
+        dual.to_str().unwrap(),
+        "--sub-order",
+        "1,0",
+        "--sub-lang",
+        "fra",
+        "-o",
+        &d.path().join("x6.mkv").to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "failed", "--sub-order + --sub-lang must fail");
+
+    // live URL input: a looping mpegts UDP source is probed and relayed
+    // into a tcp listener — real re-stream
+    let src_port = {
+        let sock = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+        let p = sock.local_addr().unwrap().port();
+        drop(sock);
+        p
+    };
+    let dst_port = src_port + 1;
+    let url = format!("udp://127.0.0.1:{src_port}");
+    let mut source = Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-stream_loop",
+            "-1",
+            "-re",
+            "-i",
+            f.to_str().unwrap(),
+            "-c",
+            "copy",
+            "-f",
+            "mpegts",
+        ])
+        .arg(&url)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .expect("udp source");
+    let recv = d.path().join("relay.flv");
+    let mut listener = Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-listen",
+            "1",
+            "-i",
+            &format!("tcp://127.0.0.1:{dst_port}"),
+            "-c",
+            "copy",
+            "-f",
+            "flv",
+        ])
+        .arg(&recv)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .expect("tcp listener");
+    std::thread::sleep(std::time::Duration::from_millis(1500));
+    let j = run_json(&[
+        "live",
+        url.as_str(),
+        "--to",
+        &format!("tcp://127.0.0.1:{dst_port}"),
+        "--until",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    let _ = listener.kill();
+    let _ = listener.wait();
+    let _ = source.kill();
+    let _ = source.wait();
+    let raw = std::fs::read(&recv).unwrap_or_default();
+    assert!(raw.len() > 1000, "expected relayed flv, got {}", raw.len());
+    assert_eq!(&raw[..3], b"FLV", "expected flv magic");
+
+    // file-only flags refused on a URL input (before any network I/O)
+    let url = "tcp://127.0.0.1:1/feed";
+    let j = run_json(&["live", url, "--to", "tcp://127.0.0.1:2", "--loop"]);
+    assert_eq!(j["status"], "failed", "URL + --loop must fail");
+    let j = run_json(&["live", url, "--to", "tcp://127.0.0.1:2", "--start", "5"]);
+    assert_eq!(j["status"], "failed", "URL + --start must fail");
+    let j = run_json(&[
+        "live",
+        url,
+        "--to",
+        "tcp://127.0.0.1:2",
+        "--slate",
+        f.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "URL + --slate must fail");
+    let j = run_json(&["live", url, "--to", "tcp://127.0.0.1:2", "--list"]);
+    assert_eq!(j["status"], "failed", "URL + --list must fail");
+}
