@@ -44,6 +44,11 @@ pub struct Probe {
     /// (album/feed art muxed as a video stream)
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attached_pic_indices: Vec<u32>,
+    /// |audio start - video start| in ms — lip-sync QC from the container
+    /// (capture cards / multicam dailies drift). Missing on files whose
+    /// streams don't carry start_time.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub av_desync_ms: Option<f64>,
 }
 
 fn is_zero(v: &u32) -> bool {
@@ -113,6 +118,8 @@ struct FfprobeStream {
     sample_rate: Option<String>,
     #[serde(default)]
     duration: Option<String>,
+    #[serde(default)]
+    start_time: Option<String>,
 }
 
 #[derive(Deserialize, Default)]
@@ -259,6 +266,17 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
             })
             .filter_map(|s| s.index)
             .collect(),
+        av_desync_ms: match (
+            video
+                .and_then(|v| v.start_time.as_deref())
+                .and_then(parse_f64),
+            audio
+                .and_then(|a| a.start_time.as_deref())
+                .and_then(parse_f64),
+        ) {
+            (Some(v), Some(a)) => Some(((v - a).abs() * 1000.0).round()),
+            _ => None,
+        },
     })
 }
 

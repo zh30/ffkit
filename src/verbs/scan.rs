@@ -866,5 +866,8 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         extra["bitrate_peak_mbps"] = json!((br_peak_mbps * 100.0).round() / 100.0);
         extra["bitrate_spike_at"] = json!(br_spike_at);
     }
+    if let Some(ms) = probe.av_desync_ms {
+        extra["av_desync_ms"] = json!(ms);
+    }
     Ok(Contract::ok("scan", None, Some(probe)).with_extra(extra))
 }

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.280.0] — 2026-09-24
+
+### Added
+- `cut --black` — auto-detect and excise black stretches (blackdetect ≥0.3s at 98% black) joined via the drop path: dead-air trim for talking-head/event footage, the video twin of cutsil
+- `remux --video-delay SEC` — the other half of `--audio-delay`: shift the video track against the audio without re-encoding (capture cards that lag the picture; negative advances it by delaying the rest)
+- `probe`/`scan` report `av_desync_ms` — |audio start − video start| in ms read from container stream start_times: lip-sync QC with zero decoding, paired with `remux --audio-delay`/`--video-delay` to repair
+- `meta --album-artist`, `--show`, `--season`, `--episode`, `--network` — TV-series and podcast-feed tag set (verified landing in mp4/m4a/mkv: `album_artist`/`show`/`season_number`/`episode_id`/`network`)
+
 ## [0.279.0] — 2026-09-24
 
 ### Added

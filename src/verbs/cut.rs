@@ -20,9 +20,10 @@ pub fn run(args: CutArgs, g: &Globals) -> Result<Contract, Error> {
         && args.duration.is_none()
         && args.ranges.is_none()
         && args.drop.is_none()
+        && !args.black
     {
         return Err(Error::input(
-            "cut needs --start/--end/--duration/--ranges/--drop",
+            "cut needs --start/--end/--duration/--ranges/--drop/--black",
         ));
     }
 
@@ -50,6 +51,9 @@ pub fn run(args: CutArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(dropped) = &args.drop {
         return drop_cut(&args, dropped, g);
+    }
+    if args.black {
+        return black_cut(&args, g);
     }
 
     let mut argv = ffmpeg_base(g.progress);
@@ -169,10 +173,84 @@ fn ranges_cut(args: &CutArgs, ranges: &str, g: &Globals) -> Result<Contract, Err
 fn drop_cut(args: &CutArgs, ranges: &str, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "cut --drop")?;
-    let mut drops = parse_ranges(ranges, probe.duration)?
+    let drops = parse_ranges(ranges, probe.duration)?
         .into_iter()
         .map(|(a, b)| (a, b.min(probe.duration)))
         .collect::<Vec<_>>();
+    drop_segs(args, drops, probe, g)
+}
+
+/// cut --black: blackdetect finds the dead stretches, the drop path joins
+/// the keep ranges — dead-air trim for talking-head footage.
+fn black_cut(args: &CutArgs, g: &Globals) -> Result<Contract, Error> {
+    let probe = engine::probe_or_err(&args.input, g)?;
+    engine::need_video(&probe, "cut --black")?;
+    let drops = black_ranges(&args.input, probe.duration, g)?;
+    if drops.is_empty() {
+        return Err(Error::input(
+            "no black stretches found (≥0.3s at 98% black)",
+        ));
+    }
+    let mut c = drop_segs(args, drops.clone(), probe, g)?;
+    c = c.with_extra(serde_json::json!({
+        "black_ranges": drops.iter().map(|(a, b)| serde_json::json!({"start": a, "end": b, "duration": b - a})).collect::<Vec<_>>(),
+    }));
+    Ok(c)
+}
+
+/// blackdetect (≥0.3s at 98% black) → (start,end) segments.
+/// metadata=print emits both keys on the black_end frame's line.
+fn black_ranges(
+    input: &std::path::Path,
+    duration: f64,
+    g: &Globals,
+) -> Result<Vec<(f64, f64)>, Error> {
+    let mut argv = crate::spawn::Argv::ffmpeg();
+    argv.extend(["-i"]);
+    argv.push(input);
+    // blackdetect's interval report lands on stderr at info level —
+    // do NOT drop the log level or the ranges disappear
+    argv.extend([
+        "-vf",
+        "blackdetect=d=0.3:pic_th=0.98,metadata=print:file=-",
+        "-an",
+        "-f",
+        "null",
+        "-",
+    ]);
+    let sp = crate::spawn::require_ok(&argv, crate::spawn::run(&argv, g.timeout, false)?)?;
+    let out = format!(
+        "{}\n{}",
+        crate::spawn::stderr_str(&sp),
+        String::from_utf8_lossy(&sp.stdout)
+    );
+    let mut drops = Vec::new();
+    for line in out.lines() {
+        if let Some(rest) = line.split("black_start:").nth(1) {
+            let s = rest
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .parse::<f64>()
+                .unwrap_or(0.0);
+            let e = rest
+                .split("black_end:")
+                .nth(1)
+                .and_then(|r| r.split_whitespace().next())
+                .and_then(|t| t.parse::<f64>().ok())
+                .unwrap_or(s);
+            drops.push((s, e.min(duration)));
+        }
+    }
+    Ok(drops)
+}
+
+fn drop_segs(
+    args: &CutArgs,
+    mut drops: Vec<(f64, f64)>,
+    probe: Probe,
+    g: &Globals,
+) -> Result<Contract, Error> {
     drops.sort_by(|x, y| x.0.total_cmp(&y.0));
     let mut segs: Vec<(f64, f64)> = Vec::new();
     let mut cur = 0.0;

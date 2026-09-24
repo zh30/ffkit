@@ -31728,3 +31728,196 @@ fn r252_slideshow_list_scan_bitrate_meta_copyright_conform_channels_copy_video_t
     ]);
     assert_eq!(j["status"], "failed");
 }
+
+// RSI round 253: cut --black dead-air excision (blackdetect → concat_segs),
+// remux --video-delay lip-sync repair (mirror of --audio-delay),
+// probe/scan av_desync_ms, meta TV/podcast tag set.
+#[test]
+fn r253_cut_black_video_delay_desync_meta_tv_tags() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    // build 2s testsrc + 1.2s black + 1.5s testsrc via the concat demuxer
+    let mut names = Vec::new();
+    for (spec, name) in [
+        ("testsrc=d=2:s=320x240:r=30", "a"),
+        ("color=c=black:d=1.2:s=320x240:r=30", "b"),
+        ("testsrc=d=1.5:s=320x240:r=30", "c"),
+    ] {
+        let seg = d.join(format!("seg_{name}.mp4"));
+        let ok = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                spec,
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=f=440:d=5",
+                "-shortest",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+            ])
+            .arg(&seg)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok, "segment {name}");
+        names.push(seg);
+    }
+    let list = d.join("list.txt");
+    std::fs::write(
+        &list,
+        names
+            .iter()
+            .map(|s| format!("file '{}'\n", s.display()))
+            .collect::<String>(),
+    )
+    .unwrap();
+    let blacky = d.join("blacky.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+        ])
+        .arg(&list)
+        .args(["-c", "copy"])
+        .arg(&blacky)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+
+    // cut --black excises the 1.2s black stretch
+    let cut = d.join("cut.mp4");
+    let j = run_json(&[
+        "cut",
+        blacky.to_str().unwrap(),
+        "--black",
+        "-o",
+        cut.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let r = &j["extra"]["black_ranges"][0];
+    assert!((r["duration"].as_f64().unwrap() - 1.2).abs() < 0.2, "{r}");
+    let v = run_json(&["probe", cut.to_str().unwrap()]);
+    let out_dur = v["probe"]["duration"].as_f64().unwrap();
+    assert!(out_dur > 2.8 && out_dur < 4.2, "duration {out_dur}");
+
+    // lag the video +0.5s → scan reports av_desync_ms ≈ 500
+    let lag = d.join("lag.mkv");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-itsoffset",
+            "0.5",
+            "-i",
+        ])
+        .arg(&blacky)
+        .args(["-i"])
+        .arg(&blacky)
+        .args(["-map", "0:v", "-map", "1:a", "-c", "copy"])
+        .arg(&lag)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let j = run_json(&["scan", lag.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let ms = j["extra"]["av_desync_ms"].as_f64().unwrap();
+    assert!(ms > 400.0 && ms < 600.0, "desync {ms}");
+
+    // remux --video-delay -0.5 brings them back in sync (delay non-video)
+    let fixed = d.join("fixed.mkv");
+    let j = run_json(&[
+        "remux",
+        lag.to_str().unwrap(),
+        "--video-delay",
+        "-0.5",
+        "-o",
+        fixed.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let j = run_json(&["scan", fixed.to_str().unwrap()]);
+    assert!(j["extra"]["av_desync_ms"].as_f64().unwrap() < 100.0);
+
+    // positive shift delays video; delay flags are mutually exclusive
+    let push = d.join("push.mkv");
+    let j = run_json(&[
+        "remux",
+        blacky.to_str().unwrap(),
+        "--video-delay",
+        "0.3",
+        "-o",
+        push.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let j = run_json(&[
+        "remux",
+        blacky.to_str().unwrap(),
+        "--video-delay",
+        "0.1",
+        "--audio-delay",
+        "0.1",
+        "-o",
+        d.join("bad.mkv").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // meta TV/podcast tag set lands in the container
+    let tagged = d.join("tagged.mka");
+    let j = run_json(&[
+        "meta",
+        blacky.to_str().unwrap(),
+        "--show",
+        "My Show",
+        "--season",
+        "2",
+        "--episode",
+        "E12",
+        "--network",
+        "Net",
+        "--album-artist",
+        "Album Person",
+        "-o",
+        tagged.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format_tags",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&tagged)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout).to_uppercase();
+    for want in ["MY SHOW", "E12", "NET", "2", "ALBUM PERSON"] {
+        assert!(s.contains(want), "missing {want} in {s}");
+    }
+}

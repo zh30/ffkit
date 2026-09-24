@@ -451,6 +451,11 @@ pub struct CutArgs {
     /// Comma list of ranges to DROP, keeps the rest joined: "a-b,c-d"
     #[arg(long)]
     pub drop: Option<String>,
+    /// Auto-detect and excise black stretches (blackdetect ≥0.3s, 98%
+    /// black) — dead-air trim for talking-head/event footage, the video
+    /// twin of cutsil
+    #[arg(long)]
+    pub black: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2746,6 +2751,21 @@ pub struct MetaArgs {
     /// Copyright / license tag (release metadata; lands in mp4 too)
     #[arg(long)]
     pub copyright: Option<String>,
+    /// Album-artist tag (compilations, DJ mixes) — verified in m4a/mp4
+    #[arg(long)]
+    pub album_artist: Option<String>,
+    /// Show / podcast title tag (TV deliverables, podcast feeds)
+    #[arg(long)]
+    pub show: Option<String>,
+    /// Season number tag — pairs with --show/--episode
+    #[arg(long)]
+    pub season: Option<String>,
+    /// Episode id tag (podcast episode number / TV episode code)
+    #[arg(long)]
+    pub episode: Option<String>,
+    /// Network / broadcaster tag
+    #[arg(long)]
+    pub network: Option<String>,
     /// Fix the display rotation flag (0/90/180/270) without re-encoding
     #[arg(long)]
     pub rotate: Option<u32>,
@@ -3835,6 +3855,11 @@ pub struct RemuxArgs {
     /// advances it; requires the video stream to be kept)
     #[arg(long, allow_negative_numbers = true)]
     pub audio_delay: Option<f64>,
+    /// Shift the VIDEO track by SEC against the audio — the other half of
+    /// lip-sync repair (capture cards that lag the picture; positive
+    /// delays video, negative advances it)
+    #[arg(long, allow_negative_numbers = true)]
+    pub video_delay: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

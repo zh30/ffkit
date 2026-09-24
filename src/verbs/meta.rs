@@ -32,6 +32,11 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         ("bpm", bpm_text.as_deref()),
         ("lyrics", lyrics_text.as_deref()),
         ("copyright", args.copyright.as_deref()),
+        ("album_artist", args.album_artist.as_deref()),
+        ("show", args.show.as_deref()),
+        ("season_number", args.season.as_deref()),
+        ("episode_id", args.episode.as_deref()),
+        ("network", args.network.as_deref()),
         ("comment", args.comment.as_deref()),
     ]
     .into_iter()
