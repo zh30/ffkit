@@ -565,6 +565,7 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         || args.vtt
         || args.csv
         || args.srt
+        || args.edl
     {
         let text = if args.csv {
             // Resolve/Premiere marker + spreadsheet exchange: H:MM:SS.mmm,Title
@@ -606,6 +607,45 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
                 })
                 .collect();
             crate::srt::to_srt(&cues)
+        } else if args.edl {
+            // CMX-style EDL — Resolve/Premiere import each event as a
+            // timeline marker; spans use the clip's frame rate
+            let fps = probe.fps.unwrap_or(25.0).max(1.0).round();
+            let tc = |t: f64| -> String {
+                let fr = (t * fps).round() as u64;
+                format!(
+                    "{:02}:{:02}:{:02}:{:02}",
+                    fr / (fps as u64 * 3600),
+                    (fr / (fps as u64 * 60)) % 60,
+                    (fr / fps as u64) % 60,
+                    fr % fps as u64,
+                )
+            };
+            let mut s = String::from(
+                "TITLE: ffkit chapter marks
+FCM: NON-DROP FRAME
+
+",
+            );
+            for (i, (t, ti)) in marks.iter().enumerate() {
+                let end = if i + 1 < marks.len() {
+                    marks[i + 1].0
+                } else {
+                    probe.duration
+                };
+                s.push_str(&format!(
+                    "{:03}  AX       V     C        {} {} {} {}
+* FROM CLIP NAME: {}
+",
+                    i + 1,
+                    tc(*t),
+                    tc(end),
+                    tc(*t),
+                    tc(end),
+                    ti,
+                ));
+            }
+            s
         } else if args.vtt {
             // WebVTT chapters file — <track kind="chapters"> on a web
             // <video> gives click-to-seek nav without an editor timeline
@@ -700,7 +740,7 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         })?;
         let mut c = Contract::ok("chapter", Some(args.output.display().to_string()), None);
         c = c.with_extra(json!({
-            "exported": if args.csv { "csv" } else if args.vtt { "vtt" } else if args.lrc { "lrc" } else if args.podcast { "podcast" } else if args.yt { "youtube" } else if args.cue { "cue" } else if args.srt { "srt" } else { "ffmetadata" },
+            "exported": if args.csv { "csv" } else if args.vtt { "vtt" } else if args.lrc { "lrc" } else if args.podcast { "podcast" } else if args.yt { "youtube" } else if args.cue { "cue" } else if args.srt { "srt" } else if args.edl { "edl" } else { "ffmetadata" },
             "chapters": marks
                 .iter()
                 .map(|(t, ti)| json!({"time": t, "title": ti}))

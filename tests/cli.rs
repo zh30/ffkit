@@ -36689,3 +36689,106 @@ fn r283_fps_clip_genpts_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r284_duration_bitrate_channels_edl_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // streams[].duration + bit_rate — per-track length/rate QC
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    assert!((v["duration"].as_f64().unwrap() - 1.0).abs() < 0.15);
+    assert!(v["bit_rate"].as_u64().unwrap() > 0);
+    let a = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+    assert!(a["bit_rate"].as_u64().unwrap() > 0);
+
+    // live --channels — mono/stereo push spec; conflict + range errors
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--channels",
+        "1",
+        "--no-audio",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("--no-audio"));
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--channels",
+        "3",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "failed");
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--channels",
+        "1",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "dry_run");
+    assert!(j["commands"].to_string().contains("\"-ac\",\"1\""));
+
+    // chapter --edl — CMX events at the clip's frame rate
+    let edl = d.path().join("marks.edl");
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "-o",
+        edl.to_str().unwrap(),
+        "--at",
+        "0|Intro",
+        "--at",
+        "0.5|Middle",
+        "--edl",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["exported"], "edl");
+    let txt = std::fs::read_to_string(&edl).unwrap();
+    assert!(txt.contains("TITLE: ffkit chapter marks"));
+    assert!(txt.contains("001  AX       V     C"));
+    assert!(txt.contains("* FROM CLIP NAME: Intro"));
+    assert!(txt.contains("* FROM CLIP NAME: Middle"));
+    assert!(txt.contains("00:00:00:15")); // 0.5s at 30fps = frame 15
+
+    // deliver --platform +7: streaming/portfolio canvases
+    for name in [
+        "kakao",
+        "naver",
+        "coub",
+        "imgur",
+        "9gag",
+        "streamable",
+        "viddsee",
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

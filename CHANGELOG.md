@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.311.0] — 2026-09-24
+
+### Added
+- `probe`/`scan` `streams[].duration` + `streams[].bit_rate` — per-stream length & bitrate (truncated-track QC — an audio track shorter than the video tail leaves dead air; per-track rate specs)
+- `chapter --edl` exports a CMX-style EDL at the clip's frame rate (Resolve/Premiere/DaVinci timeline-marker import)
+- `live --channels 1|2` — force mono/stereo on the pushed audio (speech/radio ingest specs; refuses --no-audio)
+- `deliver --platform` +7: `kakao`/`naver`/`coub`/`imgur`/`9gag`/`streamable`/`viddsee` — KR platform & clip/portfolio hosts (16:9 1080p, −14 LUFS pipeline)
+
 ## [0.310.0] — 2026-09-24
 
 ### Added

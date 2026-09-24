@@ -661,3 +661,7 @@ an atempo'd whole-file render would shift the window.
 
 - **`-fflags +genpts` is an input-side flag** — it must precede `-i` to rebuild timestamps at demux; placing it after does nothing. It only repairs missing pts — it does NOT renumber gaps (a 2s pts hole still plays as a 2s stall; re-encode for that instead).
 - **`subs --clip` rebases the window to 0** — cue `1.5–2.0` clipped at `F=1.5` lands at `0–0.5`; `end` resolves to the last cue's end (an .srt has no container duration to probe).
+
+- **`streams[].duration`/`bit_rate` can be absent on some containers** — ffprobe reports them only when the muxer recorded per-stream duration/rate (mp4/mkv yes, some raw streams no); treat missing as unknown, not zero.
+- **EDL frame numbers use the clip's probed fps** — a VFR file exports marks at its average rate; NLE timelines running the same rate line up, a mismatched-timeline import lands off by drift.
+- **`--no-audio` reads as "no audio" inside flag guards** — order conflict checks before has_audio checks or the wrong error fires (`live --channels --no-audio` should say "conflicts", not "input has no audio").

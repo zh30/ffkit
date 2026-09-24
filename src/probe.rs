@@ -116,6 +116,14 @@ pub struct ProbeStream {
     /// landed on every track of a mixed-rate file)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fps: Option<f64>,
+    /// Stream duration in seconds (truncated-track QC — an audio track
+    /// shorter than the video tail leaves dead air)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration: Option<f64>,
+    /// Per-stream bitrate in bps (per-track rate QC — ingest specs gate
+    /// video bitrate separately from audio)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bit_rate: Option<u64>,
     /// Player-default track (disposition.default) — QC which track a
     /// player picks before `remux --default-audio`/`--default-sub`.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -201,6 +209,8 @@ struct FfprobeStream {
     profile: Option<String>,
     #[serde(default)]
     duration: Option<String>,
+    #[serde(default)]
+    bit_rate: Option<String>,
     #[serde(default)]
     start_time: Option<String>,
     #[serde(default)]
@@ -438,6 +448,8 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 profile: s.profile.clone(),
                 fps: parse_rate(s.avg_frame_rate.as_deref())
                     .or_else(|| parse_rate(s.r_frame_rate.as_deref())),
+                duration: s.duration.as_deref().and_then(parse_f64),
+                bit_rate: s.bit_rate.as_deref().and_then(|v| v.parse().ok()),
                 default: s
                     .disposition
                     .as_ref()

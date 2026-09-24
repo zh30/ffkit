@@ -1520,6 +1520,21 @@ pub enum DeliverPlatform {
     Flickr,
     /// Zhihu video answer 16:9 landscape (1920x1080, -14 LUFS)
     Zhihu,
+    /// Kakao (KakaoTalk/Channel) video 16:9 landscape (1920x1080, -14 LUFS)
+    Kakao,
+    /// Naver TV/Blog video 16:9 landscape (1920x1080, -14 LUFS)
+    Naver,
+    /// Coub looping video 16:9 landscape (1920x1080, -14 LUFS)
+    Coub,
+    /// Imgur video post 16:9 landscape (1920x1080, -14 LUFS)
+    Imgur,
+    /// 9GAG video post 16:9 landscape (1920x1080, -14 LUFS)
+    #[value(name = "9gag")]
+    NineGag,
+    /// Streamable clip host 16:9 landscape (1920x1080, -14 LUFS)
+    Streamable,
+    /// Viddsee short-film platform 16:9 landscape (1920x1080, -14 LUFS)
+    Viddsee,
     /// Spotify video podcast 16:9 landscape (1920x1080, -14 LUFS)
     Spotify,
     /// Apple Podcasts video episode 16:9 landscape (1920x1080, -14 LUFS)
@@ -5159,6 +5174,10 @@ pub struct LiveArgs {
     /// Audio bitrate (default 128k)
     #[arg(long)]
     pub abitrate: Option<String>,
+    /// Push audio channel count — 1 mono for speech/radio ingest specs
+    /// that reject stereo (refuses --no-audio)
+    #[arg(long)]
+    pub channels: Option<u8>,
     /// Scale pushed-audio gain 0..=4 (quiet a loud BGM source without
     /// re-rendering it; refuses --no-audio)
     #[arg(long)]
@@ -6374,7 +6393,7 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "csv", "srt", "list", "remove", "spread", "scenes"])]
+    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "csv", "srt", "edl", "list", "remove", "spread", "scenes"])]
     pub at: Vec<String>,
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
@@ -6427,6 +6446,11 @@ pub struct ChapterArgs {
     /// subs; burn to preview where seek points land)
     #[arg(long)]
     pub srt: bool,
+    /// Write marks as an EDL (edit decision list) at -o — CMX-style
+    /// events Resolve/Premiere/DaVinci import as timeline markers at
+    /// the clip's frame rate
+    #[arg(long)]
+    pub edl: bool,
     /// Import marks from a text file: lines "TIME|TITLE" or "TIME,TITLE"
     /// ('#' comments and blank lines skipped)
     #[arg(long)]

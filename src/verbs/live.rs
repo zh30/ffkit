@@ -172,6 +172,17 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("live --volume wants 0..=4"));
         }
     }
+    if let Some(ch) = args.channels {
+        if args.no_audio {
+            return Err(Error::input("live --channels conflicts with --no-audio"));
+        }
+        if !has_audio {
+            return Err(Error::input("live --channels: input has no audio"));
+        }
+        if ch == 0 || ch > 2 {
+            return Err(Error::input("live --channels wants 1 (mono) or 2 (stereo)"));
+        }
+    }
     if args.slate.is_some() && !has_video {
         return Err(Error::input(
             "live --slate needs a video stream to hold the card over",
@@ -433,6 +444,9 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             "-b:a".into(),
             abitrate.to_string(),
         ]);
+        if let Some(ch) = args.channels {
+            argv.extend(["-ac".into(), ch.to_string()]);
+        }
     } else {
         argv.push("-an");
     }
