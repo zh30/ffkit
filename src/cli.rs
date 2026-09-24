@@ -1506,6 +1506,20 @@ pub enum DeliverPlatform {
     Funimation,
     /// Mango TV / MGTV video 16:9 landscape (1920x1080, -14 LUFS)
     Mgtv,
+    /// BIGO LIVE stream 16:9 landscape (1920x1080, -14 LUFS)
+    Bigo,
+    /// Nimo TV gaming stream 16:9 landscape (1920x1080, -14 LUFS)
+    Nimo,
+    /// Tumblr video post 16:9 landscape (1920x1080, -14 LUFS)
+    Tumblr,
+    /// Dribbble shot video 16:9 landscape (1920x1080, -14 LUFS)
+    Dribbble,
+    /// Behance project video 16:9 landscape (1920x1080, -14 LUFS)
+    Behance,
+    /// Flickr video upload 16:9 landscape (1920x1080, -14 LUFS)
+    Flickr,
+    /// Zhihu video answer 16:9 landscape (1920x1080, -14 LUFS)
+    Zhihu,
     /// Spotify video podcast 16:9 landscape (1920x1080, -14 LUFS)
     Spotify,
     /// Apple Podcasts video episode 16:9 landscape (1920x1080, -14 LUFS)
@@ -2960,6 +2974,12 @@ pub struct SubsArgs {
     /// extras: sdh_stripped, empty cues drop)
     #[arg(long)]
     pub strip_sdh: bool,
+    /// Keep only cues overlapping window `F,T` (`end` ok for T), clip the
+    /// edges, and re-time the result to start at 0 — the `extract --audio
+    /// --from/--to` counterpart for transcripts (grab the subtitle chunk
+    /// for a cut segment; extras: clipped)
+    #[arg(long)]
+    pub clip: Option<String>,
     /// Rewrap cue text at N chars per line (portrait-phone captions;
     /// extras: rewrapped)
     #[arg(long)]
@@ -4389,6 +4409,11 @@ pub struct RemuxArgs {
     /// need wall-clock pts preserved instead of re-zeroed)
     #[arg(long)]
     pub copy_ts: bool,
+    /// Regenerate missing/broken timestamps on the way in (-fflags
+    /// +genpts) — repair for camera/truncated files whose pts holes make
+    /// them seek badly or probe at zero duration
+    #[arg(long)]
+    pub genpts: bool,
 }
 
 #[derive(clap::Args, Debug)]

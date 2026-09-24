@@ -112,6 +112,10 @@ pub struct ProbeStream {
     /// ingest specs reject some profiles (High 10 / 4:2:2 on social)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub profile: Option<String>,
+    /// Average frame rate (video — QC `conform --fps`/`transcode --fps`
+    /// landed on every track of a mixed-rate file)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fps: Option<f64>,
     /// Player-default track (disposition.default) — QC which track a
     /// player picks before `remux --default-audio`/`--default-sub`.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -432,6 +436,8 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 channels: s.channels,
                 sample_rate: s.sample_rate.as_deref().and_then(|v| v.parse().ok()),
                 profile: s.profile.clone(),
+                fps: parse_rate(s.avg_frame_rate.as_deref())
+                    .or_else(|| parse_rate(s.r_frame_rate.as_deref())),
                 default: s
                     .disposition
                     .as_ref()

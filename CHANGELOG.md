@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.310.0] — 2026-09-24
+
+### Added
+- `probe`/`scan` `streams[].fps` — per-track average frame rate (QC `conform --fps`/`transcode --fps` on mixed-rate files; video tracks only)
+- `subs --clip F,T` — keep only cues overlapping a window, clamp the edges and re-time to 0 (`end` ok — grab the subtitle chunk matching a `cut`/`split` segment; extras: `clipped`)
+- `remux --genpts` — `-fflags +genpts` on input: regenerate missing/broken timestamps (camera/truncated files that seek badly or probe at zero duration; conflicts with `--copy-ts`)
+- `deliver --platform` +7: `bigo`/`nimo`/`tumblr`/`dribbble`/`behance`/`flickr`/`zhihu` — streaming & portfolio canvases (16:9 1080p, −14 LUFS pipeline)
+
 ## [0.309.0] — 2026-09-24
 
 ### Added

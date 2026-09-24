@@ -658,3 +658,6 @@ an atempo'd whole-file render would shift the window.
 
 - **`subs --strip-sdh` treats every `(…)` span as an annotation** — SDH convention uses both `[SOUND]` and `(door creaks)`; a parenthetical that's real dialogue ("(whispered) yes") is stripped too. The flag is for broadcast/transcript files where parens are annotation-only.
 - **ffprobe `profile` is a per-stream string, not a number** — h264 reports "High 4:4:4 Predictive"/"Baseline"/"Main", aac reports "LC"/"HE-AAC". Match it as text (case-sensitive), never parse an int.
+
+- **`-fflags +genpts` is an input-side flag** — it must precede `-i` to rebuild timestamps at demux; placing it after does nothing. It only repairs missing pts — it does NOT renumber gaps (a 2s pts hole still plays as a 2s stall; re-encode for that instead).
+- **`subs --clip` rebases the window to 0** — cue `1.5–2.0` clipped at `F=1.5` lands at `0–0.5`; `end` resolves to the last cue's end (an .srt has no container duration to probe).

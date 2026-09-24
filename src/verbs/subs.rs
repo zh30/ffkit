@@ -81,6 +81,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.strip_speakers
         || args.strip_tags
         || args.strip_sdh
+        || args.clip.is_some()
         || args.wrap.is_some()
         || args.find.is_some()
     {
@@ -260,11 +261,42 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         != Some("srt")
     {
         return Err(Error::input(
-            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--cps/--min-dur/--max-lines/--replace/--strip-speakers/--wrap) take an .srt input",
+            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--cps/--min-dur/--max-lines/--replace/--strip-speakers/--strip-sdh/--clip/--wrap) take an .srt input",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
     let mut cues = crate::srt::parse_srt(&raw)?;
+    let mut dropped = 0usize;
+    // --clip F,T: keep cues overlapping the window, clamp edges, re-time
+    // to 0 — runs first so every other tidy op sees the clipped set.
+    let mut clipped = 0usize;
+    if let Some(raw) = &args.clip {
+        let (f_raw, t_raw) = raw
+            .split_once(',')
+            .ok_or_else(|| Error::input("subs --clip needs F,T (e.g. 1.5,end)"))?;
+        let f = crate::time::parse_time(f_raw)?;
+        let t = if t_raw.trim().eq_ignore_ascii_case("end") {
+            cues.iter().map(|c| c.end).fold(0.0, f64::max)
+        } else {
+            crate::time::parse_time(t_raw)?
+        };
+        if t <= f {
+            return Err(Error::input("subs --clip: window end must be after start"));
+        }
+        let before = cues.len();
+        cues.retain(|c| c.end > f && c.start < t);
+        dropped += before - cues.len();
+        if cues.is_empty() {
+            return Err(Error::input(format!(
+                "subs --clip {f:.3},{t:.3}: window holds no cues"
+            )));
+        }
+        for c in &mut cues {
+            c.start = (c.start - f).max(0.0);
+            c.end = (c.end - f).min(t - f);
+            clipped += 1;
+        }
+    }
     let sorted = args.sort && {
         let before: Vec<f64> = cues.iter().map(|c| c.start).collect();
         cues.sort_by(|a, b| {
@@ -275,7 +307,6 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         before != cues.iter().map(|c| c.start).collect::<Vec<_>>()
     };
     let mut clamped = 0usize;
-    let mut dropped = 0usize;
     if args.fix_overlaps {
         for i in 0..cues.len() {
             if i + 1 < cues.len() && cues[i].end > cues[i + 1].start {
@@ -480,6 +511,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "stripped": stripped,
         "tags_stripped": tags_stripped,
         "sdh_stripped": sdh_stripped,
+        "clipped": clipped,
         "rewrapped": rewrapped,
         "find": args.find,
         "found": found,

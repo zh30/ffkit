@@ -148,6 +148,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Crunchyroll
         | DeliverPlatform::Funimation
         | DeliverPlatform::Mgtv
+        | DeliverPlatform::Bigo
+        | DeliverPlatform::Nimo
+        | DeliverPlatform::Tumblr
+        | DeliverPlatform::Dribbble
+        | DeliverPlatform::Behance
+        | DeliverPlatform::Flickr
+        | DeliverPlatform::Zhihu
         | DeliverPlatform::Spotify
         | DeliverPlatform::Apple
         | DeliverPlatform::Amazonmusic
@@ -565,6 +572,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Crunchyroll => "crunchyroll",
         DeliverPlatform::Funimation => "funimation",
         DeliverPlatform::Mgtv => "mgtv",
+        DeliverPlatform::Bigo => "bigo",
+        DeliverPlatform::Nimo => "nimo",
+        DeliverPlatform::Tumblr => "tumblr",
+        DeliverPlatform::Dribbble => "dribbble",
+        DeliverPlatform::Behance => "behance",
+        DeliverPlatform::Flickr => "flickr",
+        DeliverPlatform::Zhihu => "zhihu",
         DeliverPlatform::Spotify => "spotify",
         DeliverPlatform::Apple => "apple",
         DeliverPlatform::Amazonmusic => "amazonmusic",

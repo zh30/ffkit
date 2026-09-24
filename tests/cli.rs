@@ -36588,3 +36588,104 @@ fn r282_sdh_profile_fade_in_platforms() {
         assert_eq!(j["probe"]["height"], 1080);
     }
 }
+
+#[test]
+fn r283_fps_clip_genpts_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // streams[].fps — per-track avg frame rate (fixture video is 30 fps)
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    assert_eq!(v["fps"], 30.0);
+    let a = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+    assert!(a["fps"].is_null());
+
+    // subs --clip F,T — window trim + rebase to 0
+    let w = d.path().join("w.srt");
+    std::fs::write(
+        &w,
+        "1\n00:00:00,000 --> 00:00:01,000\nfirst cue\n\n2\n00:00:01,000 --> 00:00:02,000\nsecond cue\n\n3\n00:00:02,000 --> 00:00:03,000\nthird cue\n\n",
+    )
+    .unwrap();
+    let wc = d.path().join("w_clip.srt");
+    let j = run_json(&[
+        "subs",
+        w.to_str().unwrap(),
+        "-o",
+        wc.to_str().unwrap(),
+        "--clip",
+        "1.5,end",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["clipped"], 2);
+    assert_eq!(j["extra"]["dropped"], 1);
+    assert_eq!(j["extra"]["cues"], 2);
+    let txt = std::fs::read_to_string(&wc).unwrap();
+    assert!(txt.contains("00:00:00,000 --> 00:00:00,500\nsecond cue"));
+    assert!(txt.contains("00:00:00,500 --> 00:00:01,500\nthird cue"));
+    // empty window errors
+    let j = run_json(&[
+        "subs",
+        w.to_str().unwrap(),
+        "-o",
+        d.path().join("e.srt").to_str().unwrap(),
+        "--clip",
+        "9,10",
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("window holds no cues"));
+
+    // remux --genpts — timestamp regeneration survives a clean file;
+    // conflicts with --copy-ts
+    let gp = d.path().join("gp.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        gp.to_str().unwrap(),
+        "--genpts",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let j = run_json(&["probe", gp.to_str().unwrap()]);
+    assert!((j["probe"]["duration"].as_f64().unwrap() - 1.0).abs() < 0.15);
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        d.path().join("x.mp4").to_str().unwrap(),
+        "--genpts",
+        "--copy-ts",
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("--copy-ts"));
+
+    // deliver --platform +7: asian & portfolio canvases
+    for name in [
+        "bigo", "nimo", "tumblr", "dribbble", "behance", "flickr", "zhihu",
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

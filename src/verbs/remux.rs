@@ -74,10 +74,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         && (args.offset.is_some()
             || args.itsscale.is_some()
             || args.audio_delay.is_some()
-            || args.video_delay.is_some())
+            || args.video_delay.is_some()
+            || args.genpts)
     {
         return Err(Error::input(
-            "remux --copy-ts keeps timestamps verbatim — drop the ts mutators (--offset/--itsscale/--audio-delay/--video-delay)",
+            "remux --copy-ts keeps timestamps verbatim — drop the ts mutators (--offset/--itsscale/--audio-delay/--video-delay/--genpts)",
         ));
     }
     // --keep 0,3: absolute stream indices — keeps ONLY the listed streams
@@ -177,6 +178,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     if args.copy_ts {
         argv.extend(["-copyts".to_string()]);
+    }
+    if args.genpts {
+        argv.extend(["-fflags".to_string(), "+genpts".to_string()]);
     }
     if let Some(k) = &args.decrypt {
         argv.extend(["-decryption_key".to_string(), k.trim().to_lowercase()]);
