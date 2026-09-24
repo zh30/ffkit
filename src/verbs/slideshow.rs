@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde_json::json;
 
@@ -44,7 +44,20 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         None
     };
-    let n = args.inputs.len();
+    // --shuffle: deterministic reroll — same seed, same order.
+    let mut ordered: Vec<PathBuf> = args.inputs.clone();
+    if let Some(seed) = args.shuffle {
+        let mut state = seed | 1;
+        for i in (1..ordered.len()).rev() {
+            // xorshift64*
+            state ^= state >> 12;
+            state ^= state << 25;
+            state ^= state >> 27;
+            let r = (state.wrapping_mul(0x2545F4914F6CDD1D) >> 33) as usize;
+            ordered.swap(i, r % (i + 1));
+        }
+    }
+    let n = ordered.len();
     // --dur/--fit: solve for the per-still length that lands the montage on
     // the target runtime (total = n*per - (n-1)*fade). --fit takes the
     // target from the audio bed's length.
@@ -81,7 +94,7 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         .as_deref()
         .map(crate::color::lavfi)
         .unwrap_or_else(|| "black".to_string());
-    for p in &args.inputs {
+    for p in &ordered {
         paths::ensure_input(p)?;
     }
     if args.volume.is_some() && args.audio.is_none() {
@@ -96,7 +109,7 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     let fps = args.fps;
 
     let mut argv = ffmpeg_base(g.progress);
-    for p in &args.inputs {
+    for p in &ordered {
         if args.motion == SlideMotion::Kenburns {
             // One input frame each; zoompan expands it into `per` seconds.
             argv.extend(["-i"]);
@@ -199,7 +212,7 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     ]);
     argv.push(&args.output);
 
-    let mut inputs: Vec<&Path> = args.inputs.iter().map(|p| p.as_path()).collect();
+    let mut inputs: Vec<&Path> = ordered.iter().map(|p| p.as_path()).collect();
     if let Some(bed) = &args.audio {
         inputs.push(bed);
     }
@@ -216,6 +229,8 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         "canvas": format!("{w}x{h}"),
         "music_bed": args.audio.is_some(),
         "fit": args.fit,
+        "seed": args.shuffle,
+        "order": ordered.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
         "expected_duration": total,
     }));
     Ok(c)

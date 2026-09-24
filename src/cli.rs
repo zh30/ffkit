@@ -1182,6 +1182,17 @@ pub struct DeliverArgs {
     /// Watermark opacity 0..=1 (default 1.0; ~0.6 reads as a ghost mark)
     #[arg(long)]
     pub logo_opacity: Option<f64>,
+    /// Prepend this clip before the pack render — channel intro/bumper
+    /// baked into every export (normalized to the platform canvas)
+    #[arg(long)]
+    pub intro: Option<PathBuf>,
+    /// Append this clip after the pack render — outro/CTA card
+    #[arg(long)]
+    pub outro: Option<PathBuf>,
+    /// Attach this image as embedded cover art on the podcast feed pack
+    /// (--platform podcast: attached_pic on the m4a — Apple/Spotify art)
+    #[arg(long)]
+    pub cover: Option<PathBuf>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -2771,6 +2782,10 @@ pub struct SlideshowArgs {
     /// from the music's length so the last still lands on the song's outro
     #[arg(long)]
     pub fit: bool,
+    /// Shuffle the stills deterministically: same seed = same order
+    /// (photo-dump montages, reroll the order without re-listing files)
+    #[arg(long)]
+    pub shuffle: Option<u64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3665,6 +3680,11 @@ pub struct RemuxArgs {
     /// segment to land on or before a keyframe boundary)
     #[arg(long)]
     pub to: Option<f64>,
+    /// Keep only audio tracks tagged with this language (ISO-639: eng,
+    /// jpn…) — multi-language releases, dub extraction; with --audio =
+    /// rip just that language's track; fails when no track matches
+    #[arg(long)]
+    pub lang: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

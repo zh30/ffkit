@@ -51,6 +51,26 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --no-subs only applies to a full repack — drop --audio/--video",
         ));
     }
+    let lang = args
+        .lang
+        .as_deref()
+        .map(str::trim)
+        .filter(|l| !l.is_empty());
+    if let Some(l) = lang {
+        if !l.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+            return Err(Error::input(
+                "remux --lang wants an ISO-639 code (eng, jpn, zh-hans…)",
+            ));
+        }
+        if args.video {
+            return Err(Error::input(
+                "remux --lang picks an audio track — --video drops all audio",
+            ));
+        }
+        if !probe.has_audio {
+            return Err(Error::input("remux --lang: input has no audio"));
+        }
+    }
     if args.audio {
         if !probe.has_audio {
             return Err(Error::input("remux --audio: input has no audio"));
@@ -64,7 +84,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "wav" | "aif" | "aiff" | "caf" => src.starts_with("pcm"),
             _ => true,
         };
-        argv.extend(["-map", "0:a"]);
+        let audio_map = match lang {
+            Some(l) => format!("0:a:m:language:{l}"),
+            None => "0:a".to_string(),
+        };
+        argv.extend(["-map", audio_map.as_str()]);
         if fits {
             argv.extend(["-c:a", "copy"]);
         } else {
@@ -85,6 +109,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if args.no_subs {
             // negative maps drop subtitle/data streams; attachments stay
             argv.extend(["-map", "0", "-map", "-0:s", "-map", "-0:d", "-c", "copy"]);
+        } else if let Some(l) = lang {
+            // language-filtered repack: every video + only LANG-tagged audio
+            argv.extend(["-map", "0:v", "-map"]);
+            argv.push(format!("0:a:m:language:{l}"));
+            argv.extend(["-map", "0:s?", "-map", "0:d?", "-c", "copy"]);
         } else {
             argv.extend(["-map", "0", "-c", "copy"]);
         }
@@ -116,6 +145,6 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
 
     let c = engine::write_job("remux", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": lang }),
     ))
 }

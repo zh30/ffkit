@@ -22,10 +22,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--logo-opacity must be 0..=1"));
         }
     }
+    if args.cover.is_some() && !matches!(args.platform, DeliverPlatform::Podcast) {
+        return Err(Error::input(
+            "deliver --cover only applies to --platform podcast (feed art)",
+        ));
+    }
     if matches!(args.platform, DeliverPlatform::Podcast) {
-        if args.logo.is_some() {
+        if args.logo.is_some() || args.intro.is_some() || args.outro.is_some() {
             return Err(Error::input(
-                "deliver --logo needs a video platform — podcast has no picture",
+                "deliver --logo/--intro/--outro need a video platform — podcast has no picture",
             ));
         }
         return podcast(args, &probe, g);
@@ -46,6 +51,22 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     engine::need_video(&probe, "deliver")?;
+    let wrap = args.intro.is_some() || args.outro.is_some();
+    if wrap {
+        for clip in [args.intro.as_ref(), args.outro.as_ref()]
+            .into_iter()
+            .flatten()
+        {
+            crate::paths::ensure_input(clip)?;
+            let cp = engine::probe_or_err(clip, g)?;
+            engine::need_video(&cp, "deliver --intro/--outro")?;
+            if probe.has_audio && !cp.has_audio {
+                return Err(Error::input(
+                    "deliver --intro/--outro clips need an audio track to match the main audio",
+                ));
+            }
+        }
+    }
 
     let (fw, fh) = match args.platform {
         DeliverPlatform::Youtube => (1920, 1080),
@@ -58,6 +79,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         "scale={fw}:{fh}:force_original_aspect_ratio=decrease,pad={fw}:{fh}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps={fps}",
         fps = args.fps.unwrap_or(30)
     );
+    let mut subs_part: Option<String> = None;
     if let Some(subs) = &args.subs {
         // The subtitles filter parses `:` `'` `,` in filenames — escape them.
         let path = subs
@@ -66,7 +88,8 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             .to_string_lossy()
             .replace('\\', "\\\\")
             .replace('\'', "\\'");
-        vf.push_str(&format!(",subtitles=filename='{path}'"));
+        subs_part = Some(format!(",subtitles=filename='{path}'"));
+        vf.push_str(subs_part.as_deref().unwrap());
     }
     vf.push_str(",format=yuv420p");
     let platform = platform_name(args.platform);
@@ -74,10 +97,98 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     let mut apply = ffmpeg_base(g.progress);
     apply.push("-i");
     apply.push(&args.input);
-    if let Some(logo) = &args.logo {
+    let mut ni = 1u32;
+    let intro_i = if let Some(p) = &args.intro {
+        apply.push("-i");
+        apply.push(p);
+        let i = ni;
+        ni += 1;
+        Some(i)
+    } else {
+        None
+    };
+    let outro_i = if let Some(p) = &args.outro {
+        apply.push("-i");
+        apply.push(p);
+        let i = ni;
+        ni += 1;
+        Some(i)
+    } else {
+        None
+    };
+    let logo_i = if let Some(logo) = &args.logo {
         crate::paths::ensure_input(logo)?;
         apply.push("-i");
         apply.push(logo);
+        let i = ni;
+        Some(i)
+    } else {
+        None
+    };
+    let logo_fg = |li: u32| -> String {
+        let lw = (fw * 18 / 100).max(16);
+        let m = (fh * 3 / 100).max(8);
+        let (x, y) = match args.logo_position.unwrap_or(LogoPos::Br) {
+            LogoPos::Tl => (format!("{m}"), format!("{m}")),
+            LogoPos::Tr => (format!("W-w-{m}"), format!("{m}")),
+            LogoPos::Bl => (format!("{m}"), format!("H-h-{m}")),
+            LogoPos::Br => (format!("W-w-{m}"), format!("H-h-{m}")),
+        };
+        let mut lg = format!("[{li}:v]scale={lw}:-1");
+        if let Some(op) = args.logo_opacity {
+            lg.push_str(&format!(",format=rgba,colorchannelmixer=aa={op}"));
+        }
+        lg.push_str(&format!("[lg];[vc][lg]overlay={x}:{y}[vo]"));
+        lg
+    };
+    // wrap: fc held aside so loudnorm folds into the graph — -af conflicts
+    // with a complex-feed stream.
+    let mut wrap_fc: Option<String> = None;
+    let mut wrap_vout = "vc";
+    if wrap {
+        // Brand wrap: every segment normalized to the platform canvas, then
+        // concat — subs/logo ride the whole deliverable (logo on top of all
+        // three, captions on the main segment only).
+        let segs: Vec<u32> = intro_i.into_iter().chain([0]).chain(outro_i).collect();
+        let mut fc = String::new();
+        for (k, i) in segs.iter().enumerate() {
+            let mut chain = format!(
+                "scale={fw}:{fh}:force_original_aspect_ratio=decrease,pad={fw}:{fh}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps={fps}",
+                fps = args.fps.unwrap_or(30)
+            );
+            if *i == 0 {
+                if let Some(sp) = &subs_part {
+                    chain.push_str(sp);
+                }
+            }
+            chain.push_str(",format=yuv420p");
+            fc.push_str(&format!("[{i}:v]{chain}[v{k}];"));
+            if probe.has_audio {
+                fc.push_str(&format!(
+                    "[{i}:a]aresample=48000,aformat=channel_layouts=stereo[a{k}];"
+                ));
+            }
+        }
+        let ins: String = (0..segs.len())
+            .map(|k| {
+                if probe.has_audio {
+                    format!("[v{k}][a{k}]")
+                } else {
+                    format!("[v{k}]")
+                }
+            })
+            .collect();
+        if probe.has_audio {
+            fc.push_str(&format!("{ins}concat=n={}:v=1:a=1[vc][ac];", segs.len()));
+        } else {
+            fc.push_str(&format!("{ins}concat=n={}:v=1:a=0[vc];", segs.len()));
+        }
+        if let Some(li) = logo_i {
+            fc.push_str(&logo_fg(li));
+            wrap_vout = "vo";
+        }
+        wrap_fc = Some(fc);
+    } else if let Some(li) = logo_i {
         let lw = (fw * 18 / 100).max(16);
         let m = (fh * 3 / 100).max(8);
         let (x, y) = match args.logo_position.unwrap_or(LogoPos::Br) {
@@ -90,7 +201,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(op) = args.logo_opacity {
             lg.push_str(&format!(",format=rgba,colorchannelmixer=aa={op}"));
         }
-        let fc = format!("[0:v]{vf}[base];[1:v]{lg}[lg];[base][lg]overlay={x}:{y}[vout]");
+        let fc = format!("[0:v]{vf}[base];[{li}:v]{lg}[lg];[base][lg]overlay={x}:{y}[vout]");
         apply.extend(["-filter_complex", &fc]);
         apply.extend(["-map", "[vout]"]);
         if probe.has_audio {
@@ -126,11 +237,17 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             let spawned = spawn::run(&m, g.timeout, false)?;
             let spawned = spawn::require_ok(&m, spawned)?;
             let meas = loudnorm::parse_measured(&spawn::stderr_str(&spawned))?;
-            apply.extend([
-                "-af",
-                &loudnorm::apply_filter(TARGET_I, TARGET_TP, TARGET_LRA, &meas, false),
-            ]);
+            let ln = loudnorm::apply_filter(TARGET_I, TARGET_TP, TARGET_LRA, &meas, false);
+            if let Some(fc) = &mut wrap_fc {
+                let fcs = fc.trim_end_matches(';').to_string();
+                *fc = format!("{fcs};[ac]{ln}[aout]");
+            } else {
+                apply.extend(["-af", &ln]);
+            }
             measured = Some(meas);
+        } else if let Some(fc) = &mut wrap_fc {
+            let fcs = fc.trim_end_matches(';').to_string();
+            *fc = format!("{fcs};[ac]{filter}[aout]");
         } else {
             apply.extend(["-af", &filter]);
         }
@@ -141,6 +258,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         measure = Some(m);
     } else {
         apply.push("-an");
+    }
+    if let Some(fc) = wrap_fc {
+        apply.extend(["-filter_complex", fc.trim_end_matches(';')]);
+        apply.extend(["-map", &format!("[{wrap_vout}]")]);
+        if probe.has_audio {
+            apply.extend(["-map", "[aout]"]);
+        }
     }
     // --to: rendered pack pushed straight to ingest — drop faststart (no
     // moov in FLV), add zerolatency, emit -f flv instead of a file
@@ -171,6 +295,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             (fw, fh),
             measured,
             args.fps.unwrap_or(30),
+            &args,
         ));
     }
 
@@ -190,6 +315,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
                 (fw, fh),
                 measured,
                 args.fps.unwrap_or(30),
+                &args,
             ));
         }
     }
@@ -202,6 +328,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         (fw, fh),
         measured,
         args.fps.unwrap_or(30),
+        &args,
     ))
 }
 
@@ -211,6 +338,7 @@ fn finish(
     frame: (u32, u32),
     measured: Option<serde_json::Value>,
     fps: u32,
+    args: &DeliverArgs,
 ) -> Contract {
     c.with_extra(json!({
         "platform": platform,
@@ -219,6 +347,9 @@ fn finish(
         "target_i": TARGET_I,
         "target_tp": TARGET_TP,
         "measured": measured,
+        "intro": args.intro.is_some(),
+        "outro": args.outro.is_some(),
+        "logo": args.logo.is_some(),
     }))
 }
 
@@ -247,7 +378,14 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
     let mut apply = ffmpeg_base(g.progress);
     apply.push("-i");
     apply.push(&args.input);
-    apply.push("-vn");
+    if let Some(cover) = &args.cover {
+        crate::paths::ensure_input(cover)?;
+        apply.push("-i");
+        apply.push(cover);
+        apply.extend(["-map", "0:a", "-map", "1:v"]);
+    } else {
+        apply.push("-vn");
+    }
     let mut m = Argv::ffmpeg();
     m.extend(["-nostats", "-i"]);
     m.push(&args.input);
@@ -277,6 +415,18 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
         ]);
     }
     apply.extend(["-c:a", "aac", "-ar", "48000", "-b:a", "128k"]);
+    if args.cover.is_some() {
+        // .m4a resolves to the ipod muxer, which rejects video streams in
+        // ffmpeg 4.x — force mp4 (same container) so mjpeg attaches.
+        apply.extend([
+            "-c:v",
+            "mjpeg",
+            "-disposition:v:1",
+            "attached_pic",
+            "-f",
+            "mp4",
+        ]);
+    }
     if let Some(ch) = args.channels {
         apply.extend(["-ac", &ch.to_string()]);
     }
@@ -305,5 +455,6 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
         "target_i": PODCAST_I,
         "target_tp": TARGET_TP,
         "measured": measured,
+        "cover": args.cover.is_some(),
     })))
 }

@@ -28903,3 +28903,336 @@ fn r239_remux_trim_slideshow_fit_logo_live_list_test() {
     ]);
     assert_eq!(j["status"], "failed", "--test with an input file must fail");
 }
+
+#[test]
+fn r240_lang_shuffle_wrap_cover_test() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn probe_csv(args: &[String]) -> String {
+        let o = Command::new("ffprobe")
+            .args(args)
+            .output()
+            .expect("ffprobe");
+        String::from_utf8_lossy(&o.stdout).into_owned()
+    }
+    fn dur(p: &Path) -> f64 {
+        probe_csv(&[
+            s("-v"),
+            s("error"),
+            s("-show_entries"),
+            s("format=duration"),
+            s("-of"),
+            s("csv=p=0"),
+            p.to_string_lossy().into_owned(),
+        ])
+        .trim()
+        .parse()
+        .unwrap_or(0.0)
+    }
+    fn ffmpeg(args: &[String]) {
+        let o = Command::new("ffmpeg").args(args).output().unwrap();
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    }
+
+    // remux --lang: pick one tagged audio track out of a multi-language
+    // release — eng 440Hz / jpn 550Hz
+    let dual = d.join("dual.mkv");
+    ffmpeg(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("testsrc=duration=2:size=320x240:rate=30"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=440:duration=2"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=550:duration=2"),
+        s("-map"),
+        s("0:v"),
+        s("-map"),
+        s("1:a"),
+        s("-map"),
+        s("2:a"),
+        s("-metadata:s:a:0"),
+        s("language=eng"),
+        s("-metadata:s:a:1"),
+        s("language=jpn"),
+        s("-c:v"),
+        s("libx264"),
+        s("-pix_fmt"),
+        s("yuv420p"),
+        s("-c:a"),
+        s("aac"),
+        s("-shortest"),
+        dual.to_string_lossy().into_owned(),
+    ]);
+    let jp = d.join("jpn.mp4");
+    let j = run_json(&[
+        "remux",
+        &dual.to_string_lossy(),
+        "-o",
+        &jp.to_string_lossy(),
+        "--lang",
+        "jpn",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let kinds = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_entries"),
+        s("stream=codec_type"),
+        s("-of"),
+        s("csv=p=0"),
+        jp.to_string_lossy().into_owned(),
+    ]);
+    assert_eq!(kinds.trim().split('\n').count(), 2, "{kinds}");
+    let tag = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-select_streams"),
+        s("a"),
+        s("-show_entries"),
+        s("stream_tags=language"),
+        s("-of"),
+        s("csv=p=0"),
+        jp.to_string_lossy().into_owned(),
+    ]);
+    assert_eq!(tag.trim(), "jpn", "{tag}");
+    // rip just that language's track
+    let j = run_json(&[
+        "remux",
+        &dual.to_string_lossy(),
+        "-o",
+        &d.join("ja.m4a").to_string_lossy(),
+        "--lang",
+        "jpn",
+        "--audio",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    // a language that isn't there must fail loudly
+    let j = run_json(&[
+        "remux",
+        &dual.to_string_lossy(),
+        "-o",
+        &d.join("fr.mp4").to_string_lossy(),
+        "--lang",
+        "fra",
+    ]);
+    assert_eq!(j["status"], "failed", "missing language must fail");
+    // --lang with --video is contradictory
+    let j = run_json(&[
+        "remux",
+        &dual.to_string_lossy(),
+        "-o",
+        &d.join("v.mp4").to_string_lossy(),
+        "--lang",
+        "jpn",
+        "--video",
+    ]);
+    assert_eq!(j["status"], "failed", "--lang + --video must fail");
+
+    // slideshow --shuffle: deterministic photo order — same seed, same order
+    let mut imgs = Vec::new();
+    for (i, c) in ["red", "green", "yellow"].iter().enumerate() {
+        let p = d.join(format!("img{i}.png"));
+        ffmpeg(&[
+            s("-y"),
+            s("-v"),
+            s("error"),
+            s("-f"),
+            s("lavfi"),
+            s("-i"),
+            format!("color=c={c}:size=320x240:d=1"),
+            s("-frames:v"),
+            s("1"),
+            p.to_string_lossy().into_owned(),
+        ]);
+        imgs.push(p.to_string_lossy().into_owned());
+    }
+    let out7 = d.join("s7.mp4");
+    let mut a = vec!["slideshow"];
+    for i in &imgs {
+        a.push(i.as_str());
+    }
+    let out7s = out7.to_string_lossy().into_owned();
+    a.extend([
+        "-o",
+        out7s.as_str(),
+        "--per",
+        "1",
+        "--fade",
+        "0",
+        "--shuffle",
+        "7",
+    ]);
+    let j = run_json(&a);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let order: Vec<String> = j["extra"]["order"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
+    let names: Vec<String> = order
+        .iter()
+        .map(|p| p.rsplit('/').next().unwrap().to_string())
+        .collect();
+    assert_eq!(
+        names,
+        vec!["img0.png", "img2.png", "img1.png"],
+        "seed 7 order {names:?}"
+    );
+    let out7b = d.join("s7b.mp4");
+    let mut a = vec!["slideshow"];
+    for i in &imgs {
+        a.push(i.as_str());
+    }
+    let out7bs = out7b.to_string_lossy().into_owned();
+    a.extend([
+        "-o",
+        out7bs.as_str(),
+        "--per",
+        "1",
+        "--fade",
+        "0",
+        "--shuffle",
+        "7",
+    ]);
+    let j = run_json(&a);
+    let order2: Vec<String> = j["extra"]["order"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(order, order2, "same seed must give the same order");
+
+    // deliver --intro/--outro: channel bumper + CTA card baked into the pack
+    let intro = d.join("intro.mp4");
+    ffmpeg(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("color=c=red:size=640x360:rate=30:d=1"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=660:duration=1"),
+        s("-c:v"),
+        s("libx264"),
+        s("-pix_fmt"),
+        s("yuv420p"),
+        s("-c:a"),
+        s("aac"),
+        s("-shortest"),
+        intro.to_string_lossy().into_owned(),
+    ]);
+    let outro = d.join("outro.mp4");
+    ffmpeg(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("color=c=blue:size=640x360:rate=30:d=1"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=550:duration=1"),
+        s("-c:v"),
+        s("libx264"),
+        s("-pix_fmt"),
+        s("yuv420p"),
+        s("-c:a"),
+        s("aac"),
+        s("-shortest"),
+        outro.to_string_lossy().into_owned(),
+    ]);
+    let dw = d.join("dw.mp4");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &dw.to_string_lossy(),
+        "--platform",
+        "square",
+        "--intro",
+        &intro.to_string_lossy(),
+        "--outro",
+        &outro.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["intro"], true);
+    assert_eq!(j["extra"]["outro"], true);
+    let t = dur(&dw);
+    assert!((t - 3.0).abs() < 0.6, "intro+main+outro dur {t}");
+
+    // deliver --platform podcast --cover: attached art on the feed pack
+    let song = d.join("song.m4a");
+    ffmpeg(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=440:duration=4"),
+        s("-c:a"),
+        s("aac"),
+        song.to_string_lossy().into_owned(),
+    ]);
+    let cover = d.join("cover.png");
+    ffmpeg(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("color=c=purple:size=300x300:d=1"),
+        s("-frames:v"),
+        s("1"),
+        cover.to_string_lossy().into_owned(),
+    ]);
+    let pod = d.join("pod.m4a");
+    let j = run_json(&[
+        "deliver",
+        &song.to_string_lossy(),
+        "-o",
+        &pod.to_string_lossy(),
+        "--platform",
+        "podcast",
+        "--cover",
+        &cover.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["cover"], true);
+    let kinds = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_entries"),
+        s("stream=codec_name"),
+        s("-of"),
+        s("csv=p=0"),
+        pod.to_string_lossy().into_owned(),
+    ]);
+    assert!(kinds.contains("aac") && kinds.contains("mjpeg"), "{kinds}");
+}

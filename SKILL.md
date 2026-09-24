@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.266.0
+version: 0.267.0
 
 
 
@@ -55,7 +55,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | news-ticker crawl | `scroll` (`--mode ticker`, `--bg` opaque bar, `--speed` px/s) |
 | AV1 delivery | `transcode` (`--preset av1`) |
 | podcast/voice → mp3/m4a/wav/flac/opus | `transcode` (`--preset mp3`/`aac`/`wav`/`flac`/`opus` — `-vn` audio-only) |
-| podcast feed pack (−16 LUFS spec) | `deliver --platform podcast` (m4a AAC 128k/48k, loudnorm to feed spec; works on audio-only sources); any platform: `--preview SEC` renders just the pack's head for approval QC, `--logo mark.png` burns a corner watermark during the pack render (`--logo-position tl/tr/bl/br`, `--logo-opacity`) |
+| podcast feed pack (−16 LUFS spec) | `deliver --platform podcast` (m4a AAC 128k/48k, loudnorm to feed spec; works on audio-only sources, `--cover art.png` embeds the Apple/Spotify cover); any platform: `--preview SEC` renders just the pack's head for approval QC, `--logo mark.png` burns a corner watermark during the pack render (`--logo-position tl/tr/bl/br`, `--logo-opacity`), `--intro/--outro clip.mp4` bakes a channel bumper and CTA card onto every export (normalized to the platform canvas) |
 | resample/force channels on export | `transcode --ar 48000 --channels 1|2` (broadcast 48k stereo, podcast mono — re-encode only, `--copy-audio` skips) |
 | audiogram of just the best bit(s) | `audiogram` (`--from/--to` one segment; `--at a,b --dur 30` = one clip per point → `stem_N.mp4`) |
 | cover still | `cover` (`--blur` ambient pad, `--size` canvas, comma `--at` = one cover per time) |
@@ -78,10 +78,10 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | warm faces only | `grade --skin -1..1` (selectivecolor reds channel — warms skin, leaves the rest) |
 | HALD image LUT | `grade --lut look.png` (PNG/JPG → haldclut; Darktable/RawTherapee exports) |
 | karaoke / keep only the vocal | `vocal` (`--at`/`--dur` window, `--mode karaoke` drops the center, `isolate` keeps it — stereo only; `--amount` partial) |
-| container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart); `--audio` rips the track, `--video` video-only, `--aspect 16:9` fixes display AR; `--frag` fragmented MP4 (moof/mfra — playable while still being written, HLS/DASH pipelines); `--no-subs` drops subtitle/data streams in the repack (clean deliverable); `--from/--to` lossless trim (keyframe-accurate, no re-encode) |
+| container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart); `--audio` rips the track, `--video` video-only, `--aspect 16:9` fixes display AR; `--frag` fragmented MP4 (moof/mfra — playable while still being written, HLS/DASH pipelines); `--no-subs` drops subtitle/data streams in the repack (clean deliverable); `--from/--to` lossless trim (keyframe-accurate, no re-encode); `--lang jpn` keeps only audio tagged with that language (multi-language releases, dub extraction; with `--audio` rips just that track) |
 | top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline`, `--at/--dur` window — `--at end` covers the tail), `--position` center/bottom, `--wrap` + `--align` multiline, `--fade` edge fades (needs --at/--dur), `--opacity` ghost text |
 | fix my podcast voice | `voice` — one-shot chain: gate hiss → compress swings → loudnorm `--lufs` (default −16); `--at`/`--dur` windows it |
-| slideshow that runs exactly N seconds | `slideshow` (`--dur` spreads the runtime across the stills, `--bg` letterbox color); `--fit` ends the montage exactly when the `--audio` bed ends |
+| slideshow that runs exactly N seconds | `slideshow` (`--dur` spreads the runtime across the stills, `--bg` letterbox color); `--fit` ends the montage exactly when the `--audio` bed ends; `--shuffle SEED` rerolls the photo order deterministically (same seed = same order, photo-dump montages) |
 | old interlaced footage | `deinterlace` (`--mode field` doubles the rate, `frame` same rate, `--parity` field order, `--engine` yadif/bwdif/estdif/kerndeint/w3fdif/mcdeint/fieldmatch/detelecine/`separate`/`pullup`/`phase` field reorder/`field` half-height quick preview) |
 | fade to white | `fade --color white` (`--in`/`--out` seconds as usual) |
 | blend two audio files | `crossfade` (`--second`, `--dur` overlap — acrossfade) |

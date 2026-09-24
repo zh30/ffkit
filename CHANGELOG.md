@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.267.0] — 2026-09-23
+
+- `remux --lang LANG` — keep only audio tracks tagged with a language (ISO-639: `eng`, `jpn`, …): multi-language releases down to one track, dub extraction; positive `-map 0:a:m:language:L` fails loudly when nothing matches; with `--audio` rips just that track
+- `slideshow --shuffle SEED` — deterministic photo order: same seed → same order across runs (xorshift Fisher-Yates), reroll photo-dump montages without re-listing files; `extra.order` reports the resolved order
+- `deliver --intro clip.mp4` / `--outro clip.mp4` — channel bumper + CTA card baked into every platform export: each segment normalized to the platform canvas (scale/pad/setsar/fps + 48k stereo), concat-joined, loudnorm applied to the whole deliverable (folded into filter_complex — `-af` can't touch a complex-fed stream); subs ride the main segment, `--logo` overlays post-concat so it covers all three
+- `deliver --platform podcast --cover art.png` — embedded feed art: cover becomes an `attached_pic` mjpeg stream on the m4a (Apple/Spotify show art); forced `-f mp4` since the `.m4a` ipod muxer rejects video streams on ffmpeg 4.x
+
 ## [0.266.0] — 2026-09-23
 
 - `live --list` — concat-manifest rotation channel: input becomes a text file of `file 'x'` lines, `-f concat -safe 0` streams them back-to-back; `--loop` loops the whole list (24/7 channel, rotation replays)
