@@ -32391,3 +32391,128 @@ fn r256_media_type_gapless_scan_tc() {
     let j = run_json(&["scan", f.to_str().unwrap()]);
     assert!(j["extra"].get("timecode").is_none());
 }
+
+#[test]
+fn r257_split_copy_chapter_vtt_has_alpha() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    // real-GOP source so the lossless segmenter has keyframes to cut on
+    let src = d.join("long.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=d=3:s=320x240:r=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=d=3",
+            "-c:v",
+            "libx264",
+            "-g",
+            "15",
+            "-c:a",
+            "aac",
+            src.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+
+    // split --copy: parts exist, no re-encode path taken
+    let j = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        d.join("p.mp4").to_str().unwrap(),
+        "--every",
+        "1",
+        "--copy",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["copy"], true);
+    assert_eq!(j["extra"]["count"], 3);
+    assert!(d.join("p_00.mp4").exists());
+    let j = run_json(&[
+        "split",
+        src.to_str().unwrap(),
+        "-o",
+        d.join("q.mp4").to_str().unwrap(),
+        "--every",
+        "1",
+        "--copy",
+        "--fade",
+        "0.2",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // chapter --vtt: WEBVTT cue export, and --import .vtt round-trips
+    let vtt = d.join("ch.vtt");
+    let j = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "--at",
+        "0|Intro",
+        "--at",
+        "1|Middle",
+        "--vtt",
+        "-o",
+        vtt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["exported"], "vtt");
+    let text = std::fs::read_to_string(&vtt).unwrap();
+    assert!(text.starts_with("WEBVTT"));
+    assert!(text.contains("00:00:01.000 --> "));
+    let j = run_json(&[
+        "chapter",
+        src.to_str().unwrap(),
+        "--import",
+        vtt.to_str().unwrap(),
+        "--yt",
+        "-o",
+        d.join("ch.yt.txt").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let yt = std::fs::read_to_string(d.join("ch.yt.txt")).unwrap();
+    assert!(
+        yt.contains("0:00 Intro") && yt.contains("0:01 Middle"),
+        "{yt}"
+    );
+
+    // probe has_alpha: yuva pixel format → true, plain yuv420p → false
+    let a = d.join("a.mov");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:d=0.3:s=64x64",
+            "-vf",
+            "format=yuva444p10le",
+            "-c:v",
+            "prores_ks",
+            "-pix_fmt",
+            "yuva444p10le",
+            a.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    if st.success() {
+        let j = run_json(&["probe", a.to_str().unwrap()]);
+        assert_eq!(j["probe"]["has_alpha"], true);
+    }
+    let f = fixture(d);
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(j["probe"]["has_alpha"], false);
+}

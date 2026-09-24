@@ -31,9 +31,10 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             || args.chapters
             || args.subs.is_some()
             || args.fade.is_some()
+            || args.copy
         {
             return Err(Error::input(
-                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade)",
+                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy)",
             ));
         }
         engine::need_video(&probe, "split --black")?;
@@ -212,12 +213,16 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
 
     // The muxer cuts at the first keyframe *after* a listed time, so list
     // each boundary a hair early — the forced keyframe sitting exactly on it
-    // is then the chosen cut point.
-    let times = cuts
-        .iter()
-        .map(|t| format!("{:.3}", t - 0.01))
-        .collect::<Vec<_>>()
-        .join(",");
+    // is then the chosen cut point. With --copy nothing is re-encoded so
+    // boundaries list as-is and snap to the next real keyframe.
+    let times = if args.copy {
+        cuts.iter().map(|t| format!("{t:.3}")).collect::<Vec<_>>()
+    } else {
+        cuts.iter()
+            .map(|t| format!("{:.3}", t - 0.01))
+            .collect::<Vec<_>>()
+    }
+    .join(",");
     let forced = cuts
         .iter()
         .map(|t| format!("{:.3}", t))
@@ -227,7 +232,14 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    if let Some(f) = args.fade {
+    if args.copy {
+        if args.fade.is_some() {
+            return Err(Error::input(
+                "split --copy can't --fade (fades need a re-encode)",
+            ));
+        }
+        argv.extend(["-c", "copy"]);
+    } else if let Some(f) = args.fade {
         // soft edges: fade out before + in after every boundary, plus the
         // head/tail — each part then reads as its own little clip
         let mut bounds = vec![0.0];
@@ -268,14 +280,16 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-af", &af]);
         }
     }
-    if probe.has_video {
-        argv.extend([
-            "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
-        ]);
-        argv.extend(["-force_key_frames", &forced]);
-    }
-    if probe.has_audio {
-        argv.extend(["-c:a", "aac"]);
+    if !args.copy {
+        if probe.has_video {
+            argv.extend([
+                "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+            ]);
+            argv.extend(["-force_key_frames", &forced]);
+        }
+        if probe.has_audio {
+            argv.extend(["-c:a", "aac"]);
+        }
     }
     argv.extend(["-f", "segment"]);
     if !times.is_empty() {
@@ -335,6 +349,7 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         .with_commands(commands)
         .with_extra(json!({
             "every": args.every,
+            "copy": args.copy,
             "cuts": cuts,
             "parts": names,
             "count": parts.len(),

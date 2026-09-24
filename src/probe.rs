@@ -33,6 +33,9 @@ pub struct Probe {
     pub color_transfer: Option<String>,
     pub has_video: bool,
     pub has_audio: bool,
+    /// Video carries an alpha channel (yuva*/rgba family) — QC before
+    /// shipping sticker/overlay assets where transparency matters.
+    pub has_alpha: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size_bytes: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -256,6 +259,10 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
             .and_then(parse_f64)
             .map(|n| n as u32),
         pix_fmt: video.and_then(|v| v.pix_fmt.clone()),
+        has_alpha: video
+            .and_then(|v| v.pix_fmt.as_deref())
+            .map(pix_fmt_has_alpha)
+            .unwrap_or(false),
         color_space: video.and_then(|v| v.color_space.clone()),
         color_primaries: video.and_then(|v| v.color_primaries.clone()),
         color_transfer: video.and_then(|v| v.color_transfer.clone()),
@@ -298,6 +305,18 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
         },
         timecode,
     })
+}
+
+/// Alpha-carrying pixel formats, with the bit-depth/endianness suffix
+/// stripped ("rgba64le" -> "rgba", "yuva420p10le" -> "yuva420p").
+fn pix_fmt_has_alpha(pf: &str) -> bool {
+    let base = pf.trim_end_matches(|c: char| c.is_ascii_digit() || matches!(c, 'l' | 'e' | 'b'));
+    base.starts_with("yuva")
+        || base.starts_with("gbrap")
+        || matches!(
+            base,
+            "rgba" | "bgra" | "argb" | "abgr" | "ya" | "ayuv" | "vuya" | "vuyx"
+        )
 }
 
 fn parse_rate(s: Option<&str>) -> Option<f64> {

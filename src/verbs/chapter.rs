@@ -5,6 +5,76 @@ use crate::contract::{Contract, Status};
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
+/// WebVTT cue timestamp: HH:MM:SS.mmm
+fn vtt_ts(t: f64) -> String {
+    let ms = (t * 1000.0).round() as u64;
+    format!(
+        "{:02}:{:02}:{:02}.{:03}",
+        ms / 3_600_000,
+        (ms / 60_000) % 60,
+        (ms / 1000) % 60,
+        ms % 1000
+    )
+}
+
+/// `HH:MM:SS.mmm` or `MM:SS.mmm` → seconds (chapter --import .vtt)
+fn parse_vtt_ts(s: &str) -> Option<f64> {
+    let (hms, ms) = s.split_once('.')?;
+    let ms: f64 = format!("0.{ms}").parse().ok()?;
+    let parts: Vec<&str> = hms.split(':').collect();
+    let secs = match parts.as_slice() {
+        [m, s] => m.parse::<f64>().ok()? * 60.0 + s.parse::<f64>().ok()?,
+        [h, m, s] => {
+            h.parse::<f64>().ok()? * 3600.0
+                + m.parse::<f64>().ok()? * 60.0
+                + s.parse::<f64>().ok()?
+        }
+        _ => return None,
+    };
+    Some(secs + ms)
+}
+
+/// Parse the WebVTT chapter file `chapter --vtt` writes: cue start → cue text
+/// (first line only; cue identifiers and timing-line settings are skipped).
+fn parse_vtt_list(text: &str, path: &std::path::Path) -> Result<Vec<(f64, String)>, Error> {
+    let mut marks = Vec::new();
+    let mut lines = text.lines().peekable();
+    let mut ln = 0usize;
+    while let Some(raw) = lines.next() {
+        ln += 1;
+        let line = raw.trim();
+        let Some((start, _end)) = line.split_once("-->") else {
+            continue;
+        };
+        let secs = parse_vtt_ts(start.trim()).ok_or_else(|| {
+            Error::input(format!(
+                "{} line {ln}: bad VTT time '{line}'",
+                path.display()
+            ))
+        })?;
+        let title = lines
+            .next()
+            .map(|l| l.trim().to_string())
+            .unwrap_or_default();
+        ln += 1;
+        if title.is_empty() {
+            return Err(Error::input(format!(
+                "{} line {ln}: cue has no title text",
+                path.display()
+            )));
+        }
+        marks.push((secs, title));
+    }
+    if marks.is_empty() {
+        return Err(Error::input(format!(
+            "{}: no VTT chapter cues found",
+            path.display()
+        )));
+    }
+    marks.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+    Ok(marks)
+}
+
 fn yt_ts(t: f64) -> String {
     let s = t.round().max(0.0) as u64;
     if s >= 3600 {
@@ -278,6 +348,8 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             marks.extend(parse_cue_list(&text, path)?);
         } else if kind == "lrc" {
             marks.extend(parse_lrc_list(&text, path)?);
+        } else if kind == "vtt" {
+            marks.extend(parse_vtt_list(&text, path)?);
         } else {
             for (ln, line) in text.lines().enumerate() {
                 let line = line.trim();
@@ -347,8 +419,21 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
     }
 
     let meta = ffmeta_table(&marks, probe.duration);
-    if args.export || args.yt || args.cue || args.podcast || args.lrc {
-        let text = if args.lrc {
+    if args.export || args.yt || args.cue || args.podcast || args.lrc || args.vtt {
+        let text = if args.vtt {
+            // WebVTT chapters file — <track kind="chapters"> on a web
+            // <video> gives click-to-seek nav without an editor timeline
+            let mut s = String::from("WEBVTT\n\n");
+            for (i, (t, ti)) in marks.iter().enumerate() {
+                let end = if i + 1 < marks.len() {
+                    marks[i + 1].0
+                } else {
+                    probe.duration
+                };
+                s.push_str(&format!("{} --> {}\n{}\n\n", vtt_ts(*t), vtt_ts(end), ti));
+            }
+            s
+        } else if args.lrc {
             // LRC synced-lyrics format: one [mm:ss.xx]mark per line — music
             // players (and lyric tools) show them as seekable verse/track cues
             marks
@@ -429,7 +514,7 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         })?;
         let mut c = Contract::ok("chapter", Some(args.output.display().to_string()), None);
         c = c.with_extra(json!({
-            "exported": if args.lrc { "lrc" } else if args.podcast { "podcast" } else if args.yt { "youtube" } else if args.cue { "cue" } else { "ffmetadata" },
+            "exported": if args.vtt { "vtt" } else if args.lrc { "lrc" } else if args.podcast { "podcast" } else if args.yt { "youtube" } else if args.cue { "cue" } else { "ffmetadata" },
             "chapters": marks
                 .iter()
                 .map(|(t, ti)| json!({"time": t, "title": ti}))

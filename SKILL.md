@@ -39,7 +39,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 |-----------|-------|
 | inspect | `doctor`, `probe`, `look` (`--tiles` / `--at`) |
 
-| trim / join | `cut` (`--black` excises blackdetect dead-air stretches ≥0.3s), `concat` (`--transition` any xfade (comma list picks one per joint), N clips, `--level -14` loudnorms each, `--gap N` black+silence between clips, `--audio-fade N` boundary fades at joints, `--list manifest.txt` reads clip paths from a file (relative to the list's dir)), `split` (`--every` story chunks, `--at` chapter points, `--chapters` embedded marks, `--black` dead-air → one part per keep), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps, `--by-scene` split at cuts) |
+| trim / join | `cut` (`--black` excises blackdetect dead-air stretches ≥0.3s), `concat` (`--transition` any xfade (comma list picks one per joint), N clips, `--level -14` loudnorms each, `--gap N` black+silence between clips, `--audio-fade N` boundary fades at joints, `--list manifest.txt` reads clip paths from a file (relative to the list's dir)), `split` (`--every` story chunks, `--at` chapter points, `--chapters` embedded marks, `--black` dead-air → one part per keep, `--copy` lossless stream-copy split — instant, boundaries snap to next keyframe), `rough` (list speech islands, then `-o` to assemble, `--merge N` merge close keeps, `--by-scene` split at cuts) |
 | platform loudness | `loudnorm` (`--target`, `-I/--tp/--lra`; `--measure` report-only, `--gate N` fails when input tops N LUFS, `--dynamic` per-frame) |
 | frame / size | `fit` (`--fit pad` / `crop` / `blur --strength`), `zoom`, `--position` top/bottom/corners |
 

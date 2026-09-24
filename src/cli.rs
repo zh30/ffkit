@@ -530,6 +530,11 @@ pub struct SplitArgs {
     /// for event/talking-head footage
     #[arg(long)]
     pub black: bool,
+    /// Stream-copy the parts through the segment muxer — no re-encode, so
+    /// splitting a long 4K recording is instant, but each boundary snaps
+    /// forward to the next keyframe (not frame-exact). No --fade/--black.
+    #[arg(long)]
+    pub copy: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5800,7 +5805,7 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "list", "remove"])]
+    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "list", "remove"])]
     pub at: Vec<String>,
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
@@ -5826,6 +5831,11 @@ pub struct ChapterArgs {
     /// synced-lyrics format music players read for seekable track/verse marks
     #[arg(long)]
     pub lrc: bool,
+    /// Write marks as a WebVTT chapter file at -o — drop it next to the
+    /// video on a web player (<track kind="chapters">) for click-to-seek
+    /// navigation on self-hosted/Vimeo-style embeds
+    #[arg(long)]
+    pub vtt: bool,
     /// Import marks from a text file: lines "TIME|TITLE" or "TIME,TITLE"
     /// ('#' comments and blank lines skipped)
     #[arg(long)]

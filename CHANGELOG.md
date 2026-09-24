@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+- `split --copy` — lossless stream-copy splitting through the segment muxer: instant for long recordings, boundaries snap forward to the next keyframe (not frame-exact); works with `--every`/`--at`/`--parts`/`--size`/`--scenes`/`--chapters`/`--silence`; `--fade` is refused
+- `chapter --vtt` — export chapter marks as a WebVTT chapter track (web `<track kind="chapters">` click-to-seek); `--import` now auto-reads `.vtt` files too (round-trips)
+- `probe`/`scan` report `has_alpha` — the video stream's pixel format carries an alpha plane (yuva*/rgba family); sticker/overlay asset QC
+
 ## [0.283.0] — 2026-09-24
 
 ### Added

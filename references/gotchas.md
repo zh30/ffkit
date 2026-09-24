@@ -578,3 +578,7 @@ an atempo'd whole-file render would shift the window.
 
 - **`media_type` lands on mp4/m4a as the stik-relevant tag; sort_* tags are dropped.** movenc's whitelist keeps `media_type`/`gapless_playback` but silently drops `sort_artist`/`sort_name` — don't ship iTunes sort tags via ffmpeg 4.4.
 - **mkv TIMECODE lives in format tags, mov tmcd in the video-stream `timecode` tag.** `probe`/`scan` check both (`timecode` key) — format tag is uppercased `TIMECODE`, stream tag lowercased.
+
+- **`split --copy` snaps boundaries to the next keyframe** — the segment muxer with `-c copy` can only cut where a keyframe exists, so parts are approximate; the re-encode path (`-force_key_frames`) is the frame-exact one. Short fixtures need `-g N` to have any interior keyframe at all.
+- **WebVTT import takes the cue's first text line only** — chapter titles are single-line by design; cue identifiers and `-->` timing settings are skipped.
+- **`has_alpha` is decided from `pix_fmt` naming** (yuva*, rgba/bgra/argb/abgr, ya*, gbrap*, ayuv…) — vp9 alpha needs a yuva input *and* the encoder to keep it; a `color=` lavfi source silently encodes plain yuv420p.

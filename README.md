@@ -95,7 +95,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | Verb | What it does |
 |------|----------------|
 | `doctor` | Whether local ffmpeg works, which encoders/filters exist |
-| `probe` | Duration, size, codecs, channels, `av_desync_ms` lip-sync offset |
+| `probe` | Duration, size, codecs, channels, `av_desync_ms` lip-sync offset, `timecode` container TC, `has_alpha` |
 | `look` | Contact sheet (`--tiles`) or timestamps (`--at`, repeatable) |
 | `cut` | Trim; lossless copy by default, `--accurate`, `--ranges`, `--drop` for frame-exact (bounds take `end`: `T-end` through the tail, `end-N` last N secs); `--fade N` softens the cut edges; `--black` auto-excises blackdetect stretches ≥0.3s (dead-air trim, the video twin of cutsil) |
 | `concat` | Join N clips (any xfade `--transition`, comma list picks one per joint); `--level -14` loudnorms each clip first; `--gap N` inserts black+silence between clips; `--audio-fade N` fades each joint's audio (boundary fades — duration and sync preserved); `--list manifest.txt` reads clip paths from a file (relative paths resolve against the list's dir) |
@@ -116,7 +116,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 
 | `audiogram` | Waveform video ，`--mode phase`（aphasemeter 相位表）| `--mode`, `--scale`, `--split` channels, `--fscale` freq axis (spectrum), `--fps` rate, `--text`, `--bg`, `--progress` bar , `--subs` burn an .srt on it, `--from`/`--to` clip a segment (`end`/`end-N` ok), `--at a,b --dur N` one clip per point (`stem_N.mp4`); `--mode spectrum` bars, `--mode scope` lissajous vectorscope, `--mode cqt` piano-roll spectrum, `--mode spectro` scrolling spectrogram | `--mode spatial|volume|bitscope` meter scopes | `--mode monitor` stats viz | `--mode hist` amplitude histogram (clip/headroom QC) |
 
-| `split` | Split by `--every`/`--at`/`--scenes`/`--size`/`--parts`/`--silence`/`--chapters`/`--black` (blackdetect dead-air → one part per non-black keep); `--subs` writes re-timed per-part .srt; `--fade N` softens each part's edges |
+| `split` | Split by `--every`/`--at`/`--scenes`/`--size`/`--parts`/`--silence`/`--chapters`/`--black` (blackdetect dead-air → one part per non-black keep); `--copy` lossless stream-copy split (no re-encode, boundaries snap to next keyframe); `--subs` writes re-timed per-part .srt; `--fade N` softens each part's edges |
 | `slideshow` | Still images → video montage (`--per` or `--dur` total runtime, `--fade`, `--transition`, `--motion kenburns`, `--audio` bed + `--volume`, `--size` canvas, `--bg` letterbox, `--fit` montage ends on the song's end, `--shuffle SEED` deterministic photo order — same seed = same order, `--sort name|mtime` orders a camera dump by filename or shoot time, `--list manifest.txt` curated still order from a manifest) |
 | `speed` | Change playback speed (`--factor`, `--at/--dur` (comma list = several windows), `--ramp` FROM,TO); `end` ok; `--fit SEC` retimes the clip to an exact length (auto factor) |
 | `music` | Bed under speech with ducking (`--track`, `--at`/`--dur` window, `end` ok; comma `--at` = multi-entrance bed) |
@@ -127,7 +127,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `censor` | Blur/mosaic a region (`--region x:y:w:h`, comma list for several spots; `--mode` pixel|blur|solid (black-bar redact), `--strength`, `--at`/`--dur` (comma list, needs `--dur`; `end` ok), `--shape circle` ellipse mask) |
 | `bleep` | Tone over a word/segment: `--at`/`--dur` (comma list censors several spots; `end` ok), `--freq`, `--level` |
 | `boomerang` | Forward + reversed replay (one loop, social trick) (`--times` repeat cycles) , `--at/--dur` bounces just that window — comma list for several spots (`end` ok) |
-| `chapter` | Embed chapter marks at `TIME|TITLE` or `--import` a marks file (YouTube `H:MM:SS Title` lines ok); `--auto` / `--export` ffmeta / `--yt` description lines / `--cue` CUE sheet / `--podcast` Podcasting 2.0 JSON chapters (audiobook/podcast players) / `--lrc` synced-lyrics cue file; `--import` auto-reads .json/.cue/.lrc files too; `--list`; `--remove`; `--shift` re-times marks |
+| `chapter` | Embed chapter marks at `TIME|TITLE` or `--import` a marks file (YouTube `H:MM:SS Title` lines ok); `--auto` / `--export` ffmeta / `--yt` description lines / `--cue` CUE sheet / `--podcast` Podcasting 2.0 JSON chapters (audiobook/podcast players) / `--lrc` synced-lyrics cue file / `--vtt` WebVTT chapter track for web `<track kind="chapters">` nav; `--import` auto-reads .json/.cue/.lrc/.vtt files too; `--list`; `--remove`; `--shift` re-times marks |
 | `autocrop` | Detect & strip letterbox/pillarbox (`cropdetect` scan → `crop`; `--buffer N` keeps N px edge context) |
 | `sheet` | Contact sheet grid (`--cols`x`--rows`, `--time` stamps, `--title` header, `--from`/`--to` window) |
 | `sprite` | Seek-preview sprite sheets + WebVTT (`--every` secs, `--width` tile px, `--cols`x`--rows` per sheet, `--vtt` path, `--from`/`--to` bounds -- `end` ok) — hover thumbnails for video players |
