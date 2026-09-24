@@ -37,6 +37,9 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.split.is_some() {
         return split_sub(&args, g);
     }
+    if args.resync.is_some() {
+        return resync_sub(&args, g);
+    }
     if let Some(offset) = args.shift {
         return shift(&args, offset, g);
     }
@@ -677,6 +680,70 @@ fn shift(args: &SubsArgs, offset: f64, g: &Globals) -> Result<Contract, Error> {
         "shift": offset,
         "cues": cues.len(),
         "window": win.map(|(f, t)| json!({"from": f, "to": t})),
+    })))
+}
+
+// --resync O1,O2,N1,N2: two-point affine remap — the union of
+// --shift (offset) and --rate (scale) in one pass. Subs authored for a
+// different cut (or a 25fps master going to 23.976) anchor on two known
+// sync points; between/beyond them the line interpolates/extrapolates.
+fn resync_sub(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
+    let raw_spec = args.resync.as_deref().unwrap_or_default();
+    let nums: Vec<f64> = raw_spec
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| {
+            s.parse()
+                .map_err(|_| Error::input("subs --resync wants O1,O2,N1,N2 in seconds"))
+        })
+        .collect::<Result<_, _>>()?;
+    if nums.len() != 4 {
+        return Err(Error::input(
+            "subs --resync wants O1,O2,N1,N2 — two old times mapped to two new times",
+        ));
+    }
+    let (o1, o2, n1, n2) = (nums[0], nums[1], nums[2], nums[3]);
+    if o2 <= o1 {
+        return Err(Error::input("subs --resync: O2 must come after O1"));
+    }
+    if n2 <= n1 {
+        return Err(Error::input("subs --resync: N2 must come after N1"));
+    }
+    let rate = (n2 - n1) / (o2 - o1);
+    if args
+        .input
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .as_deref()
+        != Some("srt")
+    {
+        return Err(Error::input("subs --resync takes an .srt file as input"));
+    }
+    let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
+    let mut cues = crate::srt::parse_srt(&raw)?;
+    for c in cues.iter_mut() {
+        c.start = (n1 + (c.start - o1) * rate).max(0.0);
+        c.end = (n1 + (c.end - o1) * rate).max(c.start);
+    }
+    let out = crate::srt::to_srt(&cues);
+    if g.dry_run {
+        return Ok(Contract::dry_run(
+            "subs",
+            Some(crate::paths::display(&args.output)),
+            None,
+        ));
+    }
+    std::fs::write(&args.output, out).map_err(|e| Error::output(e.to_string()))?;
+    let mut c = Contract::ok("subs", Some(crate::paths::display(&args.output)), None);
+    c.verified = Some(args.output.is_file());
+    Ok(c.with_extra(json!({
+        "mode": "resync",
+        "old": [o1, o2],
+        "new": [n1, n2],
+        "rate": rate,
+        "cues": cues.len(),
     })))
 }
 

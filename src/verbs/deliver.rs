@@ -108,6 +108,11 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Chzzk
         | DeliverPlatform::Douyu
         | DeliverPlatform::Huya
+        | DeliverPlatform::Udemy
+        | DeliverPlatform::Coursera
+        | DeliverPlatform::Teachable
+        | DeliverPlatform::Kajabi
+        | DeliverPlatform::Patreon
         | DeliverPlatform::Twitch => (1920, 1080),
         DeliverPlatform::X | DeliverPlatform::Mastodon | DeliverPlatform::Discord => (1280, 720),
         DeliverPlatform::Threads | DeliverPlatform::Instagram | DeliverPlatform::Facebook => {
@@ -126,7 +131,9 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Likee
         | DeliverPlatform::Moj
         | DeliverPlatform::Josh
-        | DeliverPlatform::Weverse => (1080, 1920),
+        | DeliverPlatform::Weverse
+        | DeliverPlatform::Kwai
+        | DeliverPlatform::Snackvideo => (1080, 1920),
         DeliverPlatform::Weibo => (1920, 1080),
         _ => (1080, 1920),
     };
@@ -474,6 +481,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Douyu => "douyu",
         DeliverPlatform::Huya => "huya",
         DeliverPlatform::Weverse => "weverse",
+        DeliverPlatform::Kwai => "kwai",
+        DeliverPlatform::Snackvideo => "snackvideo",
+        DeliverPlatform::Udemy => "udemy",
+        DeliverPlatform::Coursera => "coursera",
+        DeliverPlatform::Teachable => "teachable",
+        DeliverPlatform::Kajabi => "kajabi",
+        DeliverPlatform::Patreon => "patreon",
     }
 }
 

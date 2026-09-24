@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.303.0] — 2026-09-24
+
+### Added
+- `subs --resync O1,O2,N1,N2` — two-point linear resync: old timestamps O1,O2 land on new N1,N2 (offset + drift in one pass — retime subs authored for a different cut or frame rate).
+- `remux --no-video` — drop the video streams but keep audio/subtitles/cover/attachments (audio deliverable with artwork intact — unlike `--audio`, which rips only the audio track).
+- `meta --title-video` — per-track display titles for video streams (multi-cam angle labels; completes the `--title-audio`/`--title-subs` set — mkv only, mp4 drops stream titles).
+- `deliver --platform kwai|snackvideo` (9:16 1080x1920) and `udemy|coursera|teachable|kajabi|patreon` (16:9 1080p — course lectures & membership posts).
+
 ## [0.302.0] — 2026-09-24
 
 ### Added

@@ -236,6 +236,32 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if args.audio && args.video {
         return Err(Error::input("remux: --audio and --video are exclusive"));
     }
+    if args.no_video {
+        if args.video || args.audio {
+            return Err(Error::input(
+                "remux --no-video drops video — it conflicts with --audio/--video",
+            ));
+        }
+        if !keep.is_empty() {
+            return Err(Error::input(
+                "remux --no-video drops the video map — --keep picks streams directly",
+            ));
+        }
+        if args.video_order.is_some()
+            || args.video_delay.is_some()
+            || args.default_video.is_some()
+            || args.aspect.is_some()
+            || args.timecode.is_some()
+            || args.tag.is_some()
+        {
+            return Err(Error::input(
+                "remux --no-video drops the video tracks — drop the video-only flags",
+            ));
+        }
+        if !probe.has_video {
+            return Err(Error::input("remux --no-video: input has no video"));
+        }
+    }
     if args.no_subs && (args.audio || args.video) {
         return Err(Error::input(
             "remux --no-subs only applies to a full repack — drop --audio/--video",
@@ -551,6 +577,10 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-map", "0:v"]);
         }
         argv.extend(["-c:v", "copy"]);
+    } else if args.no_video {
+        // audio deliverable that keeps its subs/cover/attachments —
+        // everything except the video streams stays
+        argv.extend(["-map", "0", "-map", "-0:v", "-c", "copy"]);
     } else if args.audio_delay.is_some() {
         // sync fix: non-audio streams from input 0, audio from the
         // itsoffset-shifted second read of the same file
@@ -882,7 +912,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     let mut c = c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "keep": args.keep, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "no_video": args.no_video, "keep": args.keep, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts }),
     );
     if let Some((key, kid)) = enc_kv {
         c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));

@@ -108,11 +108,17 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
             .count(),
         "subs",
     )?;
+    let title_video = parse_title_list(
+        args.title_video.as_deref(),
+        probe.streams.iter().filter(|s| s.kind == "video").count(),
+        "video",
+    )?;
     if tags.is_empty()
         && lang_audio.is_empty()
         && lang_subs.is_empty()
         && title_audio.is_empty()
         && title_subs.is_empty()
+        && title_video.is_empty()
         && args.rotate.is_none()
         && !args.clear
         && args.copy.is_none()
@@ -127,6 +133,7 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
             || !lang_subs.is_empty()
             || !title_audio.is_empty()
             || !title_subs.is_empty()
+            || !title_video.is_empty()
             || args.rotate.is_some()
             || args.copy.is_some())
     {
@@ -192,6 +199,15 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         }
         argv.extend([
             "-metadata:s:s:".to_string() + &i.to_string(),
+            format!("title={t}"),
+        ]);
+    }
+    for (i, t) in title_video.iter().enumerate() {
+        if t.is_empty() {
+            continue;
+        }
+        argv.extend([
+            "-metadata:s:v:".to_string() + &i.to_string(),
             format!("title={t}"),
         ]);
     }

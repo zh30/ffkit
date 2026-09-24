@@ -1422,6 +1422,20 @@ pub enum DeliverPlatform {
     Huya,
     /// Weverse fan clip 9:16 vertical (1080x1920, -14 LUFS)
     Weverse,
+    /// Kwai (international Kuaishou) 9:16 vertical (1080x1920, -14 LUFS)
+    Kwai,
+    /// SnackVideo 9:16 vertical (1080x1920, -14 LUFS)
+    Snackvideo,
+    /// Udemy course lecture 16:9 landscape (1920x1080, -14 LUFS)
+    Udemy,
+    /// Coursera course lecture 16:9 landscape (1920x1080, -14 LUFS)
+    Coursera,
+    /// Teachable course lecture 16:9 landscape (1920x1080, -14 LUFS)
+    Teachable,
+    /// Kajabi course lecture 16:9 landscape (1920x1080, -14 LUFS)
+    Kajabi,
+    /// Patreon post video 16:9 landscape (1920x1080, -14 LUFS)
+    Patreon,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2859,6 +2873,12 @@ pub struct SubsArgs {
     /// earlier part
     #[arg(long)]
     pub split: Option<String>,
+    /// Two-point resync `O1,O2,N1,N2` — remap cue times linearly so old
+    /// timestamps O1,O2 land on new N1,N2 (offset + drift in one pass;
+    /// retiming subs exported for a different cut/frame-rate — the
+    /// `--shift`+`--rate` combined transform)
+    #[arg(long)]
+    pub resync: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3002,6 +3022,10 @@ pub struct MetaArgs {
     /// (`--title-subs "English,Français"` — label each caption track)
     #[arg(long)]
     pub title_subs: Option<String>,
+    /// Display title for video tracks in order, comma list
+    /// (`--title-video "Main,Angle-2"` — multi-cam files label each angle)
+    #[arg(long)]
+    pub title_video: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4085,6 +4109,11 @@ pub struct RemuxArgs {
     /// mkv with embedded subs → bare mp4)
     #[arg(long)]
     pub no_subs: bool,
+    /// Drop video streams in the repack (audio deliverable that keeps its
+    /// cover art/subtitles/attachments — unlike --audio which rips ONLY
+    /// the audio track)
+    #[arg(long)]
+    pub no_video: bool,
     /// Lossless trim: start the repack at SEC (keyframe-accurate seek —
     /// repackage just a segment without re-encoding)
     #[arg(long)]

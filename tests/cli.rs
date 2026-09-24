@@ -35599,3 +35599,157 @@ fn r275_attachment_default_video_subs_split_ass_in() {
     let pr = run_json(&["probe", wv.to_str().unwrap()]);
     assert_eq!(pr["probe"]["streams"][0]["height"], 1920);
 }
+
+#[test]
+fn r276_resync_no_video_title_video_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let base = fixture(d.path());
+    // subs --resync 10,60,11,66: rate 1.1 + offset — old 10→new 11,
+    // old 60→new 66, mid-cue 30→33
+    let srt = d.path().join("in.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:10,000 --> 00:00:12,000\nFirst\n\n\
+         2\n00:00:30,000 --> 00:00:32,000\nSecond\n\n\
+         3\n00:01:00,000 --> 00:01:02,000\nThird\n",
+    )
+    .unwrap();
+    let out = d.path().join("out.srt");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--resync",
+        "10,60,11,66",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["rate"], 1.1, "{j}");
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.contains("00:00:11,000 --> 00:00:13,200"), "{text}");
+    assert!(text.contains("00:00:33,000 --> 00:00:35,200"), "{text}");
+    assert!(text.contains("00:01:06,000 --> 00:01:08,200"), "{text}");
+    // inverted / short specs refuse
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--resync",
+        "60,10,5,66",
+        "-o",
+        d.path().join("x.srt").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--resync",
+        "10,60,5",
+        "-o",
+        d.path().join("x.srt").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    // remux --no-video: audio deliverable keeps everything but video
+    let nv = d.path().join("nv.mkv");
+    let j = run_json(&[
+        "remux",
+        base.to_str().unwrap(),
+        "-o",
+        nv.to_str().unwrap(),
+        "--no-video",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "csv=p=0",
+            nv.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    let kinds = String::from_utf8_lossy(&o.stdout);
+    assert!(kinds.contains("audio"), "{kinds}");
+    assert!(!kinds.contains("video"), "{kinds}");
+    let j = run_json(&[
+        "remux",
+        base.to_str().unwrap(),
+        "-o",
+        d.path().join("x.mkv").to_str().unwrap(),
+        "--no-video",
+        "--video",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    // meta --title-video on mkv: titles land per-angle (mp4 movenc
+    // silently drops stream titles — see gotchas)
+    let mv = d.path().join("mv.mkv");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-i",
+            base.to_str().unwrap(),
+            "-filter_complex",
+            "color=c=red:s=320x240:d=1:r=10[alt]",
+            "-map",
+            "0:v",
+            "-map",
+            "[alt]",
+            "-map",
+            "0:a?",
+            "-c:a",
+            "copy",
+            "-c:v:0",
+            "copy",
+            "-c:v:1",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            mv.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    let t = d.path().join("t.mkv");
+    let j = run_json(&[
+        "meta",
+        mv.to_str().unwrap(),
+        "-o",
+        t.to_str().unwrap(),
+        "--title-video",
+        "MainCam,Bcam",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", t.to_str().unwrap()]);
+    assert_eq!(pr["probe"]["tags"]["stream:0"]["title"], "MainCam", "{pr}");
+    assert_eq!(pr["probe"]["tags"]["stream:1"]["title"], "Bcam", "{pr}");
+    // kwai 9:16 / udemy 16:9 canvases
+    let kw = d.path().join("kw.mp4");
+    let j = run_json(&[
+        "deliver",
+        base.to_str().unwrap(),
+        "-o",
+        kw.to_str().unwrap(),
+        "--platform",
+        "kwai",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", kw.to_str().unwrap()]);
+    assert_eq!(pr["probe"]["streams"][0]["height"], 1920);
+    let ud = d.path().join("ud.mp4");
+    let j = run_json(&[
+        "deliver",
+        base.to_str().unwrap(),
+        "-o",
+        ud.to_str().unwrap(),
+        "--platform",
+        "udemy",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", ud.to_str().unwrap()]);
+    assert_eq!(pr["probe"]["streams"][0]["width"], 1920);
+}
