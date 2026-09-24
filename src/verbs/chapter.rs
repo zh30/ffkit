@@ -14,6 +14,83 @@ fn yt_ts(t: f64) -> String {
     }
 }
 
+/// Parse a YouTube-format chapter list ("mm:ss title" or "h:mm:ss title"
+/// per line) into (seconds, title) marks — the file `chapter --yt` writes
+/// and YouTube descriptions carry.
+pub(crate) fn parse_yt_list(path: &std::path::Path) -> Result<Vec<(f64, String)>, Error> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| Error::input(format!("reading {}: {e}", path.display())))?;
+    let mut marks = Vec::new();
+    for (i, line) in text.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let (ts, title) = line.split_once(' ').ok_or_else(|| {
+            Error::input(format!(
+                "{} line {}: needs 'mm:ss title'",
+                path.display(),
+                i + 1
+            ))
+        })?;
+        let secs = crate::time::parse_time(ts).map_err(|_| {
+            Error::input(format!(
+                "{} line {}: bad time '{ts}'",
+                path.display(),
+                i + 1
+            ))
+        })?;
+        let title = title.trim();
+        if title.is_empty() {
+            return Err(Error::input(format!(
+                "{} line {}: empty title",
+                path.display(),
+                i + 1
+            )));
+        }
+        marks.push((secs, title.to_string()));
+    }
+    if marks.is_empty() {
+        return Err(Error::input(format!(
+            "{}: no chapter marks found",
+            path.display()
+        )));
+    }
+    marks.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+    Ok(marks)
+}
+
+/// A mark at/after the input's end produces a zero-or-negative-length
+/// chapter that ffmpeg rejects outright — catch it with a clear error.
+pub(crate) fn check_marks(marks: &[(f64, String)], duration: f64, flag: &str) -> Result<(), Error> {
+    if let Some((t, _)) = marks.iter().find(|(t, _)| *t >= duration) {
+        return Err(Error::input(format!(
+            "{flag} mark at {t:.2}s is at/past the {duration:.2}s input end",
+        )));
+    }
+    Ok(())
+}
+
+/// ffmetadata `[CHAPTER]` table for `-map_chapters` embedding — START/END
+/// in ms (TIMEBASE=1/1000); the last mark runs to `duration`.
+pub(crate) fn ffmeta_table(marks: &[(f64, String)], duration: f64) -> String {
+    let mut meta = String::from(";FFMETADATA1\n");
+    for (i, (t, title)) in marks.iter().enumerate() {
+        let end = if i + 1 < marks.len() {
+            marks[i + 1].0
+        } else {
+            duration
+        };
+        meta.push_str(&format!(
+            "[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\ntitle={}\n",
+            (t * 1000.0).round() as i64,
+            (end * 1000.0).round() as i64,
+            title.replace('=', ";").replace('\n', " "),
+        ));
+    }
+    meta
+}
+
 pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
 
@@ -129,20 +206,7 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
 
-    let mut meta = String::from(";FFMETADATA1\n");
-    for (i, (t, title)) in marks.iter().enumerate() {
-        let end = if i + 1 < marks.len() {
-            marks[i + 1].0
-        } else {
-            probe.duration
-        };
-        meta.push_str(&format!(
-            "[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\ntitle={}\n",
-            (t * 1000.0).round() as i64,
-            (end * 1000.0).round() as i64,
-            title.replace('=', ";").replace('\n', " "),
-        ));
-    }
+    let meta = ffmeta_table(&marks, probe.duration);
     if args.export || args.yt || args.cue {
         let text = if args.yt {
             // YouTube description format — paste under the video and the

@@ -29279,7 +29279,7 @@ fn r241_audiobook_chapters_slate_default_test() {
         song.to_string_lossy().into_owned(),
     ]);
     let chf = d.join("ch.txt");
-    std::fs::write(&chf, "0:00 Intro\n1:30 Middle\n3:00 End\n").unwrap();
+    std::fs::write(&chf, "0:00 Intro\n0:01.5 Middle\n0:03 End\n").unwrap();
     let book = d.join("book.m4b");
     let j = run_json(&[
         "deliver",
@@ -29442,4 +29442,248 @@ fn r241_audiobook_chapters_slate_default_test() {
         .recv_timeout(std::time::Duration::from_secs(20))
         .unwrap();
     assert_eq!(&head[..3], b"FLV", "expected FLV magic, got {head:?}");
+}
+
+#[test]
+fn r242_cover_chapters_card_overlay_hlslive_test() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn probe_csv(args: &[String]) -> String {
+        let o = Command::new("ffprobe")
+            .args(args)
+            .output()
+            .expect("ffprobe");
+        String::from_utf8_lossy(&o.stdout).into_owned()
+    }
+    fn ffmpeg(args: &[String]) {
+        let o = Command::new("ffmpeg").args(args).output().unwrap();
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    }
+
+    let song = d.join("song.m4a");
+    ffmpeg(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=300:sample_rate=48000:duration=3"),
+        s("-c:a"),
+        s("aac"),
+        s("-f"),
+        s("mp4"),
+        song.to_string_lossy().into_owned(),
+    ]);
+    let logo = d.join("logo.png");
+    ffmpeg(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("color=c=red:size=64x64"),
+        s("-frames:v"),
+        s("1"),
+        logo.to_string_lossy().into_owned(),
+    ]);
+
+    // remux --cover: feed art rides along as an attached_pic stream
+    let covered = d.join("covered.m4a");
+    let j = run_json(&[
+        "remux",
+        &song.to_string_lossy(),
+        "-o",
+        &covered.to_string_lossy(),
+        "--cover",
+        &logo.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["cover"], true);
+    let st = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_entries"),
+        s("stream=codec_name:stream_disposition=attached_pic"),
+        s("-of"),
+        s("csv"),
+        covered.to_string_lossy().into_owned(),
+    ]);
+    assert!(st.contains("mjpeg") && st.contains(",1"), "{st}");
+
+    // remux --chapters: yt-format marks become container chapters;
+    // marks past the input's end are rejected with a clear error
+    let chf = d.join("ch.txt");
+    std::fs::write(&chf, "0:00 Intro\n0:00.3 Mid\n0:00.6 End\n").unwrap();
+    let chd = d.join("chap.mp4");
+    let j = run_json(&[
+        "remux",
+        &f.to_string_lossy(),
+        "-o",
+        &chd.to_string_lossy(),
+        "--chapters",
+        &chf.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["chapters"], 3);
+    let chapters = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_chapters"),
+        s("-of"),
+        s("csv"),
+        chd.to_string_lossy().into_owned(),
+    ]);
+    assert!(
+        chapters.contains("Intro") && chapters.contains("End"),
+        "{chapters}"
+    );
+    let j = run_json(&[
+        "remux",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("bad.mp4").to_string_lossy(),
+        "--chapters",
+        &{
+            let p = d.join("past.txt");
+            std::fs::write(&p, "0:00 Intro\n9:00 TooLate\n").unwrap();
+            p.to_string_lossy().into_owned()
+        },
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(
+        j["error"]["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("input end"),
+        "{}",
+        j["error"]
+    );
+
+    // live --card: an audio-only source gets the still as its video track
+    let (tx_port, rx_port) = std::sync::mpsc::channel();
+    let (tx_head, rx_head) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        tx_port.send(listener.local_addr().unwrap().port()).unwrap();
+        if let Ok((mut sock, _)) = listener.accept() {
+            use std::io::Read;
+            let mut buf = [0u8; 9];
+            let _ = sock.read_exact(&mut buf);
+            let _ = tx_head.send(buf.to_vec());
+            let mut sink = [0u8; 8192];
+            while sock.read(&mut sink).map(|n| n > 0).unwrap_or(false) {}
+        }
+    });
+    let port = rx_port.recv().unwrap();
+    let j = run_json(&[
+        "live",
+        &song.to_string_lossy(),
+        "--card",
+        &logo.to_string_lossy(),
+        "--until",
+        "1",
+        "--to",
+        &format!("tcp://127.0.0.1:{port}"),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["card"], true);
+    let head = rx_head
+        .recv_timeout(std::time::Duration::from_secs(20))
+        .unwrap();
+    assert_eq!(&head[..3], b"FLV", "expected FLV magic, got {head:?}");
+
+    // live --overlay: channel bug lands in the corner of the archive
+    let (tx_port2, rx_port2) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        tx_port2
+            .send(listener.local_addr().unwrap().port())
+            .unwrap();
+        if let Ok((mut sock, _)) = listener.accept() {
+            use std::io::Read;
+            let mut sink = [0u8; 8192];
+            while sock.read(&mut sink).map(|n| n > 0).unwrap_or(false) {}
+        }
+    });
+    let port2 = rx_port2.recv().unwrap();
+    let arch = d.join("arch.mp4");
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--overlay",
+        &logo.to_string_lossy(),
+        "--overlay-position",
+        "br",
+        "--record",
+        &arch.to_string_lossy(),
+        "--until",
+        "1",
+        "--to",
+        &format!("tcp://127.0.0.1:{port2}"),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["overlay"], true);
+    // bottom-right corner pixel should carry the red logo
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-i",
+            &arch.to_string_lossy(),
+            "-vf",
+            "crop=20:20:iw-20:ih-20",
+            "-frames:v",
+            "1",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    let px = &o.stdout[..3];
+    assert!(
+        px[0] > 120 && px[1] < 100 && px[2] < 100,
+        "expected red-ish logo in BR corner, got {px:?}"
+    );
+
+    // hls --live: sliding-window playlist stays joinable mid-write
+    let lv = d.join("lv");
+    let j = run_json(&[
+        "hls",
+        &f.to_string_lossy(),
+        "-o",
+        &lv.to_string_lossy(),
+        "--live",
+        "--live-window",
+        "2",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["live"], true);
+    assert_eq!(j["extra"]["live_window"], 2);
+    let pl = std::fs::read_to_string(lv.join("index.m3u8")).unwrap();
+    assert!(pl.contains("EXT-X-PLAYLIST-TYPE:EVENT"), "{pl}");
+    assert!(!pl.contains("ENDLIST"), "{pl}");
+    let j = run_json(&[
+        "hls",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("bad2").to_string_lossy(),
+        "--live-window",
+        "3",
+    ]);
+    assert_eq!(j["status"], "failed");
 }

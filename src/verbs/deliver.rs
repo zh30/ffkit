@@ -420,59 +420,17 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
     // --chapters: YouTube-format marks ("mm:ss title", the file
     // `chapter --yt` writes) become real container chapters — Apple
     // Podcasts/Apple Books turn them into seek stops.
-    let mut chap_ms: Vec<(u64, String)> = Vec::new();
+    let mut chap_marks: Vec<(f64, String)> = Vec::new();
     let mut chap_file: Option<std::path::PathBuf> = None;
     if let Some(cf) = &args.chapters {
         crate::paths::ensure_input(cf)?;
-        let text = std::fs::read_to_string(cf)
-            .map_err(|e| Error::input(format!("deliver --chapters: {e}")))?;
-        for (i, line) in text.lines().enumerate() {
-            let line = line.trim();
-            if line.is_empty() {
-                continue;
-            }
-            let (ts, title) = line.split_once(' ').ok_or_else(|| {
-                Error::input(format!(
-                    "deliver --chapters line {}: needs 'mm:ss title'",
-                    i + 1
-                ))
-            })?;
-            let secs = crate::time::parse_time(ts).map_err(|_| {
-                Error::input(format!(
-                    "deliver --chapters line {}: bad time '{ts}'",
-                    i + 1
-                ))
-            })?;
-            let title = title.trim();
-            if title.is_empty() {
-                return Err(Error::input(format!(
-                    "deliver --chapters line {}: empty title",
-                    i + 1
-                )));
-            }
-            chap_ms.push(((secs * 1000.0).round().max(0.0) as u64, title.to_string()));
-        }
-        if chap_ms.is_empty() {
-            return Err(Error::input("deliver --chapters: no marks in the file"));
-        }
-        chap_ms.sort_by_key(|c| c.0);
-        // ffmetadata input carrying the chapter table (mp4 chpl atom)
-        let dur_ms = (probe.duration * 1000.0).round().max(0.0) as u64;
-        let mut meta = String::from(";FFMETADATA1\n");
-        for (i, (t, ti)) in chap_ms.iter().enumerate() {
-            let end = chap_ms
-                .get(i + 1)
-                .map(|c| c.0)
-                .unwrap_or(dur_ms.max(*t + 1));
-            meta.push_str(&format!(
-                "[CHAPTER]\nTIMEBASE=1/1000\nSTART={t}\nEND={}\ntitle={}\n",
-                end,
-                ti.replace('\n', " ")
-            ));
-        }
+        let marks = crate::verbs::chapter::parse_yt_list(cf)?;
+        crate::verbs::chapter::check_marks(&marks, probe.duration, "deliver --chapters")?;
+        let meta = crate::verbs::chapter::ffmeta_table(&marks, probe.duration);
         let tmp =
             std::env::temp_dir().join(format!("ffkit-deliver-chap-{}.ffmeta", std::process::id()));
         std::fs::write(&tmp, meta).map_err(|e| Error::output(format!("writing chapters: {e}")))?;
+        chap_marks = marks;
         apply.extend(["-f", "ffmetadata", "-i"]);
         apply.push(&tmp);
         apply.extend(["-map_metadata", &ni.to_string()]);
@@ -557,6 +515,6 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
         "target_tp": TARGET_TP,
         "measured": measured,
         "cover": args.cover.is_some(),
-        "chapters": chap_ms.len(),
+        "chapters": chap_marks.len(),
     })))
 }

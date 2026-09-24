@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.269.0] — 2026-09-23
+
+- `live --overlay bug.png` — channel bug burned onto the stream: logo auto-scaled to ~10% of the stream width and pinned to a corner (`--overlay-position tl|tr|bl|br` default br, `--overlay-opacity` 0..1 ghost) — broadcast corner branding without a pre-render
+- `live --card art.png` — 24/7 lofi-radio mode: an audio-only source gets a persistent still as its video track (looped card + music to any ingest URL); rejects video sources (use `--overlay`) and `--test`/`--slate`
+- `remux --cover pic` — attach feed art on the repack: an `attached_pic` mjpeg stream joins the copy — audio rips get cover art, video files get a thumbnail poster (forces `-f mp4` on m4a/m4b/mp4/mov so ffmpeg 4.x writes it)
+- `remux --chapters marks.txt` — container chapters on any repack from the YouTube-format list `chapter --yt` exports (shares `chapter.rs`'s ffmetadata helpers with `deliver --chapters`); marks at/past the input end are rejected with a clear error instead of ffmpeg's cryptic ffmetadata failure
+- `hls --live` — sliding-window live playlist: `EXT-X-PLAYLIST-TYPE:EVENT` + `delete_segments+omit_endlist` keeps only the newest `--live-window N` segments (default 6) so players can join mid-write
+
 ## [0.268.0] — 2026-09-23
 
 - `deliver --platform audiobook` — audiobook feed pack (m4b, AAC 96k/48k, −16 LUFS): Apple Books/Audible-ready single file; forced `-f mp4` so chapters + cover write past the ipod-muxer limits

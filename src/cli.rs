@@ -3713,6 +3713,14 @@ pub struct RemuxArgs {
     /// language playing on a multi-language release)
     #[arg(long)]
     pub default_audio: Option<usize>,
+    /// Attach this image as cover art on the repack (audio rips get feed
+    /// art, video files get a thumbnail poster — attached_pic stream)
+    #[arg(long)]
+    pub cover: Option<PathBuf>,
+    /// Embed container chapters from a YouTube-format list ('mm:ss title'
+    /// per line — same file `chapter --yt` exports) on the repack
+    #[arg(long)]
+    pub chapters: Option<PathBuf>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4454,6 +4462,20 @@ pub struct LiveArgs {
     /// (default 10)
     #[arg(long)]
     pub slate_dur: Option<f64>,
+    /// Burn this image in a corner of the live feed (channel bug — scaled
+    /// to ~10% of stream width)
+    #[arg(long)]
+    pub overlay: Option<PathBuf>,
+    /// --overlay corner: tl|tr|bl|br (default br)
+    #[arg(long, value_enum)]
+    pub overlay_position: Option<LogoPos>,
+    /// --overlay opacity 0..=1 (default 1)
+    #[arg(long)]
+    pub overlay_opacity: Option<f64>,
+    /// Hold this image as the whole video for an audio-only source
+    /// (24/7 lofi-radio style: static card + music stream)
+    #[arg(long)]
+    pub card: Option<PathBuf>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4496,6 +4518,14 @@ pub struct HlsArgs {
     /// URI written into the playlist for the key (default key.bin; use a CDN/auth URL for real deployments)
     #[arg(long)]
     pub key_uri: Option<String>,
+    /// Sliding-window live playlist: keeps only the newest --live-window
+    /// segments (delete_segments + omit_endlist) — self-hosted live channel
+    /// fed while the input is still being written
+    #[arg(long)]
+    pub live: bool,
+    /// Segments kept in a --live playlist (default 6)
+    #[arg(long)]
+    pub live_window: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]

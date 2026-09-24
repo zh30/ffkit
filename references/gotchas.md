@@ -515,3 +515,8 @@ an atempo'd whole-file render would shift the window.
 - `live --slate`: the still card rides `-loop 1 -t D -i img` as input 0 — `-stream_loop -1` must be pushed AFTER it (it binds to the NEXT `-i`, i.e. the content); swap the order and the slate loops forever while the content plays once.
 - Container chapters on mp4/m4b: build an ffmetadata `[CHAPTER]` table (TIMEBASE=1/1000, START/END in ms) and feed it as a `-f ffmetadata -i` input, then `-map_metadata IDX -map_chapters IDX`; chapters beyond `duration` get clamped by the muxer — use `END=dur` on the last one.
 - `-disposition:a -default` clears ALL audio defaults, `-disposition:a:N +default` sets one — both are output-stream specifiers and need a repack (`-map 0`), not a filtered `-map 0:a:…` subset.
+
+- **chapter marks at/past the input end** → ffmpeg dies inside ffmetadata parsing ("Chapter end time X before start Y / Cannot allocate memory"), far from the real cause. `chapter::check_marks` rejects `t >= duration` up front with a clean error — call it after `parse_yt_list` on every `--chapters` path (remux/deliver).
+- **any `-map` drops every unmapped stream** — once `-filter_complex` output is mapped, the audio side must be mapped too (`0:a`/`1:a`/a graph label); "video in the graph, audio by default" is not a thing.
+- **`-hls_flags` is single-valued** — combine flags with `+` (`delete_segments+omit_endlist`), never push a second `-hls_flags` (last one silently wins).
+- **sliding-window HLS ≠ VOD** — `--live` swaps `-hls_playlist_type vod` for `event` and adds `-hls_list_size N`; `single_file` + `delete_segments` are mutually exclusive (validated out).

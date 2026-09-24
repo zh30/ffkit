@@ -70,10 +70,54 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             probe.fps.unwrap_or(30.0),
         )
     };
+    let mut has_video = has_video;
     if args.slate.is_some() && !has_video {
         return Err(Error::input(
             "live --slate needs a video stream to hold the card over",
         ));
+    }
+    if let Some(c) = &args.card {
+        if args.test {
+            return Err(Error::input(
+                "live --card is a visual for a real input — not --test",
+            ));
+        }
+        if args.slate.is_some() {
+            return Err(Error::input(
+                "live --card and --slate pick different cards — use one",
+            ));
+        }
+        if has_video {
+            return Err(Error::input(
+                "live --card is for audio-only sources (use --overlay on video)",
+            ));
+        }
+        if !has_audio {
+            return Err(Error::input(
+                "live --card with no audio is just a still — use --slate",
+            ));
+        }
+        crate::paths::ensure_input(c)?;
+        has_video = true; // the card supplies the video
+    }
+    if args.overlay.is_none() && (args.overlay_position.is_some() || args.overlay_opacity.is_some())
+    {
+        return Err(Error::input(
+            "--overlay-position/--overlay-opacity need --overlay",
+        ));
+    }
+    if let Some(op) = args.overlay_opacity {
+        if !(0.0..=1.0).contains(&op) {
+            return Err(Error::input("--overlay-opacity must be 0..=1"));
+        }
+    }
+    if let Some(ov) = &args.overlay {
+        if !has_video {
+            return Err(Error::input(
+                "live --overlay needs a video stream to pin the bug on",
+            ));
+        }
+        crate::paths::ensure_input(ov)?;
     }
 
     let vbitrate = args.vbitrate.as_deref().unwrap_or("2500k");
@@ -106,6 +150,11 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push(s);
         ni = 1;
     }
+    if let Some(c) = &args.card {
+        argv.extend(["-loop", "1", "-i"]);
+        argv.push(c);
+        ni = 1;
+    }
     if args.loop_ && !args.test {
         argv.extend(["-stream_loop", "-1"]);
     }
@@ -127,9 +176,16 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push("-i");
         argv.push(args.input.as_deref().unwrap_or_else(|| Path::new("")));
     }
+    // channel bug rides its own looped input, last in the input list
+    let li = ni + if args.test { 2 } else { 1 };
+    if let Some(ov) = &args.overlay {
+        argv.extend(["-loop", "1", "-i"]);
+        argv.push(ov);
+    }
+    let use_fc = args.slate.is_some() || args.overlay.is_some();
     if has_video {
-        // scale rides inside filter_complex when a slate card is held
-        if args.scale.is_some() && args.slate.is_none() {
+        // scale rides inside filter_complex when a graph is already in play
+        if args.scale.is_some() && !use_fc {
             argv.extend(["-vf".into(), format!("scale={cw}:{ch}")]);
         }
         argv.extend([
@@ -168,40 +224,79 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         }
         argv.extend(["-t".into(), until.to_string()]);
     }
-    // slate card: normalized still + silence concatenated before the content
+    // test mode maps its two lavfi inputs explicitly (video from input 0,
+    // tone from input 1); card maps the still + the source's audio;
+    // file inputs use the normal stream indexes
+    let (vmap, amap) = if args.test || args.card.is_some() {
+        ("0:v", "1:a")
+    } else {
+        ("0:v", "0:a")
+    };
+    // graph work: slate card concat and/or channel-bug overlay
+    let mut fc = String::new();
+    let fps = args.fps.map(|f| f as f64).unwrap_or(pfps);
+    let vchain = format!(
+        "scale={cw}:{ch}:force_original_aspect_ratio=decrease,pad={cw}:{ch}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps={fps},format=yuv420p"
+    );
+    let mut vout = String::new();
+    let mut aout: Option<String> = None;
     if args.slate.is_some() {
-        let fps = args.fps.map(|f| f as f64).unwrap_or(pfps);
-        let vchain = format!(
-            "scale={cw}:{ch}:force_original_aspect_ratio=decrease,pad={cw}:{ch}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps={fps},format=yuv420p"
-        );
-        let mut fc = format!("[0:v]{vchain}[vs];");
+        fc.push_str(&format!("[0:v]{vchain}[vs];"));
         if has_audio {
             fc.push_str(&format!(
                 "anullsrc=r=48000:cl=stereo,atrim=duration={slate_dur}[as];"
             ));
         }
         fc.push_str(&format!("[{ni}:v]{vchain}[vm];"));
-        let maps = if has_audio {
+        if has_audio {
             fc.push_str(&format!(
-                "[{ni}:a]aresample=48000,aformat=channel_layouts=stereo[am];[vs][as][vm][am]concat=n=2:v=1:a=1[v][a]"
+                "[{ni}:a]aresample=48000,aformat=channel_layouts=stereo[am];[vs][as][vm][am]concat=n=2:v=1:a=1[vc][ac];"
             ));
-            vec!["[v]".to_string(), "[a]".to_string()]
+            aout = Some("[ac]".to_string());
         } else {
-            fc.push_str("[vs][vm]concat=n=2:v=1:a=0[v]");
-            vec!["[v]".to_string()]
+            fc.push_str("[vs][vm]concat=n=2:v=1:a=0[vc];");
+        }
+        vout = "[vc]".to_string();
+    } else if args.overlay.is_some() {
+        // single-content base: the card's still, the test card, or the file
+        let src = if args.test || args.card.is_some() {
+            0
+        } else {
+            ni
         };
-        argv.extend(["-filter_complex", fc.trim_end_matches(';')]);
-        for m in &maps {
-            argv.extend(["-map", m.as_str()]);
+        if args.scale.is_some() {
+            fc.push_str(&format!("[{src}:v]{vchain}[vc];"));
+            vout = "[vc]".to_string();
+        } else {
+            vout = format!("[{src}:v]");
         }
     }
-    // test mode maps its two lavfi inputs explicitly (video from input 0,
-    // tone from input 1); file inputs use the normal stream indexes
-    let (vmap, amap) = if args.test {
-        ("0:v", "1:a")
-    } else {
-        ("0:v", "0:a")
-    };
+    if let Some(_ov) = &args.overlay {
+        let op = args.overlay_opacity.unwrap_or(1.0);
+        let lw = (cw / 10).max(32);
+        let m = (ch * 3 / 100).max(8);
+        let (x, y) = match args.overlay_position.unwrap_or(crate::cli::LogoPos::Br) {
+            crate::cli::LogoPos::Tl => (format!("{m}"), format!("{m}")),
+            crate::cli::LogoPos::Tr => (format!("W-w-{m}"), format!("{m}")),
+            crate::cli::LogoPos::Bl => (format!("{m}"), format!("H-h-{m}")),
+            crate::cli::LogoPos::Br => (format!("W-w-{m}"), format!("H-h-{m}")),
+        };
+        let mut lg = format!("[{li}:v]scale={lw}:-1");
+        if op < 1.0 {
+            lg.push_str(&format!(",format=rgba,colorchannelmixer=aa={op}"));
+        }
+        fc.push_str(&format!("{lg}[lg];{vout}[lg]overlay={x}:{y}[vo];"));
+        vout = "[vo]".to_string();
+    }
+    if !fc.is_empty() {
+        argv.extend(["-filter_complex", fc.trim_end_matches(';')]);
+        argv.extend(["-map", vout.as_str()]);
+        if let Some(a) = &aout {
+            argv.extend(["-map", a.as_str()]);
+        } else if has_audio {
+            argv.extend(["-map", amap]);
+        }
+    }
     if let Some(rec) = &args.record {
         let input_refs: Vec<&Path> = args.input.iter().map(|p| p.as_path()).collect();
         crate::paths::ensure_output_allowed(rec, &input_refs, g.overwrite)?;
@@ -223,7 +318,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         };
         // tee muxer doesn't do default stream selection — map explicitly,
         // then encode once and mux to ingest + local archive together
-        if args.slate.is_none() {
+        if fc.is_empty() {
             if has_video {
                 argv.extend(["-map", vmap]);
             }
@@ -237,7 +332,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             format!("[f={fmt}]{}|[f={rec_fmt}]{}", args.to, rec.display()),
         ]);
     } else {
-        if args.test && args.slate.is_none() {
+        if args.test && fc.is_empty() {
             if has_video {
                 argv.extend(["-map", vmap]);
             }
@@ -254,6 +349,8 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         "loop": args.loop_,
         "slate": args.slate.is_some(),
         "slate_dur": if args.slate.is_some() { slate_dur } else { 0.0 },
+        "overlay": args.overlay.is_some(),
+        "card": args.card.is_some(),
         "vbitrate": vbitrate,
         "abitrate": abitrate,
         "format": fmt,

@@ -73,6 +73,26 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         .as_ref()
         .map(|(p, _)| vec!["-hls_key_info_file".to_string(), p.display().to_string()])
         .unwrap_or_default();
+    if args.live_window.is_some() && !args.live {
+        return Err(Error::input("--live-window needs --live"));
+    }
+    if args.live {
+        if args.single {
+            return Err(Error::input(
+                "--live slides a multi-segment window — can't combine with --single",
+            ));
+        }
+        if !args.ladder.is_empty() {
+            return Err(Error::input(
+                "--live keeps one sliding window — drop --ladder",
+            ));
+        }
+        if let Some(w) = args.live_window {
+            if w == 0 {
+                return Err(Error::input("--live-window needs at least 1 segment"));
+            }
+        }
+    }
 
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
@@ -271,12 +291,22 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "-hls_time".to_string(),
         format!("{:.3}", args.seg),
         "-hls_playlist_type".to_string(),
-        "vod".to_string(),
+        if args.live { "event" } else { "vod" }.to_string(),
         "-hls_segment_filename".to_string(),
         seg_tpl.display().to_string(),
     ]);
     if args.single {
         argv.extend(["-hls_flags".to_string(), "single_file".to_string()]);
+    }
+    if args.live {
+        // sliding window: players see only the newest N segments and no
+        // end tag — the playlist stays joinable mid-write
+        let win = args.live_window.unwrap_or(6);
+        argv.extend([
+            "-hls_flags".to_string(),
+            "delete_segments+omit_endlist".to_string(),
+        ]);
+        argv.extend(["-hls_list_size".to_string(), win.to_string()]);
     }
     if args.fmp4 {
         argv.extend(["-hls_segment_type".to_string(), "fmp4".to_string()]);
@@ -351,6 +381,8 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "playlist": paths::display(&playlist),
         "segments": nseg,
         "segment_seconds": args.seg,
+        "live": args.live,
+        "live_window": if args.live { args.live_window.unwrap_or(6) } else { 0 },
     }));
     if let Some((p, uri)) = &key_info {
         c = c.with_extra(json!({"key_uri": uri, "key_info": paths::display(p)}));
