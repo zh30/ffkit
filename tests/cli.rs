@@ -32746,3 +32746,112 @@ fn r259_meta_desc_probe_streams_live_audio_only() {
     ]);
     assert_eq!(j["status"], "failed");
 }
+
+#[test]
+fn r260_concat_chapters_probe_rotation_deliver_lufs_live_no_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    // concat --chapters: each input becomes a titled container chapter
+    let j = run_json(&[
+        "concat",
+        f.to_str().unwrap(),
+        f.to_str().unwrap(),
+        "-o",
+        d.join("joined.mp4").to_str().unwrap(),
+        "--chapters",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["chapters"], 2);
+    let ch = std::process::Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_chapters",
+            "-of",
+            "json",
+            d.join("joined.mp4").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    let ch: serde_json::Value = serde_json::from_slice(&ch.stdout).unwrap();
+    let chapters = ch["chapters"].as_array().unwrap();
+    assert_eq!(chapters.len(), 2);
+    let f_stem = f.file_stem().unwrap().to_str().unwrap();
+    assert_eq!(chapters[0]["tags"]["title"], f_stem);
+    // --chapters can't title drifting joins
+    let j = run_json(&[
+        "concat",
+        f.to_str().unwrap(),
+        f.to_str().unwrap(),
+        "-o",
+        d.join("j2.mp4").to_str().unwrap(),
+        "--chapters",
+        "--transition",
+        "fade",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // probe.rotation: display-matrix QC + streams[].default
+    let rot = d.join("rot.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-i",
+            f.to_str().unwrap(),
+            "-c",
+            "copy",
+            "-metadata:s:v",
+            "rotate=90",
+            rot.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&["probe", rot.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    assert!(j["probe"]["rotation"].is_number(), "{}", j["probe"]);
+    let vstream = j["probe"]["streams"][0].clone();
+    assert_eq!(vstream["default"], true);
+
+    // deliver --lufs overrides the platform target
+    let j = run_json(&[
+        "deliver",
+        f.to_str().unwrap(),
+        "-o",
+        d.join("p.m4a").to_str().unwrap(),
+        "--platform",
+        "podcast",
+        "--lufs",
+        "-12",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["target_i"], -12.0);
+
+    // live --no-audio: conflicts refuse before streaming
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        "tcp://x",
+        "--no-audio",
+        "--audio-only",
+    ]);
+    assert_eq!(j["status"], "failed");
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        "tcp://x",
+        "--no-audio",
+        "--abitrate",
+        "64k",
+    ]);
+    assert_eq!(j["status"], "failed");
+}

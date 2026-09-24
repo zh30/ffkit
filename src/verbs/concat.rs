@@ -59,6 +59,34 @@ pub fn run(args: ConcatArgs, g: &Globals) -> Result<Contract, Error> {
         .map(|p| engine::probe_or_err(p, g))
         .collect::<Result<_, _>>()?;
 
+    // --chapters: every input becomes a container chapter titled by its
+    // filename stem at its join point (audiobook/podcast assembly).
+    // transition/gap shift or pad the joins, so marks would drift — refused.
+    let mut chap_file: Option<std::path::PathBuf> = None;
+    if args.chapters {
+        if args.transition.is_some() || args.gap.is_some() {
+            return Err(Error::input(
+                "concat --chapters titles the plain joins — drop --transition/--gap",
+            ));
+        }
+        let mut marks: Vec<(f64, String)> = Vec::new();
+        let mut t = 0.0;
+        for (p, probe) in args.inputs.iter().zip(probes.iter()) {
+            let stem = p
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| format!("part {}", marks.len() + 1));
+            marks.push((t, stem));
+            t += probe.duration;
+        }
+        let tmp =
+            std::env::temp_dir().join(format!("ffkit-concat-chap-{}.ffmeta", std::process::id()));
+        std::fs::write(&tmp, crate::verbs::chapter::ffmeta_table(&marks, t))
+            .map_err(|e| Error::output(format!("writing chapters: {e}")))?;
+        chap_file = Some(tmp);
+    }
+
     if let Some(t) = &args.transition {
         let mut kinds = Vec::new();
         for part in t.split(',') {
@@ -84,11 +112,16 @@ pub fn run(args: ConcatArgs, g: &Globals) -> Result<Contract, Error> {
         return gap_concat(&args, g, &input_refs, &probes, gap);
     }
 
-    if args.audio_fade.is_none() && can_copy(&probes) {
-        copy_concat(&args, g, &input_refs)
+    let mut c = if args.audio_fade.is_none() && can_copy(&probes) {
+        copy_concat(&args, g, &input_refs, chap_file.as_deref())?
     } else {
-        filter_concat(&args, g, &input_refs, &probes)
+        filter_concat(&args, g, &input_refs, &probes, chap_file.as_deref())?
+    };
+    if let Some(cf) = &chap_file {
+        c = c.with_extra(json!({ "chapters": args.inputs.len() }));
+        std::fs::remove_file(cf).ok();
     }
+    Ok(c)
 }
 
 fn can_copy(probes: &[Probe]) -> bool {
@@ -112,7 +145,12 @@ fn fps_close(a: Option<f64>, b: Option<f64>) -> bool {
     }
 }
 
-fn copy_concat(args: &ConcatArgs, g: &Globals, inputs: &[&Path]) -> Result<Contract, Error> {
+fn copy_concat(
+    args: &ConcatArgs,
+    g: &Globals,
+    inputs: &[&Path],
+    chapters: Option<&Path>,
+) -> Result<Contract, Error> {
     let mut list = tempfile::NamedTempFile::new().map_err(|e| Error::output(e.to_string()))?;
     for p in &args.inputs {
         let abs = paths::abs(p);
@@ -125,7 +163,14 @@ fn copy_concat(args: &ConcatArgs, g: &Globals, inputs: &[&Path]) -> Result<Contr
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-f", "concat", "-safe", "0", "-i"]);
     argv.push(&list_path);
+    if let Some(cf) = chapters {
+        argv.extend(["-f", "ffmetadata", "-i"]);
+        argv.push(cf);
+    }
     argv.extend(["-c", "copy"]);
+    if chapters.is_some() {
+        argv.extend(["-map_chapters", "1"]);
+    }
     argv.push(&args.output);
 
     let result = engine::write_job("concat", inputs, &args.output, vec![argv], g);
@@ -138,6 +183,7 @@ fn filter_concat(
     g: &Globals,
     inputs: &[&Path],
     probes: &[Probe],
+    chapters: Option<&Path>,
 ) -> Result<Contract, Error> {
     let first = &probes[0];
     let has_v = first.has_video;
@@ -171,6 +217,10 @@ fn filter_concat(
     }
 
     let n = args.inputs.len();
+    if let Some(cf) = chapters {
+        argv.extend(["-f", "ffmetadata", "-i"]);
+        argv.push(cf);
+    }
     let mut fc = String::new();
     let mut concat_ins = String::new();
     for (i, pr) in probes.iter().enumerate() {
@@ -221,6 +271,9 @@ fn filter_concat(
     }
     if has_a {
         argv.extend(["-c:a", "aac"]);
+    }
+    if chapters.is_some() {
+        argv.extend(["-map_chapters", &n.to_string()]);
     }
     argv.push(&args.output);
     let c = engine::write_job("concat", inputs, &args.output, vec![argv], g)?;

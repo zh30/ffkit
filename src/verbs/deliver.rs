@@ -13,6 +13,13 @@ const TARGET_LRA: f64 = 11.0;
 const PODCAST_I: f64 = -16.0;
 
 pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
+    if let Some(i) = args.lufs {
+        if !(-70.0..=-5.0).contains(&i) {
+            return Err(Error::input(
+                "deliver --lufs must be -70..=-5 (e.g. -14, -16)",
+            ));
+        }
+    }
     let probe = engine::probe_or_err(&args.input, g)?;
     if args.logo.is_none() && (args.logo_position.is_some() || args.logo_opacity.is_some()) {
         return Err(Error::input("--logo-position/--logo-opacity need --logo"));
@@ -77,6 +84,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
 
+    let target_i = args.lufs.unwrap_or(TARGET_I);
     let (fw, fh) = match args.platform {
         DeliverPlatform::Youtube | DeliverPlatform::Bilibili | DeliverPlatform::Linkedin => {
             (1920, 1080)
@@ -242,7 +250,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     let mut measure: Option<Argv> = None;
     let mut measured: Option<serde_json::Value> = None;
     if probe.has_audio {
-        let filter = loudnorm::measure_filter(TARGET_I, TARGET_TP, TARGET_LRA);
+        let filter = loudnorm::measure_filter(target_i, TARGET_TP, TARGET_LRA);
         let mut m = Argv::ffmpeg();
         m.extend(["-nostats", "-i"]);
         m.push(&args.input);
@@ -252,7 +260,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             let spawned = spawn::run(&m, g.timeout, false)?;
             let spawned = spawn::require_ok(&m, spawned)?;
             let meas = loudnorm::parse_measured(&spawn::stderr_str(&spawned))?;
-            let ln = loudnorm::apply_filter(TARGET_I, TARGET_TP, TARGET_LRA, &meas, false);
+            let ln = loudnorm::apply_filter(target_i, TARGET_TP, TARGET_LRA, &meas, false);
             if let Some(fc) = &mut wrap_fc {
                 let fcs = fc.trim_end_matches(';').to_string();
                 *fc = format!("{fcs};[ac]{ln}[aout]");
@@ -367,7 +375,7 @@ fn finish(
         "platform": platform,
         "frame": format!("{}x{}", frame.0, frame.1),
         "fps": fps,
-        "target_i": TARGET_I,
+        "target_i": args.lufs.unwrap_or(TARGET_I),
         "target_tp": TARGET_TP,
         "measured": measured,
         "intro": args.intro.is_some(),
@@ -424,6 +432,7 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
             "deliver --platform podcast needs an audio stream",
         ));
     }
+    let podcast_i = args.lufs.unwrap_or(PODCAST_I);
     let mut apply = ffmpeg_base(g.progress);
     apply.push("-i");
     apply.push(&args.input);
@@ -462,7 +471,7 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
     m.push(&args.input);
     m.extend([
         "-af",
-        &loudnorm::measure_filter(PODCAST_I, TARGET_TP, TARGET_LRA),
+        &loudnorm::measure_filter(podcast_i, TARGET_TP, TARGET_LRA),
         "-vn",
         "-f",
         "null",
@@ -476,13 +485,13 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
         let meas = loudnorm::parse_measured(&spawn::stderr_str(&spawned))?;
         apply.extend([
             "-af",
-            &loudnorm::apply_filter(PODCAST_I, TARGET_TP, TARGET_LRA, &meas, false),
+            &loudnorm::apply_filter(podcast_i, TARGET_TP, TARGET_LRA, &meas, false),
         ]);
         measured = Some(meas);
     } else {
         apply.extend([
             "-af",
-            &loudnorm::measure_filter(PODCAST_I, TARGET_TP, TARGET_LRA),
+            &loudnorm::measure_filter(podcast_i, TARGET_TP, TARGET_LRA),
         ]);
     }
     let ab = if matches!(args.platform, DeliverPlatform::Audiobook) {
@@ -531,7 +540,7 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
     let platform = platform_name(args.platform);
     Ok(c.with_extra(json!({
         "platform": platform,
-        "target_i": PODCAST_I,
+        "target_i": podcast_i,
         "target_tp": TARGET_TP,
         "measured": measured,
         "cover": args.cover.is_some(),

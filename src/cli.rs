@@ -488,6 +488,10 @@ pub struct ConcatArgs {
     /// every clip's duration and sync; no overlap drift)
     #[arg(long)]
     pub audio_fade: Option<f64>,
+    /// Chapter each input clip at its join point (title = filename stem) —
+    /// audiobook/podcast multi-file → chaptered single deliverable
+    #[arg(long)]
+    pub chapters: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1209,6 +1213,10 @@ pub struct DeliverArgs {
     /// Burn this .srt/.vtt onto the delivery canvas (captioned Reels in one pass)
     #[arg(long)]
     pub subs: Option<PathBuf>,
+    /// Integrated loudness target in LUFS (overrides the platform default:
+    /// -14 video, -16 podcast) — Spotify -14, Apple Podcasts -16, custom specs
+    #[arg(long, allow_hyphen_values = true)]
+    pub lufs: Option<f64>,
     /// Push the rendered pack live instead of writing a file — rtmp://,
     /// rtmps://, tcp://, udp:// (render-and-stream premieres in one pass)
     #[arg(long)]
@@ -4726,6 +4734,10 @@ pub struct LiveArgs {
     /// push from any source (a concert file goes out as an aac-only feed)
     #[arg(long)]
     pub audio_only: bool,
+    /// Drop the audio track and stream video only — silent ambience/
+    /// surveillance feeds (the ingest program supplies its own bed)
+    #[arg(long)]
+    pub no_audio: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]

@@ -67,6 +67,11 @@ pub struct Probe {
     /// or `extract --track` (dub/subtitle audits on deliverables).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub streams: Vec<ProbeStream>,
+    /// Display-matrix rotation in degrees on the first video stream
+    /// (phone-shot portrait footage; -90 == the rotate=90 tag). QC before
+    /// `meta --rotate` — None when the container carries no rotation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rotation: Option<f64>,
 }
 
 /// One line of the stream table — index matches `remux`/`extract`
@@ -86,6 +91,14 @@ pub struct ProbeStream {
     pub height: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub channels: Option<u32>,
+    /// Player-default track (disposition.default) — QC which track a
+    /// player picks before `remux --default-audio`/`--default-sub`.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub default: bool,
+}
+
+fn is_false(v: &bool) -> bool {
+    !*v
 }
 
 fn is_zero(v: &u32) -> bool {
@@ -159,6 +172,16 @@ struct FfprobeStream {
     start_time: Option<String>,
     #[serde(default)]
     tags: Option<std::collections::HashMap<String, String>>,
+    #[serde(default)]
+    side_data_list: Option<Vec<FfprobeSideData>>,
+}
+
+#[derive(Deserialize, Default)]
+struct FfprobeSideData {
+    #[serde(default)]
+    side_data_type: Option<String>,
+    #[serde(default)]
+    rotation: Option<f64>,
 }
 
 #[derive(Deserialize, Default)]
@@ -368,8 +391,26 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 width: s.width,
                 height: s.height,
                 channels: s.channels,
+                default: s
+                    .disposition
+                    .as_ref()
+                    .and_then(|d| d.get("default").copied())
+                    .unwrap_or(0)
+                    == 1,
             })
             .collect(),
+        rotation: video.and_then(|v| {
+            v.side_data_list.as_ref().and_then(|l| {
+                l.iter()
+                    .find(|sd| {
+                        sd.side_data_type
+                            .as_deref()
+                            .map(|t| t.contains("Display Matrix"))
+                            .unwrap_or(false)
+                    })
+                    .and_then(|sd| sd.rotation)
+            })
+        }),
     })
 }
 

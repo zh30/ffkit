@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.287.0] — 2026-09-24
+
+### Added
+- `concat --chapters` — each input clip becomes a titled container chapter at its join point (title = filename stem): multi-file audiobook/podcast/session-recordings assemble into one chaptered deliverable, works on both the stream-copy and re-encode paths; `--transition`/`--gap` are refused (drifting joins would mis-title)
+- `probe`/`scan` report `rotation` (display-matrix degrees — phone-shot portrait QC before `meta --rotate`) and `streams[].default` (the player-default track — verify before `remux --default-audio`/`--default-sub`)
+- `deliver --lufs -16` — override the platform loudness target (defaults -14 video / -16 podcast): custom feed specs, Spotify/Apple targets, loudness-insensitive platforms
+- `live --no-audio` — drop the audio path and push video only (silent ambience/surveillance feeds, or when the ingest program mixes its own bed); `--audio-only`+`--no-audio` and `--abitrate`/`--card` are refused
+
 ## [0.286.0] — 2026-09-24
 
 ### Added

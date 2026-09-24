@@ -590,3 +590,7 @@ an atempo'd whole-file render would shift the window.
 - **movenc drops `rating` but keeps `description`/`synopsis`/`episode_id`/`hd_video`.** `-metadata rating=600` never lands on mp4/m4a on ffmpeg 4.4 — iTunes content-rating has to come from elsewhere; the other publishing tags are all in the whitelist.
 - **`live --audio-only` still writes FLV/MPEG-TS, not mp3/aac.** The container is chosen by transport (`rtmp/tcp`→flv, `udp/srt`→mpegts); aac-in-FLV is a valid audio-only stream — don't expect an `.mp3`-style file on the wire.
 - **`probe.streams[].index` is the absolute ffprobe index**, not the per-type ordinal — `extract --subs --track N` counts subtitle streams (`0:s:N`) while `remux` stream maps count absolute; keep them distinct when scripting.
+
+- **Rotation lands as a display matrix only through demux→mux.** `-metadata:s:v rotate=90` inside a lavfi-made file is silently dropped on 4.4; `-i in.mp4 -c copy -metadata:s:v rotate=90` carries the demuxer-synthesized displaymatrix through and IS what `meta --rotate` emits. `probe.rotation` reads the side data, not the `rotate` tag.
+- **`concat --chapters` marks come from probed durations** — cumulative `sum(d_i)` at 1ms timebase; transitions (overlap drift) and gaps (padding) would mis-title the joins, so they're refused rather than silently wrong.
+- **`live --no-audio` still needs the video guard first** — a no-video input fails `input has no video` before flag conflicts are checked; ordering matters when scripting around the error kinds.

@@ -81,6 +81,12 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         )
     };
     let mut has_video = has_video;
+    let mut has_audio = has_audio;
+    if args.audio_only && args.no_audio {
+        return Err(Error::input(
+            "live --audio-only and --no-audio empty the stream — pick one",
+        ));
+    }
     // --audio-only: strip the video path entirely (audio podcast / radio
     // push from any source — the concert file goes out aac-only)
     if args.audio_only {
@@ -105,6 +111,22 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
         has_video = false;
+    }
+    if args.no_audio {
+        if !has_video {
+            return Err(Error::input("live --no-audio: input has no video"));
+        }
+        for (flag, set) in [
+            ("card", args.card.is_some()),
+            ("abitrate", args.abitrate.is_some()),
+        ] {
+            if set {
+                return Err(Error::input(format!(
+                    "live --no-audio drops the audio — --{flag} needs an audio path"
+                )));
+            }
+        }
+        has_audio = false;
     }
     if args.slate.is_some() && !has_video {
         return Err(Error::input(
@@ -500,6 +522,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         "restream": args.restream,
         "vertical": args.vertical,
         "audio_only": args.audio_only,
+        "no_audio": args.no_audio,
         "preset": preset,
         "codec": if hevc { "hevc" } else { "h264" },
         "gop": args.gop,
