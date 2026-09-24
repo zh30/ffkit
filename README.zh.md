@@ -110,7 +110,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `caption` | 烧录字幕（`--srt`、`--chunk`、`--karaoke`（`--highlight` 已唱字高亮色）、`--box-color` 底板、`--wrap` 折行、`--from/--to` 只烧窗口内字幕（支持 `end`/`end-N`）） ，`--fade` 淡入淡出、`--opacity` 半透明水印字幕 |
 | `loudnorm` | EBU R128 两遍响度归一（`--target spotify|podcast|broadcast`）；`--measure` 只测不写（`--gate N` 超过 N LUFS 即失败）；`--dynamic` 逐帧动态增益 |
 | `denoise` | 音频降噪（`--strength`、`--highpass`、`--engine auto|wavel|fftdn` 指定引擎、`--at/--dur` 窗口），支持 `end`，逗号列表可多段 | `--ref noise.wav` anlms 自适应消噪 |
-| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`/`--colors`） | 预设 `h264`/`webm`/`gif`/`hevc`/`mp3`/`aac`/`wav`/`flac`/`opus`/`av1`/`prores`/`dnxhd`；`--fps` 也可给视频变速帧率；`--vbitrate` 峰值码率帽、`--abitrate` 音频码率（人声帖用 64k 更省）；`--alpha` 保留透明通道（webm/prores）；`--range limited|full` 标注色彩范围；`--interlaced` 标记输出为隔行（il 场交织 + tff 标记，广播母带交付）；`--interlace-mode weave` 真时域隔行（60p→30i 逐帧织场） |
+| `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`/`--colors`） | 预设 `h264`/`webm`/`gif`/`hevc`/`mp3`/`aac`/`wav`/`flac`/`opus`/`av1`/`prores`/`dnxhd`；`--fps` 也可给视频变速帧率；`--vbitrate` 峰值码率帽、`--abitrate` 音频码率（人声帖用 64k 更省）；`--alpha` 保留透明通道（webm/prores）；`--range limited|full` 标注色彩范围；`--interlaced` 标记输出为隔行（il 场交织 + tff 标记，广播母带交付）；`--interlace-mode weave` 真时域隔行（60p→30i 逐帧织场）；`--field-order tff|bff|prog` 不重织场、只改场序标签修标错的母带 |
 | `compress` | 压到目标体积（`--size 10MB` 两遍、`--target discord|whatsapp|gmail` 平台预设）；`--crf` 画质单遍、`--res` 缩分辨率腾码率 |
 | `deliver` | 一键平台成片（Reels / TikTok / Shorts 为 9:16，`square` 为 1:1，`youtube` 为 16:9；−14 LUFS；`--fps 60` 高帧率，`--crf` 画质，`--subs file.srt` 成片一步烧字幕） |
 
@@ -135,7 +135,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cutsil` | 音频掐头去尾静音（`--thresh` dB） |
 | `channel --mode ms` | 解码 M/S 录音立体声回 L/R（stereotools ms>lr） |
 | `channel` | 声道手术：`--mode dualmono|mono|swap|invert|mix51|pan|widen|split|ambience|mid|side|haas|surround|base|bal|bands|sync|earwax`（`split` 立体声→`_L/_R.wav` 双人声分轨）；`--pan -1..1` 声像定位（`bal` 校正偏听立体声，`base` 模式下 -1 折叠为单声道、+1 加宽）；`ambience --amount` 削侧链去房间混响；`haas` 延迟法立体声加宽；`surround` 立体声上混 5.1；`bands --freqs 300,3000` → `<stem>_bandN.wav` 频段分轨（acrossover，重混低/中/高）；`sync --side right --cm 34` 按拾音距离延迟单侧声道（双麦克梳状滤波修复，34cm≈1ms）；`earwax` 耳机向立体声加宽；`stereowiden` M/S 加宽（`--amount` 控制 crossfeed） |
-| `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡），`--band` 参量频段，`--curve` 手绘 F,G;F,G 曲线（firequalizer 插值），`--graphic` 18 段图示均衡，`--tilt` 暖↔亮，`--deemph riaa/cd/fm50/fm75` 去黑胶/调频/CD 预加重，`--shelf low|high:FREQ:GAIN` 架式滤波（低频隆隆声削/空气感），`--notch FREQ[:WIDTH]` 陷波除共振，`--brickwall LO,HI` FFT 砖墙带通（电话音/语音带 300,3400），`--lowpass`/`--highpass`/`--bandpass FREQ[:W]` 巴特沃斯谐振滤波（`--linear` = sinc+afir 线性相位 ~60dB 阻带母带级切频，不支持 `--at`），`--subcut`/`--supercut FREQ` 话筒架隆隆声/超声嘶声清理，支持 `end`，逗号列表可多段 |
+| `eq` | 音频均衡：`--bass`/`--treble`/`--presence`、`--preset` dB（`--at`/`--dur` 局部均衡），`--band` 参量频段，`--curve` 手绘 F,G;F,G 曲线（firequalizer 插值），`--graphic` 18 段图示均衡，`--tilt` 暖↔亮，`--deemph riaa/cd/fm50/fm75` 去黑胶/调频/CD 预加重，`--shelf low|high:FREQ:GAIN` 架式滤波（低频隆隆声削/空气感），`--notch FREQ[:WIDTH]` 陷波除共振，`--brickwall LO,HI` FFT 砖墙带通（电话音/语音带 300,3400），`--lowpass`/`--highpass`/`--bandpass FREQ[:W]` 巴特沃斯谐振滤波（`--linear` = sinc+afir 线性相位 ~60dB 阻带母带级切频，不支持 `--at`），`--subcut`/`--supercut FREQ` 话筒架隆隆声/超声嘶声清理，`--superpass FREQ[:Q]`/`--superstop FREQ` 十阶剃刀频段分离/清除，`--allpass FREQ:W` 相位旋转修不对称人声波形挣余量，支持 `end`，逗号列表可多段 |
 | `reverb` | 给人声加房间氛围：`--size room\|hall\|cave`，`--wet`（`--at`/`--dur` 局部回声），支持 `end`，逗号列表可多段；`--ir 文件.wav` 卷积混响（脉冲响应包：教堂/大厅/钢板），`--tail` 让尾音延出尾端 |
 | `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio/saturate/excite/bass/muffled/crystal/sub/crossfeed/autopan（`--kind`、`--strength`、`--at`/`--dur`），支持 `end`，逗号列表可多段 | `--kind ringmod` 真环形调制（amultiply 乘正弦载波，`--strength` 扫 25-500Hz） | `--kind crush` 位深+采样率破坏（数字低保真） | `--kind fshift` 移频（金属外星声，`--strength` 扫 50→2000Hz） | `--kind contrast` 动态倾斜（>0.5 更冲击，<0.5 更平稳） |
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip`、`--angle` 任意角度倾斜、`--at`/`--dur` 窗口倾斜（支持逗号列表） |
@@ -250,7 +250,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `despill` | 去除抠像边缘绿/蓝溢色（`--type`、`--mix`、`--expand`、`--at`/`--dur`） | - |
 | `interp` | 运动补偿插帧：`--fps 60` 上采样、`--slow 0.5` 顺滑慢动作 | - | `--engine minterpolate|framerate` |
 | `matrix` | 色彩矩阵转换（`--from bt601 --to bt709` 修 SD 偏绿；源矩阵自动检测；`--engine colorspace` 还换算原色+传递曲线，bt2020↔709 走这条） | - |
-| `legalize` | 亮度钳制到广播安全 16-235（`--min`/`--max`、`--at`/`--dur`） | - |
+| `legalize` | 亮度钳制到广播安全 16-235（`--min`/`--max`、`--at`/`--dur`）；`--flash` 压制光敏性癫痫频闪（scan 可检出 flash_frames） | - |
 | `levels` | Photoshop 色阶：`--in-min/--in-max/--out-min/--out-max`（救压暗素材、哑光头） | - |
 | `aberrate` | 色散镶边 — `--amount` px（VHS/故障边缘感） | - |
 | `displace` | 按第二个素材亮度位移扭曲画面（热扭曲/液体故障）：`--edge` wrap/mirror/smear/blank，`--at`/`--dur` 窗口 | - |
@@ -266,7 +266,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `hls` | 网页 HLS 封装（`--seg`、`--single`、`--copy`、`--ladder` 多码率、`--audio-only` 纯音频、`--fmp4` CMAF、`--poster` 同时输出 poster.jpg 封面，`--poster-at T` 选封面帧，`--encrypt` AES-128 加密分片并写 key.bin/key.info（`--key HEX` 自定义密钥、`--key-uri URI` 播放列表里的密钥地址）→ 私有/付费流） |
 
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM + MSAD + VIF，`--metric`） |
-| `conform` | 一键统一规格（`--size WxH`、`--fps 30`、`--lufs -14`、`--crf`、`--pad` 黑边颜色 + `--anchor` 锚点、`--blur` 模糊填充） |
+| `conform` | 一键统一规格（`--size WxH`、`--fps 30`、`--lufs -14`、`--crf`、`--pad` 黑边颜色 + `--anchor` 锚点、`--blur` 模糊填充，`--hold SEC` 克隆末帧片尾停留 + `--hold-start` 片头预停（音频自动补静音） |
 | `sync` | 修复音画同步（`--ms ±N` 垫音/裁音头） |
 | `align` | 音频互相关自动对齐第二路录音（多机位/外接录音笔，`--max-lag`） |
 | `scroll` | 片尾滚动字幕（`--text`/`--file`、`--at`、`--dur` 或 `--speed` px/s、`--size`、`--color`、`--font`、`--align` 对齐、`--wrap` 折行）；`--mode ticker` 底部新闻条可加 `--bg` 不透明底条；`--at` 逗号列表可多次复播，`end` 亦可；`--opacity` 半透明字幕 |

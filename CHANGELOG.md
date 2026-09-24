@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.258.0] — 2026-09-23
+
+- `eq --superpass FREQ[:Q]` / `eq --superstop FREQ` — order-10 razor band pass/stop (isolate or kill a whine/whistle/tone anywhere on the spectrum; ~50dB deeper notch than --notch)
+- `eq --allpass FREQ:WIDTH` — two-pole allpass phase rotator: symmetrizes lopsided vocal waveforms for free headroom (spectrum untouched — mean stays, peak moves)
+- `legalize --flash` (+`--flash-threshold`) — damps photosensitive-epilepsy flash cuts; the fix half of `scan`'s flash_frames QC
+- `conform --hold SEC` / `--hold-start SEC` — tpad clones the edge frame: end-card hold & pre-roll without a title card (audio silence-padded to match)
+- `transcode --field-order tff|bff|prog` — setparams field_mode relabel: fixes masters tagged with the wrong parity WITHOUT re-weaving frames (the repair the fieldorder filter can't do on demuxed input)
+
 ## [0.257.0] — 2026-09-23
 
 - `eq --linear` — linear-phase FIR mode for `--lowpass`/`--highpass`/`--bandpass` (sinc+afir: flat passband, ~60dB stopband, zero phase smear — mastering-safe cuts; no `--at`)

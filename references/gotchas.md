@@ -451,3 +451,24 @@ an atempo'd whole-file render would shift the window.
 - **AAC-in-.wav now auto-retargets**: `engine::write_job` rewrites
   `-c:a aac` to pcm_s16le/flac/libmp3lame/libvorbis/libopus by output
   extension — AAC-in-WAV misdecoded on some ffmpeg 4.x builds.
+
+- **`asuperpass`/`asuperstop` are band ops at ANY center frequency** —
+  despite the "super" name they're not ultrasonic-only: asuperpass
+  keeps the band around centerf (steep order-4..20 skirts, qfactor for
+  width), asuperstop notches it out ~50dB deep. Note asuperstop leaves
+  the above-band slightly hot (level param overshoot ~+6dB at the edge).
+- **`allpass` width can exceed its center frequency** — `w` is a
+  broadness knob, not a strict band edge: f=110:w=600 is valid and
+  rotates phase across more of the spectrum. Verify via crest shift
+  (volumedetect max_volume moves, mean_volume stays).
+- **`aderivative`/`aintegral` are raw math ops, not creator FX** —
+  derivative = +6dB/oct HF tilt at −24dB level on 440Hz, integral =
+  huge bass swell with DC wander; neither maps to a shippable effect.
+- **`floodfill` takes per-plane component values, not colors** —
+  s0..s3/d0..d3 are raw ints (YUV planes for yuv420p), so a hex
+  "green" never parses; wiring a color pick would need RGB→plane
+  conversion per pix_fmt. Skipped.
+- **`setparams=field_mode` fixes parity labels demux loses** — the
+  fieldorder filter passthroughs on unflagged input (round 230), but
+  setparams just WRITES the flag: `transcode --field-order tff|bff|prog`
+  is the relabel repair. setparams=range works the same way (--range).

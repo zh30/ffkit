@@ -26959,3 +26959,271 @@ fn r230_eq_linear_subcut_supercut_selchroma_matrixcs_dedust_wavcodec() {
         assert!(avg < 170, "sparkle should be suppressed: avg={avg}");
     }
 }
+
+// Round 231: eq --superpass/--superstop razor band ops, --allpass phase
+// rotator, legalize --flash, conform --hold, transcode --field-order.
+#[test]
+fn r231_superband_allpass_flash_hold_fieldorder() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    fn mean_db(p: &Path) -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-hide_banner", "-i"])
+            .arg(p)
+            .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stderr);
+        s.split("mean_volume: ")
+            .nth(1)
+            .and_then(|r| r.split(" dB").next().unwrap_or("").trim().parse().ok())
+            .unwrap_or(0.0)
+    }
+    fn max_db(p: &Path) -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-hide_banner", "-i"])
+            .arg(p)
+            .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stderr);
+        s.split("max_volume: ")
+            .nth(1)
+            .and_then(|r| r.split(" dB").next().unwrap_or("").trim().parse().ok())
+            .unwrap_or(0.0)
+    }
+
+    // asuperpass / asuperstop — order-10 razor band pass/stop
+    if has_filter("asuperpass") && has_filter("asuperstop") {
+        let s = dir.path().join("s96.wav");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=25000:duration=1:sample_rate=96000",
+                "-c:a",
+                "pcm_s24le",
+            ])
+            .arg(&s)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false));
+        let o = dir.path().join("stop.wav");
+        let j = run_json(&[
+            "eq",
+            &s.to_string_lossy(),
+            "--superstop",
+            "25000",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        assert!(mean_db(&o) < -55.0, "superstop kill: {}", mean_db(&o));
+        // pass-band kept: same filter through --superpass stays ~source level
+        let o2 = dir.path().join("pass.wav");
+        let j = run_json(&[
+            "eq",
+            &s.to_string_lossy(),
+            "--superpass",
+            "25000",
+            "-o",
+            &o2.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        assert!(mean_db(&o2) > -30.0, "superpass keep: {}", mean_db(&o2));
+        // and it rejects off-band material
+        let s2 = dir.path().join("s8.wav");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=8000:duration=1:sample_rate=96000",
+                "-c:a",
+                "pcm_s24le",
+            ])
+            .arg(&s2)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false));
+        let o3 = dir.path().join("passrej.wav");
+        let j = run_json(&[
+            "eq",
+            &s2.to_string_lossy(),
+            "--superpass",
+            "25000",
+            "-o",
+            &o3.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        assert!(mean_db(&o3) < -40.0, "superpass reject: {}", mean_db(&o3));
+    }
+
+    // allpass — same spectrum, rotated phase: mean steady, peak shifts
+    if has_filter("allpass") {
+        let s = dir.path().join("mix2.m4a");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=110:duration=1",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=220:duration=1",
+                "-filter_complex",
+                "[0:a][1:a]amix=inputs=2:normalize=0,volume=0.5",
+                "-c:a",
+                "aac",
+            ])
+            .arg(&s)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false));
+        let o = dir.path().join("ap.m4a");
+        let j = run_json(&[
+            "eq",
+            &s.to_string_lossy(),
+            "--allpass",
+            "110:200",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        let (m_in, m_out) = (mean_db(&s), mean_db(&o));
+        assert!(
+            (m_in - m_out).abs() < 0.5,
+            "allpass must not change level: {m_in} vs {m_out}"
+        );
+        let (p_in, p_out) = (max_db(&s), max_db(&o));
+        assert!(
+            (p_in - p_out).abs() > 0.3,
+            "allpass should rotate phase (peak shift): {p_in} vs {p_out}"
+        );
+    }
+
+    // legalize --flash — photosensitivity damps the strobe to one level
+    if has_filter("photosensitivity") {
+        let strobe = dir.path().join("strobe.mp4");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=white:s=320x240:d=0.25:r=4,format=yuv420p",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=black:s=320x240:d=0.25:r=4,format=yuv420p",
+                "-filter_complex",
+                "[0:v][1:v][0:v][1:v][0:v][1:v]concat=n=6:v=1",
+                "-c:v",
+                "libx264",
+            ])
+            .arg(&strobe)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false));
+        let o = dir.path().join("leg.mp4");
+        let j = run_json(&[
+            "legalize",
+            &strobe.to_string_lossy(),
+            "--flash",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        assert_eq!(j["extra"]["flash"], true);
+        // damped: every frame's YAVG sits in one narrow band (vs 16 vs 235)
+        let out = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "info", "-i"])
+            .arg(&o)
+            .args(["-vf", "signalstats,metadata=mode=print", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&out.stderr);
+        let mut vals: Vec<u32> = s
+            .split("YAVG=")
+            .skip(1)
+            .filter_map(|r| r.split(['\r', '\n', ' ']).next()?.parse::<f64>().ok())
+            .map(|v| v as u32)
+            .collect();
+        vals.sort_unstable();
+        vals.dedup();
+        assert!(
+            vals.len() <= 2,
+            "flash should collapse distinct luma levels, got {vals:?}"
+        );
+    }
+
+    // conform --hold — last frame held 2s (3s input → ~5s out)
+    if has_filter("tpad") {
+        let o = dir.path().join("held.mp4");
+        let j = run_json(&[
+            "conform",
+            &f.to_string_lossy(),
+            "--hold",
+            "2",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        let d = j["probe"]["duration"].as_f64().unwrap_or(0.0);
+        assert!((d - 3.0).abs() < 0.6, "hold duration ~3 (1+2), got {d}");
+    }
+
+    // transcode --field-order — setparams relabels parity (prores mov)
+    let fo = dir.path().join("fo.mov");
+    let j = run_json(&[
+        "transcode",
+        &f.to_string_lossy(),
+        "--preset",
+        "prores",
+        "--field-order",
+        "tff",
+        "-o",
+        &fo.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let pv = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "stream=field_order",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&fo)
+        .output()
+        .unwrap();
+    let fo_s = String::from_utf8_lossy(&pv.stdout);
+    assert!(
+        fo_s.contains("tb") || fo_s.contains("tt") || fo_s.contains("tff"),
+        "expected top-field-first order, got {fo_s}"
+    );
+}

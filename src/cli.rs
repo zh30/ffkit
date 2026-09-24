@@ -1071,6 +1071,20 @@ pub struct TranscodeArgs {
     /// double-rate progressive (50p → 25i is the true broadcast cut)
     #[arg(long, value_enum)]
     pub interlace_mode: Option<InterlaceKind>,
+    /// Relabel the field-order flag WITHOUT re-weaving frames (fixes
+    /// masters tagged with the wrong parity — a metadata-only repair)
+    #[arg(long, value_enum)]
+    pub field_order: Option<FieldOrder>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum FieldOrder {
+    /// Top field first (broadcast HD default)
+    Tff,
+    /// Bottom field first (DV/SD legacy)
+    Bff,
+    /// Progressive — clears a wrong interlace flag
+    Prog,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -3313,6 +3327,18 @@ pub struct EqArgs {
     /// above the hearing band on high-sample-rate masters
     #[arg(long)]
     pub supercut: Option<f64>,
+    /// Razor band isolation FREQ[:Q] — order-10 asuperpass band pass:
+    /// keep only the band around FREQ (isolate a whine, whistle or tone)
+    #[arg(long)]
+    pub superpass: Option<String>,
+    /// Razor band kill FREQ Hz — order-10 asuperstop band stop centered
+    /// on FREQ (~50dB deeper than --notch's two-pole reject)
+    #[arg(long)]
+    pub superstop: Option<f64>,
+    /// Phase rotator FREQ:WIDTH — two-pole allpass: symmetrizes lopsided
+    /// vocal waveforms for free headroom (tone untouched)
+    #[arg(long)]
+    pub allpass: Option<String>,
     /// Apply the EQ only from here (bass boost on the drop)
     #[arg(long)]
     pub at: Option<String>,
@@ -3868,6 +3894,13 @@ pub struct LegalizeArgs {
     /// ..for this many seconds
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Damp photosensitive-epilepsy flash cuts (safe-delivery pass —
+    /// `scan` reports the same flashes as flash_frames/badness)
+    #[arg(long)]
+    pub flash: bool,
+    /// Flash detection strictness (default 1.0; lower = stricter)
+    #[arg(long)]
+    pub flash_threshold: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4302,6 +4335,13 @@ pub struct ConformArgs {
     /// Letterbox anchor: top|bottom|left|right (default centered; needs --pad)
     #[arg(long)]
     pub anchor: Option<String>,
+    /// Hold the last frame SEC more seconds (end-card hold; audio is
+    /// padded with silence to match)
+    #[arg(long)]
+    pub hold: Option<f64>,
+    /// Hold the first frame SEC seconds before playback (pre-roll)
+    #[arg(long)]
+    pub hold_start: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

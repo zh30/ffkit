@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.257.0
+version: 0.258.0
 
 
 
@@ -128,7 +128,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | subtle watermark | `overlay` (`--opacity` on `--image`) |
 | split a podcast on pauses | `split` (`--silence=-35` — cuts at gap midpoints) |
 | music bed that eases in/out | `music` (`--fade` on the bed) |
-| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass/warm/air`), `--band` parametric, `--tilt`, `--deemph riaa/cd/fm50/fm75` undoes vinyl/FM/CD pre-emphasis, `--shelf low|high:FREQ:GAIN` shelves (rumble cut / air shelf), `--notch FREQ[:WIDTH]` kills a resonance, `--brickwall LO,HI` FFT bandpass (telephone / speech-band 300,3400), `--lowpass`/`--highpass`/`--bandpass FREQ[:W]` resonant Butterworth filters (+`--linear` = sinc+afir linear-phase ~60dB-stopband mastering cuts, no --at), `--subcut FREQ` mic-stand rumble, `--supercut FREQ` ultrasonic hiss on 96k masters |
+| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass/warm/air`), `--band` parametric, `--tilt`, `--deemph riaa/cd/fm50/fm75` undoes vinyl/FM/CD pre-emphasis, `--shelf low|high:FREQ:GAIN` shelves (rumble cut / air shelf), `--notch FREQ[:WIDTH]` kills a resonance, `--brickwall LO,HI` FFT bandpass (telephone / speech-band 300,3400), `--lowpass`/`--highpass`/`--bandpass FREQ[:W]` resonant Butterworth filters (+`--linear` = sinc+afir linear-phase ~60dB-stopband mastering cuts, no --at), `--subcut FREQ` mic-stand rumble, `--supercut FREQ` ultrasonic hiss on 96k masters, `--superpass FREQ[:Q]`/`--superstop FREQ` razor order-10 band isolate/kill, `--allpass FREQ:W` phase rotator (symmetrize lopsided vocals → free headroom) |
 | soft b-roll cutaway edges | `broll` (`--fade`), `--position` pip (+`--border` ring), `--opacity` ghost insert |
 | stills at exact moments | `frames` (`--at 12,45,90`) |
 | audiogram on any canvas | `audiogram` (`--size` — 1080x1920, 1920x1080, 1080x1080) |

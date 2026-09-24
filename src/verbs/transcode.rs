@@ -36,6 +36,24 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     {
         return Err(Error::input("--range applies to video presets only"));
     }
+    if args.field_order.is_some() && args.interlaced {
+        return Err(Error::input(
+            "--field-order relabels parity — --interlaced weaves real fields; pick one",
+        ));
+    }
+    if args.field_order.is_some()
+        && matches!(
+            preset,
+            TranscodePreset::Gif
+                | TranscodePreset::Mp3
+                | TranscodePreset::Aac
+                | TranscodePreset::Wav
+                | TranscodePreset::Flac
+                | TranscodePreset::Opus
+        )
+    {
+        return Err(Error::input("--field-order applies to video presets only"));
+    }
     if args.vbitrate.is_some()
         && matches!(
             preset,
@@ -74,6 +92,17 @@ fn range_tag(args: &TranscodeArgs) -> &'static str {
     match args.range {
         Some(crate::cli::TranscodeRange::Limited) => ",setparams=range=tv",
         Some(crate::cli::TranscodeRange::Full) => ",setparams=range=pc",
+        None => "",
+    }
+}
+
+fn field_tag(args: &TranscodeArgs) -> &'static str {
+    // setparams only relabels the field_order flag — unlike setfield /
+    // fieldorder it needs no flagged input, so it also FIXES wrong tags
+    match args.field_order {
+        Some(crate::cli::FieldOrder::Tff) => ",setparams=field_mode=tff",
+        Some(crate::cli::FieldOrder::Bff) => ",setparams=field_mode=bff",
+        Some(crate::cli::FieldOrder::Prog) => ",setparams=field_mode=prog",
         None => "",
     }
 }
@@ -123,6 +152,7 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         }
         vf.push_str(range_tag(args));
         vf.push_str(&interlace_tag(args));
+        vf.push_str(field_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -162,6 +192,7 @@ fn hevc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         }
         vf.push_str(range_tag(args));
         vf.push_str(&interlace_tag(args));
+        vf.push_str(field_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -199,6 +230,7 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         }
         vf.push_str(range_tag(args));
         vf.push_str(&interlace_tag(args));
+        vf.push_str(field_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -234,6 +266,7 @@ fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         }
         vf.push_str(range_tag(args));
         vf.push_str(&interlace_tag(args));
+        vf.push_str(field_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -369,7 +402,12 @@ fn prores(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             ]);
         }
         let fps_vf = args.fps.map(|fps| format!("fps={fps}")).unwrap_or_default();
-        let prores_vf = format!("{fps_vf}{}{}", range_tag(args), interlace_tag(args));
+        let prores_vf = format!(
+            "{fps_vf}{}{}{}",
+            range_tag(args),
+            interlace_tag(args),
+            field_tag(args)
+        );
         if !prores_vf.is_empty() {
             argv.extend(["-vf", prores_vf.trim_start_matches(',')]);
         }
@@ -419,6 +457,7 @@ fn dnxhd(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         }
         vf.push_str(range_tag(args));
         vf.push_str(&interlace_tag(args));
+        vf.push_str(field_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {

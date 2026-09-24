@@ -9,9 +9,15 @@ use crate::error::Error;
 
 pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
-    if args.size.is_none() && args.fps.is_none() && args.lufs.is_none() && args.crf.is_none() {
+    if args.size.is_none()
+        && args.fps.is_none()
+        && args.lufs.is_none()
+        && args.crf.is_none()
+        && args.hold.is_none()
+        && args.hold_start.is_none()
+    {
         return Err(Error::input(
-            "nothing to conform — pass --size WxH, --fps N, and/or --lufs L",
+            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC",
         ));
     }
 
@@ -70,6 +76,33 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         }
         vf.push(format!("fps={fps}"));
     }
+    // --hold/--hold-start: tpad clones the edge frame for N seconds —
+    // end-card hold or pre-roll without burning a title card
+    let mut tpad = String::new();
+    let mut held_secs = 0.0f64;
+    let src_fps = probe.fps.unwrap_or(30.0).max(1.0);
+    for (opt, mode, val) in [
+        ("start", "start_mode=clone", args.hold_start),
+        ("stop", "stop_mode=clone", args.hold),
+    ] {
+        if let Some(s) = val {
+            if !(0.0..=600.0).contains(&s) || s == 0.0 {
+                return Err(Error::input("--hold SEC must be 0..600"));
+            }
+            held_secs += s;
+            let frames = (s * src_fps).round().max(1.0) as u32;
+            if !tpad.is_empty() {
+                tpad.push(':');
+            }
+            tpad.push_str(&format!("{opt}={frames}:{mode}"));
+        }
+    }
+    if !tpad.is_empty() {
+        if !probe.has_video {
+            return Err(Error::input("--hold needs a video stream"));
+        }
+        vf.push(format!("tpad={tpad}"));
+    }
     vf.push("format=yuv420p".into());
 
     let mut argv = ffmpeg_base(g.progress);
@@ -105,6 +138,11 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
             af.push_str(&format!("loudnorm=I={l:.1}:TP=-1.5:LRA=11,"));
         }
         af.push_str("aresample=48000,aformat=channel_layouts=stereo");
+        // silence-pad the tail so audio length matches a frame hold
+        if held_secs > 0.0 {
+            let whole = ((probe.duration + held_secs) * 48000.0).round() as u64;
+            af.push_str(&format!(",apad=whole_len={whole}"));
+        }
         argv.extend(["-af".to_string(), af]);
         argv.extend([
             "-c:a".to_string(),
@@ -123,6 +161,8 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         "anchor": args.anchor,
         "fps": args.fps,
         "lufs": args.lufs,
+        "hold": args.hold,
+        "hold_start": args.hold_start,
     }));
     Ok(c)
 }

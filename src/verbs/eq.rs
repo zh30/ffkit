@@ -269,6 +269,51 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
         }
         chain.push(format!("asupercut=cutoff={f:.0}:order=10"));
     }
+    // --superpass FREQ[:Q] — order-10 asuperpass band pass: keeps only
+    // the band around FREQ (razor isolation of a whine, whistle, tone)
+    if let Some(sp) = &args.superpass {
+        let mut it = sp.split(':');
+        let f: f64 = it
+            .next()
+            .and_then(|v| v.parse().ok())
+            .ok_or_else(|| Error::input("--superpass wants FREQ[:Q]"))?;
+        let q: f64 = it.next().and_then(|v| v.parse().ok()).unwrap_or(1.0);
+        if !(20.0..=48000.0).contains(&f) {
+            return Err(Error::input("--superpass FREQ must be 20..48000 Hz"));
+        }
+        if !(0.01..=100.0).contains(&q) {
+            return Err(Error::input("--superpass Q must be 0.01..=100"));
+        }
+        chain.push(format!("asuperpass=centerf={f:.0}:order=10:qfactor={q:.2}"));
+    }
+    // --superstop FREQ — order-10 band stop centered on FREQ (razor
+    // notch ~50dB deep, far past the two-pole --notch)
+    if let Some(f) = args.superstop {
+        if !(20.0..=48000.0).contains(&f) {
+            return Err(Error::input("--superstop FREQ must be 20..48000 Hz"));
+        }
+        chain.push(format!("asuperstop=centerf={f:.0}:order=10"));
+    }
+    // --allpass FREQ:WIDTH — two-pole allpass phase rotator: same
+    // spectrum, rotated phase — symmetrizes lopsided vocal waveforms
+    if let Some(ap) = &args.allpass {
+        let mut it = ap.split(':');
+        let f: f64 = it
+            .next()
+            .and_then(|v| v.parse().ok())
+            .ok_or_else(|| Error::input("--allpass wants FREQ:WIDTH"))?;
+        let w: f64 = it
+            .next()
+            .and_then(|v| v.parse().ok())
+            .ok_or_else(|| Error::input("--allpass wants FREQ:WIDTH (width in Hz)"))?;
+        if !(20.0..=20000.0).contains(&f) {
+            return Err(Error::input("--allpass FREQ must be 20..20000 Hz"));
+        }
+        if !(0.1..=99999.0).contains(&w) {
+            return Err(Error::input("--allpass WIDTH must be 0.1..99999 Hz"));
+        }
+        chain.push(format!("allpass=f={f:.0}:w={w:.0}"));
+    }
     if bass != 0.0 {
         chain.push(format!("bass=g={}", bass));
     }

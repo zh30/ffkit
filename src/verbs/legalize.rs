@@ -15,6 +15,15 @@ pub fn run(args: LegalizeArgs, g: &crate::cli::Globals) -> Result<Contract, Erro
     }
     // planes=1 = luma only: chroma planes live in a different legal range
     let mut vf = format!("limiter=min={}:max={}:planes=1", args.min, args.max);
+    // --flash: damps seizure-risk luminance swings upstream of the clamp
+    // (whole-file safety pass, so it stays out of any --at window)
+    if args.flash {
+        let t = args.flash_threshold.unwrap_or(1.0);
+        if !(0.1..=10.0).contains(&t) {
+            return Err(Error::input("--flash-threshold must be 0.1..=10"));
+        }
+        vf = format!("photosensitivity=threshold={t:.2},{vf}");
+    }
     if let Some(s) = &args.at {
         let win = crate::time::enable_expr(s, args.dur, probe.duration)?;
         vf = format!("{vf}:enable='{win}'");
@@ -36,6 +45,7 @@ pub fn run(args: LegalizeArgs, g: &crate::cli::Globals) -> Result<Contract, Erro
     Ok(c.with_extra(json!({
         "min": args.min,
         "max": args.max,
+        "flash": args.flash,
         "filter": vf,
     })))
 }
