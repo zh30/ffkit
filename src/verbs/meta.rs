@@ -14,6 +14,7 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         ("genre", args.genre.as_deref()),
         ("date", args.date.as_deref()),
         ("track", args.track.as_deref()),
+        ("disc", args.disc.as_deref()),
         ("comment", args.comment.as_deref()),
     ]
     .into_iter()

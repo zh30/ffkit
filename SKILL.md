@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.276.0
+version: 0.277.0
 
 
 
@@ -87,7 +87,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | blend two audio files | `crossfade` (`--second`, `--dur` overlap — acrossfade) |
 | strip location/device tags | `strip` — drops all container metadata + chapters, stream copy |
 | stills every N seconds | `frames` (`--every`, `--width`) → `stem_001.png…` (`--untile 4x3` splits every frame into tiles — reverse a contact sheet) |
-| 3-2-1 intro countdown | `countdown` (`--from` up to 600, `--each`, `--go`, `--at`, `--text`, `--position`, `--bg` plate, `--beep` + `--tone` Hz, `--format` mm:ss/h:mm:ss long counts, `--opacity` ghost) |
+| 3-2-1 intro countdown | `countdown` (`--from` up to 600, `--each`, `--go`, `--at`, `--text`, `--position`, `--bg` plate, `--beep` + `--tone` Hz, `--format` mm:ss/h:mm:ss long counts, `--opacity` ghost, `--target HH:MM` counts to a wall-clock premiere time — 1s per count, up to 10 min ahead, rolls to tomorrow once passed) |
 | invert / negative look | `invert` — `negate` the picture |
 | split to fit a size cap | `split --size 9MB` — even grid aimed at Discord/WhatsApp caps |
 | merge two audio sources at full level | `mix` `A B` (`--vol-a/--vol-b`, `--longest`, `--at/--dur`), `--duck` bed dips under voice (`--gate` hard-mutes it — talk-show bed), `--normalize` halves the sum |
@@ -99,7 +99,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | go live / push a stream | `live` (`--to rtmp://…` / `rtmps://` / `tcp://` / `udp://` / `srt://` (SRT/UDP ride MPEG-TS), `--codec hevc` contribution-grade HEVC on TS transports, `--subs file.srt` burns live captions in, `--loop` forever, `--vbitrate`/`--abitrate`, `--scale WxH` downscale a big master to ingest size, `--fps N` cap output rate, `--record file.mp4` archive the stream locally while pushing (tee — encode once, mux twice), `--until SEC` auto-stop the stream (premiere windows), `--list` reads a concat manifest for 24/7 rotation (`--loop` = infinite), `--test` streams a generated test card + tone (verify the stream key before showtime), `--slate card.png --slate-dur SEC` holds a starting-soon card ahead of the feed (premieres), `--card art.png` gives an audio-only source a persistent still video (24/7 lofi-radio streams), `--overlay bug.png` pins a channel bug in a corner (`--overlay-position tl|tr|bl|br`, `--overlay-opacity`), `--restream url` pushes to a second ingest at once — multistream in one encode, `--gop N` keyframe interval for ingest specs (YouTube wants ≤2s), `--preset` x264 speed/quality, `--vertical` letterboxes onto a 1080x1920 canvas — TikTok/Reels live, `--maxrate 4500k`/`--bufsize` CBR caps for ingest rate specs — bufsize defaults to 2x maxrate, `--start T` begins streaming T seconds into the source — skip a long event's dead head on replay); real-time `-re` pacing + x264/aac ingest encode); `deliver --to` streams the rendered platform pack to the same ingest URLs) |
 
 | check encode quality loss | `qa` `ref.mp4 test.mp4` → psnr/ssim/msad/vif numbers (`--metric`) |
-| normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill) |
+| normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill, `--even` floors odd px dims — phone captures can't take yuv420p) |
 | light-leak / screen-blend overlay | `overlay --video leak.mp4 --mode screen` (19 Photoshop-style blend modes — burn/dodge/softlight/hardlight/vividlight/linearlight/pinlight/hardmix/exclusion/negation/subtract/divide/glow/phoenix/reflect…) |
 | fix audio/video sync drift | `sync` (`--ms ±N` — pad or trim audio start) |
 | sync a second take to the camera master | `align` (`ref target -o out` — auto-detects offset by audio cross-correlation; multi-cam, external recorder; `--window` bounds long takes; `--check` reports `offset_ms`/`direction` without rendering — sync QC) |
@@ -118,7 +118,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | quiet tail on a podcast | `silence` (`--end --dur` secs — appended) |
 | logo/watermark that eases in | `overlay` (`--fade` secs — alpha in/out) |
 | subtitle file is early/late (all or just a stretch) | `subs` (`--shift ±N` — retimes every cue; `--from`/`--to` bounds it) |
-| full podcast/music tags | `meta` (`--album`/`--genre`/`--date`/`--track`) |
+| full podcast/music tags | `meta` (`--album`/`--genre`/`--date`/`--track`/`--disc`) |
 | keep only the good parts | `cut` (`--ranges "10-20,40-50"` — joined) |
 | solid color card / backplate | `solid` (`--color`/`--size`/`--dur`/`--fps`, optional silent track), `--noise` grain, `--text` card text (`--wrap`/`--align`), `--fade` card fades |
 | boost without clipping | `volume` (`--limit` dBTP — brickwall after the gain) |
@@ -170,7 +170,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | drop duplicate frames | `dedup` (`--frac`, VFR out) |
 | audiogram CQT music spectrum | `audiogram --mode cqt` |
 | audiogram scrolling spectrogram | `audiogram --mode spectro` |
-| find black/frozen stretches (QC) | `scan` (JSON extras; no -o) — also `interlaced`/frames_* from idet, `has_cc`/`cc_lines` EIA-608 closed captions, `crop_hint`/`letterboxed` cropdetect letterbox QC, `vfr`/`vfr_ratio` variable-frame-rate QC, `--dupe REF` MPEG-7 duplicate/re-upload match, `--text` OCR burned text, `rg_gain_db`/`rg_peak` ReplayGain tags, `--motion` VMAF motion score (`motion_avg`/`motion_max` — bitrate-budget QC), `--timecode` VITC readout (`vitc`/`vitc_tc`/`vitc_frames` broadcast-master QC), `--bbox` content bounds (`content_detected`/`content_box`/`content_fill` — works on any uniform background, not just black), `--loud` EBU R128 loudness summary (`loud_i`/`loud_lra`/`loud_tp` — platform spec gate, audio-only files too), `hdr`/`wide_gamut`/`color_space`/`color_primaries`/`color_transfer` HDR & gamut QC from container colour tags |
+| find black/frozen stretches (QC) | `scan` (JSON extras; no -o) — also `interlaced`/frames_* from idet, `has_cc`/`cc_lines` EIA-608 closed captions, `crop_hint`/`letterboxed` cropdetect letterbox QC, `vfr`/`vfr_ratio` variable-frame-rate QC, `--dupe REF` MPEG-7 duplicate/re-upload match, `--text` OCR burned text, `rg_gain_db`/`rg_peak` ReplayGain tags, `--motion` VMAF motion score (`motion_avg`/`motion_max` — bitrate-budget QC), `--timecode` VITC readout (`vitc`/`vitc_tc`/`vitc_frames` broadcast-master QC), `--bbox` content bounds (`content_detected`/`content_box`/`content_fill` — works on any uniform background, not just black), `--loud` EBU R128 loudness summary (`loud_i`/`loud_lra`/`loud_tp` — platform spec gate, audio-only files too), `hdr`/`wide_gamut`/`color_space`/`color_primaries`/`color_transfer` HDR & gamut QC from container colour tags, `--gop` keyframe-interval QC (`keyframes`/`gop_max_sec`/`gop_avg_sec`/`gop_max_frames` — packet flags, no decode; "keyframe every ≤2s" ingest spec) |
 | dust specks / hot pixels | `dedust` (`--size` 1-4, `--dark` for dark specks; morphology, not blur; `--engine temporal` tlut2 kills one-frame sparkles/VHS dropouts) |
 | inverse telecine | `deinterlace --engine fieldmatch` (film 29.97i → 23.976p) |
 | denoise without melting detail | `vdenoise --engine edge` (nlmeans masked to flat areas) |
@@ -320,7 +320,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | blur a face / logo | `censor` (`--region x:y:w:h` — comma list covers several spots, `--mode pixel|blur|solid` (solid = black-bar redact), `--strength`, `--shape circle` ellipse mask; `--at`/`--dur` limits the window) |
 | slow-mo punch-in | `speed` (`--factor`/`--ramp`, `--at`/`--dur` for just one window); `speed --fit SEC` retimes the whole clip to an exact length (auto factor — a 90s take --fit 15 becomes 6x) |
 | boomerang replay | `boomerang` (forward then reversed, one loop) |
-| YouTube/player chapters | `chapter` (`--at T|TITLE` repeatable, `--auto` silence gaps, `--remove` strips; lossless; `--yt` export/`--import` YouTube `H:MM:SS Title` lines, `--cue` CUE sheet, `--podcast` Podcasting 2.0 JSON chapters; `--import` auto-detects .json/.cue) |
+| YouTube/player chapters | `chapter` (`--at T|TITLE` repeatable, `--auto` silence gaps, `--remove` strips; lossless; `--yt` export/`--import` YouTube `H:MM:SS Title` lines, `--cue` CUE sheet, `--podcast` Podcasting 2.0 JSON chapters, `--lrc` synced-lyrics cues for music players; `--import` auto-detects .json/.cue) |
 | punch-zoom a moment | `zoom` (`--factor`, `--at`/`--dur`) |
 | strip letterbox/pillarbox | `autocrop` (cropdetect scan → crop, `--buffer N` keeps N px edge) |
 | contact sheet / preview grid | `sheet` (`--cols`/`--rows`/`--tile` → PNG, `--time` stamps, `--from`/`--to` window) |

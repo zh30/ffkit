@@ -23,6 +23,7 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
             || args.timecode
             || args.bbox
             || args.text
+            || args.gop
             || args.dupe.is_some())
     {
         return Err(Error::input("scan: input has no video stream"));
@@ -415,6 +416,38 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+    // --gop: keyframe-interval QC straight from packet flags — no decode,
+    // so it's cheap even on long masters. Ingest specs ("keyframe every ≤2s"
+    // for live platforms) verified from the packet map; gaps measured in
+    // stream order so the tail stretch after the last key counts too.
+    let mut key_pts: Vec<f64> = Vec::new();
+    let mut key_idx: Vec<usize> = Vec::new();
+    let mut packet_count = 0usize;
+    if args.gop {
+        let mut argv = Argv::ffprobe();
+        argv.extend([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "packet=flags,dts_time",
+            "-of",
+            "csv=p=0",
+        ]);
+        argv.push(&args.input);
+        if let Ok(sp) = spawn::run(&argv, g.timeout, false) {
+            for (i, line) in String::from_utf8_lossy(&sp.stdout).lines().enumerate() {
+                packet_count += 1;
+                let mut f = line.trim().split(',');
+                let dts: f64 = f.next().and_then(|v| v.parse().ok()).unwrap_or(0.0);
+                if f.next().is_some_and(|fl| fl.contains('K')) {
+                    key_pts.push(dts);
+                    key_idx.push(i);
+                }
+            }
+        }
+    }
     // --deadair DB: dead-air map for podcast/talking-head QC — reuses the
     // silence detector so one `scan` reports pauses alongside video faults
     let mut deadair_ranges: Vec<serde_json::Value> = Vec::new();
@@ -698,6 +731,23 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         json!(null)
     };
+    if args.gop {
+        let frames_gap = key_idx
+            .windows(2)
+            .map(|w| w[1] - w[0])
+            .chain(key_idx.last().map(|l| packet_count - *l))
+            .max()
+            .unwrap_or(0);
+        let secs: Vec<f64> = key_pts.windows(2).map(|w| w[1] - w[0]).collect();
+        extra["keyframes"] = json!(key_idx.len());
+        extra["gop_max_sec"] = json!(secs.iter().cloned().fold(0.0f64, f64::max));
+        extra["gop_avg_sec"] = json!(if secs.is_empty() {
+            0.0
+        } else {
+            secs.iter().sum::<f64>() / secs.len() as f64
+        });
+        extra["gop_max_frames"] = json!(frames_gap);
+    }
     // HDR / wide-gamut QC straight from the container's colour metadata —
     // zero extra decode. HDR = PQ (smpte2084) or HLG transfer; wide gamut =
     // BT.2020 primaries. Untagged masters report the raw "unknown" strings.

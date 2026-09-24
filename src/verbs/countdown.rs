@@ -20,7 +20,37 @@ fn parse_hex(c: &str) -> Result<[u8; 3], Error> {
 /// Rasterized 3-2-1(-GO) intro overlay: one PNG input per run, each shown
 /// `--each` seconds via `enable='between(t,a,b)'`.
 pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
-    if !(1..=600).contains(&args.from) {
+    // --target HH:MM[:SS]: count to a local wall-clock time — the "premiere
+    // at 20:00" overlay. Seconds until that moment, rolling to tomorrow
+    // when the time already passed today.
+    let mut count = args.from;
+    let mut target_label: Option<String> = None;
+    if let Some(raw) = &args.target {
+        if args.from != 3 {
+            return Err(Error::input("--target sets the count — drop --from"));
+        }
+        let parts: Vec<&str> = raw.split(':').collect();
+        let (h, m, s) = match parts.as_slice() {
+            [h, m] => (*h, *m, "0"),
+            [h, m, s] => (*h, *m, *s),
+            _ => return Err(Error::input("--target must be HH:MM or HH:MM:SS")),
+        };
+        let secs = |v: &str| v.trim().parse::<f64>();
+        let (h, m, s) = match (secs(h), secs(m), secs(s)) {
+            (Ok(h), Ok(m), Ok(s)) if h < 24.0 && m < 60.0 && s < 60.0 => (h, m, s),
+            _ => return Err(Error::input("--target must be HH:MM or HH:MM:SS")),
+        };
+        let delta = (h * 3600.0 + m * 60.0 + s - crate::verbs::timer::local_clock_secs())
+            .rem_euclid(86400.0);
+        count = delta.round() as u32;
+        if !(1..=600).contains(&count) {
+            return Err(Error::input(
+                "--target lands more than 10 min ahead — use --from for long counts",
+            ));
+        }
+        target_label = Some(raw.clone());
+    }
+    if !(1..=600).contains(&count) {
         return Err(Error::input("--from must be 1..=600"));
     }
     if args.each <= 0.0 {
@@ -59,7 +89,7 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("--format must be s, mm:ss or h:mm:ss"));
     }
     // Text runs: countdown digits, then optional GO.
-    let mut runs: Vec<String> = (1..=args.from).rev().map(&fmt).collect();
+    let mut runs: Vec<String> = (1..=count).rev().map(&fmt).collect();
     if let Some(go) = &args.go {
         runs.push(go.clone());
     }
@@ -174,9 +204,10 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
 
     let c = engine::write_job("countdown", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({
-        "from": args.from,
+        "from": count,
         "each": args.each,
         "at": at,
         "go": args.go,
+        "target": target_label,
     })))
 }

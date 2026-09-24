@@ -45,7 +45,7 @@ fn parse_tc(raw: &str, fps: f64) -> Result<f64, Error> {
 
 // Seconds into the local day — reads the TZ offset out of `date +%z`
 // (UTC when date is unavailable).
-fn local_clock_secs() -> f64 {
+pub(crate) fn local_clock_secs() -> f64 {
     let utc = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()

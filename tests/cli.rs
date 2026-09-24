@@ -31287,3 +31287,139 @@ fn r249_dash_ladder_live_start_scan_hdr_remux_delay_test() {
     assert_eq!(j["extra"]["wide_gamut"], true);
     assert_eq!(j["extra"]["color_transfer"], "smpte2084");
 }
+
+#[test]
+fn r250_scan_gop_conform_even_countdown_target_chapter_lrc_meta_disc_test() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn ffmpeg(args: &[String]) -> std::process::Output {
+        Command::new("ffmpeg").args(args).output().expect("ffmpeg")
+    }
+
+    // scan --gop: -g 15 fixture reports 15-frame / 0.5s keyframe intervals
+    // from packet flags alone (no decode)
+    let g15 = d.join("g15.mp4");
+    ffmpeg(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-i"),
+        f.to_string_lossy().to_string(),
+        s("-c:v"),
+        s("libx264"),
+        s("-g"),
+        s("15"),
+        s("-c:a"),
+        s("copy"),
+        g15.to_string_lossy().to_string(),
+    ]);
+    let j = run_json(&["scan", &g15.to_string_lossy(), "--gop"]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["keyframes"], 2, "{}", j["extra"]);
+    assert_eq!(j["extra"]["gop_max_sec"], 0.5, "{}", j["extra"]);
+    assert_eq!(j["extra"]["gop_avg_sec"], 0.5, "{}", j["extra"]);
+    assert_eq!(j["extra"]["gop_max_frames"], 15, "{}", j["extra"]);
+
+    // conform --even: 641x361 capture floors to x264-safe 640x360
+    let odd = d.join("odd.mp4");
+    ffmpeg(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("testsrc2=size=641x361:rate=30:duration=1"),
+        s("-c:v"),
+        s("libx264"),
+        odd.to_string_lossy().to_string(),
+    ]);
+    let even = d.join("even.mp4");
+    let j = run_json(&[
+        "conform",
+        &odd.to_string_lossy(),
+        "-o",
+        &even.to_string_lossy(),
+        "--even",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(probe_csv2(&even).trim(), "640,360");
+
+    // countdown --target: HH:MM ~8s ahead derives an N-digit real-time count
+    let target = Command::new("date")
+        .args(["-v+8S", "+%H:%M:%S"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .or_else(|| {
+            Command::new("date")
+                .args(["-d", "+8 seconds", "+%H:%M:%S"])
+                .output()
+                .ok()
+        })
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+    let j = run_json(&[
+        "countdown",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("cd.mp4").to_string_lossy(),
+        "--target",
+        &target,
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let from = j["extra"]["from"].as_u64().unwrap_or(0);
+    assert!((1..=10).contains(&from), "{}", j["extra"]);
+    assert_eq!(j["extra"]["target"], target);
+
+    // chapter --lrc: marks become [mm:ss.xx]title synced-lyric cue lines
+    let marks = d.join("marks.txt");
+    std::fs::write(&marks, "0|Intro\n0.5|Peak\n").unwrap();
+    let lrc = d.join("out.lrc");
+    let j = run_json(&[
+        "chapter",
+        &f.to_string_lossy(),
+        "-o",
+        &lrc.to_string_lossy(),
+        "--import",
+        &marks.to_string_lossy(),
+        "--lrc",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["exported"], "lrc");
+    let body = std::fs::read_to_string(&lrc).unwrap();
+    assert!(body.contains("[00:00.00]Intro"), "{body}");
+    assert!(body.contains("[00:00.50]Peak"), "{body}");
+
+    // meta --disc: disc-number tag lands in the container
+    let disc = d.join("disc.mp4");
+    let j = run_json(&[
+        "meta",
+        &f.to_string_lossy(),
+        "-o",
+        &disc.to_string_lossy(),
+        "--disc",
+        "1/2",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format_tags=disc",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&disc)
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "1/2");
+}

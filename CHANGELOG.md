@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.277.0] — 2026-09-24
+
+### Added
+- `scan --gop` — keyframe-interval QC straight from packet flags (zero decode): `keyframes`, `gop_max_sec`, `gop_avg_sec`, `gop_max_frames` — ingest specs like "keyframe every ≤2s" verified on any master, plus the tail stretch after the last key
+- `conform --even` — floors odd pixel dims to even: phone/screen captures at odd px can't encode yuv420p x264; one flag fixes it inside the normal conform pass
+- `countdown --target HH:MM[:SS]` — real-time count to a local wall-clock time (premiere/stream-start overlays): 1s per count up to 10 min ahead, a passed time rolls to tomorrow
+- `chapter --lrc` — exports marks as synced-lyrics `[mm:ss.xx]title` lines (music players show them as seekable verse/track cues); also lets bare `chapter --podcast`/`--lrc` skip `--at` (the required-flags list now includes both)
+- `meta --disc N[/total]` — disc-number tag for multi-disc album releases
+
 ## [0.276.0] — 2026-09-24
 
 ### Added

@@ -292,8 +292,26 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
     }
 
     let meta = ffmeta_table(&marks, probe.duration);
-    if args.export || args.yt || args.cue || args.podcast {
-        let text = if args.podcast {
+    if args.export || args.yt || args.cue || args.podcast || args.lrc {
+        let text = if args.lrc {
+            // LRC synced-lyrics format: one [mm:ss.xx]mark per line — music
+            // players (and lyric tools) show them as seekable verse/track cues
+            marks
+                .iter()
+                .map(|(t, ti)| {
+                    let c = (*t * 100.0).round() as u64;
+                    format!(
+                        "[{:02}:{:02}.{:02}]{}",
+                        c / 6000,
+                        (c / 100) % 60,
+                        c % 100,
+                        ti
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+                + "\n"
+        } else if args.podcast {
             // Podcasting 2.0 chapters JSON — podverse/podcastindex feeds
             // read {"chapters":[{"startTime":sec,"title":…}]}
             serde_json::to_string_pretty(&json!({
@@ -356,7 +374,7 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         })?;
         let mut c = Contract::ok("chapter", Some(args.output.display().to_string()), None);
         c = c.with_extra(json!({
-            "exported": if args.podcast { "podcast" } else if args.yt { "youtube" } else if args.cue { "cue" } else { "ffmetadata" },
+            "exported": if args.lrc { "lrc" } else if args.podcast { "podcast" } else if args.yt { "youtube" } else if args.cue { "cue" } else { "ffmetadata" },
             "chapters": marks
                 .iter()
                 .map(|(t, ti)| json!({"time": t, "title": ti}))

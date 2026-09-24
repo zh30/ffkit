@@ -15,9 +15,10 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         && args.crf.is_none()
         && args.hold.is_none()
         && args.hold_start.is_none()
+        && !args.even
     {
         return Err(Error::input(
-            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC",
+            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even",
         ));
     }
 
@@ -69,6 +70,11 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
                 "[0:v]split[cm][cb];[cb]scale={w}:{h}:force_original_aspect_ratio=increase:force_divisible_by=2,crop={w}:{h},gblur=sigma=40[bg];[cm]scale=w={w}:h={h}:force_original_aspect_ratio=decrease:force_divisible_by=2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2{fps_tail},format=yuv420p[vout]"
             ));
         }
+    }
+    // --even: floor odd dims — phone/screen captures at odd px can't take
+    // yuv420p; --size/--blur already force even dims so skip there
+    if args.even && args.size.is_none() {
+        vf.push("scale=trunc(iw/2)*2:trunc(ih/2)*2".into());
     }
     if let Some(fps) = args.fps {
         if !(1.0..=240.0).contains(&fps) {

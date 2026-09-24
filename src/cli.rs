@@ -2718,6 +2718,9 @@ pub struct MetaArgs {
     /// Track number tag
     #[arg(long)]
     pub track: Option<String>,
+    /// Disc number tag (N or N/total) for multi-disc releases
+    #[arg(long)]
+    pub disc: Option<String>,
     /// Fix the display rotation flag (0/90/180/270) without re-encoding
     #[arg(long)]
     pub rotate: Option<u32>,
@@ -4348,6 +4351,11 @@ pub struct CountdownArgs {
     /// Count down from N (default 3: 3-2-1)
     #[arg(long, default_value_t = 3)]
     pub from: u32,
+    /// Count down to this local wall-clock time (HH:MM or HH:MM:SS) —
+    /// premiere/stream-start overlay that ends at a real time. 1s per
+    /// count, max 10 min ahead; a passed time rolls to tomorrow
+    #[arg(long)]
+    pub target: Option<String>,
     /// Seconds each number stays (default 1)
     #[arg(long, default_value_t = 1.0)]
     pub each: f64,
@@ -4777,6 +4785,10 @@ pub struct ConformArgs {
     /// Hold the first frame SEC seconds before playback (pre-roll)
     #[arg(long)]
     pub hold_start: Option<f64>,
+    /// Normalize odd pixel dimensions down to even — phone/screen captures
+    /// at odd px can't encode yuv420p x264, this is the one-flag fix
+    #[arg(long)]
+    pub even: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5374,6 +5386,11 @@ pub struct ScanArgs {
     /// checks — podcast −16, broadcast −23, social −14)
     #[arg(long)]
     pub loud: bool,
+    /// Keyframe/GOP interval QC (packet flags — no decode): `keyframes`,
+    /// `gop_max_sec`, `gop_avg_sec`, `gop_max_frames` — ingest specs like
+    /// "keyframes every ≤2s" (YouTube live) verified from the packet map
+    #[arg(long)]
+    pub gop: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5669,7 +5686,7 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "list", "remove"])]
+    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "list", "remove"])]
     pub at: Vec<String>,
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
@@ -5691,6 +5708,10 @@ pub struct ChapterArgs {
     /// podcastindex feeds)
     #[arg(long)]
     pub podcast: bool,
+    /// Write marks as an LRC file at -o ([mm:ss.xx]title per line) —
+    /// synced-lyrics format music players read for seekable track/verse marks
+    #[arg(long)]
+    pub lrc: bool,
     /// Import marks from a text file: lines "TIME|TITLE" or "TIME,TITLE"
     /// ('#' comments and blank lines skipped)
     #[arg(long)]
