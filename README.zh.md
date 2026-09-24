@@ -112,12 +112,12 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `denoise` | 音频降噪（`--strength`、`--highpass`、`--engine auto|wavel|fftdn` 指定引擎、`--at/--dur` 窗口），支持 `end`，逗号列表可多段 | `--ref noise.wav` anlms 自适应消噪 |
 | `transcode` | h264/webm/`--preset gif`（`--fps`/`--width`/`--copy-audio`/`--colors`） | 预设 `h264`/`webm`/`gif`/`hevc`/`mp3`/`aac`/`wav`/`flac`/`opus`/`av1`/`prores`/`dnxhd`/`proxy`（`proxy` = ≤540p veryfast x264 剪辑代理，多机位素材丝滑预监）；`--fps` 也可给视频变速帧率；`--vbitrate` 峰值码率帽、`--abitrate` 音频码率（人声帖用 64k 更省）；`--alpha` 保留透明通道（webm/prores）；`--range limited|full` 标注色彩范围；`--interlaced` 标记输出为隔行（il 场交织 + tff 标记，广播母带交付）；`--interlace-mode weave` 真时域隔行（60p→30i 逐帧织场）；`--field-order tff|bff|prog` 不重织场、只改场序标签修标错的母带；`--ar 48000`/`--channels 1|2` 重采样率+声道数（广播 48k 立体声、播客单声道） |
 | `compress` | 压到目标体积（`--size 10MB` 两遍、`--target discord|whatsapp|gmail` 平台预设）；`--crf` 画质单遍、`--res` 缩分辨率腾码率 |
-| `deliver` | 一键平台成片（Reels / TikTok / Shorts 为 9:16，`square` 为 1:1，`youtube` 为 16:9，`xhs` 小红书 3:4 1080x1440，`wechat` 视频号 6:7 1080x1260；−14 LUFS；`--fps 60` 高帧率，`--crf` 画质，`--subs file.srt` 成片一步烧字幕，`--channels 1` 单声道语音成片，`--preview SEC` 只渲染成片头部给审核 QC）；`--platform podcast` 纯音频播客成片（m4a AAC 128k/48k，−16 LUFS 播客平台标准）；`--to rtmp://…`/`tcp://`/`udp://` 把成片直接推给采集端（首播） |
+| `deliver` | 一键平台成片（Reels / TikTok / Shorts 为 9:16，`square` 为 1:1，`youtube` 为 16:9，`xhs` 小红书 3:4 1080x1440，`wechat` 视频号 6:7 1080x1260；−14 LUFS；`--fps 60` 高帧率，`--crf` 画质，`--subs file.srt` 成片一步烧字幕，`--channels 1` 单声道语音成片，`--preview SEC` 只渲染成片头部给审核 QC，`--logo mark.png` 角落水印随成片一道烧入（`--logo-position` 四角、`--logo-opacity` 透明））；`--platform podcast` 纯音频播客成片（m4a AAC 128k/48k，−16 LUFS 播客平台标准）；`--to rtmp://…`/`tcp://`/`udp://` 把成片直接推给采集端（首播） |
 
 | `audiogram` | 波形视频 ，`--mode phase`（aphasemeter 相位表）| `--mode`、`--scale` 幅度、`--split` 分声道、`--fscale` 频率轴（spectrum）、`--fps` 帧率、`--text`、`--bg`、`--progress` 进度条 ，`--subs` 烧字幕、`--from`/`--to` 只取一段（`--to` 可用 `end`），`--at a,b --dur N` 每点一条（`stem_N.mp4`）；`--mode spectrum` 频谱条、`--mode scope` 李萨如矢量示波、`--mode cqt` 钢琴卷帘频谱、`--mode spectro` 滚动频谱图 | `--mode spatial|volume|bitscope` 表桥示波 | `--mode monitor` 管线统计 | `--mode hist` 振幅直方图（削波/余量质检） |
 
 | `split` | 按 `--every`/`--at`/`--scenes`/`--size`/`--parts`/`--silence`/`--chapters` 内嵌章节切分；`--subs` 输出重定时分段 .srt；`--fade N` 每段首尾淡化 |
-| `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数或 `--dur` 总时长、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐 + `--volume` 音量、`--size` 画布、`--bg` 底边色） |
+| `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数或 `--dur` 总时长、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐 + `--volume` 音量、`--size` 画布、`--bg` 底边色、`--fit` 蒙太奇正好随歌曲收尾） |
 | `speed` | 变速（`--factor`、`--at/--dur` 窗口（逗号列表可多段）、`--ramp` FROM,TO 渐变），支持 `end`；`--fit SEC` 精确压到目标时长（自动算倍数——90s 素材 `--fit 15` 即 6 倍速） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`、`--at/--dur` 窗口支持 `end`，逗号 `--at` 多处铺底如 `0,end` 首尾双 sting） |
 | `key` | 绿幕合成：`--color` 抠掉后叠到 `--bg` 图片/视频上（`--similarity`、`--blend`、`--despill`、`--mode luma` 改按亮度带抠像（`--threshold` 定亮区/暗区背景）、`--mode chroma` YUV 色域抠像（广播级 chromakey，褶皱/光照不匀的幕布更稳）、`--at/--dur` 窗口抠像，支持逗号列表） | `--mode matte --mask` 外部灰度遮罩→α 通道（prores 4444） |
@@ -237,7 +237,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`）（`--preset voice|podcast|studio`，`--at/--dur` 局部生效），支持 `end`，逗号列表可多段 |
 | `silence` | 在 `--at`（逗号列表多处）或 `--end` 插入 `--dur` 秒静音；`--detect` 以 JSON 报告静音区间 |
 | `vocal` | 消/留中置人声（`--mode`、`--amount` 强度、`--at/--dur` 窗口），支持 `end`，逗号列表可多段 |
-| `remux` | 换容器不重编码（`-c copy` + faststart）；`--audio` 只提音轨，`--video` 只留视频，`--aspect 16:9` 修显示宽高比，`--frag` 分片 MP4（moof/mfra——还在写入就能播，HLS/DASH 管线用），`--no-subs` 剥掉字幕/数据流（干净交付件） |
+| `remux` | 换容器不重编码（`-c copy` + faststart）；`--audio` 只提音轨，`--video` 只留视频，`--aspect 16:9` 修显示宽高比，`--frag` 分片 MP4（moof/mfra——还在写入就能播，HLS/DASH 管线用），`--no-subs` 剥掉字幕/数据流（干净交付件），`--from SEC`/`--to SEC` 无损裁剪（关键帧精度——不重编码只打包一段） |
 | `meme` | 上下说明文字梗图（`--outline`、`--at/--dur` 时间窗，逗号列表可打多处；`--at end` 片尾） ，`--position` 文字块上/中/下；`--wrap` 折行、`--align` 行对齐、`--fade` 窗口边缘淡入淡出（配 --at/--dur）、`--opacity` 半透明文字 |
 | `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`、`--at`/`--dur` 只处理一段，支持 `end`，逗号列表可多段） |
 | `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序、`--engine` yadif/bwdif/estdif/kerndeint） ，`--engine` 含 `detelecine`（确定节奏反电视电影）、`mcdeint`（运动补偿）| `--engine w3fdif` 三场去隔行 | `--engine separate` 场拆帧 50i→50p（顺滑慢动作源） | `--engine pullup` 反电视电影 IVTC | `--engine phase` 场序调换（场序标错的采集） | `--engine field` 单场提取（半高，最快预览） |
@@ -264,7 +264,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `mute` | 去掉音轨（其余流直接封装，不重编码） ，`--at/--dur` 局部静音（逗号列表可静多处，需 `--dur`），支持 `end` |
 | `timer` | 画面计时器（`--position`、`--format ms`、`--box-color` 底板） （`--format`、`--box-color`、`--down` 倒计时、`--start` 设定起始读数、`--opacity` 半透明）——`--at` 支持 `end`；`--tc HH:MM:SS:FF` 烧录走带时码（样片/审片，`;` 前 FF 位表示丢帧意图，仅显示） |
 | `hls` | 网页 HLS 封装（`--seg`、`--single`、`--copy`、`--ladder` 多码率、`--audio-only` 纯音频、`--fmp4` CMAF、`--poster` 同时输出 poster.jpg 封面，`--poster-at T` 选封面帧，`--encrypt` AES-128 加密分片并写 key.bin/key.info（`--key HEX` 自定义密钥、`--key-uri URI` 播放列表里的密钥地址）→ 私有/付费流） |
-| `live` | 把片段推向直播采集端：`--to rtmp://…`/`rtmps://`/`tcp://`/`udp://`（`-re` 实时节奏推流，x264/aac 采集编码），`--loop` 无限循环（24/7 音乐台/首播轮播），`--vbitrate`/`--abitrate` 可调码率，`--scale WxH` 大母片降采样到采集规格，`--fps N` 压输出帧率，`--record file.mp4` 推流同时本地存档（tee——一次编码两路封装），`--until SEC` 定时停播 |
+| `live` | 把片段推向直播采集端：`--to rtmp://…`/`rtmps://`/`tcp://`/`udp://`（`-re` 实时节奏推流，x264/aac 采集编码），`--loop` 无限循环（24/7 音乐台/首播轮播），`--vbitrate`/`--abitrate` 可调码率，`--scale WxH` 大母片降采样到采集规格，`--fps N` 压输出帧率，`--record file.mp4` 推流同时本地存档（tee——一次编码两路封装），`--until SEC` 定时停播，`--list` 清单轮播（concat 清单文件，24/7 轮播台；`--loop` = 无限轮播），`--test` 内置测试卡+1kHz 音（开播前验证推流密钥） |
 
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM + MSAD + VIF，`--metric`） |
 | `conform` | 一键统一规格（`--size WxH`、`--fps 30`、`--lufs -14`、`--crf`、`--pad` 黑边颜色 + `--anchor` 锚点、`--blur` 模糊填充，`--hold SEC` 克隆末帧片尾停留 + `--hold-start` 片头预停（音频自动补静音） |

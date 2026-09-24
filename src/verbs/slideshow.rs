@@ -22,10 +22,38 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     if !(0.0..=10.0).contains(&args.fade) {
         return Err(Error::input("--fade must be 0..=10 seconds"));
     }
+    if args.fit && args.audio.is_none() {
+        return Err(Error::input(
+            "slideshow --fit needs --audio — the bed sets the montage length",
+        ));
+    }
+    if args.fit && args.dur.is_some() {
+        return Err(Error::input(
+            "--fit and --dur are exclusive — --fit derives the length from the audio",
+        ));
+    }
+    // Probe the music bed up front: --fit borrows its duration for the
+    // per-still solve below.
+    let bed_probe = if let Some(bed) = &args.audio {
+        paths::ensure_input(bed)?;
+        let p = engine::probe_or_err(bed, g)?;
+        if !p.has_audio {
+            return Err(Error::input("slideshow: --audio file has no audio stream"));
+        }
+        Some(p)
+    } else {
+        None
+    };
     let n = args.inputs.len();
-    // --dur: solve for the per-still length that lands the montage on the
-    // target runtime (total = n*per - (n-1)*fade).
-    let per = match args.dur {
+    // --dur/--fit: solve for the per-still length that lands the montage on
+    // the target runtime (total = n*per - (n-1)*fade). --fit takes the
+    // target from the audio bed's length.
+    let dur_target = args.dur.or(if args.fit {
+        bed_probe.as_ref().map(|p| p.duration)
+    } else {
+        None
+    });
+    let per = match dur_target {
         Some(d) => {
             if !(1.0..=600.0).contains(&d) {
                 return Err(Error::input("--dur must be 1..=600 seconds"));
@@ -64,14 +92,6 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         Some(_) => return Err(Error::input("--volume must be 0..=4")),
         None => 1.0,
     };
-    if let Some(bed) = &args.audio {
-        paths::ensure_input(bed)?;
-        let bed_probe = engine::probe_or_err(bed, g)?;
-        if !bed_probe.has_audio {
-            return Err(Error::input("slideshow: --audio file has no audio stream"));
-        }
-    }
-
     let total = n as f64 * per - (n as f64 - 1.0) * args.fade;
     let fps = args.fps;
 
@@ -195,6 +215,7 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         },
         "canvas": format!("{w}x{h}"),
         "music_bed": args.audio.is_some(),
+        "fit": args.fit,
         "expected_duration": total,
     }));
     Ok(c)

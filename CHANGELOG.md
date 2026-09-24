@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.266.0] — 2026-09-23
+
+- `live --list` — concat-manifest rotation channel: input becomes a text file of `file 'x'` lines, `-f concat -safe 0` streams them back-to-back; `--loop` loops the whole list (24/7 channel, rotation replays)
+- `live --test` — no input needed: built-in lavfi testsrc2 card + 1kHz tone pushed to the ingest URL (verify the stream key and measure the pipe before showtime)
+- `deliver --logo mark.png` — corner watermark burned in during the pack render (second input → filter_complex overlay at 18% frame width); `--logo-position tl/tr/bl/br` (default br), `--logo-opacity 0..1` (ghost marks)
+- `slideshow --fit` — solves `--per` from the audio bed's probed duration: the montage ends exactly on the song's outro (exclusive with `--dur`)
+- `remux --from SEC` / `--to SEC` — lossless segment repack: input-side `-ss` keyframe seek + `-t` limit, no re-encode (frame-exact trims stay with `cut`/`split`)
+
 ## [0.265.0] — 2026-09-23
 
 - `speed --fit SEC` — retime the clip to an exact length: factor = input duration / SEC is derived automatically (a 90s take `--fit 15` becomes 6x; same 0.25..8 factor range)

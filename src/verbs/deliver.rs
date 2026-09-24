@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::cli::{DeliverArgs, DeliverPlatform, Globals};
+use crate::cli::{DeliverArgs, DeliverPlatform, Globals, LogoPos};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -14,7 +14,20 @@ const PODCAST_I: f64 = -16.0;
 
 pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
+    if args.logo.is_none() && (args.logo_position.is_some() || args.logo_opacity.is_some()) {
+        return Err(Error::input("--logo-position/--logo-opacity need --logo"));
+    }
+    if let Some(op) = args.logo_opacity {
+        if !(0.0..=1.0).contains(&op) {
+            return Err(Error::input("--logo-opacity must be 0..=1"));
+        }
+    }
     if matches!(args.platform, DeliverPlatform::Podcast) {
+        if args.logo.is_some() {
+            return Err(Error::input(
+                "deliver --logo needs a video platform — podcast has no picture",
+            ));
+        }
         return podcast(args, &probe, g);
     }
     if args.to.is_some() {
@@ -61,7 +74,31 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     let mut apply = ffmpeg_base(g.progress);
     apply.push("-i");
     apply.push(&args.input);
-    apply.extend(["-vf", &vf]);
+    if let Some(logo) = &args.logo {
+        crate::paths::ensure_input(logo)?;
+        apply.push("-i");
+        apply.push(logo);
+        let lw = (fw * 18 / 100).max(16);
+        let m = (fh * 3 / 100).max(8);
+        let (x, y) = match args.logo_position.unwrap_or(LogoPos::Br) {
+            LogoPos::Tl => (format!("{m}"), format!("{m}")),
+            LogoPos::Tr => (format!("W-w-{m}"), format!("{m}")),
+            LogoPos::Bl => (format!("{m}"), format!("H-h-{m}")),
+            LogoPos::Br => (format!("W-w-{m}"), format!("H-h-{m}")),
+        };
+        let mut lg = format!("scale={lw}:-1");
+        if let Some(op) = args.logo_opacity {
+            lg.push_str(&format!(",format=rgba,colorchannelmixer=aa={op}"));
+        }
+        let fc = format!("[0:v]{vf}[base];[1:v]{lg}[lg];[base][lg]overlay={x}:{y}[vout]");
+        apply.extend(["-filter_complex", &fc]);
+        apply.extend(["-map", "[vout]"]);
+        if probe.has_audio {
+            apply.extend(["-map", "0:a:0"]);
+        }
+    } else {
+        apply.extend(["-vf", &vf]);
+    }
     apply.extend([
         "-c:v",
         "libx264",
@@ -121,7 +158,8 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(url) = &to {
         apply.extend(["-tune", "zerolatency", "-f", "flv"]);
         apply.push(url);
-        let mut c = crate::verbs::live::stream_out("deliver", &args.input, url, vec![apply], g)?;
+        let mut c =
+            crate::verbs::live::stream_out("deliver", Some(&args.input), url, vec![apply], g)?;
         if let Some(m) = measure {
             let mut commands = engine::commands_of(&[m]);
             commands.extend(c.commands.clone());

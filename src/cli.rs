@@ -1172,6 +1172,24 @@ pub struct DeliverArgs {
     /// Render only the first SEC seconds of the pack (approval/QC preview)
     #[arg(long)]
     pub preview: Option<f64>,
+    /// Burn this PNG/JPG as a corner watermark during the pack render
+    /// (channel branding on every export in one pass)
+    #[arg(long)]
+    pub logo: Option<PathBuf>,
+    /// Watermark corner (default br — bottom-right)
+    #[arg(long, value_enum)]
+    pub logo_position: Option<LogoPos>,
+    /// Watermark opacity 0..=1 (default 1.0; ~0.6 reads as a ghost mark)
+    #[arg(long)]
+    pub logo_opacity: Option<f64>,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum LogoPos {
+    Tl,
+    Tr,
+    Bl,
+    Br,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -2749,6 +2767,10 @@ pub struct SlideshowArgs {
     /// Letterbox color behind stills (name or RRGGBB; default black)
     #[arg(long)]
     pub bg: Option<String>,
+    /// End the montage exactly when the --audio bed ends — solves --per
+    /// from the music's length so the last still lands on the song's outro
+    #[arg(long)]
+    pub fit: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3635,6 +3657,14 @@ pub struct RemuxArgs {
     /// mkv with embedded subs → bare mp4)
     #[arg(long)]
     pub no_subs: bool,
+    /// Lossless trim: start the repack at SEC (keyframe-accurate seek —
+    /// repackage just a segment without re-encoding)
+    #[arg(long)]
+    pub from: Option<f64>,
+    /// ..end the repack at SEC (input-timeline position; needs the
+    /// segment to land on or before a keyframe boundary)
+    #[arg(long)]
+    pub to: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4331,7 +4361,8 @@ pub struct MuteArgs {
 
 #[derive(clap::Args, Debug)]
 pub struct LiveArgs {
-    pub input: PathBuf,
+    /// Source file — or with --list a concat manifest; not needed for --test
+    pub input: Option<PathBuf>,
     /// Stream destination — rtmp://host/app/key, rtmps://, tcp://host:port
     /// (plain TCP streams raw FLV — handy for local ingest tests)
     #[arg(long)]
@@ -4358,6 +4389,14 @@ pub struct LiveArgs {
     /// Stop the stream automatically after SEC seconds (premiere windows)
     #[arg(long)]
     pub until: Option<f64>,
+    /// Input is a concat manifest text file (`file 'a.mp4'` lines) — a
+    /// 24/7 rotation channel; combine with --loop for infinite rotation
+    #[arg(long)]
+    pub list: bool,
+    /// Stream a generated SMPTE-style test card + 1kHz tone instead of a
+    /// file — verify the stream key/latency before showtime
+    #[arg(long)]
+    pub test: bool,
 }
 
 #[derive(clap::Args, Debug)]

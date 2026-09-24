@@ -28528,3 +28528,378 @@ fn r238_fit_preview_record_until_nosubs() {
     ]);
     assert_eq!(j["status"], "failed");
 }
+
+#[test]
+fn r239_remux_trim_slideshow_fit_logo_live_list_test() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn probe_csv(args: &[String]) -> String {
+        let o = Command::new("ffprobe")
+            .args(args)
+            .output()
+            .expect("ffprobe");
+        String::from_utf8_lossy(&o.stdout).into_owned()
+    }
+    fn dur(p: &Path) -> f64 {
+        probe_csv(&[
+            s("-v"),
+            s("error"),
+            s("-show_entries"),
+            s("format=duration"),
+            s("-of"),
+            s("csv=p=0"),
+            p.to_string_lossy().into_owned(),
+        ])
+        .trim()
+        .parse()
+        .unwrap_or(0.0)
+    }
+
+    // remux --from/--to: lossless segment repack — input-side -ss seeks the
+    // nearest keyframe, -t limits to to-from. Needs real GOP structure:
+    // 4s clip with a keyframe every second.
+    let seg = d.join("seg.mp4");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=4:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=4",
+            "-c:v",
+            "libx264",
+            "-g",
+            "30",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+            &seg.to_string_lossy(),
+        ])
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let trim = d.join("trim.mp4");
+    let j = run_json(&[
+        "remux",
+        &seg.to_string_lossy(),
+        "-o",
+        &trim.to_string_lossy(),
+        "--from",
+        "1",
+        "--to",
+        "2.5",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let t = dur(&trim);
+    assert!((t - 1.5).abs() < 0.7, "lossless trim dur {t}");
+    let j = run_json(&[
+        "remux",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("bad.mp4").to_string_lossy(),
+        "--from",
+        "2",
+        "--to",
+        "1",
+    ]);
+    assert_eq!(j["status"], "failed", "--to before --from must fail");
+
+    // slideshow --fit: per-still length solved from the audio bed's duration —
+    // the montage lands on the song's end without manual math
+    let bed = d.join("song.wav");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=550:duration=6",
+            &bed.to_string_lossy(),
+        ])
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let mut imgs = Vec::new();
+    for (i, c) in ["red", "green", "yellow"].iter().enumerate() {
+        let p = d.join(format!("img{i}.png"));
+        let o = Command::new("ffmpeg")
+            .args([
+                "-y",
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color=c={c}:size=320x240:d=1"),
+                "-frames:v",
+                "1",
+                &p.to_string_lossy(),
+            ])
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+        imgs.push(p);
+    }
+    let fit = d.join("fit.mp4");
+    let i0 = imgs[0].to_string_lossy().into_owned();
+    let i1 = imgs[1].to_string_lossy().into_owned();
+    let i2 = imgs[2].to_string_lossy().into_owned();
+    let j = run_json(&[
+        "slideshow",
+        &i0,
+        &i1,
+        &i2,
+        "-o",
+        &fit.to_string_lossy(),
+        "--audio",
+        &bed.to_string_lossy(),
+        "--fit",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let fd = dur(&fit);
+    assert!((fd - 6.0).abs() < 0.5, "--fit montage dur {fd}");
+    let j = run_json(&[
+        "slideshow",
+        &i0,
+        &i1,
+        "-o",
+        &d.join("nofit.mp4").to_string_lossy(),
+        "--fit",
+    ]);
+    assert_eq!(j["status"], "failed", "--fit without --audio must fail");
+
+    // deliver --logo: corner watermark burned during the pack render —
+    // blue 64x64 logo lands scaled to 18% frame width in the chosen corner
+    let logo = d.join("logo.png");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=blue:size=64x64:d=1",
+            "-frames:v",
+            "1",
+            &logo.to_string_lossy(),
+        ])
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let wm = d.join("wm.mp4");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &wm.to_string_lossy(),
+        "--logo",
+        &logo.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    // br corner: margin=57, logo 194px wide → interior ~ (906:1746, 40x40)
+    let px = d.join("px.rgb");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-ss",
+            "0.5",
+            "-i",
+            &wm.to_string_lossy(),
+            "-frames:v",
+            "1",
+            "-vf",
+            "crop=40:40:906:1746",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            &px.to_string_lossy(),
+        ])
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let b = std::fs::read(&px).unwrap();
+    let n = (b.len() / 3) as f64;
+    let (mut r, mut g_, mut bl) = (0f64, 0f64, 0f64);
+    for c in b.chunks(3) {
+        r += c[0] as f64;
+        g_ += c[1] as f64;
+        bl += c[2] as f64;
+    }
+    assert!(
+        bl / n > 200.0 && r / n < 80.0,
+        "br watermark should be blue: R={} G={} B={}",
+        r / n,
+        g_ / n,
+        bl / n
+    );
+    let wm2 = d.join("wm2.mp4");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &wm2.to_string_lossy(),
+        "--logo",
+        &logo.to_string_lossy(),
+        "--logo-position",
+        "tl",
+        "--logo-opacity",
+        "0.5",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let px2 = d.join("px2.rgb");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-ss",
+            "0.5",
+            "-i",
+            &wm2.to_string_lossy(),
+            "-frames:v",
+            "1",
+            "-vf",
+            "crop=40:40:90:90",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            &px2.to_string_lossy(),
+        ])
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let b2 = std::fs::read(&px2).unwrap();
+    let bl2: f64 = b2.chunks(3).map(|c| c[2] as f64).sum::<f64>() / n;
+    assert!(bl2 > 80.0 && bl2 < 200.0, "ghost tl watermark B={bl2}");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("badl.mp4").to_string_lossy(),
+        "--logo-opacity",
+        "0.5",
+    ]);
+    assert_eq!(j["status"], "failed", "logo flags need --logo");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("badp.m4a").to_string_lossy(),
+        "--platform",
+        "podcast",
+        "--logo",
+        &logo.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "failed", "podcast has no picture for a logo");
+
+    // live --list: concat manifest rotation — the manifest's files stream
+    // back-to-back; --loop would loop the whole list forever
+    let (tx_port, rx_port) = std::sync::mpsc::channel::<u16>();
+    let (tx_head, rx_head) = std::sync::mpsc::channel::<Vec<u8>>();
+    std::thread::spawn(move || {
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        tx_port.send(l.local_addr().unwrap().port()).unwrap();
+        if let Ok((mut c, _)) = l.accept() {
+            use std::io::Read;
+            let mut head = vec![0u8; 9];
+            let _ = c.read_exact(&mut head);
+            let _ = tx_head.send(head);
+            let mut buf = vec![0u8; 8192];
+            while c.read(&mut buf).map(|n| n > 0).unwrap_or(false) {}
+        }
+    });
+    let port = rx_port
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
+    let man = d.join("list.txt");
+    std::fs::write(
+        &man,
+        format!(
+            "ffconcat version 1.0\nfile '{}'\nfile '{}'\n",
+            f.display(),
+            f.display()
+        ),
+    )
+    .unwrap();
+    let j = run_json(&[
+        "live",
+        &man.to_string_lossy(),
+        "--list",
+        "--to",
+        &format!("tcp://127.0.0.1:{port}"),
+        "--until",
+        "2",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["files"], 2);
+    let head = rx_head
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .unwrap();
+    assert_eq!(&head[..3], b"FLV", "manifest stream should reach ingest");
+
+    // live --test: generated SMPTE-style card + 1kHz tone — verify the stream
+    // key/latency before showtime, no input file needed
+    let (tx_port2, rx_port2) = std::sync::mpsc::channel::<u16>();
+    let (tx_head2, rx_head2) = std::sync::mpsc::channel::<Vec<u8>>();
+    std::thread::spawn(move || {
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        tx_port2.send(l.local_addr().unwrap().port()).unwrap();
+        if let Ok((mut c, _)) = l.accept() {
+            use std::io::Read;
+            let mut head = vec![0u8; 9];
+            let _ = c.read_exact(&mut head);
+            let _ = tx_head2.send(head);
+            let mut buf = vec![0u8; 8192];
+            while c.read(&mut buf).map(|n| n > 0).unwrap_or(false) {}
+        }
+    });
+    let port2 = rx_port2
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
+    let j = run_json(&[
+        "live",
+        "--test",
+        "--to",
+        &format!("tcp://127.0.0.1:{port2}"),
+        "--until",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let head = rx_head2
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .unwrap();
+    assert_eq!(&head[..3], b"FLV", "test card should reach ingest");
+    let j = run_json(&["live", "--to", "tcp://127.0.0.1:1"]);
+    assert_eq!(j["status"], "failed", "no input and no --test must fail");
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--test",
+        "--to",
+        "tcp://127.0.0.1:1",
+    ]);
+    assert_eq!(j["status"], "failed", "--test with an input file must fail");
+}

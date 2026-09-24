@@ -503,3 +503,6 @@ an atempo'd whole-file render would shift the window.
 - `Argv::extend` takes `S: AsRef<OsStr>` — an array of bare `"x".into()` can't infer S (E0283). Use plain `&str` elements, or `.to_string()` when mixing with `format!`.
 - clap `required_unless_present = "other"` must become `required_unless_present_any = ["a","b"]` when a THIRD flag also satisfies the requirement — adding `--fit` beside `--factor`/`--ramp` breaks parsing unless fit is added to the exempt list.
 - `-map -0:s` drops subtitle streams, `-map -0:d` drops data — a positive `-map 0` must come first (negative maps subtract from the already-mapped set).
+- `-ss` BEFORE `-i` rewinds input timestamps to 0 — a following output `-to` no longer means the original timeline. For lossless trims translate `--to SEC` into `-t (to - from)` as an OUTPUT option (keyframe-accurate: seeks to the last keyframe ≤ `from`, never frame-exact).
+- Multi-input lavfi graphs (e.g. `live --test` with `-f lavfi -i testsrc2` + `-f lavfi -i sine`) get no automatic stream selection — always add explicit `-map 0:v -map 1:a` or ffmpeg picks the first streams it sees.
+- The x264 default GOP is ~250 frames: a <9s fixture has ONE keyframe at t=0, so input-side `-ss` can only seek to 0. Trim tests need `-g 30` (or `-force_key_frames`) to create real GOP structure.

@@ -21,8 +21,26 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video && !probe.has_audio {
         return Err(Error::input("remux: input has no media streams"));
     }
+    if let Some(f) = args.from {
+        if !f.is_finite() || f < 0.0 {
+            return Err(Error::input("remux --from needs a time >= 0"));
+        }
+    }
+    if let Some(t) = args.to {
+        if !t.is_finite() || t <= 0.0 {
+            return Err(Error::input("remux --to needs a positive time"));
+        }
+        if t <= args.from.unwrap_or(0.0) {
+            return Err(Error::input("remux --to must be after --from"));
+        }
+    }
 
     let mut argv = ffmpeg_base(g.progress);
+    // Input-side -ss seeks to the nearest keyframe at/below --from — the
+    // lossless-trim trade-off (cut/split re-encode for frame accuracy).
+    if let Some(f) = args.from {
+        argv.extend(["-ss".into(), f.to_string()]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     if args.audio && args.video {
@@ -71,6 +89,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-map", "0", "-c", "copy"]);
         }
     }
+    if let Some(t) = args.to {
+        // output duration, not a timeline position — input -ss already
+        // rewound the stream to ~0
+        argv.extend(["-t", &(t - args.from.unwrap_or(0.0)).to_string()]);
+    }
     if let Some(a) = &args.aspect {
         if args.audio || !probe.has_video {
             return Err(Error::input("remux --aspect needs a video stream"));
@@ -93,6 +116,6 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
 
     let c = engine::write_job("remux", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to }),
     ))
 }
