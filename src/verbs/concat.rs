@@ -12,6 +12,37 @@ use crate::probe::Probe;
 use serde_json::json;
 
 pub fn run(args: ConcatArgs, g: &Globals) -> Result<Contract, Error> {
+    let mut args = args;
+    // --list: clip manifest (one path per line) for script-generated cuts;
+    // relative paths resolve against the list's own directory
+    if let Some(list) = &args.list {
+        if !args.inputs.is_empty() {
+            return Err(Error::input(
+                "concat --list replaces the positional clip args — pick one",
+            ));
+        }
+        let text = std::fs::read_to_string(list)
+            .map_err(|e| Error::input(format!("--list: {}: {e}", list.display())))?;
+        let dir = list.parent().unwrap_or_else(|| Path::new(""));
+        for line in text.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let p = Path::new(line);
+            args.inputs.push(if p.is_absolute() {
+                p.into()
+            } else {
+                dir.join(p)
+            });
+        }
+        if args.inputs.is_empty() {
+            return Err(Error::input(format!(
+                "--list: {} has no clip paths",
+                list.display()
+            )));
+        }
+    }
     if let Some(l) = args.level {
         if !(-70.0..=-5.0).contains(&l) {
             return Err(Error::input("--level must be -70..=-5 LUFS (e.g. -14)"));

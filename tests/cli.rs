@@ -31423,3 +31423,148 @@ fn r250_scan_gop_conform_even_countdown_target_chapter_lrc_meta_disc_test() {
         .unwrap();
     assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "1/2");
 }
+
+#[test]
+fn r251_concat_list_scan_hash_chapter_lrc_import_meta_music_conform_ar_test() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    // concat --list: clip paths from a manifest (relative to list dir)
+    let sub = d.join("clips");
+    std::fs::create_dir(&sub).unwrap();
+    let ca = sub.join("ca.mp4");
+    let cb = sub.join("cb.mp4");
+    std::fs::copy(&f, &ca).unwrap();
+    std::fs::copy(&f, &cb).unwrap();
+    std::fs::write(sub.join("list.txt"), "# manifest\nca.mp4\ncb.mp4\n").unwrap();
+    let j = run_json(&[
+        "concat",
+        "--list",
+        &sub.join("list.txt").to_string_lossy(),
+        "-o",
+        &d.join("cat.mp4").to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let dur: f64 = j["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!(dur > 1.8 && dur < 2.2, "dur={dur}");
+
+    // scan --hash: decoded-frame checksum manifest lands next to the input
+    let j = run_json(&["scan", &f.to_string_lossy(), "--hash"]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let hash_file = j["extra"]["hash_file"].as_str().unwrap_or("").to_string();
+    assert!(hash_file.ends_with(".framemd5"), "{hash_file}");
+    let frames = j["extra"]["hash_frames"].as_u64().unwrap_or(0);
+    assert!(frames >= 30, "frames={frames}");
+    assert!(Path::new(&hash_file).exists(), "{hash_file}");
+
+    // chapter --import .lrc: synced-lyrics marks round-trip with --lrc
+    let lrc = d.join("marks.lrc");
+    std::fs::write(
+        &lrc,
+        "[ti:Song]\n[ar:Artist]\n[offset:+500]\n[00:00.00]Intro\n[00:00.50]Peak\n",
+    )
+    .unwrap();
+    let j = run_json(&[
+        "chapter",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("ch.mp4").to_string_lossy(),
+        "--import",
+        &lrc.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let marks = j["extra"]["chapters"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(marks.len(), 2, "{marks:?}");
+    assert_eq!(marks[1]["time"], 0.5, "{marks:?}");
+    assert_eq!(marks[1]["title"], "Peak", "{marks:?}");
+
+    // meta --composer/--bpm/--lyrics: music-release tags (bpm probed via mkv;
+    // mp4 muxers drop it — whitelist)
+    let lyr = d.join("lyr.lrc");
+    std::fs::write(&lyr, "[00:00.00]First line\n[00:00.50]Second line\n").unwrap();
+    let tag = d.join("tag.mkv");
+    let j = run_json(&[
+        "meta",
+        &f.to_string_lossy(),
+        "-o",
+        &tag.to_string_lossy(),
+        "--composer",
+        "Someone",
+        "--bpm",
+        "128",
+        "--lyrics",
+        &lyr.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let tags: Vec<String> = j["extra"]["tags"]
+        .as_array()
+        .unwrap_or(&vec![])
+        .iter()
+        .filter_map(|t| t.as_str().map(|s| s.to_string()))
+        .collect();
+    assert!(tags.contains(&"composer".to_string()), "{tags:?}");
+    assert!(tags.contains(&"bpm".to_string()), "{tags:?}");
+    assert!(tags.contains(&"lyrics".to_string()), "{tags:?}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format_tags=BPM",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&tag)
+        .output()
+        .unwrap();
+    assert!(String::from_utf8_lossy(&o.stdout).trim().ends_with("128"));
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format_tags=LYRICS",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&tag)
+        .output()
+        .unwrap();
+    let lyr_txt = String::from_utf8_lossy(&o.stdout);
+    assert!(lyr_txt.contains("First line"), "{lyr_txt}");
+    assert!(!lyr_txt.contains('['), "{lyr_txt}");
+
+    // conform --ar: resample rate override (44100 podcast/CD)
+    let j = run_json(&[
+        "conform",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("c44.mp4").to_string_lossy(),
+        "--ar",
+        "44100",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["ar"], 44100);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream=sample_rate",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(d.join("c44.mp4"))
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "44100");
+}

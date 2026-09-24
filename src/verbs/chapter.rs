@@ -47,6 +47,59 @@ fn parse_podcast_json(text: &str, path: &std::path::Path) -> Result<Vec<(f64, St
     Ok(out)
 }
 
+// .lrc synced-lyrics import: [mm:ss.xx] per line, optional multi-stamp
+// lines ([t1][t2]text → one mark each), [key:value] header tags skipped.
+// Round-trips with `chapter --lrc` export.
+fn parse_lrc_list(text: &str, path: &std::path::Path) -> Result<Vec<(f64, String)>, Error> {
+    let mut marks = Vec::new();
+    for (ln, line) in text.lines().enumerate() {
+        let mut rest = line.trim();
+        if rest.is_empty() {
+            continue;
+        }
+        let mut times = Vec::new();
+        let mut is_tag = false;
+        while let Some(body) = rest.strip_prefix('[') {
+            let Some((b, r)) = body.split_once(']') else {
+                break;
+            };
+            if b.contains(':') {
+                match crate::time::parse_time(b.trim()) {
+                    Ok(t) => times.push(t),
+                    Err(_) => is_tag = true,
+                }
+            } else {
+                is_tag = true; // bare numbers like [offset:+500] are metadata
+            }
+            rest = r.trim_start();
+        }
+        if times.is_empty() {
+            if is_tag {
+                continue; // header tags like [ti:title] carry no marks
+            }
+            return Err(Error::input(format!(
+                "--import: {} line {}: no [mm:ss.xx] timestamp",
+                path.display(),
+                ln + 1
+            )));
+        }
+        let title = rest.trim();
+        if title.is_empty() {
+            continue;
+        }
+        for t in times {
+            marks.push((t, title.to_string()));
+        }
+    }
+    if marks.is_empty() {
+        return Err(Error::input(format!(
+            "--import: {}: no [mm:ss.xx] marks found",
+            path.display()
+        )));
+    }
+    Ok(marks)
+}
+
 fn parse_cue_list(text: &str, path: &std::path::Path) -> Result<Vec<(f64, String)>, Error> {
     // CUE sheet: TITLE "name" inside a TRACK, then INDEX 01 mm:ss:ff (75fps)
     let mut out: Vec<(f64, String)> = Vec::new();
@@ -223,6 +276,8 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             marks.extend(parse_podcast_json(&text, path)?);
         } else if kind == "cue" {
             marks.extend(parse_cue_list(&text, path)?);
+        } else if kind == "lrc" {
+            marks.extend(parse_lrc_list(&text, path)?);
         } else {
             for (ln, line) in text.lines().enumerate() {
                 let line = line.trim();

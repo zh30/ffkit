@@ -16,10 +16,16 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         && args.hold.is_none()
         && args.hold_start.is_none()
         && !args.even
+        && args.ar.is_none()
     {
         return Err(Error::input(
-            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even",
+            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ",
         ));
+    }
+    if let Some(r) = args.ar {
+        if !(8000..=192000).contains(&r) {
+            return Err(Error::input("--ar must be 8000..=192000 Hz"));
+        }
     }
 
     if args.anchor.is_some() && args.pad.is_none() {
@@ -136,6 +142,8 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if probe.has_audio {
         // loudnorm upsamples internally — resample back AFTER it.
+        // --ar overrides the broadcast-48k default (44100 podcasts, 96000 masters)
+        let rate = args.ar.unwrap_or(48000);
         let mut af = String::new();
         if let Some(l) = args.lufs {
             if !(-70.0..=-5.0).contains(&l) {
@@ -143,10 +151,10 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
             }
             af.push_str(&format!("loudnorm=I={l:.1}:TP=-1.5:LRA=11,"));
         }
-        af.push_str("aresample=48000,aformat=channel_layouts=stereo");
+        af.push_str(&format!("aresample={rate},aformat=channel_layouts=stereo"));
         // silence-pad the tail so audio length matches a frame hold
         if held_secs > 0.0 {
-            let whole = ((probe.duration + held_secs) * 48000.0).round() as u64;
+            let whole = ((probe.duration + held_secs) * rate as f64).round() as u64;
             af.push_str(&format!(",apad=whole_len={whole}"));
         }
         argv.extend(["-af".to_string(), af]);
@@ -169,6 +177,7 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         "lufs": args.lufs,
         "hold": args.hold,
         "hold_start": args.hold_start,
+        "ar": args.ar,
     }));
     Ok(c)
 }

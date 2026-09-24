@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.278.0] — 2026-09-24
+
+### Added
+- `concat --list manifest.txt` — read clip paths from a manifest file (one per line, '#' comments, relative paths resolve against the list's directory): script-generated assemblies without positional args
+- `scan --hash` — writes `<input>.framemd5` decoded-frame checksums of every stream (archive-ingest integrity manifest; `hash_file`/`hash_frames` in the report)
+- `chapter --import` now reads `.lrc` synced-lyrics files — `[mm:ss.xx]title` marks import alongside .json/.cue (round-trips with `chapter --lrc`)
+- `meta --composer`, `meta --bpm`, `meta --lyrics file.lrc` — music-release tags; lyrics files get LRC timestamps stripped into the unsynced-lyrics tag (bpm lands in mp3/mkv/flac; mp4 drops it)
+- `conform --ar HZ` — resample rate override inside conform (48k broadcast stays the default; 44100 for podcast/CD deliverables, 96000 for masters)
+
 ## [0.277.0] — 2026-09-24
 
 ### Added

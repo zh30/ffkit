@@ -457,6 +457,11 @@ pub struct CutArgs {
 pub struct ConcatArgs {
     /// Input clips, in order
     pub inputs: Vec<PathBuf>,
+    /// Read clip paths from a manifest file — one path per line, '#'
+    /// comments allowed, relative paths resolve against the list's
+    /// directory; replaces the positional clips for script-generated cuts
+    #[arg(long)]
+    pub list: Option<PathBuf>,
     #[arg(short, long)]
     pub output: PathBuf,
     /// xfade between clips: fade | wipe* | slide* | dissolve | radial | circleopen —
@@ -2721,6 +2726,17 @@ pub struct MetaArgs {
     /// Disc number tag (N or N/total) for multi-disc releases
     #[arg(long)]
     pub disc: Option<String>,
+    /// Composer / songwriter tag (music metadata)
+    #[arg(long)]
+    pub composer: Option<String>,
+    /// BPM tempo tag (DJ mixes, beat packs) — lands in mp3/mkv/flac;
+    /// mp4-family containers drop it (ffmpeg muxer whitelist)
+    #[arg(long)]
+    pub bpm: Option<u32>,
+    /// Embed unsynced lyrics from a .lrc/.txt file — LRC timestamps
+    /// are stripped so players show plain lines
+    #[arg(long)]
+    pub lyrics: Option<PathBuf>,
     /// Fix the display rotation flag (0/90/180/270) without re-encoding
     #[arg(long)]
     pub rotate: Option<u32>,
@@ -4789,6 +4805,10 @@ pub struct ConformArgs {
     /// at odd px can't encode yuv420p x264, this is the one-flag fix
     #[arg(long)]
     pub even: bool,
+    /// Resample audio to HZ (conform defaults to broadcast 48000;
+    /// pass 44100 for podcast/CD deliverables, 96000 for masters)
+    #[arg(long)]
+    pub ar: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5391,6 +5411,11 @@ pub struct ScanArgs {
     /// "keyframes every ≤2s" (YouTube live) verified from the packet map
     #[arg(long)]
     pub gop: bool,
+    /// Also write <input>.framemd5 — decoded-frame checksums of every
+    /// stream (the archive-ingest integrity manifest; `hash_file`,
+    /// `hash_frames` in the report)
+    #[arg(long)]
+    pub hash: bool,
 }
 
 #[derive(clap::Args, Debug)]

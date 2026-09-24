@@ -557,3 +557,7 @@ an atempo'd whole-file render would shift the window.
 - **ffprobe `packet=dts_time` can start negative** — B-frame reorder puts display-delayed packets at dts < 0; GOP intervals should be diffs between consecutive K-flagged packets in stream order, never absolute pts.
 - **`conform`'s "nothing to conform" guard must list every new flag** — adding a conform flag without extending the guard leaves it unreachable (hit by `--even`).
 - **`chapter --at` marks can't sit past the input's duration** — export formats (--cue/--lrc/--podcast) inherit the same bounds check as embedding; keep test marks inside the fixture's 1s.
+
+- **mp4/mov muxers silently drop unknown metadata keys** — `bpm`/`tmpo` never land (ffmpeg movenc has a fixed tag whitelist; mp3/mkv/flac keep them). If a tag must survive, deliver in an open container or test the probe yourself.
+- **framemd5 with `-c copy` hashes compressed packets, not frames** — packet checksums differ from decoded-frame checksums; archive manifests should decode (no `-c copy`).
+- **LRC `[offset:+500]` headers parse as bare numbers** — a naive timestamp parser turns the offset tag into a mark at +500s; only treat `[mm:ss]`-style brackets (containing ':') as marks.

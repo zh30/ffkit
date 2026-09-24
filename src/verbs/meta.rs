@@ -7,6 +7,19 @@ use crate::error::Error;
 
 pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
     let _probe = engine::probe_or_err(&args.input, g)?;
+    // --lyrics: unsynced lyrics embedded from an .lrc/.txt file — every
+    // leading [mm:ss.xx]/[key:value] bracket group is stripped so players
+    // see plain lines (chapter --lrc exports feed straight in)
+    let lyrics_text = args
+        .lyrics
+        .as_deref()
+        .map(|p| {
+            let text = std::fs::read_to_string(p)
+                .map_err(|e| Error::input(format!("--lyrics: {}: {e}", p.display())))?;
+            Ok::<_, Error>(strip_lrc(&text))
+        })
+        .transpose()?;
+    let bpm_text = args.bpm.map(|b| b.to_string());
     let tags: Vec<(&str, &str)> = [
         ("title", args.title.as_deref()),
         ("artist", args.artist.as_deref()),
@@ -15,6 +28,9 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         ("date", args.date.as_deref()),
         ("track", args.track.as_deref()),
         ("disc", args.disc.as_deref()),
+        ("composer", args.composer.as_deref()),
+        ("bpm", bpm_text.as_deref()),
+        ("lyrics", lyrics_text.as_deref()),
         ("comment", args.comment.as_deref()),
     ]
     .into_iter()
@@ -73,4 +89,23 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         "rotate": args.rotate,
         "copied_from": args.copy,
     })))
+}
+
+/// Strip leading [bracket] groups from each line — LRC timestamps
+/// ([mm:ss.xx]) and tag headers ([ar:...]) alike — leaving plain lyric
+/// text one line per source line.
+fn strip_lrc(text: &str) -> String {
+    text.lines()
+        .filter_map(|line| {
+            let mut s = line.trim();
+            while let Some(rest) = s
+                .strip_prefix('[')
+                .and_then(|b| b.split_once(']').map(|(_, r)| r))
+            {
+                s = rest.trim_start();
+            }
+            (!s.is_empty()).then(|| s.to_string())
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }

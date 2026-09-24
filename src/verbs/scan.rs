@@ -448,6 +448,22 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+    // --hash: decoded-frame checksums of every stream → <input>.framemd5
+    // manifest — the archive-ingest integrity record. Decodes the whole
+    // file, so it stays behind a flag.
+    let mut hash_file = String::new();
+    let mut hash_frames = 0usize;
+    if args.hash {
+        hash_file = format!("{}.framemd5", args.input.display());
+        let mut argv = Argv::ffmpeg();
+        argv.extend(["-v", "error", "-y", "-i"]);
+        argv.push(&args.input);
+        argv.extend(["-map", "0", "-f", "framemd5", &hash_file]);
+        spawn::require_ok(&argv, spawn::run(&argv, g.timeout, false)?)?;
+        hash_frames = std::fs::read_to_string(&hash_file)
+            .map(|t| t.lines().filter(|l| !l.starts_with('#')).count())
+            .unwrap_or(0);
+    }
     // --deadair DB: dead-air map for podcast/talking-head QC — reuses the
     // silence detector so one `scan` reports pauses alongside video faults
     let mut deadair_ranges: Vec<serde_json::Value> = Vec::new();
@@ -767,5 +783,9 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     extra["color_space"] = json!(probe.color_space.clone());
     extra["color_primaries"] = json!(prm);
     extra["color_transfer"] = json!(trc);
+    if args.hash {
+        extra["hash_file"] = json!(hash_file);
+        extra["hash_frames"] = json!(hash_frames);
+    }
     Ok(Contract::ok("scan", None, Some(probe)).with_extra(extra))
 }
