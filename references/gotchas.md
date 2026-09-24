@@ -665,3 +665,7 @@ an atempo'd whole-file render would shift the window.
 - **`streams[].duration`/`bit_rate` can be absent on some containers** — ffprobe reports them only when the muxer recorded per-stream duration/rate (mp4/mkv yes, some raw streams no); treat missing as unknown, not zero.
 - **EDL frame numbers use the clip's probed fps** — a VFR file exports marks at its average rate; NLE timelines running the same rate line up, a mismatched-timeline import lands off by drift.
 - **`--no-audio` reads as "no audio" inside flag guards** — order conflict checks before has_audio checks or the wrong error fires (`live --channels --no-audio` should say "conflicts", not "input has no audio").
+
+- **`subs --join` joins text with a space, not a newline** — merged fragments read as one sentence; run `--wrap` after if portrait captions need re-breaking.
+- **`extract --cover` writes the embedded codec's bytes verbatim** — a mjpeg cover named `.png` still contains JPEG bytes (extension should match; the stream's codec is in the same probe's `streams[]`).
+- **Multiple attached pics: `--cover` takes the first** — `probe.attached_pic_indices` lists them all; pull a later one with `ffmpeg -map 0:<idx> -c:v copy` when needed.

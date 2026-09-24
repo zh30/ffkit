@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.312.0] — 2026-09-24
+
+### Added
+- `probe`/`scan` `streams[].pix_fmt` — per-track pixel format (4:2:2/10-bit masters get rejected by social platforms needing yuv420p — QC every track of mixed-depth files)
+- `subs --join SEC` — merge adjacent cues closer than SEC into one (auto-transcript over-fragmentation repair; text joined with a space, span covers the merged range)
+- `extract --cover` — pull embedded cover art (attached_pic stream) back out as an image file (the `remux --cover` round-trip — verify feed art or grab it for redesign)
+- `deliver --platform` +7: `rutube`/`ok`/`zen`/`openrec`/`twitcasting`/`showroom`/`fc2` — RU & JP video/live hosts (16:9 1080p, −14 LUFS pipeline)
+
 ## [0.311.0] — 2026-09-24
 
 ### Added

@@ -36792,3 +36792,122 @@ fn r284_duration_bitrate_channels_edl_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r285_pixfmt_join_cover_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // streams[].pix_fmt — per-track pixel-format QC (4:2:2/10-bit gate)
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    assert!(v["pix_fmt"].as_str().unwrap().starts_with("yuv"));
+    let a = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+    assert!(a.get("pix_fmt").is_none() || a["pix_fmt"].is_null());
+
+    // subs --join — merge adjacent cues closer than SEC (fragment repair)
+    let frag = d.path().join("frag.srt");
+    std::fs::write(
+        &frag,
+        "1\n00:00:00,000 --> 00:00:00,400\nThe quick brown\n\n\
+         2\n00:00:00,450 --> 00:00:00,900\nfox jumps over\n\n\
+         3\n00:00:02,000 --> 00:00:02,500\nthe lazy dog\n",
+    )
+    .unwrap();
+    let joined = d.path().join("joined.srt");
+    let j = run_json(&[
+        "subs",
+        frag.to_str().unwrap(),
+        "-o",
+        joined.to_str().unwrap(),
+        "--join",
+        "0.2",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["joined"], 1);
+    assert_eq!(j["extra"]["cues"], 2);
+    let txt = std::fs::read_to_string(&joined).unwrap();
+    assert!(txt.contains("00:00:00,000 --> 00:00:00,900"));
+    assert!(txt.contains("The quick brown fox jumps over"));
+
+    // extract --cover — pull embedded attached_pic back out as an image
+    let art = d.path().join("art.png");
+    assert!(Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:s=64x64:d=0.04",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&art)
+        .status()
+        .unwrap()
+        .success());
+    let covered = d.path().join("covered.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        covered.to_str().unwrap(),
+        "--cover",
+        art.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let pulled = d.path().join("pulled.jpg");
+    let j = run_json(&[
+        "extract",
+        covered.to_str().unwrap(),
+        "-o",
+        pulled.to_str().unwrap(),
+        "--cover",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["cover"], true);
+    assert!(pulled.metadata().unwrap().len() > 100);
+    let j = run_json(&[
+        "extract",
+        f.to_str().unwrap(),
+        "-o",
+        d.path().join("none.jpg").to_str().unwrap(),
+        "--cover",
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("no embedded cover"));
+
+    // deliver --platform +7: RU/JP host canvases
+    for name in [
+        "rutube",
+        "ok",
+        "zen",
+        "openrec",
+        "twitcasting",
+        "showroom",
+        "fc2",
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

@@ -359,6 +359,7 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
             || args.alpha
             || args.transparent
             || args.keyframes
+            || args.cover
             || args.chapter.is_some()
             || args.all
             || args.track.is_some()
@@ -400,6 +401,47 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
             "attachment": true,
             "index": n,
             "attachments": n_att,
+        })));
+    }
+    // --cover: pull embedded cover art — the attached_pic video stream's
+    // single packet IS the image file (mjpeg → .jpg bytes, png → .png)
+    if args.cover {
+        if args.audio
+            || args.subs
+            || args.gif
+            || args.webp
+            || args.alpha
+            || args.transparent
+            || args.keyframes
+            || args.chapter.is_some()
+            || args.attachment.is_some()
+            || args.all
+            || args.track.is_some()
+            || args.lang.is_some()
+            || args.from.is_some()
+            || args.to.is_some()
+            || args.at.is_some()
+        {
+            return Err(Error::input(
+                "extract --cover rips embedded cover art — drop the other modes",
+            ));
+        }
+        let probe = engine::probe_or_err(&args.input, g)?;
+        if probe.attached_pic_indices.is_empty() {
+            return Err(Error::input(
+                "extract --cover: input has no embedded cover art",
+            ));
+        }
+        let idx = probe.attached_pic_indices[0];
+        argv.extend(["-i"]);
+        argv.push(&args.input);
+        argv.extend(["-map", format!("0:{idx}").as_str(), "-c:v", "copy"]);
+        argv.push(&args.output);
+        let c = engine::write_job_raw("extract", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(serde_json::json!({
+            "cover": true,
+            "stream": idx,
+            "covers": probe.attached_pic_indices,
         })));
     }
     // --subs: pull an embedded subtitle track into a text container —

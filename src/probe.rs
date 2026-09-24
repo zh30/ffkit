@@ -124,6 +124,10 @@ pub struct ProbeStream {
     /// video bitrate separately from audio)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bit_rate: Option<u64>,
+    /// Pixel format (video — 4:2:2/10-bit masters get rejected by social
+    /// platforms needing yuv420p; QC every track of mixed-depth files)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pix_fmt: Option<String>,
     /// Player-default track (disposition.default) — QC which track a
     /// player picks before `remux --default-audio`/`--default-sub`.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -450,6 +454,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                     .or_else(|| parse_rate(s.r_frame_rate.as_deref())),
                 duration: s.duration.as_deref().and_then(parse_f64),
                 bit_rate: s.bit_rate.as_deref().and_then(|v| v.parse().ok()),
+                pix_fmt: s.pix_fmt.clone(),
                 default: s
                     .disposition
                     .as_ref()

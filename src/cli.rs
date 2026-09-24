@@ -677,6 +677,11 @@ pub struct ExtractArgs {
     /// — pull fonts/files embedded by `remux --attach` back out (mkv/webm)
     #[arg(long)]
     pub attachment: Option<u32>,
+    /// Pull embedded cover art (attached_pic stream) back out as an image
+    /// file — verify or re-deliver feed art; extension should match the
+    /// embedded codec (mjpeg art → .jpg, png → .png)
+    #[arg(long)]
+    pub cover: bool,
     /// Dump every keyframe (I-frame) as an image — -o needs a %03d-style
     /// template (GOP-boundary stills: keyframe-interval QC, timelapse
     /// source, scene-jump scouting without decoding the whole file)
@@ -1535,6 +1540,20 @@ pub enum DeliverPlatform {
     Streamable,
     /// Viddsee short-film platform 16:9 landscape (1920x1080, -14 LUFS)
     Viddsee,
+    /// Rutube video host 16:9 landscape (1920x1080, -14 LUFS)
+    Rutube,
+    /// Odnoklassniki (ok.ru) video 16:9 landscape (1920x1080, -14 LUFS)
+    Ok,
+    /// Yandex Zen channel 16:9 landscape (1920x1080, -14 LUFS)
+    Zen,
+    /// OPENREC.tv JP game streamer clips 16:9 landscape (1920x1080, -14 LUFS)
+    Openrec,
+    /// TwitCasting JP live host 16:9 landscape (1920x1080, -14 LUFS)
+    Twitcasting,
+    /// SHOWROOM JP streamer clips 16:9 landscape (1920x1080, -14 LUFS)
+    Showroom,
+    /// FC2 video host 16:9 landscape (1920x1080, -14 LUFS)
+    Fc2,
     /// Spotify video podcast 16:9 landscape (1920x1080, -14 LUFS)
     Spotify,
     /// Apple Podcasts video episode 16:9 landscape (1920x1080, -14 LUFS)
@@ -2968,6 +2987,12 @@ pub struct SubsArgs {
     /// spec is ~2 frames; extras: gapped)
     #[arg(long)]
     pub min_gap: Option<f64>,
+    /// Merge adjacent cues separated by less than SEC — auto-transcript
+    /// over-fragmentation repair (Whisper-style fragments join into
+    /// sentence-length cues; text joined with a space, span covers the
+    /// merged range; extras: joined)
+    #[arg(long)]
+    pub join: Option<f64>,
     /// Report cues with more than N text lines (broadcast spec is 2)
     #[arg(long)]
     pub max_lines: Option<usize>,

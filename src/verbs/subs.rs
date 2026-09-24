@@ -76,6 +76,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.cps.is_some()
         || args.min_dur.is_some()
         || args.min_gap.is_some()
+        || args.join.is_some()
         || args.max_lines.is_some()
         || args.replace.is_some()
         || args.strip_speakers
@@ -261,7 +262,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         != Some("srt")
     {
         return Err(Error::input(
-            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--cps/--min-dur/--max-lines/--replace/--strip-speakers/--strip-sdh/--clip/--wrap) take an .srt input",
+            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--cps/--min-dur/--min-gap/--join/--max-lines/--replace/--strip-speakers/--strip-sdh/--clip/--wrap) take an .srt input",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -322,6 +323,20 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         let before = cues.len();
         cues.dedup_by(|a, b| a.start == b.start && a.end == b.end && a.text == b.text);
         dropped += before - cues.len();
+    }
+    let mut joined = 0usize;
+    if let Some(gap) = args.join {
+        let mut i = 0;
+        while i + 1 < cues.len() {
+            if cues[i + 1].start - cues[i].end < gap {
+                cues[i].end = cues[i + 1].end;
+                cues[i].text = format!("{} {}", cues[i].text.trim(), cues[i + 1].text.trim());
+                cues.remove(i + 1);
+                joined += 1;
+            } else {
+                i += 1;
+            }
+        }
     }
     let mut extended = 0usize;
     if let Some(min) = args.min_dur {
@@ -507,6 +522,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "dropped": dropped,
         "extended": extended,
         "gapped": gapped,
+        "joined": joined,
         "replaced": replaced,
         "stripped": stripped,
         "tags_stripped": tags_stripped,
