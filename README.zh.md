@@ -117,7 +117,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `audiogram` | 波形视频 ，`--mode phase`（aphasemeter 相位表）| `--mode`、`--scale` 幅度、`--split` 分声道、`--fscale` 频率轴（spectrum）、`--fps` 帧率、`--text`、`--bg`、`--progress` 进度条 ，`--subs` 烧字幕、`--from`/`--to` 只取一段（`--to` 可用 `end`），`--at a,b --dur N` 每点一条（`stem_N.mp4`）；`--mode spectrum` 频谱条、`--mode scope` 李萨如矢量示波、`--mode cqt` 钢琴卷帘频谱、`--mode spectro` 滚动频谱图 | `--mode spatial|volume|bitscope` 表桥示波 | `--mode monitor` 管线统计 | `--mode hist` 振幅直方图（削波/余量质检） |
 
 | `split` | 按 `--every`/`--at`/`--scenes`/`--size`/`--parts`/`--silence`/`--chapters` 内嵌章节切分；`--subs` 输出重定时分段 .srt；`--fade N` 每段首尾淡化 |
-| `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数或 `--dur` 总时长、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐 + `--volume` 音量、`--size` 画布、`--bg` 底边色、`--fit` 蒙太奇正好随歌曲收尾、`--shuffle SEED` 确定性乱序——同种子同顺序，图片堆蒙太奇） |
+| `slideshow` | 图片 → 配乐幻灯视频（`--per` 每图秒数或 `--dur` 总时长、`--fade`/`--transition` 转场、`--motion kenburns` 推拉、`--audio` 配乐 + `--volume` 音量、`--size` 画布、`--bg` 底边色、`--fit` 蒙太奇正好随歌曲收尾、`--shuffle SEED` 确定性乱序——同种子同顺序，图片堆蒙太奇、`--sort name|mtime` 按文件名或拍摄时间排列相机导出照片） |
 | `speed` | 变速（`--factor`、`--at/--dur` 窗口（逗号列表可多段）、`--ramp` FROM,TO 渐变），支持 `end`；`--fit SEC` 精确压到目标时长（自动算倍数——90s 素材 `--fit 15` 即 6 倍速） |
 | `music` | 铺 BGM，人声出现时压低配乐（`--track`、`--at/--dur` 窗口支持 `end`，逗号 `--at` 多处铺底如 `0,end` 首尾双 sting） |
 | `key` | 绿幕合成：`--color` 抠掉后叠到 `--bg` 图片/视频上（`--similarity`、`--blend`、`--despill`、`--mode luma` 改按亮度带抠像（`--threshold` 定亮区/暗区背景）、`--mode chroma` YUV 色域抠像（广播级 chromakey，褶皱/光照不匀的幕布更稳）、`--at/--dur` 窗口抠像，支持逗号列表） | `--mode matte --mask` 外部灰度遮罩→α 通道（prores 4444） |
@@ -127,7 +127,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `censor` | 区域打码（`--region x:y:w:h`，逗号列表可多处同时打码；`--mode` pixel|blur|solid（solid = 黑条遮盖）、`--strength` 强度、`--at`/`--dur`（逗号列表，需 `--dur`；`end` 可用）、`--shape circle` 椭圆遮罩） |
 | `bleep` | 消音哔声：`--at`/`--dur` 选段（逗号列表可消多处；`end` 可用），`--freq`/`--level` 调音 |
 | `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法）（`--times` 循环次数） ，`--at/--dur` 局部往返——逗号列表可多处回弹，支持 `end` |
-| `chapter` | 在 `TIME|TITLE` 写入章节或 `--import` 导入标记文件（支持 YouTube `H:MM:SS Title` 行）；`--auto` / `--export` ffmeta / `--yt` 导出 YouTube 描述格式 / `--cue` CUE 表（有声书/播客播放器）；`--list`；`--remove`；`--shift` 平移标记 |
+| `chapter` | 在 `TIME|TITLE` 写入章节或 `--import` 导入标记文件（支持 YouTube `H:MM:SS Title` 行）；`--auto` / `--export` ffmeta / `--yt` 导出 YouTube 描述格式 / `--cue` CUE 表 / `--podcast` Podcasting 2.0 JSON 章节（有声书/播客播放器）；`--list`；`--remove`；`--shift` 平移标记 |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`；`--buffer N` 向外扩 N 像素） |
 | `sheet` | 宫格预览图（`--cols`x`--rows`、`--time` 每格时间戳、`--title` 标题行、`--from`/`--to` 采样窗口） |
 | `sprite` | 播放条预览雪碧图 + WebVTT（`--every` 间隔秒、`--width` 缩略图宽、`--cols`x`--rows` 每张格数、`--vtt` 路径、`--from`/`--to` 限定范围，支持 `end`）——播放器悬停预览 |
@@ -263,8 +263,8 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `mix` | 双音轨叠加（`--vol-a/--vol-b`、`--at/--dur`（逗号列表可多次进床）、`--loop`、`--duck` 人声闪避音乐、`--gate` 更狠的门限闪避——说话时底床直接静音） ，`--normalize` 归一求和、`--fade` 淡入淡出，支持 `end` |
 | `mute` | 去掉音轨（其余流直接封装，不重编码） ，`--at/--dur` 局部静音（逗号列表可静多处，需 `--dur`），支持 `end` |
 | `timer` | 画面计时器（`--position`、`--format ms`、`--box-color` 底板） （`--format`、`--box-color`、`--down` 倒计时、`--start` 设定起始读数、`--opacity` 半透明）——`--at` 支持 `end`；`--tc HH:MM:SS:FF` 烧录走带时码（样片/审片，`;` 前 FF 位表示丢帧意图，仅显示）；`--clock` 烧录本地挂钟 HH:MM:SS（赛事/活动实时钟） |
-| `hls` | 网页 HLS 封装（`--seg`、`--single`、`--copy`、`--ladder` 多码率、`--audio-only` 纯音频、`--fmp4` CMAF、`--poster` 同时输出 poster.jpg 封面，`--poster-at T` 选封面帧，`--encrypt` AES-128 加密分片并写 key.bin/key.info（`--key HEX` 自定义密钥、`--key-uri URI` 播放列表里的密钥地址）→ 私有/付费流，`--live` 滑动窗直播播放列表——播放器可中途加入，只保留最新 `--live-window N` 个分片、不写 endlist；`--start N` 重启后从 N 续编号、`--epoch` 用 epoch 时钟播种分片序号（24/7 频道不停表） |
-| `live` | 把片段推向直播采集端：`--to rtmp://…`/`rtmps://`/`tcp://`/`udp://`（`-re` 实时节奏推流，x264/aac 采集编码），`--loop` 无限循环（24/7 音乐台/首播轮播），`--vbitrate`/`--abitrate` 可调码率，`--scale WxH` 大母片降采样到采集规格，`--fps N` 压输出帧率，`--record file.mp4` 推流同时本地存档（tee——一次编码两路封装），`--until SEC` 定时停播，`--list` 清单轮播（concat 清单文件，24/7 轮播台；`--loop` = 无限轮播），`--test` 内置测试卡+1kHz 音（开播前验证推流密钥），`--slate card.png --slate-dur SEC` 开播前先推「即将开始」定场图（首播/定时开场），`--card art.png` 给纯音频源配一张常驻静帧当画面（24/7 lofi 电台流），`--overlay bug.png` 台标钉在角落（`--overlay-position tl|tr|bl|br`、`--overlay-opacity` 半透明），`--restream url` 同时推第二个采集端——一次编码多平台直播，`--gop N` 关键帧间隔对齐采集规格（YouTube 要求 ≤2s），`--preset` x264 速度/画质档位，`--vertical` 信箱到 1080x1920 竖屏直播画布 |
+| `hls` | 网页 HLS 封装（`--seg`、`--single`、`--copy`、`--ladder` 多码率、`--audio-only` 纯音频、`--fmp4` CMAF、`--poster` 同时输出 poster.jpg 封面，`--poster-at T` 选封面帧，`--encrypt` AES-128 加密分片并写 key.bin/key.info（`--key HEX` 自定义密钥、`--key-uri URI` 播放列表里的密钥地址）→ 私有/付费流，`--live` 滑动窗直播播放列表——播放器可中途加入，只保留最新 `--live-window N` 个分片、不写 endlist；`--start N` 重启后从 N 续编号、`--epoch` 用 epoch 时钟播种分片序号（24/7 频道不停表）、`--date` 给分片写 EXT-X-PROGRAM-DATE-TIME 时间戳、`--discontinuity` 标记推流重启点 |
+| `live` | 把片段推向直播采集端：`--to rtmp://…`/`rtmps://`/`tcp://`/`udp://`（`-re` 实时节奏推流，x264/aac 采集编码），`--loop` 无限循环（24/7 音乐台/首播轮播），`--vbitrate`/`--abitrate` 可调码率，`--scale WxH` 大母片降采样到采集规格，`--fps N` 压输出帧率，`--record file.mp4` 推流同时本地存档（tee——一次编码两路封装），`--until SEC` 定时停播，`--list` 清单轮播（concat 清单文件，24/7 轮播台；`--loop` = 无限轮播），`--test` 内置测试卡+1kHz 音（开播前验证推流密钥），`--slate card.png --slate-dur SEC` 开播前先推「即将开始」定场图（首播/定时开场），`--card art.png` 给纯音频源配一张常驻静帧当画面（24/7 lofi 电台流），`--overlay bug.png` 台标钉在角落（`--overlay-position tl|tr|bl|br`、`--overlay-opacity` 半透明），`--restream url` 同时推第二个采集端——一次编码多平台直播，`--gop N` 关键帧间隔对齐采集规格（YouTube 要求 ≤2s），`--preset` x264 速度/画质档位，`--vertical` 信箱到 1080x1920 竖屏直播画布、`--maxrate 4500k`/`--bufsize` CBR 限幅对齐采集端码率规格（Twitch ≤6000k，bufsize 默认取 maxrate 两倍） |
 
 | `qa` | 对比参考视频测画质损失（PSNR + SSIM + MSAD + VIF，`--metric`） |
 | `conform` | 一键统一规格（`--size WxH`、`--fps 30`、`--lufs -14`、`--crf`、`--pad` 黑边颜色 + `--anchor` 锚点、`--blur` 模糊填充，`--hold SEC` 克隆末帧片尾停留 + `--hold-start` 片头预停（音频自动补静音） |

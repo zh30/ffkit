@@ -229,6 +229,34 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             }
             argv.extend(["-g".into(), g.to_string()]);
         }
+        if let Some(mr) = &args.maxrate {
+            if mr.is_empty() {
+                return Err(Error::input("live --maxrate needs a rate like 4500k"));
+            }
+            argv.extend(["-maxrate".to_string(), mr.clone()]);
+        }
+        if args.maxrate.is_some() || args.bufsize.is_some() {
+            // CBR pairing: bufsize defaults to 2x maxrate when unset
+            let bs = match &args.bufsize {
+                Some(b) => b.clone(),
+                None => args
+                    .maxrate
+                    .as_deref()
+                    .and_then(|r| {
+                        let tail = r.chars().last().unwrap_or('0');
+                        let (num, suffix) = if tail.is_alphabetic() {
+                            r.split_at(r.len() - 1)
+                        } else {
+                            (r, "")
+                        };
+                        num.parse::<u64>()
+                            .ok()
+                            .map(|n| format!("{}{}", n * 2, suffix))
+                    })
+                    .ok_or_else(|| Error::input("live --bufsize needs a size like 9000k"))?,
+            };
+            argv.extend(["-bufsize".to_string(), bs]);
+        }
         if let Some(fps) = args.fps {
             argv.extend(["-r".into(), fps.to_string()]);
         }
@@ -394,6 +422,8 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         "vertical": args.vertical,
         "preset": preset,
         "gop": args.gop,
+        "maxrate": args.maxrate,
+        "bufsize": args.bufsize,
         "vbitrate": vbitrate,
         "abitrate": abitrate,
         "format": fmt,

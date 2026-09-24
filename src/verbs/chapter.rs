@@ -207,8 +207,19 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
     }
 
     let meta = ffmeta_table(&marks, probe.duration);
-    if args.export || args.yt || args.cue {
-        let text = if args.yt {
+    if args.export || args.yt || args.cue || args.podcast {
+        let text = if args.podcast {
+            // Podcasting 2.0 chapters JSON — podverse/podcastindex feeds
+            // read {"chapters":[{"startTime":sec,"title":…}]}
+            serde_json::to_string_pretty(&json!({
+                "chapters": marks
+                    .iter()
+                    .map(|(t, ti)| json!({"startTime": t, "title": ti}))
+                    .collect::<Vec<_>>()
+            }))
+            .map_err(|e| Error::output(format!("podcast chapters: {e}")))?
+                + "\n"
+        } else if args.yt {
             // YouTube description format — paste under the video and the
             // platform turns the marks into seek chapters.
             marks
@@ -260,7 +271,7 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         })?;
         let mut c = Contract::ok("chapter", Some(args.output.display().to_string()), None);
         c = c.with_extra(json!({
-            "exported": if args.yt { "youtube" } else if args.cue { "cue" } else { "ffmetadata" },
+            "exported": if args.podcast { "podcast" } else if args.yt { "youtube" } else if args.cue { "cue" } else { "ffmetadata" },
             "chapters": marks
                 .iter()
                 .map(|(t, ti)| json!({"time": t, "title": ti}))

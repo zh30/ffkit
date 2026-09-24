@@ -300,17 +300,28 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "-hls_segment_filename".to_string(),
         seg_tpl.display().to_string(),
     ]);
+    // -hls_flags is single-valued — collect every flag and +-join them
+    let mut flags: Vec<&str> = Vec::new();
     if args.single {
-        argv.extend(["-hls_flags".to_string(), "single_file".to_string()]);
+        flags.push("single_file");
     }
     if args.live {
         // sliding window: players see only the newest N segments and no
         // end tag — the playlist stays joinable mid-write
+        flags.push("delete_segments");
+        flags.push("omit_endlist");
+    }
+    if args.date {
+        flags.push("program_date_time");
+    }
+    if args.discontinuity {
+        flags.push("discont_start");
+    }
+    if !flags.is_empty() {
+        argv.extend(["-hls_flags".to_string(), flags.join("+")]);
+    }
+    if args.live {
         let win = args.live_window.unwrap_or(6);
-        argv.extend([
-            "-hls_flags".to_string(),
-            "delete_segments+omit_endlist".to_string(),
-        ]);
         argv.extend(["-hls_list_size".to_string(), win.to_string()]);
     }
     if let Some(n) = args.start {
@@ -395,6 +406,8 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "live": args.live,
         "start": args.start,
         "epoch": args.epoch,
+        "date": args.date,
+        "discontinuity": args.discontinuity,
         "live_window": if args.live { args.live_window.unwrap_or(6) } else { 0 },
     }));
     if let Some((p, uri)) = &key_info {

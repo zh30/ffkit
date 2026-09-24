@@ -30238,3 +30238,184 @@ fn r244_vertical_gop_preset_stripmeta_multilang_test() {
     ]);
     assert_eq!(j["status"], "failed", "bad lang code must reject");
 }
+
+#[test]
+fn r245_maxrate_hlsdate_podcastjson_slidesort_test() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn mk_listener() -> (
+        std::sync::mpsc::Receiver<u16>,
+        std::sync::mpsc::Receiver<Vec<u8>>,
+    ) {
+        let (tx_port, rx_port) = std::sync::mpsc::channel();
+        let (tx_head, rx_head) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            tx_port.send(listener.local_addr().unwrap().port()).unwrap();
+            if let Ok((mut sock, _)) = listener.accept() {
+                use std::io::Read;
+                let mut buf = [0u8; 9];
+                let _ = sock.read_exact(&mut buf);
+                let _ = tx_head.send(buf.to_vec());
+                let mut sink = [0u8; 8192];
+                while sock.read(&mut sink).map(|n| n > 0).unwrap_or(false) {}
+            }
+        });
+        (rx_port, rx_head)
+    }
+
+    // live --maxrate 800k: ingest rate cap lands + bufsize auto-2x
+    let (rx_p, rx_h) = mk_listener();
+    let p1 = rx_p.recv().unwrap();
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--to",
+        &format!("tcp://127.0.0.1:{p1}"),
+        "--maxrate",
+        "800k",
+        "--until",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["maxrate"], "800k");
+    let cl = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cl.contains("-maxrate 800k"), "{cl}");
+    assert!(cl.contains("-bufsize 1600k"), "{cl}");
+    let h = rx_h
+        .recv_timeout(std::time::Duration::from_secs(20))
+        .unwrap();
+    assert_eq!(&h[..3], b"FLV");
+
+    // --bufsize alone works (no maxrate needed)
+    let (rx_p2, _rx_h2) = mk_listener();
+    let p2 = rx_p2.recv().unwrap();
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--to",
+        &format!("tcp://127.0.0.1:{p2}"),
+        "--bufsize",
+        "4500k",
+        "--until",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+
+    // hls --date: EXT-X-PROGRAM-DATE-TIME on every segment
+    let hd = d.join("hd");
+    let j = run_json(&[
+        "hls",
+        &f.to_string_lossy(),
+        "-o",
+        &hd.to_string_lossy(),
+        "--date",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["date"], true);
+    let pl = std::fs::read_to_string(hd.join("index.m3u8")).unwrap();
+    assert!(pl.contains("EXT-X-PROGRAM-DATE-TIME:"), "{pl}");
+
+    // hls --live --discontinuity: restart marker combines with live flags
+    let hx = d.join("hx");
+    let j = run_json(&[
+        "hls",
+        &f.to_string_lossy(),
+        "-o",
+        &hx.to_string_lossy(),
+        "--live",
+        "--discontinuity",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let pl = std::fs::read_to_string(hx.join("index.m3u8")).unwrap();
+    assert!(pl.contains("EXT-X-DISCONTINUITY"), "{pl}");
+
+    // chapter --podcast: Podcasting 2.0 JSON export
+    let marks = d.join("marks.txt");
+    std::fs::write(&marks, "0:00 Intro\n0:00.5 Topic\n").unwrap();
+    let pj = d.join("ch.json");
+    let j = run_json(&[
+        "chapter",
+        &f.to_string_lossy(),
+        "-o",
+        &pj.to_string_lossy(),
+        "--podcast",
+        "--import",
+        &marks.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["exported"], "podcast");
+    let body: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&pj).unwrap()).unwrap();
+    assert_eq!(body["chapters"][0]["startTime"], 0.0);
+    assert_eq!(body["chapters"][0]["title"], "Intro");
+    assert_eq!(body["chapters"][1]["startTime"], 0.5);
+    assert_eq!(body["chapters"][1]["title"], "Topic");
+
+    // slideshow --sort mtime: camera-dump order follows file mtimes
+    let ffmpeg2 = |args: &[String]| {
+        let o = Command::new("ffmpeg").args(args).output().unwrap();
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    };
+    for (n, y) in [("aa.png", "2020"), ("bb.png", "2025"), ("cc.png", "2023")] {
+        ffmpeg2(&[
+            s("-hide_banner"),
+            s("-loglevel"),
+            s("error"),
+            s("-y"),
+            s("-f"),
+            s("lavfi"),
+            s("-i"),
+            s("color=red:size=64x48"),
+            s("-frames:v"),
+            s("1"),
+            d.join(n).to_string_lossy().into_owned(),
+        ]);
+        let mtime = format!("{y}01010000");
+        let o = Command::new("touch")
+            .args(["-t", &mtime, d.join(n).to_str().unwrap()])
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+    }
+    let sl = d.join("sl.mp4");
+    let j = run_json(&[
+        "slideshow",
+        &d.join("cc.png").to_string_lossy(),
+        &d.join("aa.png").to_string_lossy(),
+        &d.join("bb.png").to_string_lossy(),
+        "-o",
+        &sl.to_string_lossy(),
+        "--sort",
+        "mtime",
+        "--per",
+        "0.5",
+        "--fade",
+        "0",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let order: Vec<&str> = j["extra"]["order"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
+    // aa=2020 < cc=2023 < bb=2025 regardless of arg order (cc,aa,bb)
+    assert!(order[0].ends_with("aa.png"), "{order:?}");
+    assert!(order[1].ends_with("cc.png"), "{order:?}");
+    assert!(order[2].ends_with("bb.png"), "{order:?}");
+}

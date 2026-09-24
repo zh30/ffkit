@@ -2815,6 +2815,10 @@ pub struct SlideshowArgs {
     /// (photo-dump montages, reroll the order without re-listing files)
     #[arg(long)]
     pub shuffle: Option<u64>,
+    /// Sort the stills: name (path order) or mtime (shoot-time order for
+    /// a camera-dump folder; overrides arg order, loses to --shuffle)
+    #[arg(long, value_enum)]
+    pub sort: Option<SlideSort>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2877,6 +2881,14 @@ pub enum XfadeTransition {
 pub enum SlideMotion {
     None,
     Kenburns,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum SlideSort {
+    /// Path-name order
+    Name,
+    /// File mtime — shoot-time order for a camera dump
+    Mtime,
 }
 
 impl XfadeTransition {
@@ -4509,6 +4521,15 @@ pub struct LiveArgs {
     /// --overlay opacity 0..=1 (default 1)
     #[arg(long)]
     pub overlay_opacity: Option<f64>,
+    /// Peak video bitrate the encode may burst to, like `4500k`/`6M` —
+    /// platform ingest cap (Twitch ≤6000k, YouTube ≤9000k at 1080p60);
+    /// paired with --bufsize for a real CBR envelope
+    #[arg(long)]
+    pub maxrate: Option<String>,
+    /// Rate-control buffer like `9000k`/`12M` (default 2x --maxrate when
+    /// only --maxrate is given; the standard CBR pairing)
+    #[arg(long)]
+    pub bufsize: Option<String>,
     /// Hold this image as the whole video for an audio-only source
     /// (24/7 lofi-radio style: static card + music stream)
     #[arg(long)]
@@ -4597,6 +4618,15 @@ pub struct HlsArgs {
     /// restarting mid-run stay continuous without tracking N)
     #[arg(long)]
     pub epoch: bool,
+    /// Write EXT-X-PROGRAM-DATE-TIME on every segment (DVR/live-event
+    /// archive — players can seek by wall-clock time)
+    #[arg(long)]
+    pub date: bool,
+    /// Mark the first segment as a discontinuity (EXT-X-DISCONTINUITY —
+    /// players must not assume timestamp continuity across a restart;
+    /// pairs with --start/--epoch when re-opening a playlist)
+    #[arg(long)]
+    pub discontinuity: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5552,6 +5582,11 @@ pub struct ChapterArgs {
     /// TRACK/INDEX entries at mm:ss:ff precision)
     #[arg(long)]
     pub cue: bool,
+    /// Write marks as Podcasting 2.0 chapters JSON at -o
+    /// ({"chapters":[{"startTime":sec,"title":…}]} — podverse/
+    /// podcastindex feeds)
+    #[arg(long)]
+    pub podcast: bool,
     /// Import marks from a text file: lines "TIME|TITLE" or "TIME,TITLE"
     /// ('#' comments and blank lines skipped)
     #[arg(long)]

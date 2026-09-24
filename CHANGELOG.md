@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.272.0] — 2026-09-23
+
+- `live --maxrate`/`--bufsize` — CBR rate caps on the stream encode (Twitch ≤6000k, YouTube ingest specs); `--bufsize` alone also works, and when unset it auto-fills to 2× `--maxrate` (suffix-aware: `4500k` → `9000k`)
+- `hls --date` — stamps EXT-X-PROGRAM-DATE-TIME on every segment (players show real wall-clock times; required by some CDNs/origins)
+- `hls --discontinuity` — EXT-X-DISCONTINUITY restart marker; combines with `--live` and other hls flags in one `-hls_flags` set
+- `chapter --podcast` — exports Podcasting 2.0 JSON chapters (`{"chapters":[{startTime,title}]}`) alongside the ffmeta/YouTube/CUE exporters
+- `slideshow --sort name|mtime` — orders a camera/photo dump by filename or shoot time before `--shuffle` applies
+
 ## [0.271.0] — 2026-09-23
 
 - `live --gop N` — keyframe interval on the ingest encode (YouTube spec wants a keyframe every ≤2s ≈ 60f at 30fps; short GOPs also make live restarts reconnect faster)

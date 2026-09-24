@@ -44,8 +44,21 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         None
     };
-    // --shuffle: deterministic reroll — same seed, same order.
+    // --sort: deterministic ordering before the optional reroll — mtime
+    // puts a camera-dump folder into shoot order
     let mut ordered: Vec<PathBuf> = args.inputs.clone();
+    match args.sort {
+        Some(crate::cli::SlideSort::Name) => ordered.sort(),
+        Some(crate::cli::SlideSort::Mtime) => {
+            ordered.sort_by_key(|p| {
+                std::fs::metadata(p)
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+            });
+        }
+        None => {}
+    }
+    // --shuffle: deterministic reroll — same seed, same order.
     if let Some(seed) = args.shuffle {
         let mut state = seed | 1;
         for i in (1..ordered.len()).rev() {
@@ -230,6 +243,10 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         "music_bed": args.audio.is_some(),
         "fit": args.fit,
         "seed": args.shuffle,
+        "sort": args.sort.map(|s| match s {
+            crate::cli::SlideSort::Name => "name",
+            crate::cli::SlideSort::Mtime => "mtime",
+        }),
         "order": ordered.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
         "expected_duration": total,
     }));
