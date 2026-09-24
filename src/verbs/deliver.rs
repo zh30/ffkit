@@ -78,7 +78,10 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     }
 
     let (fw, fh) = match args.platform {
-        DeliverPlatform::Youtube | DeliverPlatform::Bilibili => (1920, 1080),
+        DeliverPlatform::Youtube | DeliverPlatform::Bilibili | DeliverPlatform::Linkedin => {
+            (1920, 1080)
+        }
+        DeliverPlatform::X => (1280, 720),
         DeliverPlatform::Square => (1080, 1080),
         DeliverPlatform::Xhs => (1080, 1440),
         DeliverPlatform::Wechat => (1080, 1260),
@@ -380,6 +383,8 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Kuaishou => "kuaishou",
         DeliverPlatform::Bilibili => "bilibili",
         DeliverPlatform::Pinterest => "pinterest",
+        DeliverPlatform::X => "x",
+        DeliverPlatform::Linkedin => "linkedin",
     }
 }
 

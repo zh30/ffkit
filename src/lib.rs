@@ -71,6 +71,7 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Mute(args) => verbs::mute::run(args, &g),
         Cmd::Hls(args) => verbs::hls::run(args, &g),
         Cmd::Live(args) => verbs::live::run(args, &g),
+        Cmd::Dash(args) => verbs::dash::run(args, &g),
         Cmd::Qa(args) => verbs::qa::run(args, &g),
         Cmd::Conform(args) => verbs::conform::run(args, &g),
         Cmd::Scroll(args) => verbs::scroll::run(args, &g),

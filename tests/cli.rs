@@ -30703,3 +30703,255 @@ fn r246_timenames_independent_transparent_nocover_chimport_pinterest_test() {
     ]);
     assert!(wh.trim().starts_with("1000,1500"), "{wh}");
 }
+
+#[test]
+fn r247_dash_encrypt_webp_x_linkedin_test() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn ffmpeg(args: &[String]) -> std::process::Output {
+        Command::new("ffmpeg").args(args).output().expect("ffmpeg")
+    }
+
+    // dash: manifest.mpd + init-*/seg-*.m4s segments with real mimeTypes
+    let dd = d.join("dd");
+    let j = run_json(&[
+        "dash",
+        &f.to_string_lossy(),
+        "-o",
+        &dd.to_string_lossy(),
+        "--seg",
+        "0.5",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert!(j["extra"]["segments"].as_u64().unwrap() >= 2);
+    let mpd = std::fs::read_to_string(dd.join("manifest.mpd")).unwrap();
+    assert!(mpd.contains("<MPD") && mpd.contains("<Period"), "{mpd}");
+    assert!(mpd.contains("mimeType=\"video/mp4\""), "{mpd}");
+    assert!(dd.join("init-0.m4s").is_file());
+    assert!(std::fs::read_dir(&dd)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .any(|e| e.file_name().to_string_lossy().starts_with("seg-0-")),);
+    // --single: one byte-range file per representation
+    let ds = d.join("ds");
+    let j = run_json(&[
+        "dash",
+        &f.to_string_lossy(),
+        "-o",
+        &ds.to_string_lossy(),
+        "--single",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert!(ds.join("stream-0.m4s").is_file(), "{:?}", ds);
+    // --webm: vp9+opus webm segments
+    let dw = d.join("dw");
+    let j = run_json(&[
+        "dash",
+        &f.to_string_lossy(),
+        "-o",
+        &dw.to_string_lossy(),
+        "--webm",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert!(std::fs::read_dir(&dw)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .any(|e| e.file_name().to_string_lossy().starts_with("seg-0-")),);
+    // --webm --copy rejected on h264 essence
+    let j = run_json(&[
+        "dash",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("dwc").to_string_lossy(),
+        "--webm",
+        "--copy",
+    ]);
+    assert_eq!(j["status"], "failed");
+    // --window lands on the muxer command
+    let j = run_json(&[
+        "dash",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("dwin").to_string_lossy(),
+        "--window",
+        "4",
+        "--dry-run",
+    ]);
+    let cmd = j["commands"][0].as_array().unwrap();
+    let flat: Vec<&str> = cmd.iter().map(|v| v.as_str().unwrap()).collect();
+    assert!(flat.contains(&"-window_size"), "{flat:?}");
+
+    // remux --encrypt: CENC essence — encv tag + senc box, random key/kid
+    let enc = d.join("enc.mp4");
+    let j = run_json(&[
+        "remux",
+        &f.to_string_lossy(),
+        "-o",
+        &enc.to_string_lossy(),
+        "--encrypt",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["encrypted"], true);
+    assert_eq!(j["extra"]["key"].as_str().unwrap().len(), 32);
+    assert_eq!(j["extra"]["kid"].as_str().unwrap().len(), 32);
+    let raw = std::fs::read(&enc).unwrap();
+    let encv = raw.windows(4).any(|w| w == b"encv");
+    let senc = raw.windows(4).any(|w| w == b"senc");
+    assert!(encv && senc, "expected encv tag + senc box in enc.mp4");
+    // mkv rejected; bad hex rejected
+    let j = run_json(&[
+        "remux",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("e.mkv").to_string_lossy(),
+        "--encrypt",
+    ]);
+    assert_eq!(j["status"], "failed");
+    let j = run_json(&[
+        "remux",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("e2.mp4").to_string_lossy(),
+        "--encrypt",
+        "--key",
+        "zz",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // extract --webp: animated WebP — RIFF ANIM + ANMF frames (4.4's
+    // decoder can't read ANMF, so verify the container structure)
+    let wp = d.join("anim.webp");
+    let j = run_json(&[
+        "extract",
+        &f.to_string_lossy(),
+        "-o",
+        &wp.to_string_lossy(),
+        "--webp",
+        "--dur",
+        "0.5",
+        "--fps",
+        "10",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let raw = std::fs::read(&wp).unwrap();
+    assert_eq!(&raw[0..4], b"RIFF");
+    assert_eq!(&raw[8..12], b"WEBP");
+    let anmf = raw.windows(4).filter(|w| *w == b"ANMF").count();
+    assert!(anmf >= 3, "expected several ANMF frames, got {anmf}");
+    assert!(raw.windows(4).any(|w| w == b"ANIM"));
+    // alpha input keeps ALPH subchunks inside frames
+    let amov = d.join("alpha.mov");
+    let o = ffmpeg(&[
+        s("-hide_banner"),
+        s("-loglevel"),
+        s("error"),
+        s("-y"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("color=c=black@0:size=64x64:d=1,format=rgba[bg];color=c=red:size=20x20:d=1,format=rgba[fg];[bg][fg]overlay=22:22"),
+        s("-c:v"),
+        s("qtrle"),
+        amov.to_string_lossy().into_owned(),
+    ]);
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    let awp = d.join("aw.webp");
+    let j = run_json(&[
+        "extract",
+        &amov.to_string_lossy(),
+        "-o",
+        &awp.to_string_lossy(),
+        "--webp",
+        "--dur",
+        "0.5",
+        "--width",
+        "64",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let raw = std::fs::read(&awp).unwrap();
+    assert!(
+        raw.windows(4).any(|w| w == b"ALPH"),
+        "alpha webp lacks ALPH"
+    );
+    // --bounce works on webp (palindrome ≈ 2x frames)
+    let bw = d.join("b.webp");
+    let j = run_json(&[
+        "extract",
+        &f.to_string_lossy(),
+        "-o",
+        &bw.to_string_lossy(),
+        "--webp",
+        "--bounce",
+        "--dur",
+        "0.4",
+        "--fps",
+        "10",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let raw = std::fs::read(&bw).unwrap();
+    let anmf = raw.windows(4).filter(|w| *w == b"ANMF").count();
+    assert!(anmf >= 7, "bounce should ~double frames, got {anmf}");
+    // conflicts
+    let j = run_json(&[
+        "extract",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("x.webp").to_string_lossy(),
+        "--webp",
+        "--gif",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // deliver --platform x / linkedin canvases
+    let xx = d.join("x.mp4");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &xx.to_string_lossy(),
+        "--platform",
+        "x",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["platform"], "x");
+    let wh = probe_csv2(&xx);
+    assert!(wh.trim().starts_with("1280,720"), "{wh}");
+    let li = d.join("li.mp4");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &li.to_string_lossy(),
+        "--platform",
+        "linkedin",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let wh = probe_csv2(&li);
+    assert!(wh.trim().starts_with("1920,1080"), "{wh}");
+}
+
+fn probe_csv2(p: &std::path::Path) -> String {
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(p)
+        .output()
+        .expect("ffprobe");
+    String::from_utf8_lossy(&o.stdout).into_owned()
+}

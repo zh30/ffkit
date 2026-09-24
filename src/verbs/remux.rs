@@ -48,6 +48,12 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if args.no_cover && args.cover.is_some() {
         return Err(Error::input("remux --no-cover and --cover are exclusive"));
     }
+    let encrypt = args.encrypt || args.key.is_some() || args.kid.is_some();
+    if encrypt && !matches!(ext.as_str(), "mp4" | "mov" | "m4a" | "m4b") {
+        return Err(Error::input(
+            "remux --encrypt needs an ISOBMFF output (mp4/mov/m4a/m4b)",
+        ));
+    }
     if args.cover.is_some() && !langs.is_empty() {
         return Err(Error::input(
             "remux --cover and --lang pick different stream sets — use them separately",
@@ -258,6 +264,33 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     } else if matches!(ext.as_str(), "mp4" | "m4a" | "mov") {
         argv.extend(["-movflags", "+faststart"]);
     }
+    // --encrypt: CENC AES-CTR on the ISOBMFF essence — DRM prep
+    // (ClearKey/Widevine/PlayReady); report key+kid so the caller can
+    // wire them into their license/config
+    let mut enc_kv: Option<(String, String)> = None;
+    if encrypt {
+        let key = match &args.key {
+            Some(k) => k.clone(),
+            None => crate::verbs::hls::random_key()?,
+        };
+        let kid = match &args.kid {
+            Some(k) => k.clone(),
+            None => crate::verbs::hls::random_key()?,
+        };
+        for v in [&key, &kid] {
+            crate::verbs::hls::hex_decode(v)
+                .map_err(|_| Error::input("remux --key/--kid must be 32 hex chars"))?;
+        }
+        argv.extend([
+            "-encryption_scheme".to_string(),
+            "cenc-aes-ctr".to_string(),
+            "-encryption_key".to_string(),
+            key.clone(),
+            "-encryption_kid".to_string(),
+            kid.clone(),
+        ]);
+        enc_kv = Some((key, kid));
+    }
     argv.push(&args.output);
 
     let run = engine::write_job("remux", &[&args.input], &args.output, vec![argv], g);
@@ -265,7 +298,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         let _ = std::fs::remove_file(tmp);
     }
     let c = run?;
-    Ok(c.with_extra(
+    let mut c = c.with_extra(
         json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n }),
-    ))
+    );
+    if let Some((key, kid)) = enc_kv {
+        c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));
+    }
+    Ok(c)
 }

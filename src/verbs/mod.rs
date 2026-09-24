@@ -27,6 +27,7 @@ pub mod crop;
 pub mod crossfade;
 pub mod cut;
 pub mod cutsil;
+pub mod dash;
 pub mod deband;
 pub mod deblock;
 pub mod declip;

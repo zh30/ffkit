@@ -448,7 +448,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c)
 }
 
-fn random_key() -> Result<String, Error> {
+pub(crate) fn random_key() -> Result<String, Error> {
     use std::io::Read;
     let mut buf = [0u8; 16];
     std::fs::File::open("/dev/urandom")
@@ -457,7 +457,7 @@ fn random_key() -> Result<String, Error> {
     Ok(buf.iter().map(|b| format!("{b:02x}")).collect())
 }
 
-fn hex_decode(s: &str) -> Result<Vec<u8>, Error> {
+pub(crate) fn hex_decode(s: &str) -> Result<Vec<u8>, Error> {
     (0..s.len())
         .step_by(2)
         .map(|i| {

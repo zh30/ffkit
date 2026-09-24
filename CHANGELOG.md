@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.274.0] — 2026-09-23
+
+### Added
+- `dash` — DASH packaging: input → `manifest.mpd` + `init-`/`seg-*.m4s` segments (`--seg` seconds, `--copy` repack, `--single` one byte-range file per representation, `--webm` vp9+opus segments for open players, `--window N` sliding manifest for live writes, `--audio_only`)
+- `remux --encrypt` — CENC AES-CTR (cenc-aes-ctr) on the repack for ClearKey/Widevine DRM prep; ISOBMFF outputs only (mp4/mov/m4a/m4b). `--key`/`--kid` take 32-hex, auto-random otherwise; both echoed in `extra`
+- `extract --webp` — animated WebP clip via libwebp (`-pix_fmt yuva420p` keeps alpha natively — sticker/creator exports smaller than GIF); `--lossless` bit-exact, `--bounce` palindrome, `--dur`/`--fps`/`--width`/`--at` all apply
+- `deliver --platform x` (1280x720 16:9 feed) and `--platform linkedin` (1920x1080) canvases on the same −14 LUFS pack pipeline
+
 ## [0.273.0] — 2026-09-23
 
 ### Added

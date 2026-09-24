@@ -5,11 +5,11 @@ use crate::error::Error;
 use crate::time::{fmt_time, parse_time};
 
 pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
-    if args.bounce && !args.gif {
-        return Err(Error::input("--bounce needs --gif"));
+    if args.bounce && !args.gif && !args.webp {
+        return Err(Error::input("--bounce needs --gif or --webp"));
     }
-    if args.loop_count.is_some() && !args.gif {
-        return Err(Error::input("--loop needs --gif"));
+    if args.loop_count.is_some() && !args.gif && !args.webp {
+        return Err(Error::input("--loop needs --gif or --webp"));
     }
     if let Some(n) = args.loop_count {
         if !(-1..=100).contains(&n) {
@@ -25,8 +25,19 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
     if args.alpha && !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "webp") {
         return Err(Error::input("--alpha only applies to image output"));
     }
-    if args.transparent && !args.gif {
-        return Err(Error::input("--transparent needs --gif"));
+    if args.webp && args.gif {
+        return Err(Error::input("--webp and --gif are exclusive"));
+    }
+    if args.lossless && !args.webp {
+        return Err(Error::input("--lossless needs --webp"));
+    }
+    if args.webp && args.colors.is_some() {
+        return Err(Error::input(
+            "--colors is a GIF-palette knob — not for --webp",
+        ));
+    }
+    if args.transparent && !args.gif && !args.webp {
+        return Err(Error::input("--transparent needs --gif or --webp"));
     }
     if args.alpha || args.transparent {
         let probe = engine::probe_or_err(&args.input, g)?;
@@ -65,7 +76,7 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
     }
 
     // comma --at on a still output: one frame per timepoint → `<stem>_N.<ext>`
-    if !args.gif {
+    if !args.gif && !args.webp {
         if let Some(raw) = &args.at {
             if raw.split(',').count() > 1 {
                 if !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "webp") {
@@ -116,8 +127,8 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
 
-    // comma --at + --gif: one GIF clip per timepoint → `<stem>_N.gif`
-    if args.gif {
+    // comma --at + --gif/--webp: one clip per timepoint → `<stem>_N.<ext>`
+    if args.gif || args.webp {
         if let Some(raw) = &args.at {
             if raw.split(',').count() > 1 {
                 let probe = engine::probe_or_err(&args.input, g)?;
@@ -127,7 +138,11 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
                 for (i, part) in raw.split(',').enumerate() {
                     let secs = crate::time::resolve_frame_at(part.trim(), probe.duration)?;
                     let out = derive_output(&args.output, i + 1);
-                    let c = render_gif(&args, g, Some(secs), std::path::Path::new(&out))?;
+                    let c = if args.webp {
+                        render_webp(&args, g, Some(secs), std::path::Path::new(&out))?
+                    } else {
+                        render_gif(&args, g, Some(secs), std::path::Path::new(&out))?
+                    };
                     if i == 0 {
                         first = Some(c);
                     }
@@ -144,7 +159,9 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
     let at_secs = match &args.at {
         Some(a) if a.trim().eq_ignore_ascii_case("end") => {
             let probe = engine::probe_or_err(&args.input, g)?;
-            let back = args.dur.unwrap_or(if args.gif { 1.0 } else { 0.05 });
+            let back = args
+                .dur
+                .unwrap_or(if args.gif || args.webp { 1.0 } else { 0.05 });
             Some((probe.duration - back).max(0.0))
         }
         Some(a) => Some(parse_time(a)?),
@@ -154,6 +171,9 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
     match ext.as_str() {
         _ if args.gif => {
             return render_gif(&args, g, at_secs, &args.output);
+        }
+        _ if args.webp => {
+            return render_webp(&args, g, at_secs, &args.output);
         }
         "png" | "jpg" | "jpeg" | "webp" => {
             if let Some(t) = at_secs {
@@ -294,4 +314,41 @@ fn render_gif(
             c
         }
     })
+}
+
+fn render_webp(
+    args: &ExtractArgs,
+    g: &Globals,
+    at_secs: Option<f64>,
+    output: &std::path::Path,
+) -> Result<Contract, Error> {
+    // single-pass animated WebP — libwebp carries alpha natively (yuva420p),
+    // unlike GIF it needs no palette round-trip
+    let mut argv = ffmpeg_base(g.progress);
+    if let Some(at) = at_secs {
+        argv.extend(["-ss", &fmt_time(at)]);
+    }
+    if let Some(d) = args.dur {
+        argv.extend(["-t", &fmt_time(d)]);
+    }
+    argv.push("-i");
+    argv.push(&args.input);
+    let fps = args.fps.unwrap_or(10).clamp(1, 30);
+    let w = args.width.unwrap_or(480).clamp(16, 1920);
+    let seq = if args.bounce {
+        format!("fps={fps},scale={w}:-2:flags=lanczos,split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1:a=0")
+    } else {
+        format!("fps={fps},scale={w}:-2:flags=lanczos")
+    };
+    argv.extend(["-lavfi", seq.as_str(), "-an"]);
+    argv.extend(["-c:v", "libwebp", "-pix_fmt", "yuva420p"]);
+    if args.lossless {
+        argv.extend(["-lossless", "1"]);
+    }
+    if let Some(n) = args.loop_count {
+        argv.extend(["-loop", &n.to_string()]);
+    }
+    argv.push(output);
+    let r = engine::write_job("extract", &[&args.input], output, vec![argv], g);
+    r.map(|c| c.with_extra(serde_json::json!({ "webp": true, "lossless": args.lossless })))
 }

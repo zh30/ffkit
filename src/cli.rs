@@ -188,6 +188,8 @@ pub enum Cmd {
     Hls(HlsArgs),
     /// Push the clip live to an RTMP/SRT-style endpoint (rtmp://, tcp://)
     Live(LiveArgs),
+    /// DASH packaging: manifest.mpd + .m4s segments (jwplayer/Shaka embeds)
+    Dash(DashArgs),
     Qa(QaArgs),
     Conform(ConformArgs),
     Sync(SyncArgs),
@@ -618,6 +620,13 @@ pub struct ExtractArgs {
     /// prores 4444/qtrle/webm — Discord/Telegram sticker exports)
     #[arg(long)]
     pub transparent: bool,
+    /// Animated WebP clip instead of a still (libwebp — smaller than GIF,
+    /// keeps alpha natively; --bounce works too)
+    #[arg(long)]
+    pub webp: bool,
+    /// Lossless WebP encode (needs --webp; bigger file, pixel-exact)
+    #[arg(long)]
+    pub lossless: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1249,6 +1258,10 @@ pub enum DeliverPlatform {
     Bilibili,
     /// Pinterest idea-pin 2:3 portrait feed (1000x1500, -14 LUFS)
     Pinterest,
+    /// X/Twitter feed video 16:9 landscape (1280x720, -14 LUFS)
+    X,
+    /// LinkedIn feed video 16:9 landscape (1920x1080, -14 LUFS)
+    Linkedin,
     /// Audio-only podcast pack (m4a, AAC 128k/48k, -16 LUFS — feed spec)
     Podcast,
     /// Audiobook pack (m4b, AAC 96k/48k, -16 LUFS — Apple Books/Audible;
@@ -3772,6 +3785,16 @@ pub struct RemuxArgs {
     /// audio book/m4a back to bare tracks; conflicts with --cover
     #[arg(long)]
     pub no_cover: bool,
+    /// CENC AES-CTR encrypt the repacked essence (mp4/mov only — DRM prep
+    /// for ClearKey/Widevine/PlayReady workflows)
+    #[arg(long)]
+    pub encrypt: bool,
+    /// 32-hex content key for --encrypt (random when omitted)
+    #[arg(long)]
+    pub key: Option<String>,
+    /// 32-hex key identifier for --encrypt (random when omitted)
+    #[arg(long)]
+    pub kid: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4645,6 +4668,34 @@ pub struct HlsArgs {
     /// boundary (seek/trick-play VOD; conflicts with --copy and --ladder)
     #[arg(long)]
     pub independent: bool,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct DashArgs {
+    pub input: PathBuf,
+    /// Manifest path (out.mpd) or a directory (→ dir/manifest.mpd + segments)
+    #[arg(short, long)]
+    pub output: PathBuf,
+    /// Segment length in seconds (default 4)
+    #[arg(long, default_value_t = 4.0)]
+    pub seg: f64,
+    /// Stream-copy the essence (fast repack; needs h264/aac input)
+    #[arg(long)]
+    pub copy: bool,
+    /// One file per representation with byte-range segments (-single_file;
+    /// on-demand VOD: one upload instead of hundreds of chunk files)
+    #[arg(long)]
+    pub single: bool,
+    /// WebM segments (vp9+opus) instead of ISOBMFF — open-codec pipelines
+    #[arg(long)]
+    pub webm: bool,
+    /// Sliding manifest window: keep only the newest N segments listed
+    /// (-window_size; live channels written while input is still growing)
+    #[arg(long)]
+    pub window: Option<u32>,
+    /// Audio-only stream package (-vn; podcasts, voice-over DASH)
+    #[arg(long)]
+    pub audio_only: bool,
 }
 
 #[derive(clap::Args, Debug)]
