@@ -626,3 +626,5 @@ an atempo'd whole-file render would shift the window.
 - **CSV `TIME,TITLE` splits on the FIRST comma** — `split_once(',')` keeps commas inside the title; quote-wrap titles containing `,`/`"` on export and unquote+unescape (`""` → `"`) on import. A header row ("Timecode,Name") is only a header when the time column fails to parse on line 1 — parse first, then skip.
 
 - **Overlap-clamping can cascade a cue to zero** — `subs --fix-overlaps` clamps each end to the next start; when a cue is fully swallowed (next cue starts at-or-before this one), the clamp zeroes it and it's dropped from the output. Run `--dedupe`/`--fix-overlaps` AFTER `--sort`: a duplicate cue still clamps (and drops) against its twin, which is why the report counts `clamped` separately from `dropped`.
+
+- **`subs --min-dur` caps at the next cue's start** — extending a flash cue past the next start would re-create the overlap `--fix-overlaps` just removed; the extension is `min(start+min_dur, next.start)`. A cue that can't reach the floor (adjacent cues) still reports in `extended` with a partial extension.

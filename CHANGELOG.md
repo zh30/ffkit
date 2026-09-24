@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.298.0] — 2026-09-24
+
+### Added
+
+- `subs --cps N` — caption-speed readability gate: `over_limit`/`worst_cps` report cues faster than N chars/sec (Netflix-style spec) inside the tidy pass
+- `subs --min-dur SEC` — flash-text floor: extend cues shorter than SEC up to SEC, capped at the next cue's start (`extended` count)
+- `subs --max-lines N` — report cues with more than N text lines (`over_lines`/`worst_lines` — broadcast spec is 2)
+- `deliver --platform instagram` + `facebook` — Meta feed portrait 4:5 (1080x1350, −14 LUFS); Reels stays the 9:16 `reels` slot
+
 ## [0.297.0] — 2026-09-24
 
 ### Added

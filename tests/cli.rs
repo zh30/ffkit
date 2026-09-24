@@ -35050,3 +35050,58 @@ fn r270_subs_tidy_scan_keyframe_times_deliver_etsy_rumble() {
     assert_eq!(s["height"], 1080);
     let _ = base;
 }
+
+#[test]
+fn r271_subs_readability_min_dur_deliver_meta_feed() {
+    if !has_ffmpeg() {
+        eprintln!("skip: no ffmpeg");
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let base = fixture(d.path());
+    // subs readability + min-dur on a fast/flash/3-line .srt
+    let fast = d.path().join("fast.srt");
+    std::fs::write(
+        &fast,
+        "1\n00:00:00,000 --> 00:00:00,400\nWay too many characters packed into four tenths of a second here\n\n         2\n00:00:01,000 --> 00:00:01,100\nflash\n\n         3\n00:00:02,000 --> 00:00:04,000\nline one\nline two\nline three\n",
+    )
+    .unwrap();
+    let fixed = d.path().join("fixed.srt");
+    let j = run_json(&[
+        "subs",
+        fast.to_str().unwrap(),
+        "-o",
+        fixed.to_str().unwrap(),
+        "--min-dur",
+        "1.0",
+        "--cps",
+        "20",
+        "--max-lines",
+        "2",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["over_limit"], 1, "{j}"); // 66 chars / 0.4s = 165 cps
+    assert_eq!(j["extra"]["over_lines"], 1, "{j}");
+    assert_eq!(j["extra"]["worst_lines"], 3, "{j}");
+    assert_eq!(j["extra"]["extended"], 2, "{j}"); // 0.4s cue + 0.1s flash
+    assert!(j["extra"]["worst_cps"].as_f64().unwrap() > 20.0, "{j}");
+    let text = std::fs::read_to_string(&fixed).unwrap();
+    // 0.1s flash cue extended to the 1s floor, capped at next start (2.0)
+    assert!(text.contains("00:00:01,000 --> 00:00:02,000"), "{text}");
+    // deliver --platform instagram: Meta feed 4:5 portrait
+    let ig = d.path().join("ig.mp4");
+    let j = run_json(&[
+        "deliver",
+        base.to_str().unwrap(),
+        "-o",
+        ig.to_str().unwrap(),
+        "--platform",
+        "instagram",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", ig.to_str().unwrap()]);
+    let s = pr["probe"]["streams"].as_array().unwrap()[0].clone();
+    assert_eq!(s["width"], 1080);
+    assert_eq!(s["height"], 1350);
+    let _ = base;
+}

@@ -95,7 +95,9 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Rumble
         | DeliverPlatform::Twitch => (1920, 1080),
         DeliverPlatform::X | DeliverPlatform::Mastodon | DeliverPlatform::Discord => (1280, 720),
-        DeliverPlatform::Threads => (1080, 1350),
+        DeliverPlatform::Threads | DeliverPlatform::Instagram | DeliverPlatform::Facebook => {
+            (1080, 1350)
+        }
         DeliverPlatform::Square | DeliverPlatform::Shopify | DeliverPlatform::Etsy => (1080, 1080),
         DeliverPlatform::Xhs => (1080, 1440),
         DeliverPlatform::Wechat => (1080, 1260),
@@ -415,6 +417,8 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Vimeo => "vimeo",
         DeliverPlatform::Bluesky => "bluesky",
         DeliverPlatform::Threads => "threads",
+        DeliverPlatform::Instagram => "instagram",
+        DeliverPlatform::Facebook => "facebook",
         DeliverPlatform::Mastodon => "mastodon",
         DeliverPlatform::Circle => "circle",
         DeliverPlatform::Canvas => "canvas",

@@ -40,7 +40,13 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(rate) = args.rate {
         return rescale(&args, rate, g);
     }
-    if args.sort || args.fix_overlaps || args.dedupe {
+    if args.sort
+        || args.fix_overlaps
+        || args.dedupe
+        || args.cps.is_some()
+        || args.min_dur.is_some()
+        || args.max_lines.is_some()
+    {
         return tidy(&args, g);
     }
     if args.case.is_some() && args.burn.is_none() {
@@ -217,7 +223,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         != Some("srt")
     {
         return Err(Error::input(
-            "subs --sort/--fix-overlaps/--dedupe take an .srt input",
+            "subs --sort/--fix-overlaps/--dedupe/--cps/--min-dur/--max-lines take an .srt input",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -249,6 +255,20 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         cues.dedup_by(|a, b| a.start == b.start && a.end == b.end && a.text == b.text);
         dropped += before - cues.len();
     }
+    let mut extended = 0usize;
+    if let Some(min) = args.min_dur {
+        for i in 0..cues.len() {
+            let next_start = cues.get(i + 1).map(|c| c.start);
+            let c = &mut cues[i];
+            if c.end - c.start < min {
+                let cap = next_start.unwrap_or(c.start + min).min(c.start + min);
+                if cap > c.end {
+                    c.end = cap;
+                    extended += 1;
+                }
+            }
+        }
+    }
     if cues.is_empty() {
         return Err(Error::input("tidying removed every cue"));
     }
@@ -263,12 +283,37 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         .map_err(|e| Error::output(e.to_string()))?;
     let mut c = Contract::ok("subs", Some(crate::paths::display(&args.output)), None);
     c.verified = Some(args.output.is_file());
+    let (mut over_limit, mut worst_cps) = (0usize, 0.0f64);
+    let (mut over_lines, mut worst_lines) = (0usize, 0usize);
+    for cue in &cues {
+        if let Some(limit) = args.cps {
+            let dur = (cue.end - cue.start).max(0.001);
+            let v = cue.text.chars().count() as f64 / dur;
+            worst_cps = worst_cps.max(v);
+            if v > limit {
+                over_limit += 1;
+            }
+        }
+        if let Some(n) = args.max_lines {
+            let lines = cue.text.lines().count().max(1);
+            worst_lines = worst_lines.max(lines);
+            if lines > n {
+                over_lines += 1;
+            }
+        }
+    }
     Ok(c.with_extra(json!({
         "mode": "tidy",
         "sorted": sorted,
         "clamped": clamped,
         "dropped": dropped,
+        "extended": extended,
         "cues": cues.len(),
+        "cps_limit": args.cps,
+        "over_limit": over_limit,
+        "worst_cps": (worst_cps * 100.0).round() / 100.0,
+        "over_lines": over_lines,
+        "worst_lines": worst_lines,
     })))
 }
 

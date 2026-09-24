@@ -1336,6 +1336,11 @@ pub enum DeliverPlatform {
     Bluesky,
     /// Meta Threads feed video 4:5 portrait (1080x1350, -14 LUFS)
     Threads,
+    /// Instagram feed video 4:5 portrait (1080x1350, -14 LUFS — the
+    /// non-Reels feed slot; Reels is the 9:16 `reels` platform)
+    Instagram,
+    /// Facebook feed video 4:5 portrait (1080x1350, -14 LUFS)
+    Facebook,
     /// Mastodon feed video 16:9 landscape (1280x720, -14 LUFS)
     Mastodon,
     /// Telegram video-note circle (640x640 1:1, mono audio — кружок spec)
@@ -2771,6 +2776,17 @@ pub struct SubsArgs {
     /// repeat every cue; players flash the line twice)
     #[arg(long)]
     pub dedupe: bool,
+    /// Readability gate: report cues faster than N chars/sec
+    /// (Netflix-style caption-speed spec; extras: over_limit/worst_cps)
+    #[arg(long)]
+    pub cps: Option<f64>,
+    /// Extend cues shorter than SEC up to SEC (flash-text repair — the
+    /// extension caps at the next cue's start so it can't re-overlap)
+    #[arg(long)]
+    pub min_dur: Option<f64>,
+    /// Report cues with more than N text lines (broadcast spec is 2)
+    #[arg(long)]
+    pub max_lines: Option<usize>,
 }
 
 #[derive(clap::Args, Debug)]
