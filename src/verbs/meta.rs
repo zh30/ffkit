@@ -37,6 +37,8 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         ("season_number", args.season.as_deref()),
         ("episode_id", args.episode.as_deref()),
         ("network", args.network.as_deref()),
+        ("creation_time", args.creation_time.as_deref()),
+        ("location", args.location.as_deref()),
         ("comment", args.comment.as_deref()),
     ]
     .into_iter()

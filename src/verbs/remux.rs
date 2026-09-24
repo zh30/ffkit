@@ -326,6 +326,48 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         }
         argv.extend(["-aspect", a.trim()]);
     }
+    // --tag hvc1: codec-tag rewrite so HEVC mp4s play in QuickTime/Safari
+    // (isom brand tag, stream copy — no re-encode)
+    if let Some(t) = &args.tag {
+        if !matches!(ext.as_str(), "mp4" | "mov") {
+            return Err(Error::input("remux --tag needs an mp4/mov output"));
+        }
+        if args.audio || !probe.has_video {
+            return Err(Error::input("remux --tag retags the video stream"));
+        }
+        if t.trim().is_empty() {
+            return Err(Error::input("remux: empty --tag"));
+        }
+        argv.extend(["-tag:v", t.trim()]);
+    }
+    // --attach FILE: embed a binary attachment (matroska/webm only —
+    // subtitle fonts travel inside the file with styled subs)
+    for (i, att) in args.attach.iter().enumerate() {
+        if !matches!(ext.as_str(), "mkv" | "webm") {
+            return Err(Error::input(
+                "remux --attach needs a matroska-family output (mkv/webm)",
+            ));
+        }
+        crate::paths::ensure_input(att)?;
+        argv.extend(["-attach"]);
+        argv.push(att);
+        let mime = match att
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase()
+            .as_str()
+        {
+            "ttf" | "otf" => "application/x-truetype-font",
+            "ttc" => "application/x-truetype-fonts",
+            "srt" => "application/x-subrip",
+            "ass" | "ssa" => "text/x-ssa",
+            "pdf" => "application/pdf",
+            _ => "application/octet-stream",
+        };
+        // indexed s:t:<i> — a bare s:t mimetype stamps every attachment
+        argv.extend([format!("-metadata:s:t:{i}"), format!("mimetype={mime}")]);
+    }
     if args.frag {
         if !matches!(ext.as_str(), "mp4" | "mov") {
             return Err(Error::input("remux --frag needs an mp4/mov output"));
@@ -370,7 +412,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     let mut c = c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len() }),
     );
     if let Some((key, kid)) = enc_kv {
         c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));

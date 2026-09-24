@@ -568,3 +568,7 @@ an atempo'd whole-file render would shift the window.
 - **A `-f lavfi` `filter_complex` concat can silently truncate to the first segment** — mixing `testsrc`/`color` sources through `[v][a]concat=n=3` output only segment 0's video (2.0s of a 4.7s graph); synthesize multi-segment fixtures as separate files joined by the concat DEMUXER instead.
 - **`--video-delay` maps like `--audio-delay` for BOTH signs** — non-shifted-track streams always come from input 0 and the shifted track from input 1; only `-itsoffset` placement differs (negative = the offset goes on input 0, delaying everything except the shifted stream). Do not flip the map by sign.
 - **mp4/m4a accepts `show`/`season_number`/`episode_id`/`network`/`album_artist`/`track` tags** (movenc whitelist) — unlike `bpm`/`tmpo`. TV/podcast feed metadata lands fine in ISOBMFF.
+- **Bare `-metadata:s:t` stamps EVERY attachment stream** — for multiple `-attach` files, index the specifier (`-metadata:s:t:0 mimetype=…`) or the last mime wins for all.
+- **movenc normalizes `location` to `+DD.DDDD+DDD.DDDD/`** and writes both `location` and `location-eng` — assert on the normalized value.
+- **`-tag:v hvc1` retags, it doesn't convert** — codec stays the same, only the container brand changes; h264 tagged hvc1 lies to the player. Restrict to mp4/mov outputs.
+- **`-ss` before `-i` + re-encode = frame-accurate split parts** — needed because black boundaries aren't keyframes (segment muxer would cut GOP-late).

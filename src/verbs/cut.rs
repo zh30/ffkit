@@ -200,7 +200,7 @@ fn black_cut(args: &CutArgs, g: &Globals) -> Result<Contract, Error> {
 
 /// blackdetect (≥0.3s at 98% black) → (start,end) segments.
 /// metadata=print emits both keys on the black_end frame's line.
-fn black_ranges(
+pub(crate) fn black_ranges(
     input: &std::path::Path,
     duration: f64,
     g: &Globals,

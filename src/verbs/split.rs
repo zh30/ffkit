@@ -21,6 +21,25 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
     }
     paths::ensure_input(&args.input)?;
 
+    if args.black {
+        if args.every.is_some()
+            || !args.at.is_empty()
+            || args.scenes.is_some()
+            || args.size.is_some()
+            || args.parts.is_some()
+            || args.silence.is_some()
+            || args.chapters
+            || args.subs.is_some()
+            || args.fade.is_some()
+        {
+            return Err(Error::input(
+                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade)",
+            ));
+        }
+        engine::need_video(&probe, "split --black")?;
+        return black_split(&args, &probe, g);
+    }
+
     // Boundaries in source seconds: regular grid from --every, or explicit
     // chapter points from --at.
     // --size turns a byte target into an even --every grid: parts ≈ target.
@@ -321,6 +340,119 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             "count": parts.len(),
         }));
     Ok(c)
+}
+
+/// split --black: blackdetect finds the dead stretches; every non-black
+/// keep segment renders to its own part file (frame-accurate re-encode —
+/// black boundaries aren't keyframes). The video twin of split --silence.
+fn black_split(
+    args: &SplitArgs,
+    probe: &crate::probe::Probe,
+    g: &Globals,
+) -> Result<Contract, Error> {
+    let drops = crate::verbs::cut::black_ranges(&args.input, probe.duration, g)?;
+    if drops.is_empty() {
+        return Err(Error::input(
+            "no black stretches found (≥0.3s at 98% black)",
+        ));
+    }
+    let keeps = crate::silence::keep_ranges(probe.duration, &drops, 0.0);
+    if keeps.len() <= 1 && keeps.first().copied() == Some((0.0, probe.duration)) {
+        return Err(Error::input("split --black found nothing to keep"));
+    }
+
+    let out_s = args.output.to_string_lossy().into_owned();
+    let (dir, stem, ext) = if out_s.contains('%') {
+        let t = PathBuf::from(&out_s);
+        let name = t
+            .file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let (pre, post) = name.split_once('%').unwrap_or((name.as_str(), ""));
+        let stem = pre.trim_end_matches(['_', '-']).to_string();
+        let ext = post
+            .split('.')
+            .nth(1)
+            .map(|e| e.to_string())
+            .unwrap_or_else(|| "mp4".into());
+        (
+            t.parent().unwrap_or_else(|| Path::new(".")).to_path_buf(),
+            stem,
+            ext,
+        )
+    } else {
+        (
+            args.output
+                .parent()
+                .unwrap_or_else(|| Path::new("."))
+                .to_path_buf(),
+            args.output
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "part".into()),
+            args.output
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("mp4")
+                .to_string(),
+        )
+    };
+
+    let mut argvs = Vec::new();
+    let mut parts = Vec::new();
+    for (i, (a, b)) in keeps.iter().enumerate() {
+        let part = dir.join(format!("{stem}_{:02}.{ext}", i + 1));
+        let mut argv = ffmpeg_base(g.progress);
+        // -ss before -i + re-encode = frame-accurate keeps
+        if *a > 0.0 {
+            argv.extend(["-ss", crate::time::fmt_time(*a).as_str()]);
+        }
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend(["-t", crate::time::fmt_time(b - a).as_str()]);
+        if probe.has_video {
+            argv.extend([
+                "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+            ]);
+        }
+        if probe.has_audio {
+            argv.extend(["-c:a", "aac"]);
+        }
+        argv.push(&part);
+        argvs.push(argv);
+        parts.push(part);
+    }
+
+    let commands = engine::commands_of(&argvs);
+    if g.dry_run {
+        return Ok(
+            Contract::dry_run("split", Some(paths::display(&args.output)), None)
+                .with_commands(commands),
+        );
+    }
+    if let Err(e) = engine::run_argvs(&argvs, g) {
+        return Ok(Contract::failed("split", &e).with_commands(commands));
+    }
+    for p in &parts {
+        if !p.exists() {
+            return Err(Error::verification(format!(
+                "part was not written: {}",
+                p.display()
+            )));
+        }
+    }
+    let first = crate::probe::probe(&parts[0], Duration::from_secs(60))?;
+    let names: Vec<String> = parts.iter().map(|p| paths::display(p)).collect();
+    Ok(
+        Contract::ok("split", Some(paths::display(&args.output)), Some(first))
+            .with_commands(commands)
+            .with_extra(json!({
+                "black_ranges": drops.iter().map(|(a, b)| json!({"start": a, "end": b})).collect::<Vec<_>>(),
+                "keeps": keeps.iter().map(|(a, b)| format!("{a}-{b}")).collect::<Vec<_>>(),
+                "parts": names,
+                "count": parts.len(),
+            })),
+    )
 }
 
 // List files matching the template's printf pattern: "<pre><digits><post>".

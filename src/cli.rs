@@ -525,6 +525,11 @@ pub struct SplitArgs {
     /// Fade audio+video N seconds around every boundary (soft story chunks)
     #[arg(long)]
     pub fade: Option<f64>,
+    /// Auto-split at black stretches (blackdetect ≥0.3s) — every non-black
+    /// keep segment becomes its own part file: dead-air chapterization
+    /// for event/talking-head footage
+    #[arg(long)]
+    pub black: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2748,6 +2753,14 @@ pub struct MetaArgs {
     /// are stripped so players show plain lines
     #[arg(long)]
     pub lyrics: Option<PathBuf>,
+    /// Creation-time tag (ISO 8601 like 2026-09-24T10:00:00Z) — archive
+    /// dailies, shoot-day stamping
+    #[arg(long)]
+    pub creation_time: Option<String>,
+    /// Location tag (ISO 6709 like "+31.23+121.47/") — travel/daily vlog
+    /// geo-stamp, lands in mp4 too
+    #[arg(long)]
+    pub location: Option<String>,
     /// Copyright / license tag (release metadata; lands in mp4 too)
     #[arg(long)]
     pub copyright: Option<String>,
@@ -3860,6 +3873,14 @@ pub struct RemuxArgs {
     /// delays video, negative advances it)
     #[arg(long, allow_negative_numbers = true)]
     pub video_delay: Option<f64>,
+    /// Retag the video stream's codec tag (`hvc1` makes HEVC mp4s play on
+    /// Apple/QuickTime/Safari without re-encoding) — mp4/mov only
+    #[arg(long)]
+    pub tag: Option<String>,
+    /// Attach a file into the repack as a binary attachment (matroska/webm
+    /// only — subtitle fonts, licence PDFs); repeatable
+    #[arg(long)]
+    pub attach: Vec<PathBuf>,
 }
 
 #[derive(clap::Args, Debug)]

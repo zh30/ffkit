@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.281.0] — 2026-09-24
+
+### Added
+- `split --black` — blackdetect (≥0.3s at 98% black) finds the dead stretches, then every non-black keep segment renders to its own `stem_NN.ext` part (frame-accurate re-encode): dead-air chapterization for event/talking-head footage — the video twin of `split --silence`
+- `remux --tag TAG` — rewrite the video codec tag without re-encoding (`--tag hvc1` makes HEVC mp4s play in QuickTime/Safari; mp4/mov only)
+- `remux --attach FILE` — embed a binary attachment stream into mkv/webm repacks (subtitle fonts travel inside the file with styled subs; repeatable, mimetype stamped per file)
+- `meta --creation-time`, `--location` — archive shoot-day stamp + ISO 6709 geo stamp; both land in mp4/mkv (movenc normalizes location to +DD.DDDD+DDD.DDDD/)
+
 ## [0.280.0] — 2026-09-24
 
 ### Added

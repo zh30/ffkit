@@ -31921,3 +31921,229 @@ fn r253_cut_black_video_delay_desync_meta_tv_tags() {
         assert!(s.contains(want), "missing {want} in {s}");
     }
 }
+
+// RSI round 254: split --black dead-air chapterization (blackdetect →
+// per-keep re-encode parts), remux --attach matroska attachment embed,
+// remux --tag hvc1 codec-tag retag, meta --creation-time/--location.
+#[test]
+fn r254_split_black_attach_tag_meta_geo() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    // same 3-seg concat-demuxer fixture: 1s content + 1.2s black + 1s content
+    let mut names = Vec::new();
+    for (spec, name) in [
+        ("testsrc=d=1:s=320x240:r=30", "a"),
+        ("color=c=black:d=1.2:s=320x240:r=30", "b"),
+        ("testsrc=d=1:s=320x240:r=30", "c"),
+    ] {
+        let seg = d.join(format!("seg_{name}.mp4"));
+        let ok = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                spec,
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=f=440:d=3.5",
+                "-shortest",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+            ])
+            .arg(&seg)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok);
+        names.push(seg);
+    }
+    let list = d.join("list.txt");
+    std::fs::write(
+        &list,
+        names
+            .iter()
+            .map(|s| format!("file '{}'\n", s.display()))
+            .collect::<String>(),
+    )
+    .unwrap();
+    let blacky = d.join("blacky.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+        ])
+        .arg(&list)
+        .args(["-c", "copy"])
+        .arg(&blacky)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+
+    // split --black: black mid becomes a boundary; 2 keep parts
+    let out_tmpl = d.join("part.mp4");
+    let j = run_json(&[
+        "split",
+        blacky.to_str().unwrap(),
+        "--black",
+        "-o",
+        out_tmpl.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["count"].as_u64().unwrap(), 2, "{}", j["extra"]);
+    let r = &j["extra"]["black_ranges"][0];
+    assert!((r["start"].as_f64().unwrap() - 1.0).abs() < 0.2, "{r}");
+    for n in ["part_01.mp4", "part_02.mp4"] {
+        assert!(d.join(n).exists(), "missing {n}");
+    }
+    // exclusive: --black refuses mixed modes
+    let j = run_json(&[
+        "split",
+        blacky.to_str().unwrap(),
+        "--black",
+        "--every",
+        "1",
+        "-o",
+        d.join("x.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // remux --attach: font file embedded as a matroska attachment stream
+    let font = d.join("f.ttf");
+    std::fs::write(&font, b"fake-font").unwrap();
+    let att = d.join("att.mkv");
+    let j = run_json(&[
+        "remux",
+        blacky.to_str().unwrap(),
+        "-o",
+        att.to_str().unwrap(),
+        "--attach",
+        font.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["attached"].as_u64().unwrap(), 1);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&att)
+        .output()
+        .unwrap();
+    assert!(
+        String::from_utf8_lossy(&o.stdout).contains("attachment"),
+        "{}",
+        String::from_utf8_lossy(&o.stdout)
+    );
+
+    // remux --tag hvc1: codec tag rewrites to the Apple-compat brand
+    let hevc = d.join("hevc.mp4");
+    let ok = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=d=0.5:s=64x64:r=10",
+            "-c:v",
+            "libx265",
+            "-x265-params",
+            "log-level=error",
+        ])
+        .arg(&hevc)
+        .status()
+        .unwrap()
+        .success();
+    if ok {
+        let tagged = d.join("tagged.mp4");
+        let j = run_json(&[
+            "remux",
+            hevc.to_str().unwrap(),
+            "-o",
+            tagged.to_str().unwrap(),
+            "--tag",
+            "hvc1",
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        let o = Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-select_streams",
+                "v",
+                "-show_entries",
+                "stream=codec_tag_string",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(&tagged)
+            .output()
+            .unwrap();
+        assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "hvc1");
+        // non-mp4 output refuses
+        let j = run_json(&[
+            "remux",
+            hevc.to_str().unwrap(),
+            "-o",
+            d.join("t.mkv").to_str().unwrap(),
+            "--tag",
+            "hvc1",
+        ]);
+        assert_eq!(j["status"], "failed");
+    }
+
+    // meta --creation-time/--location land in mp4 container tags
+    let met = d.join("met.mp4");
+    let j = run_json(&[
+        "meta",
+        blacky.to_str().unwrap(),
+        "-o",
+        met.to_str().unwrap(),
+        "--creation-time",
+        "2026-09-22T10:00:00Z",
+        "--location",
+        "+31.23+121.47/",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format_tags",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&met)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout).to_uppercase();
+    assert!(s.contains("2026-09-22T10:00:00"), "{s}");
+    assert!(s.contains("+31.2300+121.4700"), "{s}");
+}
