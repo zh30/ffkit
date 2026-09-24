@@ -167,6 +167,21 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
             "darken",
             "overlay",
             "difference",
+            "burn",
+            "dodge",
+            "exclusion",
+            "hardlight",
+            "softlight",
+            "pinlight",
+            "vividlight",
+            "linearlight",
+            "hardmix",
+            "negation",
+            "subtract",
+            "divide",
+            "glow",
+            "phoenix",
+            "reflect",
         ];
         if !MODES.contains(&mode.as_str()) {
             return Err(Error::input(format!(

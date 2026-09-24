@@ -1165,6 +1165,10 @@ pub struct DeliverArgs {
     /// rtmps://, tcp://, udp:// (render-and-stream premieres in one pass)
     #[arg(long)]
     pub to: Option<String>,
+    /// Force channel count on the pack (1 = mono podcast voice feed,
+    /// 2 = stereo)
+    #[arg(long)]
+    pub channels: Option<u8>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -3616,6 +3620,10 @@ pub struct RemuxArgs {
     /// Fix the display aspect ratio without re-encoding (16:9, 9:16, 1:1, ...)
     #[arg(long)]
     pub aspect: Option<String>,
+    /// Fragmented MP4 output (frag_keyframe+empty_moov+default_base_moof —
+    /// stream-friendly container for HLS/DASH/live pipelines)
+    #[arg(long)]
+    pub frag: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4326,6 +4334,12 @@ pub struct LiveArgs {
     /// Audio bitrate (default 128k)
     #[arg(long)]
     pub abitrate: Option<String>,
+    /// Downscale before streaming, WxH (push a 4K master to a 720p ingest)
+    #[arg(long)]
+    pub scale: Option<String>,
+    /// Output frame rate on the stream (60fps capture → 30fps ingest)
+    #[arg(long)]
+    pub fps: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]

@@ -32,6 +32,18 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.extend(["-i".into(), args.input.display().to_string()]);
     if probe.has_video {
+        if let Some(sc) = &args.scale {
+            let mut p = sc.split('x');
+            let (w, h) = (
+                p.next().and_then(|v| v.parse::<u32>().ok()),
+                p.next().and_then(|v| v.parse::<u32>().ok()),
+            );
+            let (w, h) = match (w, h) {
+                (Some(w), Some(h)) if w > 0 && h > 0 => (w, h),
+                _ => return Err(Error::input("live --scale needs WxH like 1280x720")),
+            };
+            argv.extend(["-vf".into(), format!("scale={w}:{h}")]);
+        }
         argv.extend([
             "-c:v".into(),
             "libx264".into(),
@@ -44,6 +56,9 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             "-pix_fmt".into(),
             "yuv420p".into(),
         ]);
+        if let Some(fps) = args.fps {
+            argv.extend(["-r".into(), fps.to_string()]);
+        }
     } else {
         argv.push("-vn");
     }

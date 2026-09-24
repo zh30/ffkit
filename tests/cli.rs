@@ -28147,3 +28147,179 @@ fn r236_podcast_stream_ar_loud() {
     ]);
     assert_eq!(j["status"], "failed");
 }
+
+#[test]
+fn r237_overlay_modes_channels_scale_frag() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn probe_csv(args: &[String]) -> String {
+        let o = Command::new("ffprobe")
+            .args(args)
+            .output()
+            .expect("ffprobe");
+        String::from_utf8_lossy(&o.stdout).into_owned()
+    }
+
+    // overlay --mode: photoshop-style blend modes beyond the classic seven —
+    // softlight is subtle, dodge blows the image out; both render
+    for mode in ["softlight", "dodge", "hardlight", "negation"] {
+        let o = d.join(format!("ovl_{mode}.mp4"));
+        let j = run_json(&[
+            "overlay",
+            &f.to_string_lossy(),
+            "-o",
+            &o.to_string_lossy(),
+            "--video",
+            &f.to_string_lossy(),
+            "--mode",
+            mode,
+        ]);
+        assert_eq!(j["status"], "ok", "{mode}: {}", j["error"]);
+    }
+    // dodge of a clip with itself is far brighter than the source frame
+    let dodge = d.join("ovl_dodge.mp4");
+    let px = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        format!(
+            "movie={},signalstats,metadata=print:key=lavfi.signalstats.YAVG",
+            dodge.display()
+        ),
+        s("-show_entries"),
+        s("frame_tags=lavfi.signalstats.YAVG"),
+        s("-of"),
+        s("csv=p=0"),
+    ]);
+    let y: f64 = px.lines().next().unwrap().trim().parse().unwrap_or(0.0);
+    assert!(y > 150.0, "dodge self-blend should lift luma hard, got {y}");
+    let j = run_json(&[
+        "overlay",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("bad.mp4").to_string_lossy(),
+        "--video",
+        &f.to_string_lossy(),
+        "--mode",
+        "bogus",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // deliver --channels 1: mono pack (voice-first platforms/podcast feeds)
+    let pod = d.join("podmono.m4a");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &pod.to_string_lossy(),
+        "--platform",
+        "podcast",
+        "--channels",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let csv = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-select_streams"),
+        s("a:0"),
+        s("-show_entries"),
+        s("stream=channels"),
+        s("-of"),
+        s("csv=p=0"),
+        pod.to_string_lossy().into_owned(),
+    ]);
+    assert_eq!(csv.trim(), "1", "expected mono, got {csv}");
+
+    // remux --frag: fragmented MP4 (moof fragments + mfra footer) for
+    // stream-friendly pipelines — a plain remux has neither
+    let frag = d.join("frag.mp4");
+    let j = run_json(&[
+        "remux",
+        &f.to_string_lossy(),
+        "-o",
+        &frag.to_string_lossy(),
+        "--frag",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["fragmented"], true);
+    fn has(d: &[u8], n: &[u8]) -> bool {
+        d.windows(n.len()).any(|w| w == n)
+    }
+    let bytes = std::fs::read(&frag).unwrap();
+    assert!(
+        has(&bytes, b"moof") && has(&bytes, b"mfra"),
+        "expected fragmented mp4 boxes"
+    );
+    let plain = d.join("plain.mp4");
+    let j = run_json(&[
+        "remux",
+        &f.to_string_lossy(),
+        "-o",
+        &plain.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let bytes = std::fs::read(&plain).unwrap();
+    assert!(!has(&bytes, b"mfra"), "non-frag remux should have no mfra");
+    let j = run_json(&[
+        "remux",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("frag.mkv").to_string_lossy(),
+        "--frag",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // live --scale/--fps: downscale + rate-cap the stream encode
+    let (tx_port, rx_port) = std::sync::mpsc::channel::<u16>();
+    let (tx_head, rx_head) = std::sync::mpsc::channel::<Vec<u8>>();
+    std::thread::spawn(move || {
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        tx_port.send(l.local_addr().unwrap().port()).unwrap();
+        if let Ok((mut c, _)) = l.accept() {
+            use std::io::Read;
+            let mut head = vec![0u8; 9];
+            let _ = c.read_exact(&mut head);
+            let _ = tx_head.send(head);
+            let mut buf = vec![0u8; 8192];
+            while c.read(&mut buf).map(|n| n > 0).unwrap_or(false) {}
+        }
+    });
+    let port = rx_port
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--to",
+        &format!("tcp://127.0.0.1:{port}"),
+        "--scale",
+        "160x120",
+        "--fps",
+        "15",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let head = rx_head
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .unwrap();
+    assert_eq!(&head[..3], b"FLV", "expected FLV magic, got {head:?}");
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--to",
+        &format!("tcp://127.0.0.1:{port}"),
+        "--scale",
+        "bogus",
+    ]);
+    assert_eq!(j["status"], "failed");
+}

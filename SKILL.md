@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.263.0
+version: 0.264.0
 
 
 
@@ -78,7 +78,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | warm faces only | `grade --skin -1..1` (selectivecolor reds channel — warms skin, leaves the rest) |
 | HALD image LUT | `grade --lut look.png` (PNG/JPG → haldclut; Darktable/RawTherapee exports) |
 | karaoke / keep only the vocal | `vocal` (`--at`/`--dur` window, `--mode karaoke` drops the center, `isolate` keeps it — stereo only; `--amount` partial) |
-| container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart); `--audio` rips the track, `--video` video-only, `--aspect 16:9` fixes display AR |
+| container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart); `--audio` rips the track, `--video` video-only, `--aspect 16:9` fixes display AR; `--frag` fragmented MP4 (moof/mfra — playable while still being written, HLS/DASH pipelines) |
 | top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline`, `--at/--dur` window — `--at end` covers the tail), `--position` center/bottom, `--wrap` + `--align` multiline, `--fade` edge fades (needs --at/--dur), `--opacity` ghost text |
 | fix my podcast voice | `voice` — one-shot chain: gate hiss → compress swings → loudnorm `--lufs` (default −16); `--at`/`--dur` windows it |
 | slideshow that runs exactly N seconds | `slideshow` (`--dur` spreads the runtime across the stills, `--bg` letterbox color) |
@@ -96,11 +96,11 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | drop the audio track entirely | `mute` (stream-copy video, no re-encode), `--at/--dur` window |
 | elapsed-time corner counter | `timer`/`countdown` (`--at` takes `end`) (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds), `--down` countdown, `--start` seed, `--opacity` ghost HUD; `timer --tc 01:00:00:00` burns a running HH:MM:SS:FF timecode (dailies/review copies) |
 | web-embed HLS package | `hls` (`--seg` seconds, `--single` one-file, `--copy` repack, `--poster` writes poster.jpg, `--poster-at T` picks the frame, `--encrypt`/`--key HEX`/`--key-uri URI` AES-128 segments + key.bin/key.info) → dir/`index.m3u8` + `seg_*.ts`; `--ladder 1080,720,480` → ABR variant playlists + `master.m3u8`; `--audio-only` podcast HLS; `--fmp4` CMAF `.m4s` segments |
-| go live / push a stream | `live` (`--to rtmp://…` / `rtmps://` / `tcp://` / `udp://`, `--loop` forever, `--vbitrate`/`--abitrate`; real-time `-re` pacing + x264/aac ingest encode); `deliver --to` streams the rendered platform pack to the same ingest URLs) |
+| go live / push a stream | `live` (`--to rtmp://…` / `rtmps://` / `tcp://` / `udp://`, `--loop` forever, `--vbitrate`/`--abitrate`, `--scale WxH` downscale a big master to ingest size, `--fps N` cap output rate; real-time `-re` pacing + x264/aac ingest encode); `deliver --to` streams the rendered platform pack to the same ingest URLs) |
 
 | check encode quality loss | `qa` `ref.mp4 test.mp4` → psnr/ssim/msad/vif numbers (`--metric`) |
 | normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill) |
-| light-leak / screen-blend overlay | `overlay --video leak.mp4 --mode screen` |
+| light-leak / screen-blend overlay | `overlay --video leak.mp4 --mode screen` (19 Photoshop-style blend modes — burn/dodge/softlight/hardlight/vividlight/linearlight/pinlight/hardmix/exclusion/negation/subtract/divide/glow/phoenix/reflect…) |
 | fix audio/video sync drift | `sync` (`--ms ±N` — pad or trim audio start) |
 | sync a second take to the camera master | `align` (`ref target -o out` — auto-detects offset by audio cross-correlation; multi-cam, external recorder; `--window` bounds long takes; `--check` reports `offset_ms`/`direction` without rendering — sync QC) |
 | rolling end credits | `scroll` (`--text`/`--file`, `--at` comma list replays the roll at several marks / `end` with `--dur`, `--align`, `--wrap`, `--speed` px/s, `--opacity` ghost credits — text rolls bottom→top) |

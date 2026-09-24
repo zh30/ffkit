@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.264.0] — 2026-09-23
+
+- `overlay --mode` — 12 more Photoshop-style blend modes on the full-frame composite (burn, dodge, exclusion, hardlight, softlight, pinlight, vividlight, linearlight, hardmix, negation, subtract, divide, plus glow/phoenix/reflect — 19 total `blend=all_mode` names)
+- `deliver --channels N` — force channel count on the pack's AAC track (`--channels 1` mono voice feed, `--channels 2` stereo; works on the video platforms and the podcast feed pack)
+- `live --scale WxH` / `--fps N` — downscale + rate-cap the live ingest encode (push a 4K master as 720p, 60fps capture as 30fps — no separate transcode pass)
+- `remux --frag` — fragmented MP4 output (`-movflags frag_keyframe+empty_moov+default_base_moof` → moof fragments + mfra footer; playable/streamable while still being written — HLS/DASH/live-ingest pipelines; mp4/mov only)
+
 ## [0.263.0] — 2026-09-23
 
 - `deliver --platform podcast` — audio-only feed pack: loudnorm to the podcast spec (−16 LUFS) → m4a AAC 128k/48k (accepts audio-only sources; measured I lands within ±1 LU)

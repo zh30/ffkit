@@ -70,13 +70,19 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         }
         argv.extend(["-aspect", a.trim()]);
     }
-    if matches!(ext.as_str(), "mp4" | "m4a" | "mov") {
+    if args.frag {
+        if !matches!(ext.as_str(), "mp4" | "mov") {
+            return Err(Error::input("remux --frag needs an mp4/mov output"));
+        }
+        // fragmented moov — the file plays/streamable while still being written
+        argv.extend(["-movflags", "frag_keyframe+empty_moov+default_base_moof"]);
+    } else if matches!(ext.as_str(), "mp4" | "m4a" | "mov") {
         argv.extend(["-movflags", "+faststart"]);
     }
     argv.push(&args.output);
 
     let c = engine::write_job("remux", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag }),
     ))
 }

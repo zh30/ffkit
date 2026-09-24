@@ -98,6 +98,9 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             apply.extend(["-af", &filter]);
         }
         apply.extend(["-c:a", "aac", "-ar", "48000", "-b:a", "192k"]);
+        if let Some(ch) = args.channels {
+            apply.extend(["-ac", &ch.to_string()]);
+        }
         measure = Some(m);
     } else {
         apply.push("-an");
@@ -230,6 +233,9 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
         ]);
     }
     apply.extend(["-c:a", "aac", "-ar", "48000", "-b:a", "128k"]);
+    if let Some(ch) = args.channels {
+        apply.extend(["-ac", &ch.to_string()]);
+    }
     apply.push(&args.output);
 
     let m_commands = engine::commands_of(std::slice::from_ref(&m));
