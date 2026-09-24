@@ -212,6 +212,16 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         crate::paths::ensure_input(ov)?;
     }
 
+    if let Some(c) = args.crf {
+        if c > 51 {
+            return Err(Error::input("live --crf is 0..=51"));
+        }
+        if args.vbitrate.is_some() || args.maxrate.is_some() || args.bufsize.is_some() {
+            return Err(Error::input(
+                "live --crf is constant quality — drop --vbitrate/--maxrate/--bufsize",
+            ));
+        }
+    }
     let vbitrate = args.vbitrate.as_deref().unwrap_or("2500k");
     let abitrate = args.abitrate.as_deref().unwrap_or("128k");
     // FLV for RTMP/plain-TCP ingest; MPEG-TS for UDP + SRT contribution links
@@ -342,17 +352,19 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
         argv.extend([
-            "-c:v".into(),
-            if hevc { "libx265" } else { "libx264" }.into(),
-            "-preset".into(),
-            preset.into(),
-            "-tune".into(),
-            "zerolatency".into(),
-            "-b:v".into(),
-            vbitrate.to_string(),
-            "-pix_fmt".into(),
-            "yuv420p".into(),
+            "-c:v".to_string(),
+            if hevc { "libx265" } else { "libx264" }.to_string(),
+            "-preset".to_string(),
+            preset.to_string(),
+            "-tune".to_string(),
+            "zerolatency".to_string(),
         ]);
+        if let Some(c) = args.crf {
+            argv.extend(["-crf".to_string(), c.to_string()]);
+        } else {
+            argv.extend(["-b:v".to_string(), vbitrate.to_string()]);
+        }
+        argv.extend(["-pix_fmt".to_string(), "yuv420p".to_string()]);
         if let Some(g) = args.gop {
             if g == 0 {
                 return Err(Error::input("live --gop needs at least 1 frame"));
@@ -569,6 +581,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         "gop": args.gop,
         "maxrate": args.maxrate,
         "bufsize": args.bufsize,
+        "crf": args.crf,
         "vbitrate": vbitrate,
         "abitrate": abitrate,
         "format": fmt,

@@ -1354,6 +1354,11 @@ pub enum DeliverPlatform {
     Weibo,
     /// WhatsApp Status 9:16 (1080x1920, -14 LUFS)
     Whatsapp,
+    /// Twitch VOD/clip 16:9 landscape (1920x1080, -14 LUFS)
+    Twitch,
+    /// Discord server video 16:9 landscape (1280x720, -14 LUFS — pair
+    /// with `compress --size discord` for the 10MB upload cap)
+    Discord,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2992,6 +2997,10 @@ pub struct SlideshowArgs {
     /// travel-photo labels, portfolio credits, event recaps
     #[arg(long)]
     pub titles: Option<String>,
+    /// Music-bed tail fade seconds (default 0.8 — longer lets the song
+    /// ring out under the last still instead of cutting abruptly)
+    #[arg(long)]
+    pub audio_fade: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3048,6 +3057,37 @@ pub enum XfadeTransition {
     Dissolve,
     Radial,
     Circleopen,
+    Circleclose,
+    Circlecrop,
+    Rectcrop,
+    Distance,
+    Fadeblack,
+    Fadewhite,
+    Fadegrays,
+    Smoothleft,
+    Smoothright,
+    Smoothup,
+    Smoothdown,
+    Vertopen,
+    Vertclose,
+    Horzopen,
+    Horzclose,
+    Pixelize,
+    Diagtl,
+    Diagtr,
+    Diagbl,
+    Diagbr,
+    Hlslice,
+    Hrslice,
+    Vuslice,
+    Vdslice,
+    Hblur,
+    Wipetl,
+    Wipetr,
+    Wipebl,
+    Wipebr,
+    Squeezeh,
+    Squeezev,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
@@ -3079,6 +3119,37 @@ impl XfadeTransition {
             Self::Dissolve => "dissolve",
             Self::Radial => "radial",
             Self::Circleopen => "circleopen",
+            Self::Circleclose => "circleclose",
+            Self::Circlecrop => "circlecrop",
+            Self::Rectcrop => "rectcrop",
+            Self::Distance => "distance",
+            Self::Fadeblack => "fadeblack",
+            Self::Fadewhite => "fadewhite",
+            Self::Fadegrays => "fadegrays",
+            Self::Smoothleft => "smoothleft",
+            Self::Smoothright => "smoothright",
+            Self::Smoothup => "smoothup",
+            Self::Smoothdown => "smoothdown",
+            Self::Vertopen => "vertopen",
+            Self::Vertclose => "vertclose",
+            Self::Horzopen => "horzopen",
+            Self::Horzclose => "horzclose",
+            Self::Pixelize => "pixelize",
+            Self::Diagtl => "diagtl",
+            Self::Diagtr => "diagtr",
+            Self::Diagbl => "diagbl",
+            Self::Diagbr => "diagbr",
+            Self::Hlslice => "hlslice",
+            Self::Hrslice => "hrslice",
+            Self::Vuslice => "vuslice",
+            Self::Vdslice => "vdslice",
+            Self::Hblur => "hblur",
+            Self::Wipetl => "wipetl",
+            Self::Wipetr => "wipetr",
+            Self::Wipebl => "wipebl",
+            Self::Wipebr => "wipebr",
+            Self::Squeezeh => "squeezeh",
+            Self::Squeezev => "squeezev",
         }
     }
 }
@@ -4736,6 +4807,11 @@ pub struct LiveArgs {
     /// Video bitrate for the live encode (default 2500k — ingest-safe)
     #[arg(long)]
     pub vbitrate: Option<String>,
+    /// Constant-quality encode 0-51 instead of -b:v (CRF — some ingests
+    /// prefer a quality target over a rate cap; conflicts with
+    /// --vbitrate/--maxrate/--bufsize)
+    #[arg(long)]
+    pub crf: Option<u32>,
     /// Audio bitrate (default 128k)
     #[arg(long)]
     pub abitrate: Option<String>,
@@ -4928,6 +5004,10 @@ pub struct HlsArgs {
     /// boundary (seek/trick-play VOD; conflicts with --copy and --ladder)
     #[arg(long)]
     pub independent: bool,
+    /// URL prefix for every playlist segment entry (-hls_base_url — serve
+    /// segments from a CDN or different host than the manifest)
+    #[arg(long)]
+    pub base_url: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

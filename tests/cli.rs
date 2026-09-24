@@ -34245,3 +34245,240 @@ fn r266_extract_lang_window_countdown_utc_live_url_remux_sub_order() {
     let j = run_json(&["live", url, "--to", "tcp://127.0.0.1:2", "--list"]);
     assert_eq!(j["status"], "failed", "URL + --list must fail");
 }
+
+#[test]
+fn r267_xfade_full_set_slideshow_audio_fade_deliver_twitch_discord_live_crf_hls_base_url() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let a = fixture(d.path());
+    let b = d.path().join("b.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=red:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-t",
+            "1",
+        ])
+        .arg(&b)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let ast = |p: &Path| -> String {
+        String::from_utf8_lossy(
+            &Command::new("ffprobe")
+                .args([
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "csv=p=0",
+                ])
+                .arg(p)
+                .output()
+                .unwrap()
+                .stdout,
+        )
+        .trim()
+        .to_string()
+    };
+    // Every named 4.4 xfade transition now reachable via concat --transition
+    for t in [
+        "squeezev",
+        "fadegrays",
+        "hblur",
+        "pixelize",
+        "distance",
+        "wipetl",
+    ] {
+        let o = d.path().join(format!("c_{t}.mp4"));
+        let j = run_json(&[
+            "concat",
+            a.to_str().unwrap(),
+            b.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--transition",
+            t,
+        ]);
+        assert_eq!(j["status"], "ok", "concat --transition {t} failed: {j}");
+        let dur: f64 = ast(&o).parse().unwrap();
+        assert!(dur > 1.5 && dur < 2.1, "{t} dur {dur}");
+    }
+    // slideshow --audio-fade: longer tail fade on the bed
+    let still = |name: &str, color: &str| -> PathBuf {
+        let p = d.path().join(name);
+        let st = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color={color}:size=64x64"),
+                "-frames:v",
+                "1",
+            ])
+            .arg(&p)
+            .status()
+            .unwrap();
+        assert!(st.success());
+        p
+    };
+    let s1 = still("s1.png", "blue");
+    let s2 = still("s2.png", "green");
+    let bed = d.path().join("bed.wav");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=220:sample_rate=48000",
+            "-t",
+            "10",
+        ])
+        .arg(&bed)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let ss = d.path().join("ss.mp4");
+    let j = run_json(&[
+        "slideshow",
+        s1.to_str().unwrap(),
+        s2.to_str().unwrap(),
+        "--audio",
+        bed.to_str().unwrap(),
+        "--audio-fade",
+        "2",
+        "-o",
+        ss.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "slideshow --audio-fade failed: {j}");
+    assert_eq!(j["extra"]["audio_fade"], 2.0);
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        cmd.contains("afade=t=out") && cmd.contains("d=2.000"),
+        "{cmd}"
+    );
+    let j = run_json(&[
+        "slideshow",
+        s1.to_str().unwrap(),
+        s2.to_str().unwrap(),
+        "--audio-fade",
+        "2",
+        "-o",
+        d.path().join("x.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(
+        j["status"], "failed",
+        "--audio-fade without --audio must fail"
+    );
+    // deliver twitch/discord canvases
+    for (plat, (w, h)) in [("twitch", (1920, 1080)), ("discord", (1280, 720))] {
+        let o = d.path().join(format!("dv_{plat}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            a.to_str().unwrap(),
+            "--platform",
+            plat,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "deliver {plat} failed: {j}");
+        let wh = String::from_utf8_lossy(
+            &Command::new("ffprobe")
+                .args([
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    "v:0",
+                    "-show_entries",
+                    "stream=width,height",
+                    "-of",
+                    "csv=p=0",
+                ])
+                .arg(&o)
+                .output()
+                .unwrap()
+                .stdout,
+        )
+        .trim()
+        .to_string();
+        assert_eq!(wh, format!("{w},{h}"), "{plat} canvas");
+    }
+    // live --crf: constant quality replaces -b:v; refuses bitrate caps
+    let j = run_json(&[
+        "live",
+        a.to_str().unwrap(),
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--crf",
+        "20",
+        "--until",
+        "0.5",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "dry_run", "{j}");
+    assert_eq!(j["extra"]["crf"], 20);
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("-crf 20") && !cmd.contains("-b:v"), "{cmd}");
+    let j = run_json(&[
+        "live",
+        a.to_str().unwrap(),
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--crf",
+        "20",
+        "--vbitrate",
+        "3000k",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "failed", "--crf + --vbitrate must fail");
+    // hls --base-url: playlist segment entries get the URL prefix
+    let hd = d.path().join("hls");
+    let j = run_json(&[
+        "hls",
+        a.to_str().unwrap(),
+        "-o",
+        hd.to_str().unwrap(),
+        "--base-url",
+        "https://cdn.example.com/v/",
+    ]);
+    assert_eq!(j["status"], "ok", "hls --base-url failed: {j}");
+    let pl = std::fs::read_to_string(hd.join("index.m3u8")).unwrap();
+    assert!(
+        pl.lines()
+            .any(|l| l == "https://cdn.example.com/v/seg_000.ts"),
+        "{pl}"
+    );
+}

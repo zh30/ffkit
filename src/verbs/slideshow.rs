@@ -145,7 +145,21 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         Some(_) => return Err(Error::input("--volume must be 0..=4")),
         None => 1.0,
     };
+    let bed_tail = args.audio_fade.unwrap_or(0.8);
+    if let Some(af) = args.audio_fade {
+        if args.audio.is_none() {
+            return Err(Error::input("--audio-fade needs --audio"));
+        }
+        if !af.is_finite() || af <= 0.0 {
+            return Err(Error::input("--audio-fade must be > 0 seconds"));
+        }
+    }
     let total = n as f64 * per - (n as f64 - 1.0) * args.fade;
+    if bed_tail >= total {
+        return Err(Error::input(
+            "--audio-fade must be shorter than the montage",
+        ));
+    }
     let fps = args.fps;
 
     // --titles: bottom caption strip on each still, slots in the final
@@ -282,10 +296,10 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     // no --audio is given) is the last input, at index next_input.
     let audio_in = bed_idx.unwrap_or(next_input);
     if bed_idx.is_some() {
-        // Bed: pad/trim to the montage length, fade the last 0.8s.
+        // Bed: pad/trim to the montage length, fade the tail (--audio-fade).
         fc.push_str(&format!(
-            "[{audio_in}:a]apad,atrim=duration={total:.3},volume={bed_vol:.3},afade=t=out:st={:.3}:d=0.8,aresample=48000[aout]",
-            total - 0.8
+            "[{audio_in}:a]apad,atrim=duration={total:.3},volume={bed_vol:.3},afade=t=out:st={:.3}:d={bed_tail:.3},aresample=48000[aout]",
+            total - bed_tail
         ));
     } else {
         fc.push_str(&format!(
@@ -331,6 +345,7 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         },
         "canvas": format!("{w}x{h}"),
         "music_bed": args.audio.is_some(),
+        "audio_fade": bed_tail,
         "fit": args.fit,
         "seed": args.shuffle,
         "sort": args.sort.map(|s| match s {

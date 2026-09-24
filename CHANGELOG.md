@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.294.0] — 2026-09-24
+
+### Added
+
+- `concat`/`slideshow --transition`: the full named 4.4 xfade set — all 42 transitions (`squeezev`, `fadegrays`, `hblur`, `pixelize`, `distance`, `wipetl`/`tr`/`bl`/`br`, `diag*`, `*slice`, `smooth*`, `vert*`, `horz*`, `circle*`, `rectcrop`, `fadeblack`/`fadewhite`, …); comma list still picks one per joint
+- `slideshow --audio-fade SEC` — music-bed tail fade length (default 0.8s; longer lets the song ring out under the last still — needs `--audio`, must be shorter than the montage)
+- `deliver --platform twitch` (16:9 1920x1080) + `discord` (16:9 1280x720 — pair with `compress --size discord` for the 10MB cap) on the −14 LUFS pipeline
+- `live --crf 0-51` — constant-quality encode instead of `-b:v` (ingests that prefer a quality target; conflicts with `--vbitrate`/`--maxrate`/`--bufsize`)
+- `hls --base-url URL` — `-hls_base_url` prefixes every playlist segment entry (manifest local, segments on a CDN/other host)
+
 ## [0.293.0] — 2026-09-24
 
 ### Added

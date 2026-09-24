@@ -47,6 +47,12 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "hls --independent doesn't apply to --ladder (per-rung GOPs)",
         ));
     }
+    if let Some(u) = &args.base_url {
+        let u = u.trim();
+        if u.is_empty() || u.contains(char::is_whitespace) {
+            return Err(Error::input("hls --base-url needs a URL prefix"));
+        }
+    }
     let seg_ext = if args.fmp4 { "m4s" } else { "ts" };
     let seg_tpl = if args.single {
         dir.join(format!("seg.{seg_ext}"))
@@ -363,6 +369,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.fmp4 {
         argv.extend(["-hls_segment_type".to_string(), "fmp4".to_string()]);
     }
+    if let Some(u) = &args.base_url {
+        argv.extend(["-hls_base_url".to_string(), u.trim().to_string()]);
+    }
     argv.extend(key_args.iter().cloned());
     argv.push(playlist.display().to_string());
 
@@ -440,6 +449,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "discontinuity": args.discontinuity,
         "time_names": args.time_names,
         "independent": args.independent,
+        "base_url": args.base_url,
         "live_window": if args.live { args.live_window.unwrap_or(6) } else { 0 },
     }));
     if let Some((p, uri)) = &key_info {

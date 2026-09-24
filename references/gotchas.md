@@ -613,3 +613,6 @@ an atempo'd whole-file render would shift the window.
 - **`live` URL inputs must bypass `ensure_input`** — it stat()s the path and would refuse `rtmp://…`/`udp://…`/`http://…` inputs. Skip the file-exists check whenever the path string contains `://` (probe.rs, live stream_out, and the verb's own flag validation all needed the bypass).
 - **URL inputs can't seek or loop** — `-ss`/`-stream_loop` on a live pull feed are meaningless (and concat slates can't wrap them). Refuse those flags up front instead of letting ffmpeg fail opaquely mid-stream.
 - **Stream-copy `-ss`/`-t` are packet-accurate, not frame-accurate** — `extract --audio --from/--to` lands on demuxer cue boundaries (an aac rip asked for 1.0s came out 1.509s); assert loose windows in tests.
+- **xfade name list ≠ your guess** — ffmpeg 4.4's vertical squeeze is `squeezev` (not `squeezeev`); check `ffmpeg -h filter=xfade` before wiring an enum variant — an unrecognized name parses as an expression and fails with "Undefined constant".
+- **`-hls_base_url` only prefixes URIs in the playlist** — segments still write next to the manifest dir; serving them from the CDN is your deploy's job.
+- **`live --crf` replaces `-b:v` entirely** — a CRF stream has no rate envelope; pairing it with `--vbitrate`/`--maxrate`/`--bufsize` is a mode conflict, not a cap.
