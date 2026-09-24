@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.297.0] — 2026-09-24
+
+### Added
+
+- `subs --sort` — reorder out-of-order cues by start and renumber (broken exports write cues scrambled — players then show them late or not at all)
+- `subs --fix-overlaps` — clamp each cue's end to the next cue's start (overlapping-cue repair; pairs with `--sort` when times are scrambled — the clamp only makes sense in start order)
+- `subs --dedupe` — drop exact duplicate cues (same start/end/text — buggy exports repeat every cue and players flash the line twice); all three report `sorted`/`clamped`/`dropped`/`cues`
+- `scan --gop` now also reports `keyframe_times` — every keyframe's pts, for ingest specs that pin a keyframe at each seek point (still packet flags, no decode)
+- `deliver --platform etsy` (1:1 1080x1080 product gallery) + `rumble` (16:9 1920x1080)
+
 ## [0.296.0] — 2026-09-24
 
 ### Added

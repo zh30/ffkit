@@ -836,6 +836,9 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
             .unwrap_or(0);
         let secs: Vec<f64> = key_pts.windows(2).map(|w| w[1] - w[0]).collect();
         extra["keyframes"] = json!(key_idx.len());
+        // every keyframe's pts — check them against chapter marks / ingest
+        // specs that pin a keyframe at each seek point
+        extra["keyframe_times"] = json!(key_pts);
         extra["gop_max_sec"] = json!(secs.iter().cloned().fold(0.0f64, f64::max));
         extra["gop_avg_sec"] = json!(if secs.is_empty() {
             0.0

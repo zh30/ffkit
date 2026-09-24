@@ -34985,3 +34985,68 @@ fn r269_meta_titles_chapter_csv_dash_modes_deliver_ecommerce() {
     assert_eq!(s["height"], 1080);
     let _ = base;
 }
+
+#[test]
+fn r270_subs_tidy_scan_keyframe_times_deliver_etsy_rumble() {
+    if !has_ffmpeg() {
+        eprintln!("skip: no ffmpeg");
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let base = fixture(d.path());
+    // subs --sort/--fix-overlaps/--dedupe on a scrambled .srt:
+    // late cue first, overlap on cue 1 (2.5 > next 2.0), exact dup of cue 3
+    let messy = d.path().join("messy.srt");
+    std::fs::write(
+        &messy,
+        "1\n00:00:05,000 --> 00:00:06,000\nLate cue\n\n         2\n00:00:00,000 --> 00:00:02,500\nEarly overlaps\n\n         3\n00:00:02,000 --> 00:00:03,000\nMid\n\n         4\n00:00:02,000 --> 00:00:03,000\nMid\n",
+    )
+    .unwrap();
+    let tidy = d.path().join("tidy.srt");
+    let j = run_json(&[
+        "subs",
+        messy.to_str().unwrap(),
+        "-o",
+        tidy.to_str().unwrap(),
+        "--sort",
+        "--fix-overlaps",
+        "--dedupe",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["sorted"], true, "{j}");
+    // dup cue cascades: Mid's end clamps to the dup's start (2.0) →
+    // zero-duration → retained out; Early's end clamps 2.5→2.0
+    assert_eq!(j["extra"]["clamped"], 2, "{j}");
+    assert_eq!(j["extra"]["dropped"], 1, "{j}");
+    assert_eq!(j["extra"]["cues"], 3, "{j}");
+    let text = std::fs::read_to_string(&tidy).unwrap();
+    assert!(text.contains("00:00:00,000 --> 00:00:02,000"), "{text}");
+    assert!(text.contains("Early overlaps"), "{text}");
+    assert_eq!(text.matches("-->").count(), 3, "{text}");
+    // scan --gop also reports every keyframe pts
+    let j = run_json(&["scan", base.to_str().unwrap(), "--gop"]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let times = j["extra"]["keyframe_times"].as_array().unwrap();
+    assert_eq!(
+        times.len() as u64,
+        j["extra"]["keyframes"].as_u64().unwrap(),
+        "{j}"
+    );
+    assert!(times.iter().all(|t| t.is_f64()), "{j}");
+    // deliver --platform etsy: 1:1 product canvas
+    let etsy = d.path().join("etsy.mp4");
+    let j = run_json(&[
+        "deliver",
+        base.to_str().unwrap(),
+        "-o",
+        etsy.to_str().unwrap(),
+        "--platform",
+        "etsy",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", etsy.to_str().unwrap()]);
+    let s = pr["probe"]["streams"].as_array().unwrap()[0].clone();
+    assert_eq!(s["width"], 1080);
+    assert_eq!(s["height"], 1080);
+    let _ = base;
+}

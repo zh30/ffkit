@@ -40,6 +40,9 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(rate) = args.rate {
         return rescale(&args, rate, g);
     }
+    if args.sort || args.fix_overlaps || args.dedupe {
+        return tidy(&args, g);
+    }
     if args.case.is_some() && args.burn.is_none() {
         return Err(Error::input("subs --case works with --burn or --convert"));
     }
@@ -196,6 +199,75 @@ fn merge(args: &SubsArgs, other: &std::path::Path, g: &Globals) -> Result<Contra
     Ok(c.with_extra(json!({
         "mode": "merge",
         "added_cues": added,
+        "cues": cues.len(),
+    })))
+}
+
+/// Cue-file hygiene: `--sort` reorders by start, `--fix-overlaps` clamps
+/// each end to the next start, `--dedupe` drops exact repeats. All read
+/// the input .srt and write a clean .srt — run --sort first when times
+/// are scrambled (the clamp only makes sense in start order).
+fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
+    if args
+        .input
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .as_deref()
+        != Some("srt")
+    {
+        return Err(Error::input(
+            "subs --sort/--fix-overlaps/--dedupe take an .srt input",
+        ));
+    }
+    let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
+    let mut cues = crate::srt::parse_srt(&raw)?;
+    let sorted = args.sort && {
+        let before: Vec<f64> = cues.iter().map(|c| c.start).collect();
+        cues.sort_by(|a, b| {
+            a.start
+                .partial_cmp(&b.start)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        before != cues.iter().map(|c| c.start).collect::<Vec<_>>()
+    };
+    let mut clamped = 0usize;
+    let mut dropped = 0usize;
+    if args.fix_overlaps {
+        for i in 0..cues.len() {
+            if i + 1 < cues.len() && cues[i].end > cues[i + 1].start {
+                cues[i].end = cues[i + 1].start;
+                clamped += 1;
+            }
+        }
+        let before = cues.len();
+        cues.retain(|c| c.end > c.start);
+        dropped += before - cues.len();
+    }
+    if args.dedupe {
+        let before = cues.len();
+        cues.dedup_by(|a, b| a.start == b.start && a.end == b.end && a.text == b.text);
+        dropped += before - cues.len();
+    }
+    if cues.is_empty() {
+        return Err(Error::input("tidying removed every cue"));
+    }
+    if g.dry_run {
+        return Ok(Contract::dry_run(
+            "subs",
+            Some(crate::paths::display(&args.output)),
+            None,
+        ));
+    }
+    std::fs::write(&args.output, crate::srt::to_srt(&cues))
+        .map_err(|e| Error::output(e.to_string()))?;
+    let mut c = Contract::ok("subs", Some(crate::paths::display(&args.output)), None);
+    c.verified = Some(args.output.is_file());
+    Ok(c.with_extra(json!({
+        "mode": "tidy",
+        "sorted": sorted,
+        "clamped": clamped,
+        "dropped": dropped,
         "cues": cues.len(),
     })))
 }

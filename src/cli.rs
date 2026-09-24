@@ -1364,6 +1364,11 @@ pub enum DeliverPlatform {
     Shopify,
     /// Amazon listing video 16:9 landscape (1920x1080, -14 LUFS)
     Amazon,
+    /// Etsy listing video 1:1 square (1080x1080, -14 LUFS — product
+    /// gallery thumbnails crop square)
+    Etsy,
+    /// Rumble/Odysee video 16:9 landscape (1920x1080, -14 LUFS)
+    Rumble,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2754,6 +2759,18 @@ pub struct SubsArgs {
     /// Convert between subtitle formats (.srt ↔ .vtt) — input is the cue file
     #[arg(long)]
     pub convert: bool,
+    /// Sort cues by start time and renumber (broken exports write cues
+    /// out of order — players then show them late or not at all)
+    #[arg(long)]
+    pub sort: bool,
+    /// Clamp each cue's end to the next cue's start (overlapping-cue
+    /// repair for bad subs; pairs with --sort when times are scrambled)
+    #[arg(long)]
+    pub fix_overlaps: bool,
+    /// Drop exact duplicate cues — same start/end/text (buggy exports
+    /// repeat every cue; players flash the line twice)
+    #[arg(long)]
+    pub dedupe: bool,
 }
 
 #[derive(clap::Args, Debug)]
