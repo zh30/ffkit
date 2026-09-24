@@ -32983,3 +32983,111 @@ fn r261_extract_chapter_remux_itsscale_frames_nth_deliver_vimeo() {
         assert_eq!(j["probe"]["height"], 1080);
     }
 }
+
+#[test]
+fn r262_insert_replace_remux_offset_probe_start_time_deliver_threads() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let d = dir.path();
+
+    // insert --replace overwrites the base span instead of shifting it
+    let clip = d.join("clip.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=d=1:s=320x240:r=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=800:d=1",
+            "-c:v",
+            "libx264",
+            "-g",
+            "30",
+            "-c:a",
+            "aac",
+            "-shortest",
+            clip.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let rep = d.join("rep.mp4");
+    let j = run_json(&[
+        "insert",
+        f.to_str().unwrap(),
+        "--clip",
+        clip.to_str().unwrap(),
+        "--at",
+        "0.5",
+        "-o",
+        rep.to_str().unwrap(),
+        "--replace",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["replace"], true);
+    let jp = run_json(&["probe", rep.to_str().unwrap()]);
+    let base = run_json(&["probe", f.to_str().unwrap()]);
+    let bd = base["probe"]["duration"].as_f64().unwrap();
+    let rd = jp["probe"]["duration"].as_f64().unwrap();
+    // overwrite ≠ shift: output stays shorter than base+clip
+    assert!(
+        rd < bd + 0.9,
+        "replace overwrote the span, got {rd} vs {bd}"
+    );
+    assert!(rd > 0.8, "replace kept real content, got {rd}");
+    let j = run_json(&[
+        "insert",
+        f.to_str().unwrap(),
+        "--clip",
+        clip.to_str().unwrap(),
+        "--at",
+        "0.5,1.5",
+        "-o",
+        d.join("x.mp4").to_str().unwrap(),
+        "--replace",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // remux --offset sets the container start; probe.start_time reports it
+    let off = d.join("off.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        off.to_str().unwrap(),
+        "--offset",
+        "1.5",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let jp = run_json(&["probe", off.to_str().unwrap()]);
+    let st = jp["probe"]["start_time"].as_f64().unwrap_or(-1.0);
+    assert!((st - 1.5).abs() < 0.1, "start_time {st}");
+
+    // deliver --platform threads/mastodon canvases
+    for (p, w, h) in [("threads", 1080, 1350), ("mastodon", 1280, 720)] {
+        let o = d.join(format!("{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+            "--preview",
+            "0.5",
+        ]);
+        assert_eq!(j["status"], "ok");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], w);
+        assert_eq!(j["probe"]["height"], h);
+    }
+}

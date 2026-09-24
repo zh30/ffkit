@@ -1313,6 +1313,10 @@ pub enum DeliverPlatform {
     Vimeo,
     /// Bluesky feed video 16:9 landscape (1920x1080, -14 LUFS)
     Bluesky,
+    /// Meta Threads feed video 4:5 portrait (1080x1350, -14 LUFS)
+    Threads,
+    /// Mastodon feed video 16:9 landscape (1280x720, -14 LUFS)
+    Mastodon,
     /// Telegram video-note circle (640x640 1:1, mono audio — кружок spec)
     Circle,
     /// Audio-only podcast pack (m4a, AAC 128k/48k, -16 LUFS — feed spec)
@@ -3941,6 +3945,10 @@ pub struct RemuxArgs {
     /// for broadcast; audio pulls with the picture)
     #[arg(long)]
     pub itsscale: Option<f64>,
+    /// Shift every output timestamp by SEC — repairs negative/odd start
+    /// times on capture files (players that can't seek negative ts)
+    #[arg(long)]
+    pub offset: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5052,6 +5060,10 @@ pub struct InsertArgs {
     /// Scale the insert clip's audio 0..=4 (default 1.0; 0 mutes it)
     #[arg(long)]
     pub volume: Option<f64>,
+    /// Overwrite the base span under the clip instead of shifting it later
+    /// (patch a flub mid-video — output keeps the base duration; single --at)
+    #[arg(long)]
+    pub replace: bool,
     #[arg(short, long)]
     pub output: PathBuf,
 }

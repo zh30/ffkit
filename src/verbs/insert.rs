@@ -66,6 +66,18 @@ pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
         }
         return run_xfade(&args, &base, &clip, at, clip_len, bw, bh, tr, &vol, g);
     }
+    if args.replace && ats.len() > 1 {
+        return Err(Error::input(
+            "insert --replace drops the span under the clip — single --at only",
+        ));
+    }
+    // --replace: the tail resumes at at+clip_len so the source span under
+    // the clip is overwritten (output keeps the base's duration)
+    let drop_len = if args.replace {
+        clip_len.min(base.duration - at).max(0.0)
+    } else {
+        0.0
+    };
 
     // Alternating segments: base head, clip, base slice, clip, ..., base tail.
     // The clip input repeats once per --at point (scaled to base size, --dur capped).
@@ -101,12 +113,20 @@ pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
         prev = a;
         let _ = i;
     }
-    seg.push(format!("[0:v]trim={prev:.3}:,setpts=PTS-STARTPTS[v{k}]"));
-    if base.has_audio {
-        seg.push(format!("[0:a]atrim={prev:.3}:,asetpts=PTS-STARTPTS[a{k}]"));
+    let tail = prev + drop_len;
+    // an empty tail segment (replace ran to EOF) hangs concat — skip it
+    let has_tail = tail < base.duration - 0.02;
+    if has_tail {
+        seg.push(format!("[0:v]trim={tail:.3}:,setpts=PTS-STARTPTS[v{k}]"));
+        if base.has_audio {
+            seg.push(format!("[0:a]atrim={tail:.3}:,asetpts=PTS-STARTPTS[a{k}]"));
+        }
     }
-    pins.push_str(&format!("[v{k}]"));
-    apins.push_str(&format!("[a{k}]"));
+    let nseg = if has_tail { nseg } else { nseg - 1 };
+    if has_tail {
+        pins.push_str(&format!("[v{k}]"));
+        apins.push_str(&format!("[a{k}]"));
+    }
     if base.has_audio {
         // concat pads interleave per segment: v,a,v,a,...
         let v: Vec<&str> = pins
@@ -154,7 +174,7 @@ pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
     let inputs: Vec<&Path> = vec![&args.input, &args.clip];
     let mut c = engine::write_job("insert", &inputs, &args.output, vec![argv], g)?;
     c = c.with_extra(if ats.len() == 1 {
-        json!({ "at": at })
+        json!({ "at": at, "replace": args.replace })
     } else {
         json!({ "at": ats })
     });

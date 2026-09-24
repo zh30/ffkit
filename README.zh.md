@@ -95,7 +95,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | 动词 | 做什么 |
 |------|--------|
 | `doctor` | 本机 ffmpeg 是否可用、有哪些 encoder/filter |
-| `probe` | 时长、分辨率、编码、声道、`av_desync_ms` 唇音同步偏移、`timecode` 容器时码、`has_alpha` α 通道、`tags` 元数据审计、`streams` 逐轨清单（index/kind/codec/语种/default 默认轨）、`rotation` 显示矩阵旋转质检 |
+| `probe` | 时长、分辨率、编码、声道、`av_desync_ms` 唇音同步偏移、`timecode` 容器时码、`has_alpha` α 通道、`tags` 元数据审计、`streams` 逐轨清单（index/kind/codec/语种/default 默认轨）、`rotation` 显示矩阵旋转质检、`start_time` 最早流起始时间（采集文件负值/异常起点——`remux --offset` 修） |
 | `look` | 联系表（`--tiles`）或指定时间点（`--at`，可重复） |
 | `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges`、`--drop` 才帧精确（边界支持 `end`：`T-end` 到结尾、`end-N` 最后 N 秒）；`--fade N` 切口淡入淡出；`--black` 自动切掉 blackdetect ≥0.3s 黑段（死画面剔除，画面版的 cutsil） |
 | `concat` | 拼接 N 段（任意 xfade `--transition`，逗号列表逐接缝选转场）；`--level -14` 先统一各段响度；`--gap N` 段间插入黑场+静音 ；`--audio-fade N` 接缝处音频淡化（边界淡化，时长/同步不变）；`--list manifest.txt` 从清单文件读取片段路径（相对路径按清单所在目录解析） |
@@ -237,7 +237,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `gate` | 噪声门——低于 `--threshold` dB 的部分静音（`agate`）（`--preset voice|podcast|studio`，`--at/--dur` 局部生效），支持 `end`，逗号列表可多段 |
 | `silence` | 在 `--at`（逗号列表多处）或 `--end` 插入 `--dur` 秒静音；`--detect` 以 JSON 报告静音区间 |
 | `vocal` | 消/留中置人声（`--mode`、`--amount` 强度、`--at/--dur` 窗口），支持 `end`，逗号列表可多段 |
-| `remux` | 换容器不重编码（`-c copy` + faststart）；`--audio` 只提音轨，`--video` 只留视频，`--aspect 16:9` 修显示宽高比，`--frag` 分片 MP4（moof/mfra——还在写入就能播，HLS/DASH 管线用），`--no-subs` 剥掉字幕/数据流（干净交付件），`--itsscale R` 不重编码整容器变速（时间戳 ×R——1.042 PAL 25→24 下拉、0.96 电影→PAL 加速，音频随画面变），`--from SEC`/`--to SEC` 无损裁剪（关键帧精度——不重编码只打包一段），`--lang jpn` 只保留标记该语言的音轨（多语言发行、配音提取；配 `--audio` 即只抽该语言轨），`--default-audio N` 把第 N 条音轨设为播放器默认轨，`--cover pic` 把图片作为 attached_pic 流挂进成片（纯音频得封面、视频得缩略海报），`--chapters marks.txt` 把 YouTube 格式章节列表嵌成容器章节（就是 `chapter --yt` 导出的那个文件——Apple Podcasts/Books 直接变跳转点），`--title`/`--artist`/`--album`/`--genre`/`--comment`/`--date` 重打包时顺手写音乐库标签，`--lang eng,jpn` 逗号列表保留多条配音轨，`--strip-meta` 抹掉继承来的全部容器标签（隐私清理——配合标签参数可擦完顺手重写）、`--no-cover` 剥掉 attached_pic 封面流（精简有声书/m4a）、`--encrypt` 重打包时 CENC AES-CTR 加密（仅 mp4/mov——ClearKey/Widevine DRM 预处理，`--key`/`--kid` 32 位十六进制可填、不传则随机，JSON 会回显）、`--audio-delay SEC` 音轨整体平移对视频——不重编码修唇音同步（负值为音频提前），`--video-delay SEC` 另一半修法：采集卡画面滞后的救星（正值延后画面、负值提前；与 --audio-delay 互斥），`--tag hvc1` 重写 codec tag 让 HEVC mp4 能在 QuickTime/Safari 播放（仅 mp4/mov），`--attach f` 把二进制附件流嵌进 mkv/webm（字幕字体随文件走；可重复）） |
+| `remux` | 换容器不重编码（`-c copy` + faststart）；`--audio` 只提音轨，`--video` 只留视频，`--aspect 16:9` 修显示宽高比，`--frag` 分片 MP4（moof/mfra——还在写入就能播，HLS/DASH 管线用），`--no-subs` 剥掉字幕/数据流（干净交付件），`--itsscale R` 不重编码整容器变速（时间戳 ×R——1.042 PAL 25→24 下拉、0.96 电影→PAL 加速，音频随画面变），`--offset SEC` 设定容器 start_time（修采集文件负值/异常起点），`--from SEC`/`--to SEC` 无损裁剪（关键帧精度——不重编码只打包一段），`--lang jpn` 只保留标记该语言的音轨（多语言发行、配音提取；配 `--audio` 即只抽该语言轨），`--default-audio N` 把第 N 条音轨设为播放器默认轨，`--cover pic` 把图片作为 attached_pic 流挂进成片（纯音频得封面、视频得缩略海报），`--chapters marks.txt` 把 YouTube 格式章节列表嵌成容器章节（就是 `chapter --yt` 导出的那个文件——Apple Podcasts/Books 直接变跳转点），`--title`/`--artist`/`--album`/`--genre`/`--comment`/`--date` 重打包时顺手写音乐库标签，`--lang eng,jpn` 逗号列表保留多条配音轨，`--strip-meta` 抹掉继承来的全部容器标签（隐私清理——配合标签参数可擦完顺手重写）、`--no-cover` 剥掉 attached_pic 封面流（精简有声书/m4a）、`--encrypt` 重打包时 CENC AES-CTR 加密（仅 mp4/mov——ClearKey/Widevine DRM 预处理，`--key`/`--kid` 32 位十六进制可填、不传则随机，JSON 会回显）、`--audio-delay SEC` 音轨整体平移对视频——不重编码修唇音同步（负值为音频提前），`--video-delay SEC` 另一半修法：采集卡画面滞后的救星（正值延后画面、负值提前；与 --audio-delay 互斥），`--tag hvc1` 重写 codec tag 让 HEVC mp4 能在 QuickTime/Safari 播放（仅 mp4/mov），`--attach f` 把二进制附件流嵌进 mkv/webm（字幕字体随文件走；可重复）） |
 | `meme` | 上下说明文字梗图（`--outline`、`--at/--dur` 时间窗，逗号列表可打多处；`--at end` 片尾） ，`--position` 文字块上/中/下；`--wrap` 折行、`--align` 行对齐、`--fade` 窗口边缘淡入淡出（配 --at/--dur）、`--opacity` 半透明文字 |
 | `voice` | 播客人声一条龙：`agate` 去嘶声 → `acompressor` 压平 → `loudnorm` 响度（`--threshold`、`--lufs`、`--at`/`--dur` 只处理一段，支持 `end`，逗号列表可多段） |
 | `deinterlace` | 修复隔行素材（`--mode`、`--parity` 场序、`--engine` yadif/bwdif/estdif/kerndeint） ，`--engine` 含 `detelecine`（确定节奏反电视电影）、`mcdeint`（运动补偿）| `--engine w3fdif` 三场去隔行 | `--engine separate` 场拆帧 50i→50p（顺滑慢动作源） | `--engine pullup` 反电视电影 IVTC | `--engine phase` 场序调换（场序标错的采集） | `--engine field` 单场提取（半高，最快预览） |
@@ -272,7 +272,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `sync` | 修复音画同步（`--ms ±N` 垫音/裁音头） |
 | `align` | 音频互相关自动对齐第二路录音（多机位/外接录音笔，`--max-lag`） | `--check` 只报偏移不渲染：`offset_ms`/`direction`（对轨质检） |
 | `scroll` | 片尾滚动字幕（`--text`/`--file`、`--at`、`--dur` 或 `--speed` px/s、`--size`、`--color`、`--font`、`--align` 对齐、`--wrap` 折行）；`--mode ticker` 底部新闻条可加 `--bg` 不透明底条；`--at` 逗号列表可多次复播，`end` 亦可；`--opacity` 半透明字幕 |
-| `insert` | 在视频中段插入整段素材（`--at`，逗号列表多点插入，`end` 追加到片尾；`--dur` 只取前 N 秒；`--transition` 转场 + `--duration` 两端淡入淡出） |
+| `insert` | 在视频中段插入整段素材（`--at`，逗号列表多点插入，`end` 追加到片尾；`--dur` 只取前 N 秒；`--transition` 转场 + `--duration` 两端淡入淡出；`--replace` 覆盖插入点下方原素材——补录口误，成片保持原时长） |
 | `multicam` | 双机位对齐后角度切换：`--at t1,t2,...` 逐点换机位（`end` = 片尾切回）；`--align` 先用音频互相关自动把 B 机位对齐到 A（省掉单独跑 align——需要宽带同步音频如人声/环境声，纯正弦不相关）；`--keep-audio` 全程用 A 机位音轨、`--transition` 软切换 |
 | `art` | 给音频嵌入封面图；`--extract` 反向导出封面 |
 | `batch` | 对目录里每个媒体文件跑同一个动词 |

@@ -52,6 +52,11 @@ pub struct Probe {
     /// streams don't carry start_time.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub av_desync_ms: Option<f64>,
+    /// Earliest stream start_time — some captures start negative or at a
+    /// nonzero offset (players that can't seek those misbehave;
+    /// `remux --offset` shifts it).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_time: Option<f64>,
     /// Container timecode (mov tmcd → video-stream `timecode` tag, mkv
     /// `TIMECODE` format tag): QC for masters expected to carry a
     /// slate-matching TC; zero decode. None when absent.
@@ -377,6 +382,11 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
             (Some(v), Some(a)) => Some(((v - a).abs() * 1000.0).round()),
             _ => None,
         },
+        start_time: parsed
+            .streams
+            .iter()
+            .filter_map(|s| s.start_time.as_deref().and_then(parse_f64))
+            .reduce(f64::min),
         timecode,
         tags,
         streams: parsed

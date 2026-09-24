@@ -91,7 +91,8 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Linkedin
         | DeliverPlatform::Vimeo
         | DeliverPlatform::Bluesky => (1920, 1080),
-        DeliverPlatform::X => (1280, 720),
+        DeliverPlatform::X | DeliverPlatform::Mastodon => (1280, 720),
+        DeliverPlatform::Threads => (1080, 1350),
         DeliverPlatform::Square => (1080, 1080),
         DeliverPlatform::Xhs => (1080, 1440),
         DeliverPlatform::Wechat => (1080, 1260),
@@ -406,6 +407,8 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Linkedin => "linkedin",
         DeliverPlatform::Vimeo => "vimeo",
         DeliverPlatform::Bluesky => "bluesky",
+        DeliverPlatform::Threads => "threads",
+        DeliverPlatform::Mastodon => "mastodon",
         DeliverPlatform::Circle => "circle",
     }
 }

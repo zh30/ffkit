@@ -110,6 +110,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         }
         argv.extend(["-itsscale".into(), r.to_string()]);
     }
+    if let Some(o) = args.offset {
+        if !(o.is_finite() && o > 0.0) {
+            return Err(Error::input("remux --offset needs positive seconds"));
+        }
+    }
     if let Some(f) = args.from {
         argv.extend(["-ss".into(), f.to_string()]);
     }
@@ -463,6 +468,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         ]);
         enc_kv = Some((key, kid));
     }
+    if let Some(o) = args.offset {
+        argv.extend(["-output_ts_offset".into(), o.to_string()]);
+    }
     argv.push(&args.output);
 
     let run = engine::write_job("remux", &[&args.input], &args.output, vec![argv], g);
@@ -471,7 +479,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     let mut c = c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset }),
     );
     if let Some((key, kid)) = enc_kv {
         c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));

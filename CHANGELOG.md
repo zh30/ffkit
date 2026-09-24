@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.289.0] — 2026-09-24
+
+### Added
+
+- `insert --replace` — overwrite the base span under the clip instead of shifting it later (patch a flub mid-video; output keeps the base's duration; single --at)
+- `remux --offset SEC` — set the container start_time without re-encoding (repairs negative/odd starts on capture files that players can't seek)
+- `probe.start_time` — earliest stream start_time in the JSON contract (pairs with `remux --offset` as QC→fix)
+- `deliver --platform threads` (4:5 1080x1350) + `mastodon` (16:9 1280x720) — fediverse/Threads canvases on the −14 LUFS pipeline
+
 ## [0.288.0] — 2026-09-24
 
 ### Added
