@@ -126,7 +126,14 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
     let fmt = if scheme == "udp" { "mpegts" } else { "flv" };
 
     // canvas the stream renders at — slate card and content share it
-    let (cw, ch) = if let Some(sc) = &args.scale {
+    if args.vertical && args.scale.is_some() {
+        return Err(Error::input(
+            "--vertical already sets the canvas — drop --scale",
+        ));
+    }
+    let (cw, ch) = if args.vertical {
+        (1080, 1920)
+    } else if let Some(sc) = &args.scale {
         let mut p = sc.split('x');
         match (
             p.next().and_then(|v| v.parse::<u32>().ok()),
@@ -183,16 +190,32 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push(ov);
     }
     let use_fc = args.slate.is_some() || args.overlay.is_some();
+    let preset = match args.preset.unwrap_or_default() {
+        crate::cli::X264Preset::Ultrafast => "ultrafast",
+        crate::cli::X264Preset::Superfast => "superfast",
+        crate::cli::X264Preset::Veryfast => "veryfast",
+        crate::cli::X264Preset::Faster => "faster",
+        crate::cli::X264Preset::Fast => "fast",
+        crate::cli::X264Preset::Medium => "medium",
+        crate::cli::X264Preset::Slow => "slow",
+        crate::cli::X264Preset::Slower => "slower",
+        crate::cli::X264Preset::Veryslow => "veryslow",
+    };
     if has_video {
-        // scale rides inside filter_complex when a graph is already in play
-        if args.scale.is_some() && !use_fc {
-            argv.extend(["-vf".into(), format!("scale={cw}:{ch}")]);
+        // scale rides inside filter_complex when a graph is already in play;
+        // --vertical always letterboxes onto the 1080x1920 canvas
+        if !use_fc {
+            if args.vertical {
+                argv.extend(["-vf".into(), format!("scale={cw}:{ch}:force_original_aspect_ratio=decrease,pad={cw}:{ch}:(ow-iw)/2:(oh-ih)/2:black,setsar=1")]);
+            } else if args.scale.is_some() {
+                argv.extend(["-vf".into(), format!("scale={cw}:{ch}")]);
+            }
         }
         argv.extend([
             "-c:v".into(),
             "libx264".into(),
             "-preset".into(),
-            "veryfast".into(),
+            preset.into(),
             "-tune".into(),
             "zerolatency".into(),
             "-b:v".into(),
@@ -200,6 +223,12 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             "-pix_fmt".into(),
             "yuv420p".into(),
         ]);
+        if let Some(g) = args.gop {
+            if g == 0 {
+                return Err(Error::input("live --gop needs at least 1 frame"));
+            }
+            argv.extend(["-g".into(), g.to_string()]);
+        }
         if let Some(fps) = args.fps {
             argv.extend(["-r".into(), fps.to_string()]);
         }
@@ -264,7 +293,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         } else {
             ni
         };
-        if args.scale.is_some() {
+        if args.scale.is_some() || args.vertical {
             fc.push_str(&format!("[{src}:v]{vchain}[vc];"));
             vout = "[vc]".to_string();
         } else {
@@ -362,6 +391,9 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         "overlay": args.overlay.is_some(),
         "card": args.card.is_some(),
         "restream": args.restream,
+        "vertical": args.vertical,
+        "preset": preset,
+        "gop": args.gop,
         "vbitrate": vbitrate,
         "abitrate": abitrate,
         "format": fmt,

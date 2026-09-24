@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.271.0] — 2026-09-23
+
+- `live --gop N` — keyframe interval on the ingest encode (YouTube spec wants a keyframe every ≤2s ≈ 60f at 30fps; short GOPs also make live restarts reconnect faster)
+- `live --preset` — x264 speed/quality on the stream encode (default veryfast; drop to `fast`/`medium` for quality headroom, `ultrafast` for weak machines)
+- `live --vertical` — vertical-stream preset: the feed is letterboxed onto a 1080x1920 canvas (TikTok/Reels/抖音 live; conflicts with `--scale`, works with `--overlay`/`--slate`/`--record`/`--restream`)
+- `remux --lang eng,jpn` — `--lang` now takes a comma list: every listed audio track is kept (multi-dub releases in one repack)
+- `remux --strip-meta` — privacy wipe: `-map_metadata -1` drops every inherited container tag (camera/GPS/app metadata) on the repack; combines with `--title` etc to retag in one pass
+
 ## [0.270.0] — 2026-09-23
 
 - `live --restream url` — multistream in one encode: the tee muxer fans the same x264/aac encode out to a second ingest URL (`rtmp/rtmps/tcp/udp`, scheme-checked like `--to`; combines with `--record` for a 3-way push)

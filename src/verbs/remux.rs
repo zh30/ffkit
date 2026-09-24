@@ -35,12 +35,17 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
 
-    let lang = args
+    let langs: Vec<&str> = args
         .lang
         .as_deref()
-        .map(str::trim)
-        .filter(|l| !l.is_empty());
-    if args.cover.is_some() && lang.is_some() {
+        .map(|s| {
+            s.split(',')
+                .map(str::trim)
+                .filter(|l| !l.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+    if args.cover.is_some() && !langs.is_empty() {
         return Err(Error::input(
             "remux --cover and --lang pick different stream sets — use them separately",
         ));
@@ -90,12 +95,14 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --no-subs only applies to a full repack — drop --audio/--video",
         ));
     }
-    if let Some(l) = lang {
+    for l in &langs {
         if !l.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
             return Err(Error::input(
-                "remux --lang wants an ISO-639 code (eng, jpn, zh-hans…)",
+                "remux --lang wants ISO-639 codes (eng, jpn, zh-hans; comma list ok)",
             ));
         }
+    }
+    if !langs.is_empty() {
         if args.video {
             return Err(Error::input(
                 "remux --lang picks an audio track — --video drops all audio",
@@ -118,11 +125,13 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "wav" | "aif" | "aiff" | "caf" => src.starts_with("pcm"),
             _ => true,
         };
-        let audio_map = match lang {
-            Some(l) => format!("0:a:m:language:{l}"),
-            None => "0:a".to_string(),
-        };
-        argv.extend(["-map", audio_map.as_str()]);
+        if langs.is_empty() {
+            argv.extend(["-map", "0:a"]);
+        } else {
+            for l in &langs {
+                argv.extend(["-map", format!("0:a:m:language:{l}").as_str()]);
+            }
+        }
         if fits {
             argv.extend(["-c:a", "copy"]);
         } else {
@@ -143,10 +152,12 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if args.no_subs {
             // negative maps drop subtitle/data streams; attachments stay
             argv.extend(["-map", "0", "-map", "-0:s", "-map", "-0:d", "-c", "copy"]);
-        } else if let Some(l) = lang {
+        } else if !langs.is_empty() {
             // language-filtered repack: every video + only LANG-tagged audio
-            argv.extend(["-map", "0:v", "-map"]);
-            argv.push(format!("0:a:m:language:{l}"));
+            argv.extend(["-map", "0:v"]);
+            for l in &langs {
+                argv.extend(["-map", format!("0:a:m:language:{l}").as_str()]);
+            }
             argv.extend(["-map", "0:s?", "-map", "0:d?", "-c", "copy"]);
         } else {
             argv.extend(["-map", "0", "-c", "copy"]);
@@ -175,6 +186,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if matches!(ext.as_str(), "m4a" | "m4b" | "mp4" | "mov") {
             argv.extend(["-f", "mp4"]);
         }
+    }
+    // privacy wipe: every inherited container tag dropped — explicit
+    // --title/--artist/… pushes below still land (they come after -1)
+    if args.strip_meta {
+        argv.extend(["-map_metadata", "-1"]);
     }
     // container tags ride the repack — fix a library's metadata without
     // re-encoding
@@ -239,6 +255,6 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     Ok(c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "chapters": chap_n, "tags": tag_n }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "chapters": chap_n, "tags": tag_n }),
     ))
 }

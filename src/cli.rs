@@ -3746,6 +3746,10 @@ pub struct RemuxArgs {
     /// Container date tag on the repack
     #[arg(long)]
     pub date: Option<String>,
+    /// Strip ALL container metadata on the repack (privacy wipe before
+    /// upload — camera/GPS/app tags; combine with --title etc to retag)
+    #[arg(long)]
+    pub strip_meta: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4509,6 +4513,32 @@ pub struct LiveArgs {
     /// (24/7 lofi-radio style: static card + music stream)
     #[arg(long)]
     pub card: Option<PathBuf>,
+    /// GOP / keyframe interval in frames (platform ingest spec —
+    /// YouTube wants a keyframe every 2s ≈ 60 frames at 30fps)
+    #[arg(long)]
+    pub gop: Option<u32>,
+    /// x264 encode preset (default veryfast; go slower for quality,
+    /// faster for weak machines)
+    #[arg(long, value_enum)]
+    pub preset: Option<X264Preset>,
+    /// Vertical-stream preset: letterbox the feed onto a 1080x1920 canvas
+    /// (TikTok/Reels/抖音 live — combines with --to any ingest)
+    #[arg(long)]
+    pub vertical: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum X264Preset {
+    Ultrafast,
+    Superfast,
+    #[default]
+    Veryfast,
+    Faster,
+    Fast,
+    Medium,
+    Slow,
+    Slower,
+    Veryslow,
 }
 
 #[derive(clap::Args, Debug)]

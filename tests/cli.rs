@@ -29930,3 +29930,311 @@ fn r243_restream_platforms_remuxtags_clock_hlsstart_test() {
     ]);
     assert_eq!(j["status"], "failed", "epoch + start must reject");
 }
+
+#[test]
+fn r244_vertical_gop_preset_stripmeta_multilang_test() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn probe_csv(args: &[String]) -> String {
+        let o = Command::new("ffprobe")
+            .args(args)
+            .output()
+            .expect("ffprobe");
+        String::from_utf8_lossy(&o.stdout).into_owned()
+    }
+    fn ffmpeg(args: &[String]) {
+        let o = Command::new("ffmpeg").args(args).output().unwrap();
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    }
+    fn mk_listener() -> (
+        std::sync::mpsc::Receiver<u16>,
+        std::sync::mpsc::Receiver<Vec<u8>>,
+    ) {
+        let (tx_port, rx_port) = std::sync::mpsc::channel();
+        let (tx_head, rx_head) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            tx_port.send(listener.local_addr().unwrap().port()).unwrap();
+            if let Ok((mut sock, _)) = listener.accept() {
+                use std::io::Read;
+                let mut buf = [0u8; 9];
+                let _ = sock.read_exact(&mut buf);
+                let _ = tx_head.send(buf.to_vec());
+                let mut sink = [0u8; 8192];
+                while sock.read(&mut sink).map(|n| n > 0).unwrap_or(false) {}
+            }
+        });
+        (rx_port, rx_head)
+    }
+
+    // live --vertical: letterboxed 1080x1920 feed (TikTok/Reels live preset)
+    let (rx_p, rx_h) = mk_listener();
+    let p1 = rx_p.recv().unwrap();
+    let vr = d.join("vr.mp4");
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--to",
+        &format!("tcp://127.0.0.1:{p1}"),
+        "--vertical",
+        "--record",
+        &vr.to_string_lossy(),
+        "--until",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["vertical"], true);
+    let h = rx_h
+        .recv_timeout(std::time::Duration::from_secs(20))
+        .unwrap();
+    assert_eq!(&h[..3], b"FLV", "vertical ingest, got {h:?}");
+    let p = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-select_streams"),
+        s("v:0"),
+        s("-show_entries"),
+        s("stream=width,height"),
+        s("-of"),
+        s("csv=p=0"),
+        vr.to_string_lossy().into_owned(),
+    ]);
+    assert_eq!(p.trim(), "1080,1920", "vertical canvas, got {p}");
+
+    // --vertical + --scale conflict is a clean error
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--to",
+        "tcp://127.0.0.1:9",
+        "--vertical",
+        "--scale",
+        "640x360",
+    ]);
+    assert_eq!(j["status"], "failed", "vertical + scale must reject");
+
+    // live --gop 15: keyframe interval honours platform ingest spec
+    let (rx_p2, rx_h2) = mk_listener();
+    let p2 = rx_p2.recv().unwrap();
+    let gr = d.join("gr.mp4");
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--to",
+        &format!("tcp://127.0.0.1:{p2}"),
+        "--gop",
+        "15",
+        "--preset",
+        "fast",
+        "--record",
+        &gr.to_string_lossy(),
+        "--until",
+        "2",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["gop"], 15);
+    assert_eq!(j["extra"]["preset"], "fast");
+    let h2 = rx_h2
+        .recv_timeout(std::time::Duration::from_secs(20))
+        .unwrap();
+    assert_eq!(&h2[..3], b"FLV");
+    let keys = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-select_streams"),
+        s("v:0"),
+        s("-show_entries"),
+        s("frame=key_frame"),
+        s("-of"),
+        s("csv=p=0"),
+        gr.to_string_lossy().into_owned(),
+    ]);
+    let total = keys.lines().count();
+    let idx: Vec<usize> = keys
+        .lines()
+        .enumerate()
+        .filter(|(_, l)| l.trim() == "1")
+        .map(|(i, _)| i)
+        .collect();
+    // g=15 → frame 0 key, extra keys land inside the window (x264's
+    // default GOP ≈250 would produce exactly one over 31 frames)
+    assert_eq!(idx.first(), Some(&0), "first frame must key, {idx:?}");
+    assert!(idx.len() >= 2, "-g 15 should force extra keys, {idx:?}");
+    let max_gap = idx.windows(2).map(|w| w[1] - w[0]).max().unwrap_or(total);
+    assert!(max_gap <= 17, "gop 15 over {total} frames, keys {idx:?}");
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--to",
+        "tcp://127.0.0.1:9",
+        "--gop",
+        "0",
+    ]);
+    assert_eq!(j["status"], "failed", "gop 0 must reject");
+
+    // remux --strip-meta: privacy wipe drops inherited container tags
+    let tagged = d.join("tagged.mp4");
+    ffmpeg(&[
+        s("-hide_banner"),
+        s("-loglevel"),
+        s("error"),
+        s("-y"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("testsrc2=size=160x120:rate=30"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=440"),
+        s("-t"),
+        s("1"),
+        s("-metadata"),
+        s("title=Foo"),
+        s("-metadata"),
+        s("comment=bar"),
+        s("-c:v"),
+        s("libx264"),
+        s("-c:a"),
+        s("aac"),
+        tagged.to_string_lossy().into_owned(),
+    ]);
+    let st = d.join("st.mp4");
+    let j = run_json(&[
+        "remux",
+        &tagged.to_string_lossy(),
+        "-o",
+        &st.to_string_lossy(),
+        "--strip-meta",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let p = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_entries"),
+        s("format_tags"),
+        s("-of"),
+        s("csv=p=0"),
+        st.to_string_lossy().into_owned(),
+    ]);
+    assert!(!p.contains("Foo"), "title tag must be stripped, got {p}");
+    assert!(!p.contains("bar"), "comment tag must be stripped, got {p}");
+
+    // strip + retag in one pass: explicit tags still land after the wipe
+    let rt = d.join("rt.mp4");
+    let j = run_json(&[
+        "remux",
+        &tagged.to_string_lossy(),
+        "-o",
+        &rt.to_string_lossy(),
+        "--strip-meta",
+        "--title",
+        "NewTitle",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let p = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_entries"),
+        s("format_tags=title"),
+        s("-of"),
+        s("csv=p=0"),
+        rt.to_string_lossy().into_owned(),
+    ]);
+    assert_eq!(p.trim(), "NewTitle", "retag after strip, got {p}");
+
+    // remux --lang eng,jpn: comma list keeps every listed audio track
+    let multi = d.join("multi.mkv");
+    ffmpeg(&[
+        s("-hide_banner"),
+        s("-loglevel"),
+        s("error"),
+        s("-y"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("testsrc2=size=160x120:rate=30"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=440"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=550"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=660"),
+        s("-t"),
+        s("1"),
+        s("-map"),
+        s("0:v"),
+        s("-map"),
+        s("1:a"),
+        s("-map"),
+        s("2:a"),
+        s("-map"),
+        s("3:a"),
+        s("-metadata:s:a:0"),
+        s("language=eng"),
+        s("-metadata:s:a:1"),
+        s("language=jpn"),
+        s("-metadata:s:a:2"),
+        s("language=fra"),
+        s("-c:v"),
+        s("libx264"),
+        s("-c:a"),
+        s("aac"),
+        multi.to_string_lossy().into_owned(),
+    ]);
+    let ml = d.join("ml.mp4");
+    let j = run_json(&[
+        "remux",
+        &multi.to_string_lossy(),
+        "-o",
+        &ml.to_string_lossy(),
+        "--lang",
+        "eng,jpn",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let p = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_entries"),
+        s("stream=codec_type"),
+        s("-of"),
+        s("csv=p=0"),
+        ml.to_string_lossy().into_owned(),
+    ]);
+    let na = p.lines().filter(|l| l.trim() == "audio").count();
+    assert_eq!(na, 2, "eng+jpn kept, fra dropped, got {p}");
+    let p = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_entries"),
+        s("stream_tags=language"),
+        s("-of"),
+        s("csv=p=0"),
+        ml.to_string_lossy().into_owned(),
+    ]);
+    assert!(p.contains("eng") && p.contains("jpn"), "{p}");
+    assert!(!p.contains("fra"), "fra must be dropped, got {p}");
+    let j = run_json(&[
+        "remux",
+        &multi.to_string_lossy(),
+        "-o",
+        &d.join("bad.mp4").to_string_lossy(),
+        "--lang",
+        "eng,zz+",
+    ]);
+    assert_eq!(j["status"], "failed", "bad lang code must reject");
+}
