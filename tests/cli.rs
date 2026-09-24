@@ -27693,3 +27693,135 @@ fn r233_merge_scopegraph_multicamalign_titlefile() {
     ]);
     assert_eq!(j["status"], "ok", "{}", j["error"]);
 }
+
+#[test]
+fn r234_deliver_platforms_deadair_tone_cue() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+
+    fn sh(args: &[String]) {
+        let st = Command::new("ffmpeg").args(args).status().expect("ffmpeg");
+        assert!(st.success());
+    }
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn dim(p: &Path) -> (i64, i64) {
+        let o = Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=width,height",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(p)
+            .output()
+            .expect("ffprobe");
+        let t = String::from_utf8_lossy(&o.stdout);
+        let mut it = t.trim().split(',');
+        (
+            it.next().unwrap().parse().unwrap(),
+            it.next().unwrap().parse().unwrap(),
+        )
+    }
+
+    // deliver --platform xhs (3:4) + wechat (6:7)
+    let f = fixture(d);
+    let xhs = d.join("xhs.mp4");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &xhs.to_string_lossy(),
+        "--platform",
+        "xhs",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(dim(&xhs), (1080, 1440), "xhs frame");
+    let wc = d.join("wc.mp4");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &wc.to_string_lossy(),
+        "--platform",
+        "wechat",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(dim(&wc), (1080, 1260), "wechat frame");
+
+    // scan --deadair: 1s tone | 1.5s silence | 1s tone → ~1.5s dead air
+    let gap = d.join("gap.mp4");
+    sh(&[
+        s("-hide_banner"),
+        s("-loglevel"),
+        s("error"),
+        s("-y"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("testsrc2=size=160x120:rate=10:duration=3.5"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=440:duration=1"),
+        s("-f"),
+        s("lavfi"),
+        s("-t"),
+        s("1.5"),
+        s("-i"),
+        s("anullsrc=r=44100:cl=mono"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=880:duration=1"),
+        s("-filter_complex"),
+        s("[1:a][2:a][3:a]concat=n=3:v=0:a=1[a]"),
+        s("-map"),
+        s("0:v"),
+        s("-map"),
+        s("[a]"),
+        s("-c:v"),
+        s("libx264"),
+        s("-pix_fmt"),
+        s("yuv420p"),
+        s("-c:a"),
+        s("aac"),
+        s("-shortest"),
+        gap.to_string_lossy().into_owned(),
+    ]);
+    let j = run_json(&["scan", &gap.to_string_lossy(), "--deadair", "-35"]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let dead = j["extra"]["deadair_secs"].as_f64().unwrap_or(0.0);
+    assert!((1.0..=2.2).contains(&dead), "deadair ~1.5s, got {dead}");
+    // tone QC rides the same pass — testsrc2 is colorful so SATAVG > 0
+    assert!(j["extra"]["sat_mean"].as_f64().unwrap_or(0.0) > 0.0);
+    assert!(j["extra"]["y_mean"].as_f64().unwrap_or(0.0) > 0.0);
+    assert!(j["extra"]["hue_mean"].as_f64().is_some());
+
+    // chapter --cue: CUE sheet INDEX times at 75 fps (0.8s → 00:00:60)
+    let cue = d.join("marks.cue");
+    let j = run_json(&[
+        "chapter",
+        &f.to_string_lossy(),
+        "-o",
+        &cue.to_string_lossy(),
+        "--cue",
+        "--at",
+        "0|Intro",
+        "--at",
+        "0.8|Body",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["exported"], "cue");
+    let text = std::fs::read_to_string(&cue).unwrap();
+    assert!(text.contains("TRACK 02 AUDIO"), "{text}");
+    assert!(text.contains("INDEX 01 00:00:60"), "{text}");
+}

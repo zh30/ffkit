@@ -1160,6 +1160,10 @@ pub enum DeliverPlatform {
     Square,
     /// 16:9 landscape upload (1920x1080, -14 LUFS)
     Youtube,
+    /// 小红书 3:4 portrait feed (1080x1440, -14 LUFS)
+    Xhs,
+    /// 微信视频号 6:7 portrait feed (1080x1260, -14 LUFS)
+    Wechat,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4954,6 +4958,11 @@ pub struct ScanArgs {
     /// background, not just black
     #[arg(long)]
     pub bbox: bool,
+    /// Dead-air QC: silent stretches at/below this dB lasting ≥1s become
+    /// `deadair_secs`/`deadair_ranges` — podcast/talking-head pause map
+    /// before publish (e.g. --deadair -35)
+    #[arg(long, allow_negative_numbers = true)]
+    pub deadair: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5249,7 +5258,7 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "list", "remove"])]
+    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "list", "remove"])]
     pub at: Vec<String>,
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
@@ -5262,6 +5271,10 @@ pub struct ChapterArgs {
     /// paste under the video for platform seek chapters
     #[arg(long)]
     pub yt: bool,
+    /// Write marks as a .cue sheet at -o (audiobook/podcast players —
+    /// TRACK/INDEX entries at mm:ss:ff precision)
+    #[arg(long)]
+    pub cue: bool,
     /// Import marks from a text file: lines "TIME|TITLE" or "TIME,TITLE"
     /// ('#' comments and blank lines skipped)
     #[arg(long)]

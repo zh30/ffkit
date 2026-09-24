@@ -483,3 +483,6 @@ an atempo'd whole-file render would shift the window.
 - Pure tones (sine) defeat `detect_lag`/multicam `--align`: a 600Hz sine correlates at every 1.67ms period → 35ms false lag vs the true 400ms. Alignment needs broadband audio (speech, room tone, pink noise).
 - `channelsplit` errors on unmapped pads ("unconnected output"): extracting one side of stereo with `[L]` mapped and `[R]` dangling fails — use `pan=mono|c0=c0` / `c0=c1` to pick one channel instead.
 - `lut2` is a per-pixel two-input EXPRESSION filter (c0..c3 over x=input0 px, y=input1 px), not a LUT-map — gradient-map colorize via a ramp image does NOT work that way. Skipped.
+- clap `Option<f64>` rejects `-35`-style leading-dash values ("unexpected argument") unless the arg declares `allow_negative_numbers = true` — needed on every dB-threshold flag like `scan --deadair`.
+- `siti`, `outlier`, `aspectralstats`, `ydiff`, `adiff`, `asubtract`, `grayworld` are NOT in ffmpeg 4.4 (all added in 5.x) — skipped as scan/diff legs.
+- CUE `FILE` media types only cover WAVE/MP3/AIFF/BINARY/MOTOROLA — a video input still writes a playable sheet but the tag falls back to `BINARY`.

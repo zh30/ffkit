@@ -60,6 +60,9 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     let mut entropy_vals: Vec<f64> = Vec::new();
     let mut luma_min = f64::MAX;
     let mut luma_max = f64::MIN;
+    let mut sat_vals: Vec<f64> = Vec::new();
+    let mut hue_vals: Vec<f64> = Vec::new();
+    let mut y_vals: Vec<f64> = Vec::new();
     let mut scene_cuts: Vec<f64> = Vec::new();
     let mut noise_vals: Vec<f64> = Vec::new();
     let mut cc_lines = 0usize;
@@ -123,6 +126,21 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(rest) = line.split("lavfi.signalstats.YMAX=").nth(1) {
             if let Ok(v) = rest.trim().split(' ').next().unwrap_or("").parse::<f64>() {
                 luma_max = luma_max.max(v);
+            }
+        }
+        if let Some(rest) = line.split("lavfi.signalstats.SATAVG=").nth(1) {
+            if let Ok(v) = rest.trim().split(' ').next().unwrap_or("").parse::<f64>() {
+                sat_vals.push(v);
+            }
+        }
+        if let Some(rest) = line.split("lavfi.signalstats.HUEAVG=").nth(1) {
+            if let Ok(v) = rest.trim().split(' ').next().unwrap_or("").parse::<f64>() {
+                hue_vals.push(v);
+            }
+        }
+        if let Some(rest) = line.split("lavfi.signalstats.YAVG=").nth(1) {
+            if let Ok(v) = rest.trim().split(' ').next().unwrap_or("").parse::<f64>() {
+                y_vals.push(v);
             }
         }
         if let Some(rest) = line.split("normalized_entropy.diff.Y=").nth(1) {
@@ -338,6 +356,19 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
                     rg_peak = v.trim().parse().ok();
                 }
             }
+        }
+    }
+    // --deadair DB: dead-air map for podcast/talking-head QC — reuses the
+    // silence detector so one `scan` reports pauses alongside video faults
+    let mut deadair_ranges: Vec<serde_json::Value> = Vec::new();
+    let mut deadair_secs = 0.0f64;
+    if let Some(db) = args.deadair {
+        if !probe.has_audio {
+            return Err(Error::input("scan --deadair needs an audio stream"));
+        }
+        for (s, e) in crate::silence::detect(&args.input, db, 1.0, g.timeout, true)? {
+            deadair_secs += e - s;
+            deadair_ranges.push(json!({"start": s, "end": e, "duration": e - s}));
         }
     }
     // --dupe REF: MPEG-7 signature match — is this clip inside REF (or a
@@ -560,6 +591,36 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
             ((bb_x2 - bb_x1 + 1) as f64 * (bb_y2 - bb_y1 + 1) as f64 / (fw * fh) * 1000.0).round()
                 / 1000.0
         )
+    } else {
+        json!(null)
+    };
+    // signalstats tone QC (same pass, zero extra decodes): sat_mean reads
+    // washed-out/oversaturated footage, hue_mean (deg) flags a color cast,
+    // y_mean is programme brightness on the broadcast 16-235 scale
+    extra["sat_mean"] = if sat_vals.is_empty() {
+        json!(null)
+    } else {
+        json!((sat_vals.iter().sum::<f64>() / sat_vals.len() as f64 * 100.0).round() / 100.0)
+    };
+    extra["hue_mean"] = if hue_vals.is_empty() {
+        json!(null)
+    } else {
+        json!((hue_vals.iter().sum::<f64>() / hue_vals.len() as f64 * 100.0).round() / 100.0)
+    };
+    extra["y_mean"] = if y_vals.is_empty() {
+        json!(null)
+    } else {
+        json!((y_vals.iter().sum::<f64>() / y_vals.len() as f64 * 100.0).round() / 100.0)
+    };
+    // --deadair: silent stretches ≥1s at/below the threshold — publish-gate
+    // for podcasts and talking-head cuts (seconds + per-range map)
+    extra["deadair_secs"] = if args.deadair.is_some() {
+        json!((deadair_secs * 100.0).round() / 100.0)
+    } else {
+        json!(null)
+    };
+    extra["deadair_ranges"] = if args.deadair.is_some() {
+        json!(deadair_ranges)
     } else {
         json!(null)
     };

@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.261.0] — 2026-09-23
+
+- `deliver --platform xhs|wechat` — 小红书 3:4 (1080x1440) + 微信视频号 6:7 (1080x1260) one-shot packs, same −14 LUFS loudnorm pipeline as the other platforms
+- `scan --deadair DB` — dead-air QC leg: silent stretches ≥1s at/below the threshold land in `deadair_secs`/`deadair_ranges` (podcast/talking-head pause map before publish; errors on audio-less input)
+- `scan` tone QC — `sat_mean`/`hue_mean`/`y_mean` parsed from the same signalstats pass (washed-out / color-cast / programme-brightness numbers at zero extra decode cost)
+- `chapter --cue` — export marks as a .cue sheet (TRACK/INDEX mm:ss:ff at 75fps — audiobook/podcast player chapters; `FILE` media tag follows the input extension, mp3→MP3, wav→WAVE, else BINARY)
+
 ## [0.260.0] — 2026-09-23
 
 - `multicam --align` — auto-sync camera B to A by audio cross-correlation inside the switch (no separate `align` pass; two takes that started at different wall times line up in one step. Needs broadband in-sync audio — pure tones don't correlate)

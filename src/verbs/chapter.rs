@@ -143,7 +143,7 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             title.replace('=', ";").replace('\n', " "),
         ));
     }
-    if args.export || args.yt {
+    if args.export || args.yt || args.cue {
         let text = if args.yt {
             // YouTube description format — paste under the video and the
             // platform turns the marks into seek chapters.
@@ -153,6 +153,38 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
                 .collect::<Vec<_>>()
                 .join("\n")
                 + "\n"
+        } else if args.cue {
+            // CUE sheet: INDEX times are mm:ss:ff at 75 frames/sec
+            let media = match args
+                .input
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.to_ascii_lowercase())
+                .as_deref()
+            {
+                Some("mp3") => "MP3",
+                Some("wav") | Some("wave") => "WAVE",
+                Some("aif") | Some("aiff") => "AIFF",
+                _ => "BINARY",
+            };
+            let name = args
+                .input
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| args.input.display().to_string());
+            let mut s = format!("FILE \"{name}\" {media}\n");
+            for (i, (t, ti)) in marks.iter().enumerate() {
+                let total = (*t * 75.0).round() as u64;
+                s.push_str(&format!(
+                    "  TRACK {:02} AUDIO\n    TITLE \"{}\"\n    INDEX 01 {:02}:{:02}:{:02}\n",
+                    i + 1,
+                    ti.replace('"', "'"),
+                    total / 4500,
+                    (total / 75) % 60,
+                    total % 75,
+                ));
+            }
+            s
         } else {
             meta
         };
@@ -164,7 +196,7 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         })?;
         let mut c = Contract::ok("chapter", Some(args.output.display().to_string()), None);
         c = c.with_extra(json!({
-            "exported": if args.yt { "youtube" } else { "ffmetadata" },
+            "exported": if args.yt { "youtube" } else if args.cue { "cue" } else { "ffmetadata" },
             "chapters": marks
                 .iter()
                 .map(|(t, ti)| json!({"time": t, "title": ti}))
