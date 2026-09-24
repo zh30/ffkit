@@ -43,6 +43,33 @@ fn parse_tc(raw: &str, fps: f64) -> Result<f64, Error> {
     Ok(h * 3600.0 + m * 60.0 + s + f / fps)
 }
 
+// Seconds into the local day — reads the TZ offset out of `date +%z`
+// (UTC when date is unavailable).
+fn local_clock_secs() -> f64 {
+    let utc = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    let off = std::process::Command::new("date")
+        .arg("+%z")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|s| {
+            let s = s.trim();
+            let (sign, d) = s.split_at(1);
+            let h: i64 = d.get(..2)?.parse().ok()?;
+            let m: i64 = d.get(2..4)?.parse().ok()?;
+            Some(if sign == "-" {
+                -(h * 3600 + m * 60)
+            } else {
+                h * 3600 + m * 60
+            })
+        })
+        .unwrap_or(0);
+    ((utc + off).rem_euclid(86400)) as f64
+}
+
 pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "timer")?;
@@ -55,6 +82,11 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     if args.tc.is_some() && (args.down || args.start.is_some()) {
         return Err(Error::input("--tc can't combine with --down/--start"));
     }
+    if args.clock && (args.down || args.start.is_some() || args.tc.is_some()) {
+        return Err(Error::input(
+            "--clock seeds from the system clock — drop --down/--start/--tc",
+        ));
+    }
     if args.tc.is_some() && matches!(args.format, TimerFormat::Ms) {
         return Err(Error::input("--tc shows frames instead of centiseconds"));
     }
@@ -65,7 +97,9 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
         .transpose()?;
     // --down: display the remaining time to the window end
     // --start / --tc seed the readout: up counts N+t-at, down counts N-(t-at).
-    let tv = if args.down {
+    let tv = if args.clock {
+        format!("{:.3}+(t-{at:.3})", local_clock_secs())
+    } else if args.down {
         let start = args
             .start
             .unwrap_or_else(|| args.dur.unwrap_or(probe.duration - at));
@@ -144,7 +178,7 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     dot.save(&dot_path)
         .map_err(|e| Error::output(format!("write dot: {e}")))?;
 
-    let hours = probe.duration > 3600.0 || at > 3600.0 || tc_start.is_some();
+    let hours = probe.duration > 3600.0 || at > 3600.0 || tc_start.is_some() || args.clock;
     // Layout: [hh:]mm:ss[;ff] — each digit field is one sprite cell wide.
     let fields = if hours { 3 } else { 2 };
     let colons = fields - 1 + u32::from(tc_start.is_some());
@@ -325,6 +359,7 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
         "at": at,
         "until": if args.dur.is_some() { Some(until) } else { None },
         "hours": hours,
+        "clock": args.clock,
     }));
     Ok(c)
 }

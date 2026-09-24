@@ -176,6 +176,25 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-f", "mp4"]);
         }
     }
+    // container tags ride the repack — fix a library's metadata without
+    // re-encoding
+    let mut tag_n = 0u32;
+    for (k, v) in [
+        ("title", &args.title),
+        ("artist", &args.artist),
+        ("album", &args.album),
+        ("genre", &args.genre),
+        ("comment", &args.comment),
+        ("date", &args.date),
+    ] {
+        if let Some(v) = v {
+            if v.trim().is_empty() {
+                return Err(Error::input(format!("remux --{k}: empty value")));
+            }
+            argv.extend(["-metadata".to_string(), format!("{k}={v}")]);
+            tag_n += 1;
+        }
+    }
     if let Some(n) = args.default_audio {
         if args.audio || args.video || !probe.has_audio {
             return Err(Error::input(
@@ -220,6 +239,6 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     Ok(c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "chapters": chap_n }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "chapters": chap_n, "tags": tag_n }),
     ))
 }

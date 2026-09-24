@@ -1237,6 +1237,12 @@ pub enum DeliverPlatform {
     Xhs,
     /// 微信视频号 6:7 portrait feed (1080x1260, -14 LUFS)
     Wechat,
+    /// 抖音 9:16 vertical feed (1080x1920, -14 LUFS)
+    Douyin,
+    /// 快手 9:16 vertical feed (1080x1920, -14 LUFS)
+    Kuaishou,
+    /// B站 16:9 landscape upload (1920x1080, -14 LUFS)
+    Bilibili,
     /// Audio-only podcast pack (m4a, AAC 128k/48k, -16 LUFS — feed spec)
     Podcast,
     /// Audiobook pack (m4b, AAC 96k/48k, -16 LUFS — Apple Books/Audible;
@@ -3721,6 +3727,25 @@ pub struct RemuxArgs {
     /// per line — same file `chapter --yt` exports) on the repack
     #[arg(long)]
     pub chapters: Option<PathBuf>,
+    /// Container title tag on the repack (music-library metadata without
+    /// a re-encode)
+    #[arg(long)]
+    pub title: Option<String>,
+    /// Container artist tag on the repack
+    #[arg(long)]
+    pub artist: Option<String>,
+    /// Container album tag on the repack
+    #[arg(long)]
+    pub album: Option<String>,
+    /// Container genre tag on the repack
+    #[arg(long)]
+    pub genre: Option<String>,
+    /// Container comment tag on the repack
+    #[arg(long)]
+    pub comment: Option<String>,
+    /// Container date tag on the repack
+    #[arg(long)]
+    pub date: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4391,6 +4416,10 @@ pub struct TimerArgs {
     /// Draw at this % opacity (0-100 — ghost/watermark overlay)
     #[arg(long)]
     pub opacity: Option<f64>,
+    /// Wall-clock readout HH:MM:SS seeded from the system clock at encode
+    /// start (event/sports overlays — not for elapsed timing)
+    #[arg(long)]
+    pub clock: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -4442,6 +4471,10 @@ pub struct LiveArgs {
     /// once, mux twice; .mp4/.mov/.mkv/.ts extension picks the container)
     #[arg(long)]
     pub record: Option<PathBuf>,
+    /// Also push to this second ingest URL at the same time (multistream —
+    /// YouTube + Twitch in one encode; combines with --record)
+    #[arg(long)]
+    pub restream: Option<String>,
     /// Stop the stream automatically after SEC seconds (premiere windows)
     #[arg(long)]
     pub until: Option<f64>,
@@ -4526,6 +4559,14 @@ pub struct HlsArgs {
     /// Segments kept in a --live playlist (default 6)
     #[arg(long)]
     pub live_window: Option<u32>,
+    /// First segment index (seg_NNN + MEDIA-SEQUENCE) — resume a numbered
+    /// stream after a restart instead of starting over at 0
+    #[arg(long)]
+    pub start: Option<u32>,
+    /// Derive the first segment index from the epoch clock (24/7 channels
+    /// restarting mid-run stay continuous without tracking N)
+    #[arg(long)]
+    pub epoch: bool,
 }
 
 #[derive(clap::Args, Debug)]

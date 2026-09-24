@@ -29687,3 +29687,246 @@ fn r242_cover_chapters_card_overlay_hlslive_test() {
     ]);
     assert_eq!(j["status"], "failed");
 }
+
+#[test]
+fn r243_restream_platforms_remuxtags_clock_hlsstart_test() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn probe_csv(args: &[String]) -> String {
+        let o = Command::new("ffprobe")
+            .args(args)
+            .output()
+            .expect("ffprobe");
+        String::from_utf8_lossy(&o.stdout).into_owned()
+    }
+    fn ffmpeg(args: &[String]) {
+        let o = Command::new("ffmpeg").args(args).output().unwrap();
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    }
+
+    // deliver --platform douyin: Chinese vertical feed canvas
+    let dy = d.join("dy.mp4");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &dy.to_string_lossy(),
+        "--platform",
+        "douyin",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["platform"], "douyin");
+    let p = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-select_streams"),
+        s("v:0"),
+        s("-show_entries"),
+        s("stream=width,height"),
+        s("-of"),
+        s("csv=p=0"),
+        dy.to_string_lossy().into_owned(),
+    ]);
+    assert_eq!(p.trim(), "1080,1920", "douyin canvas, got {p}");
+
+    // deliver --platform bilibili: B站 landscape canvas
+    let bl = d.join("bl.mp4");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &bl.to_string_lossy(),
+        "--platform",
+        "bilibili",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let p = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-select_streams"),
+        s("v:0"),
+        s("-show_entries"),
+        s("stream=width,height"),
+        s("-of"),
+        s("csv=p=0"),
+        bl.to_string_lossy().into_owned(),
+    ]);
+    assert_eq!(p.trim(), "1920,1080", "bilibili canvas, got {p}");
+
+    // remux --title/--artist/--album/--date: container tags ride the repack
+    let m4a = d.join("song.m4a");
+    ffmpeg(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=440:duration=1"),
+        s("-c:a"),
+        s("aac"),
+        s("-f"),
+        s("mp4"),
+        m4a.to_string_lossy().into_owned(),
+    ]);
+    let tg = d.join("tagged.m4a");
+    let j = run_json(&[
+        "remux",
+        &m4a.to_string_lossy(),
+        "-o",
+        &tg.to_string_lossy(),
+        "--title",
+        "Track 01",
+        "--artist",
+        "Me",
+        "--album",
+        "EP",
+        "--date",
+        "2026",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["tags"], 4);
+    let tags = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_entries"),
+        s("format_tags"),
+        s("-of"),
+        s("csv=p=0"),
+        tg.to_string_lossy().into_owned(),
+    ]);
+    assert!(tags.contains("Track 01"), "title tag, got {tags}");
+    assert!(tags.contains(",Me,"), "artist tag, got {tags}");
+
+    // live --restream: one encode, two ingests — both get FLV
+    fn mk_listener() -> (
+        std::sync::mpsc::Receiver<u16>,
+        std::sync::mpsc::Receiver<Vec<u8>>,
+    ) {
+        let (tx_port, rx_port) = std::sync::mpsc::channel();
+        let (tx_head, rx_head) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            tx_port.send(listener.local_addr().unwrap().port()).unwrap();
+            if let Ok((mut sock, _)) = listener.accept() {
+                use std::io::Read;
+                let mut buf = [0u8; 9];
+                let _ = sock.read_exact(&mut buf);
+                let _ = tx_head.send(buf.to_vec());
+                let mut sink = [0u8; 8192];
+                while sock.read(&mut sink).map(|n| n > 0).unwrap_or(false) {}
+            }
+        });
+        (rx_port, rx_head)
+    }
+    let (rx_p1, rx_h1) = mk_listener();
+    let (rx_p2, rx_h2) = mk_listener();
+    let p1 = rx_p1.recv().unwrap();
+    let p2 = rx_p2.recv().unwrap();
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--to",
+        &format!("tcp://127.0.0.1:{p1}"),
+        "--restream",
+        &format!("tcp://127.0.0.1:{p2}"),
+        "--until",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(
+        j["extra"]["restream"].as_str().unwrap(),
+        format!("tcp://127.0.0.1:{p2}")
+    );
+    let h1 = rx_h1
+        .recv_timeout(std::time::Duration::from_secs(20))
+        .unwrap();
+    let h2 = rx_h2
+        .recv_timeout(std::time::Duration::from_secs(20))
+        .unwrap();
+    assert_eq!(&h1[..3], b"FLV", "primary ingest, got {h1:?}");
+    assert_eq!(&h2[..3], b"FLV", "restream ingest, got {h2:?}");
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--to",
+        &format!("tcp://127.0.0.1:{p1}"),
+        "--restream",
+        "https://nope",
+    ]);
+    assert_eq!(j["status"], "failed", "bad restream scheme must reject");
+
+    // timer --clock: wall-clock HH:MM:SS burn (hours field forced on)
+    let clk = d.join("clk.mp4");
+    let j = run_json(&[
+        "timer",
+        &f.to_string_lossy(),
+        "-o",
+        &clk.to_string_lossy(),
+        "--clock",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["clock"], true);
+    assert_eq!(j["extra"]["hours"], true);
+    let j = run_json(&[
+        "timer",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("cbad.mp4").to_string_lossy(),
+        "--clock",
+        "--start",
+        "10",
+    ]);
+    assert_eq!(j["status"], "failed", "clock + --start must reject");
+
+    // hls --start: segment numbering resumes at N
+    let hs = d.join("hs");
+    let j = run_json(&[
+        "hls",
+        &f.to_string_lossy(),
+        "-o",
+        &hs.to_string_lossy(),
+        "--start",
+        "7",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let pl = std::fs::read_to_string(hs.join("index.m3u8")).unwrap();
+    assert!(pl.contains("EXT-X-MEDIA-SEQUENCE:7"), "{pl}");
+    assert!(hs.join("seg_007.ts").exists(), "seg_007.ts missing");
+
+    // hls --epoch: media sequence seeded from the epoch clock
+    let he = d.join("he");
+    let j = run_json(&[
+        "hls",
+        &f.to_string_lossy(),
+        "-o",
+        &he.to_string_lossy(),
+        "--epoch",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let pl = std::fs::read_to_string(he.join("index.m3u8")).unwrap();
+    let seq: i64 = pl
+        .lines()
+        .find(|l| l.contains("MEDIA-SEQUENCE"))
+        .and_then(|l| l.rsplit(':').next()?.trim().parse().ok())
+        .unwrap_or(0);
+    assert!(seq > 1_000_000_000, "epoch seq should be unix-scale, {pl}");
+    let j = run_json(&[
+        "hls",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("hx").to_string_lossy(),
+        "--epoch",
+        "--start",
+        "3",
+    ]);
+    assert_eq!(j["status"], "failed", "epoch + start must reject");
+}

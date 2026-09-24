@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.270.0] — 2026-09-23
+
+- `live --restream url` — multistream in one encode: the tee muxer fans the same x264/aac encode out to a second ingest URL (`rtmp/rtmps/tcp/udp`, scheme-checked like `--to`; combines with `--record` for a 3-way push)
+- `deliver --platform douyin|kuaishou|bilibili` — Chinese feed presets: 抖音/快手 9:16 1080x1920 and B站 16:9 1920x1080 packs on the same −14 LUFS pipeline as every other platform
+- `remux --title/--artist/--album/--genre/--comment/--date` — container library tags written on the repack (music/audiobook metadata fix without a re-encode; `extra.tags` counts what landed)
+- `timer --clock` — wall-clock burn-in: readout seeded from the local system clock (TZ offset via `date +%z`, UTC fallback) so the overlay reads HH:MM:SS of day — event/sports overlays, premiere countdowns
+- `hls --start N` / `--epoch` — media-sequence continuity: `--start` resumes segment numbering at N after a stream restart (seg_NNN names + `EXT-X-MEDIA-SEQUENCE`), `--epoch` seeds it from the epoch clock so 24/7 channels stay continuous without tracking N
+
 ## [0.269.0] — 2026-09-23
 
 - `live --overlay bug.png` — channel bug burned onto the stream: logo auto-scaled to ~10% of the stream width and pinned to a corner (`--overlay-position tl|tr|bl|br` default br, `--overlay-opacity` 0..1 ghost) — broadcast corner branding without a pre-render

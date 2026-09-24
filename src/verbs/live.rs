@@ -297,27 +297,41 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-map", amap]);
         }
     }
-    if let Some(rec) = &args.record {
-        let input_refs: Vec<&Path> = args.input.iter().map(|p| p.as_path()).collect();
-        crate::paths::ensure_output_allowed(rec, &input_refs, g.overwrite)?;
-        let rec_ext = rec
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-        let rec_fmt = match rec_ext.as_str() {
-            "mp4" | "mov" | "m4v" => "mp4",
-            "mkv" => "matroska",
-            "ts" | "mts" | "m2ts" => "mpegts",
-            "flv" => "flv",
-            _ => {
+    if args.record.is_some() || args.restream.is_some() {
+        // tee muxer doesn't do default stream selection — map explicitly,
+        // then encode once and mux to every destination together
+        let mut dests = format!("[f={fmt}]{}", args.to);
+        if let Some(u2) = &args.restream {
+            let s2 = u2.split("://").next().unwrap_or("");
+            if !matches!(s2, "rtmp" | "rtmps" | "tcp" | "udp") {
                 return Err(Error::input(
-                    "live --record needs a media extension (mp4/mov/mkv/ts/flv)",
+                    "live --restream wants an rtmp/rtmps/tcp/udp URL",
                 ));
             }
-        };
-        // tee muxer doesn't do default stream selection — map explicitly,
-        // then encode once and mux to ingest + local archive together
+            let fmt2 = if s2 == "udp" { "mpegts" } else { "flv" };
+            dests.push_str(&format!("|[f={fmt2}]{u2}"));
+        }
+        if let Some(rec) = &args.record {
+            let input_refs: Vec<&Path> = args.input.iter().map(|p| p.as_path()).collect();
+            crate::paths::ensure_output_allowed(rec, &input_refs, g.overwrite)?;
+            let rec_ext = rec
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            let rec_fmt = match rec_ext.as_str() {
+                "mp4" | "mov" | "m4v" => "mp4",
+                "mkv" => "matroska",
+                "ts" | "mts" | "m2ts" => "mpegts",
+                "flv" => "flv",
+                _ => {
+                    return Err(Error::input(
+                        "live --record needs a media extension (mp4/mov/mkv/ts/flv)",
+                    ));
+                }
+            };
+            dests.push_str(&format!("|[f={rec_fmt}]{}", rec.display()));
+        }
         if fc.is_empty() {
             if has_video {
                 argv.extend(["-map", vmap]);
@@ -326,11 +340,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
                 argv.extend(["-map", amap]);
             }
         }
-        argv.extend([
-            "-f".to_string(),
-            "tee".to_string(),
-            format!("[f={fmt}]{}|[f={rec_fmt}]{}", args.to, rec.display()),
-        ]);
+        argv.extend(["-f".to_string(), "tee".to_string(), dests]);
     } else {
         if args.test && fc.is_empty() {
             if has_video {
@@ -351,6 +361,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         "slate_dur": if args.slate.is_some() { slate_dur } else { 0.0 },
         "overlay": args.overlay.is_some(),
         "card": args.card.is_some(),
+        "restream": args.restream,
         "vbitrate": vbitrate,
         "abitrate": abitrate,
         "format": fmt,

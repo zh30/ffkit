@@ -520,3 +520,7 @@ an atempo'd whole-file render would shift the window.
 - **any `-map` drops every unmapped stream** — once `-filter_complex` output is mapped, the audio side must be mapped too (`0:a`/`1:a`/a graph label); "video in the graph, audio by default" is not a thing.
 - **`-hls_flags` is single-valued** — combine flags with `+` (`delete_segments+omit_endlist`), never push a second `-hls_flags` (last one silently wins).
 - **sliding-window HLS ≠ VOD** — `--live` swaps `-hls_playlist_type vod` for `event` and adds `-hls_list_size N`; `single_file` + `delete_segments` are mutually exclusive (validated out).
+
+- **the tee muxer takes `+`-joined output specs, not extra `-f`** — multistream is ONE output: `-f tee '[f=flv]to|[f=flv]restream|[f=mp4]archive'`. Per-destination format goes inside the `[f=…]` bracket; `tee` needs explicit `-map` for every stream (no default selection).
+- **`timer --clock` reads local TZ via `date +%z`** — Rust std has no local-time API without a chrono dep; a `Command::new("date")` spawn gets the offset (UTC fallback). The sprite-cell readout then just seeds `tv` with seconds-of-day — no drawtext needed.
+- **`-start_number`/`hls_start_number_source` are independent of `-hls_flags`** — segment numbering options live next to the muxer, not in the flags string; epoch seeds `seg_<epoch>` names AND the media sequence.

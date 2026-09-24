@@ -76,6 +76,11 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.live_window.is_some() && !args.live {
         return Err(Error::input("--live-window needs --live"));
     }
+    if args.epoch && args.start.is_some() {
+        return Err(Error::input(
+            "--epoch derives the start index itself — drop --start",
+        ));
+    }
     if args.live {
         if args.single {
             return Err(Error::input(
@@ -308,6 +313,12 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         ]);
         argv.extend(["-hls_list_size".to_string(), win.to_string()]);
     }
+    if let Some(n) = args.start {
+        argv.extend(["-start_number".to_string(), n.to_string()]);
+    }
+    if args.epoch {
+        argv.extend(["-hls_start_number_source".to_string(), "epoch".to_string()]);
+    }
     if args.fmp4 {
         argv.extend(["-hls_segment_type".to_string(), "fmp4".to_string()]);
     }
@@ -382,6 +393,8 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "segments": nseg,
         "segment_seconds": args.seg,
         "live": args.live,
+        "start": args.start,
+        "epoch": args.epoch,
         "live_window": if args.live { args.live_window.unwrap_or(6) } else { 0 },
     }));
     if let Some((p, uri)) = &key_info {
