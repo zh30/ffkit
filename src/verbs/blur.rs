@@ -30,6 +30,12 @@ pub fn run(args: BlurArgs, g: &Globals) -> Result<Contract, Error> {
             let r = (args.sigma / 3.0).round().clamp(1.0, 23.0) as u32;
             format!("boxblur=luma_radius={r}:luma_power=2:chroma_radius={r}:chroma_power=1")
         }
+        // avgblur sizeX is the kernel half-width — sigma lands ~3x coarser
+        // than gblur's stddev, so halve it for comparable spread
+        crate::cli::BlurEngine::Avg => {
+            let s = (args.sigma / 2.0).round().clamp(1.0, 1024.0) as u32;
+            format!("avgblur=sizeX={s}:planes=15")
+        }
     };
     let vf = match &args.at {
         Some(s) => format!(
@@ -58,6 +64,7 @@ pub fn run(args: BlurArgs, g: &Globals) -> Result<Contract, Error> {
             crate::cli::BlurEngine::Gblur => "gblur",
             crate::cli::BlurEngine::Directional => "dblur",
             crate::cli::BlurEngine::Box => "boxblur",
+            crate::cli::BlurEngine::Avg => "avgblur",
         },
     })))
 }

@@ -209,6 +209,33 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
             "afftfilt=win_size={WS:.0}:real='re*(between(b,{lb},{hb})+between(b,nb-{hb},nb-{lb}))':imag='im*(between(b,{lb},{hb})+between(b,nb-{hb},nb-{lb}))'"
         ));
     }
+    // --lowpass/--highpass/--bandpass FREQ[:WIDTH] — resonant Butterworth
+    // pair: LP/HP take a Q width (default 0.707, no resonance peak),
+    // bandpass takes a half-band width in Hz (default FREQ/2)
+    for (spec, name) in [
+        (&args.lowpass, "lowpass"),
+        (&args.highpass, "highpass"),
+        (&args.bandpass, "bandpass"),
+    ] {
+        if let Some(s) = spec {
+            let mut it = s.split(':');
+            let f: f64 = it
+                .next()
+                .and_then(|v| v.parse().ok())
+                .ok_or_else(|| Error::input(format!("--{name} wants FREQ[:WIDTH]")))?;
+            let w: f64 = it
+                .next()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(if name == "bandpass" { f / 2.0 } else { 0.707 });
+            if !(20.0..=20000.0).contains(&f) {
+                return Err(Error::input(format!("--{name} FREQ must be 20..20000 Hz")));
+            }
+            if !(0.0..=99999.0).contains(&w) || w == 0.0 {
+                return Err(Error::input(format!("--{name} WIDTH must be > 0")));
+            }
+            chain.push(format!("{name}=f={f:.0}:w={w:.3}"));
+        }
+    }
     if bass != 0.0 {
         chain.push(format!("bass=g={}", bass));
     }

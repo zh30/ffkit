@@ -417,3 +417,18 @@ an atempo'd whole-file render would shift the window.
   (`malloc_consolidate(): invalid chunk size` — distro build bug).
   Homebrew ffmpeg 4.4.8 is fine; the cli test probes with a real render
   before asserting (`ahistogram_works`).
+
+- **ffmpeg's `weave` stacks full frames vertically** (320x240 → 320x480
+  output, fps halved): it expects FIELD input, not progressive frames.
+  Real temporal interlacing (60p→30i) is
+  `tinterlace=mode=interleave_top` + `setfield=tff` — used by
+  `transcode --interlaced --interlace-mode weave`.
+- **`hilbert` on ffmpeg 4.x only generates FIR coefficients** (source-
+  style |->A output), not a transform — SSB modulation can't be wired
+  from it. Dropped `fx --kind ssb`.
+- **`mptestsrc` takes `rate`/`duration`/`test`/`max_frames`, no `size=`**
+  — like allrgb/allyuv it needs a downstream `scale` (bars verb handles).
+- **`showpalette` requires `format=pal8` input** and emits a
+  `16s x 16s` swatch grid; its `s` option is swatch pixels, not WxH.
+- **`avgblur` `sizeX` is kernel half-width, planes=15 hits Y/U/V** —
+  sigma≈2·sizeX gives comparable spread to gblur.

@@ -81,11 +81,17 @@ fn range_tag(args: &TranscodeArgs) -> &'static str {
 fn interlace_tag(args: &TranscodeArgs) -> &'static str {
     // il interleaves fields (progressive → interlaced), setfield tags tff —
     // broadcast/air-master delivery specs want both the picture woven and
-    // the container flag set
-    if args.interlaced {
-        ",il=luma_mode=i:chroma_mode=i,setfield=tff"
-    } else {
-        ""
+    // the container flag set. weave pairs real consecutive frames into
+    // fields — true 2x-rate-to-interlace conversion (halves the fps)
+    if !args.interlaced {
+        return "";
+    }
+    match args.interlace_mode {
+        // tinterlace interleave_top: consecutive frames → alternating
+        // top/bottom fields — real temporal interlacing (60p→30i), NOT
+        // ffmpeg's weave filter (that one stacks full frames vertically)
+        Some(crate::cli::InterlaceKind::Weave) => ",tinterlace=mode=interleave_top,setfield=tff",
+        _ => ",il=luma_mode=i:chroma_mode=i,setfield=tff",
     }
 }
 

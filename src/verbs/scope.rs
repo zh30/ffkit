@@ -97,6 +97,7 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
         // when in-gamut; spills past it = wide-gamut content a 709 viewer
         // clips. Renders its own square, so scale AFTER it
         ScopeMode::Cie => "ciescope=system=hdtv:gamuts=rec709".to_string(),
+        ScopeMode::Palette => "showpalette".to_string(),
         ScopeMode::Mvs | ScopeMode::Data => unreachable!(),
     };
     let (x, y) = match args.position.as_str() {
@@ -132,6 +133,18 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
         format!(
             "[0:v]split[a][b];[b]scale='max(iw,640)':'max(ih,480)':flags=neighbor,format=rgb24,{filt},scale={sw}:{sh}[sc];[a][sc]overlay={x}:{y}{en}[v]",
             filt = filt, x = x, y = y, en = en
+        )
+    } else if matches!(args.mode, ScopeMode::Palette) {
+        // showpalette needs pal8 input and emits a 16s x 16s swatch grid;
+        // s scales each swatch so the grid fills the tile
+        format!(
+            "[0:v]split[a][b];[b]format=pal8,showpalette=s={n},scale={sw}:{sh}[sc];[a][sc]overlay={x}:{y}{en}[v]",
+            n = (sw / 16).clamp(1, 100),
+            sw = sw,
+            sh = sh,
+            x = x,
+            y = y,
+            en = en
         )
     } else if matches!(args.mode, ScopeMode::Cie) {
         // ciescope ignores input dims and renders s x s (256..8192) — run it

@@ -26477,3 +26477,258 @@ fn r228_chromakey_shelf_notch_brickwall_boxblur_ahist() {
         assert_eq!(j["status"], "ok", "{}", j["error"]);
     }
 }
+
+#[test]
+fn r229_eq_resonant_bbox_weave_mptest_palette_avgblur() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("tmpdir");
+    let f = fixture(dir.path());
+
+    // eq --lowpass/--highpass/--bandpass — Butterworth resonant filters:
+    // 5kHz sine crushed by lp 1k, 440Hz crushed by hp 2k, bp keeps its band
+    let s5 = dir.path().join("s5k.wav");
+    let mk = std::process::Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=5000:duration=0.5",
+        ])
+        .arg(&s5)
+        .status()
+        .expect("sine")
+        .success();
+    assert!(mk);
+    let s4 = dir.path().join("s4.wav");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.5",
+        ])
+        .arg(&s4)
+        .status()
+        .expect("sine");
+    let o = dir.path().join("lp.m4a");
+    let j = run_json(&[
+        "eq",
+        &s5.to_string_lossy(),
+        "--lowpass",
+        "1000",
+        "-o",
+        &o.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let mean = Command::new("ffmpeg")
+        .args(["-hide_banner", "-i"])
+        .arg(&o)
+        .args(["-af", "volumedetect", "-f", "null", "-"])
+        .output()
+        .expect("volumedetect");
+    let s = String::from_utf8_lossy(&mean.stderr);
+    let mv: f64 = s
+        .split("mean_volume:")
+        .nth(1)
+        .and_then(|r| r.trim_start().split(' ').next())
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0.0);
+    assert!(mv < -35.0, "lowpass 1k should crush a 5kHz tone, got {mv}");
+
+    let o = dir.path().join("hp.m4a");
+    let j = run_json(&[
+        "eq",
+        &s4.to_string_lossy(),
+        "--highpass",
+        "2000",
+        "-o",
+        &o.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let mean = Command::new("ffmpeg")
+        .args(["-hide_banner", "-i"])
+        .arg(&o)
+        .args(["-af", "volumedetect", "-f", "null", "-"])
+        .output()
+        .expect("volumedetect");
+    let s = String::from_utf8_lossy(&mean.stderr);
+    let mv: f64 = s
+        .split("mean_volume:")
+        .nth(1)
+        .and_then(|r| r.trim_start().split(' ').next())
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0.0);
+    assert!(
+        mv < -35.0,
+        "highpass 2k should crush a 440Hz tone, got {mv}"
+    );
+
+    let o = dir.path().join("bp.m4a");
+    let j = run_json(&[
+        "eq",
+        &s4.to_string_lossy(),
+        "--bandpass",
+        "440:200",
+        "-o",
+        &o.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let mean = Command::new("ffmpeg")
+        .args(["-hide_banner", "-i"])
+        .arg(&o)
+        .args(["-af", "volumedetect", "-f", "null", "-"])
+        .output()
+        .expect("volumedetect");
+    let s = String::from_utf8_lossy(&mean.stderr);
+    let mv: f64 = s
+        .split("mean_volume:")
+        .nth(1)
+        .and_then(|r| r.trim_start().split(' ').next())
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(-99.0);
+    assert!(
+        mv > -30.0,
+        "bandpass at its own FREQ should pass the tone, got {mv}"
+    );
+
+    // scan --bbox — content bounding box on a white square on black pad
+    if has_filter("bbox") {
+        let p = dir.path().join("padded.mp4");
+        std::process::Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=white:s=320x240:d=0.5:r=30",
+            ])
+            .args([
+                "-vf",
+                "crop=200:100:60:70,pad=320:240:0:0:black",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+            ])
+            .arg(&p)
+            .status()
+            .expect("padded");
+        let j = run_json(&["scan", &p.to_string_lossy(), "--bbox"]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["content_detected"], true);
+        assert_eq!(j["extra"]["content_box"], "0,0,200,100");
+        let fill = j["extra"]["content_fill"].as_f64().unwrap_or(9.0);
+        assert!(fill < 0.5, "200x100 in 320x240 is ~0.26 fill, got {fill}");
+    }
+
+    // transcode --interlaced --interlace-mode weave — real temporal
+    // interlacing: 60p source weaves frame pairs into fields (fps halves)
+    if has_filter("weave") {
+        let p = dir.path().join("p60.mp4");
+        std::process::Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=s=320x240:r=60:d=1",
+            ])
+            .args(["-c:v", "libx264", "-pix_fmt", "yuv420p"])
+            .arg(&p)
+            .status()
+            .expect("p60");
+        let o = dir.path().join("wv.mov");
+        let j = run_json(&[
+            "transcode",
+            &p.to_string_lossy(),
+            "--interlaced",
+            "--interlace-mode",
+            "weave",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+        // 60p → 30i: real temporal interlacing halves the frame rate
+        // while keeping the picture height (unlike ffmpeg's weave
+        // filter, which stacks full frames — ffkit routes through
+        // tinterlace=interleave_top)
+        assert_eq!(j["probe"]["fps"], 30.0);
+        assert_eq!(j["probe"]["height"], 240.0);
+    }
+
+    // bars --kind mptest — encoder-torture pattern card
+    if Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "mptestsrc=duration=0.2:rate=10",
+        ])
+        .args(["-frames:v", "2", "-f", "null", "-"])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+    {
+        let o = dir.path().join("mptest.mp4");
+        let j = run_json(&[
+            "bars",
+            "--kind",
+            "mptest",
+            "--dur",
+            "1",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+    }
+
+    // scope --mode palette — palette swatch grid overlay
+    if has_filter("showpalette") {
+        let o = dir.path().join("pal.mp4");
+        let j = run_json(&[
+            "scope",
+            &f.to_string_lossy(),
+            "--mode",
+            "palette",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+    }
+
+    // blur --engine avg — avgblur area average
+    if has_filter("avgblur") {
+        let o = dir.path().join("avg.mp4");
+        let j = run_json(&[
+            "blur",
+            &f.to_string_lossy(),
+            "--engine",
+            "avg",
+            "--sigma",
+            "6",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["extra"]["filter"], "avgblur");
+    }
+}

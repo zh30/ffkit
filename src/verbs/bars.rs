@@ -29,6 +29,8 @@ pub fn run(args: BarsArgs, g: &Globals) -> Result<Contract, Error> {
         // so scale down in the chain instead
         Some(BarKind::Allrgb) => "allrgb",
         Some(BarKind::Allyuv) => "allyuv",
+        // encoder torture zones take test=/rate=/max_frames=, no size=
+        Some(BarKind::Mptest) => "mptestsrc",
         None => {
             if args.hd {
                 "smptehdbars"
@@ -37,7 +39,10 @@ pub fn run(args: BarsArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     };
-    let needs_scale = matches!(args.kind, Some(BarKind::Allrgb | BarKind::Allyuv));
+    let needs_scale = matches!(
+        args.kind,
+        Some(BarKind::Allrgb | BarKind::Allyuv | BarKind::Mptest)
+    );
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-f", "lavfi", "-i"]);
     if needs_scale {

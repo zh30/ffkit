@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.255.0
+version: 0.256.0
 
 
 
@@ -128,7 +128,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | subtle watermark | `overlay` (`--opacity` on `--image`) |
 | split a podcast on pauses | `split` (`--silence=-35` — cuts at gap midpoints) |
 | music bed that eases in/out | `music` (`--fade` on the bed) |
-| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass/warm/air`), `--band` parametric, `--tilt`, `--deemph riaa/cd/fm50/fm75` undoes vinyl/FM/CD pre-emphasis, `--shelf low|high:FREQ:GAIN` shelves (rumble cut / air shelf), `--notch FREQ[:WIDTH]` kills a resonance, `--brickwall LO,HI` FFT bandpass (telephone / speech-band 300,3400) |
+| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass/warm/air`), `--band` parametric, `--tilt`, `--deemph riaa/cd/fm50/fm75` undoes vinyl/FM/CD pre-emphasis, `--shelf low|high:FREQ:GAIN` shelves (rumble cut / air shelf), `--notch FREQ[:WIDTH]` kills a resonance, `--brickwall LO,HI` FFT bandpass (telephone / speech-band 300,3400), `--lowpass`/`--highpass`/`--bandpass FREQ[:W]` resonant Butterworth filters |
 | soft b-roll cutaway edges | `broll` (`--fade`), `--position` pip (+`--border` ring), `--opacity` ghost insert |
 | stills at exact moments | `frames` (`--at 12,45,90`) |
 | audiogram on any canvas | `audiogram` (`--size` — 1080x1920, 1920x1080, 1080x1080) |
@@ -136,7 +136,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | audiogram with a title | `audiogram` (`--text "EP 12"` near the top) |
 | thumbnail at a given size | `thumb` (`--width`) |
 | inverted flash/accent | `invert` (`--at`/`--dur`) |
-| blur just a moment | `blur` (`--at`/`--dur`; `--engine gblur|directional|box` — box = fast blocky kernel) |
+| blur just a moment | `blur` (`--at`/`--dur`; `--engine gblur|directional|box|avg` — box = fast blocky kernel, avg = lightest area-average) |
 | motion trails / ghost smears | `trail` (`--mode echo` tmix smear, `--frames`, `--at`/`--dur`; `--mode light` bright-pixel persistence via lagfun, `--decay`) |
 | datamosh glitch | `glitch` (`--strength` channel-shift + noise; `--engine planes|swapuv|stutter|pixels|swaprect|random` variants) |
 | partial invert | `solarize` (`--threshold`, `--at` window) |
@@ -167,7 +167,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | drop duplicate frames | `dedup` (`--frac`, VFR out) |
 | audiogram CQT music spectrum | `audiogram --mode cqt` |
 | audiogram scrolling spectrogram | `audiogram --mode spectro` |
-| find black/frozen stretches (QC) | `scan` (JSON extras; no -o) — also `interlaced`/frames_* from idet, `has_cc`/`cc_lines` EIA-608 closed captions, `crop_hint`/`letterboxed` cropdetect letterbox QC, `vfr`/`vfr_ratio` variable-frame-rate QC, `--dupe REF` MPEG-7 duplicate/re-upload match, `--text` OCR burned text, `rg_gain_db`/`rg_peak` ReplayGain tags, `--motion` VMAF motion score (`motion_avg`/`motion_max` — bitrate-budget QC), `--timecode` VITC readout (`vitc`/`vitc_tc`/`vitc_frames` broadcast-master QC) |
+| find black/frozen stretches (QC) | `scan` (JSON extras; no -o) — also `interlaced`/frames_* from idet, `has_cc`/`cc_lines` EIA-608 closed captions, `crop_hint`/`letterboxed` cropdetect letterbox QC, `vfr`/`vfr_ratio` variable-frame-rate QC, `--dupe REF` MPEG-7 duplicate/re-upload match, `--text` OCR burned text, `rg_gain_db`/`rg_peak` ReplayGain tags, `--motion` VMAF motion score (`motion_avg`/`motion_max` — bitrate-budget QC), `--timecode` VITC readout (`vitc`/`vitc_tc`/`vitc_frames` broadcast-master QC), `--bbox` content bounds (`content_detected`/`content_box`/`content_fill` — works on any uniform background, not just black) |
 | dust specks / hot pixels | `dedust` (`--size` 1-4, `--dark` for dark specks; morphology, not blur) |
 | inverse telecine | `deinterlace --engine fieldmatch` (film 29.97i → 23.976p) |
 | denoise without melting detail | `vdenoise --engine edge` (nlmeans masked to flat areas) |
@@ -240,6 +240,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | old footage is too low-res | `upscale` (zscale spline36 + unsharp, `--factor` 2 doubles dims) |
 | filmed a screen/whiteboard at an angle | `perspective` `--points x0,y0,...,x3,y3` deskews the quad onto the frame (TL,TR,BL,BR) |
 | broadcast range tag | `transcode --range limited` |
+| real temporal interlace | `transcode --interlaced --interlace-mode weave` (60p→30i: consecutive frames woven into fields — feed double-rate progressive; default `il` = same-frame interleave) |
 | halo-free sharpening | `sharpen --engine cas` (`--amount`) |
 | auto-contrast flat footage | `equalize` (`--strength`/window) |
 | dominant colors | `pick` (mean + 6-zone swatch, `--at`) |
@@ -247,8 +248,8 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | glitched/dropped frames | `repair` (`--ref` another take, `--at`/`--dur` the bad stretch, `--ref-at` the clean frame to paste in — freezeframes) |
 | magnify subtle motion | `amplify` (`--amount` factor, `--radius` frames, `--threshold` diff cap, `--at` window) |
 | keep one color | `selective` (`--color C`/`--similarity`/`--blend` edge feather, `--at` window) |
-| test card | `bars` (`--size`/`--dur`/`--hd`/`--tone` 1kHz, `--kind sd|pal100|pal75|rgb|yuv|allrgb|allyuv` other patterns — allrgb/allyuv = full color-cube QC sweeps) |
-| QC scope overlay | `scope` (`--mode vector|wave|hist|mvs|data|qp|pix|osc|drift|loud|cie` — drift = luma-ramp curve, loud = loudness-over-time curve, cie = CIE-1931 gamut horseshoe, `--position` corner, `--at` window) |
+| test card | `bars` (`--size`/`--dur`/`--hd`/`--tone` 1kHz, `--kind sd|pal100|pal75|rgb|yuv|allrgb|allyuv|mptest` other patterns — allrgb/allyuv = full color-cube QC sweeps, mptest = encoder-torture cycle) |
+| QC scope overlay | `scope` (`--mode vector|wave|hist|mvs|data|qp|pix|osc|drift|loud|cie|palette` — drift = luma-ramp curve, loud = loudness-over-time curve, cie = CIE-1931 gamut horseshoe, palette = color-swatch grid (GIF/8-bit QC), `--position` corner, `--at` window) |
 | anamorphic restore | `desqueeze` (`--factor` lens ratio, `--axis`) |
 | comic look | `cartoon` (`--levels` posterize, `--at` window) |
 | thermal luma map | `heat` (`--preset` pseudocolor, `--at` window) |

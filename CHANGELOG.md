@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.256.0] — 2026-09-23
+
+- `eq --lowpass`/`--highpass`/`--bandpass FREQ[:W]` — resonant Butterworth filters (synth-style sweeps, rumble/hiss roll-off sharper than shelves; Q width for LP/HP, half-band Hz for bandpass)
+- `scan --bbox` — content bounding box QC: `content_detected`, `content_box` (x,y,w,h union over frames), `content_fill` — works on any uniform background, not just black borders
+- `transcode --interlaced --interlace-mode weave` — real temporal interlacing: consecutive frames woven into top/bottom fields via `tinterlace=interleave_top` (60p→30i broadcast conversion; default `il` mode unchanged)
+- `bars --kind mptest` — mptestsrc encoder-torture cycle (fine detail/ringing zones for codec-preset stress QC)
+- `scope --mode palette` — frame palette swatch grid overlay (GIF/8-bit palette QC, showpalette on pal8)
+- `blur --engine avg` — avgblur area-average kernel (lightest blur; huge-radius washes)
+
 ## [0.255.0] — 2026-09-23
 
 ### Added

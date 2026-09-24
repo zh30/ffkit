@@ -1065,6 +1065,21 @@ pub struct TranscodeArgs {
     /// broadcast/interlaced-masters delivery
     #[arg(long)]
     pub interlaced: bool,
+    /// Interlace engine with --interlaced: il = same-frame field
+    /// interleave (progressive picture, tagged for air); weave = real
+    /// temporal weave — pairs consecutive frames into fields, so feed
+    /// double-rate progressive (50p → 25i is the true broadcast cut)
+    #[arg(long, value_enum)]
+    pub interlace_mode: Option<InterlaceKind>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum InterlaceKind {
+    /// il field interleave — progressive picture tagged interlaced
+    Il,
+    /// weave — two consecutive progressive frames woven into one
+    /// interlaced frame (real field motion; halves output fps)
+    Weave,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -1234,6 +1249,9 @@ pub enum BarKind {
     Allrgb,
     /// Every YUV color sweep (allyuv) — chroma subsample QC card
     Allyuv,
+    /// mptestsrc encoder-torture pattern — cycling fine-detail/ringing
+    /// torture zones; stress-test your codec preset before a master run
+    Mptest,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -1267,6 +1285,9 @@ pub enum ScopeMode {
     /// cie — CIE 1931 chromaticity map (gamut QC: pixels plotted on the
     /// horseshoe diagram vs the Rec.709 triangle — out-of-gamut spills past)
     Cie,
+    /// palette — frame's color palette swatch grid (GIF/8-bit QC: see the
+    /// actual palette the encoder picked; palette-source review)
+    Palette,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3254,6 +3275,19 @@ pub struct EqArgs {
     /// speech-band isolation 300,3400); FFT-domain, zero phase smear
     #[arg(long)]
     pub brickwall: Option<String>,
+    /// Butterworth resonant lowpass FREQ[:Q] — 3dB point at FREQ, Q
+    /// resonance width (default 0.707); synth-style filter sweeps, HF
+    /// hiss roll-off sharper than a shelf
+    #[arg(long)]
+    pub lowpass: Option<String>,
+    /// Butterworth resonant highpass FREQ[:Q] — cuts everything under
+    /// FREQ (mic rumble/handling below ~80, plosive cleanup)
+    #[arg(long)]
+    pub highpass: Option<String>,
+    /// Butterworth bandpass FREQ[:WIDTH_HZ] — keeps FREQ±W (default
+    /// FREQ/2); isolates a band without the brickwall's FFT frame echo
+    #[arg(long)]
+    pub bandpass: Option<String>,
     /// Apply the EQ only from here (bass boost on the drop)
     #[arg(long)]
     pub at: Option<String>,
@@ -4793,6 +4827,12 @@ pub struct ScanArgs {
     /// `vitc`/`vitc_tc`/`vitc_frames` when a code is found
     #[arg(long)]
     pub timecode: bool,
+    /// Content bounding box (bbox filter, union over frames) — reports
+    /// `content_detected`, `content_box` "x,y,w,h" and `content_fill`
+    /// (0-1 of frame area). Unlike cropdetect it works on any uniform
+    /// background, not just black
+    #[arg(long)]
+    pub bbox: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5246,6 +5286,9 @@ pub enum BlurEngine {
     /// boxblur — classic box kernel: faster than gblur, blockier texture
     /// (draft blur, stylized defocus)
     Box,
+    /// avgblur — area-average box blur (lightest kernel; pixel-art-safe
+    /// when strength stays small, huge radii for washes)
+    Avg,
 }
 
 #[derive(clap::Args, Debug)]

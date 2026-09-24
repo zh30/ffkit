@@ -26,11 +26,16 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     // --timecode: readvitc reads embedded VITC lines — lavfi.readvitc.found
     // / .tc_str per frame (broadcast master QC)
     let vitc_leg = if args.timecode { ",readvitc" } else { "" };
+    // --bbox: bbox marks the non-background content box per frame —
+    // lavfi.bbox.* on the frame metadata; min_val=20 keeps noise floor
+    // pixels from counting as content (cropdetect only catches BLACK
+    // borders — bbox sees content on any uniform background)
+    let bbox_leg = if args.bbox { ",bbox=min_val=20" } else { "" };
     // vfrdet closes the chain: it consumes every frame's timestamps and
     // prints one `VFR:<ratio> (<n>/<N>)` line to stderr at EOF — screen
     // recordings / edit-joined captures come back nonzero
     let vf = format!(
-        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,idet,signalstats,entropy=mode=diff,bitplanenoise{scdet_leg},readeia608,cropdetect=limit=24:round=2{motion_leg}{vitc_leg},metadata=print:file=-,vfrdet"
+        "blackdetect=d={black_min}:pic_th=0.98,blackframe=thresh={thresh:.0}:amount=98,freezedetect=d={freeze_min},photosensitivity=bypass=1,idet,signalstats,entropy=mode=diff,bitplanenoise{scdet_leg},readeia608,cropdetect=limit=24:round=2{bbox_leg}{motion_leg}{vitc_leg},metadata=print:file=-,vfrdet"
     );
     let mut argv = Argv::ffmpeg();
     argv.push("-i");
@@ -64,6 +69,8 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     let mut vfr_ratio: Option<f64> = None;
     let mut vfr_frames = 0usize;
     let (mut cd_x1, mut cd_x2, mut cd_y1, mut cd_y2) = (-1i64, -1i64, -1i64, -1i64);
+    // bbox union bounds: x1/y1 start huge and shrink, x2/y2 start tiny and grow
+    let (mut bb_x1, mut bb_x2, mut bb_y1, mut bb_y2) = (i64::MAX, i64::MIN, i64::MAX, i64::MIN);
     for line in log.lines() {
         if let Some(rest) = line.split("VFR:").nth(1) {
             // `VFR:0.013514 (1/73)` — fraction of frames at non-CFR intervals
@@ -171,6 +178,23 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
                 .and_then(|s| s.parse::<i64>().ok())
             {
                 *slot = v;
+            }
+        }
+        // --bbox union: grow the content box across every frame's
+        // lavfi.bbox.x1/x2/y1/y2 so one number covers a moving object
+        for (k, hi, slot) in [
+            ("lavfi.bbox.x1=", false, &mut bb_x1),
+            ("lavfi.bbox.x2=", true, &mut bb_x2),
+            ("lavfi.bbox.y1=", false, &mut bb_y1),
+            ("lavfi.bbox.y2=", true, &mut bb_y2),
+        ] {
+            if let Some(v) = line
+                .split(k)
+                .nth(1)
+                .and_then(|s| s.trim().split(' ').next())
+                .and_then(|s| s.parse::<i64>().ok())
+            {
+                *slot = if hi { (*slot).max(v) } else { (*slot).min(v) };
             }
         }
         if line.contains("pblack:") {
@@ -510,6 +534,32 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     extra["vitc_tc"] = json!(vitc_tc);
     extra["vitc_frames"] = if args.timecode {
         json!(vitc_frames)
+    } else {
+        json!(null)
+    };
+    // --bbox: union of every frame's content box — where in the frame
+    // the actual subject lives (fill <1 means borders worth cropping;
+    // unlike cropdetect it is not limited to black backgrounds)
+    let detected = bb_x2 >= bb_x1 && bb_y2 >= bb_y1;
+    extra["content_detected"] = json!(detected);
+    extra["content_box"] = if detected {
+        json!(format!(
+            "{},{},{},{}",
+            bb_x1,
+            bb_y1,
+            bb_x2 - bb_x1 + 1,
+            bb_y2 - bb_y1 + 1
+        ))
+    } else {
+        json!(null)
+    };
+    extra["content_fill"] = if detected {
+        let fw = probe.width.unwrap_or(0).max(1) as f64;
+        let fh = probe.height.unwrap_or(0).max(1) as f64;
+        json!(
+            ((bb_x2 - bb_x1 + 1) as f64 * (bb_y2 - bb_y1 + 1) as f64 / (fw * fh) * 1000.0).round()
+                / 1000.0
+        )
     } else {
         json!(null)
     };
