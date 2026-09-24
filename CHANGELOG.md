@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.285.0] — 2026-09-24
+
+### Added
+- `extract --subs` — pull an embedded subtitle track out to a text file: `-o` .srt/.ass/.vtt picks the caption container, `--track N` picks the language in multi-sub files (captions out of a finished export for re-timing or re-burning)
+- `chapter --spread N` — generate N evenly-spaced marks on a `duration*i/N` grid (uniform TOC for long episodes/lectures); `--titles a,b,c` supplies the names (must match N), default `Chapter 1..N`; works with every export flag and the embed path
+- `probe`/`scan` report `tags` — every container + stream metadata tag grouped by source (`format`, `stream:0`, …); metadata audit: what did the last export actually stamp
+
 ## [0.284.0] — 2026-09-24
 
 ### Added

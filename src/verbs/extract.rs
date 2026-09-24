@@ -78,8 +78,42 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
             "track": track,
         })));
     }
+    // --subs: pull an embedded subtitle track into a text container —
+    // .srt/.ass/.vtt picked by -o; subtitle codecs differ so this is a
+    // re-mux through the text encoders, not a raw copy
+    if args.subs {
+        let probe = engine::probe_or_err(&args.input, g)?;
+        if probe.subtitle_streams == 0 {
+            return Err(Error::input(
+                "extract --subs: input has no subtitle streams",
+            ));
+        }
+        let track = args.track.unwrap_or(0);
+        if track >= probe.subtitle_streams {
+            return Err(Error::input(format!(
+                "extract --subs: input has {} subtitle stream(s)",
+                probe.subtitle_streams
+            )));
+        }
+        let codec = match ext.as_str() {
+            "srt" => "srt",
+            "ass" | "ssa" => "ass",
+            "vtt" => "webvtt",
+            _ => return Err(Error::input("extract --subs: -o must be .srt/.ass/.vtt")),
+        };
+        argv.push("-i");
+        argv.push(&args.input);
+        let sel = format!("0:s:{track}");
+        argv.extend(["-map", sel.as_str(), "-vn", "-an", "-c:s", codec]);
+        argv.push(&args.output);
+        let c = engine::write_job("extract", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(serde_json::json!({
+            "subs": true,
+            "track": track,
+        })));
+    }
     if args.track.is_some() {
-        return Err(Error::input("extract --track needs --audio"));
+        return Err(Error::input("extract --track needs --audio or --subs"));
     }
 
     // comma --at on a still output: one frame per timepoint → `<stem>_N.<ext>`

@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.284.0
+version: 0.285.0
 
 
 
@@ -281,7 +281,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | waveform band at the top | `audiogram` (`--position`) |
 | pull OUT of a shot (reveal) | `zoom` (`--out`, `--center X,Y` punch target) |
 | title with a soft shadow | `title` (`--shadow`) |
-| still at an exact width | `extract` (`--gif` clip, `--width`, `--at end` last frame), `--loop` gif repeats, `--alpha` pulls the alpha channel out as a grayscale PNG (matte QC/export — needs an alpha-capable input), `--gif --transparent` keeps alpha in the GIF (Discord/Telegram stickers — needs prores 4444/qtrle source), `--webp` animated WebP clip (smaller than GIF, alpha kept natively — `--lossless`, `--bounce` ok), `--audio` rips the audio track losslessly (stream copy — `-o` extension picks the container; `--track N` picks which track) |
+| still at an exact width | `extract` (`--gif` clip, `--width`, `--at end` last frame), `--loop` gif repeats, `--alpha` pulls the alpha channel out as a grayscale PNG (matte QC/export — needs an alpha-capable input), `--gif --transparent` keeps alpha in the GIF (Discord/Telegram stickers — needs prores 4444/qtrle source), `--webp` animated WebP clip (smaller than GIF, alpha kept natively — `--lossless`, `--bounce` ok), `--audio` rips the audio track losslessly (stream copy — `-o` extension picks the container; `--track N` picks which), `--subs` pulls an embedded subtitle track to .srt/.ass/.vtt (`--track N` picks the language — captions out of a finished export for re-timing or re-burning) |
 | countdown with tick beeps | `countdown` (`--beep`, `--text` label during the count) |
 | one-word compressor curve | `leveler` (`--preset`, `--engine compand` single-band transfer curve — quieter than acompressor's knee) |
 | spectrogram in brand colors | `spectrogram` (`--color`) |
@@ -320,7 +320,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | blur a face / logo | `censor` (`--region x:y:w:h` — comma list covers several spots, `--mode pixel|blur|solid` (solid = black-bar redact), `--strength`, `--shape circle` ellipse mask; `--at`/`--dur` limits the window) |
 | slow-mo punch-in | `speed` (`--factor`/`--ramp`, `--at`/`--dur` for just one window); `speed --fit SEC` retimes the whole clip to an exact length (auto factor — a 90s take --fit 15 becomes 6x) |
 | boomerang replay | `boomerang` (forward then reversed, one loop) |
-| YouTube/player chapters | `chapter` (`--at T|TITLE` repeatable, `--auto` silence gaps, `--remove` strips; lossless; `--yt` export/`--import` YouTube `H:MM:SS Title` lines, `--cue` CUE sheet, `--podcast` Podcasting 2.0 JSON chapters, `--lrc` synced-lyrics cues for music players; `--import` auto-detects .json/.cue/.lrc) |
+| YouTube/player chapters | `chapter` (`--at T|TITLE` repeatable, `--auto` silence gaps, `--remove` strips; lossless; `--yt` export/`--import` YouTube `H:MM:SS Title` lines, `--cue` CUE sheet, `--podcast` Podcasting 2.0 JSON chapters, `--lrc` synced-lyrics cues for music players, `--vtt` WebVTT chapter file for web `<track kind="chapters">` nav, `--spread N` even-grid marks (uniform TOC — `--titles a,b,c` names them); `--import` auto-detects .json/.cue/.lrc/.vtt) |
 | punch-zoom a moment | `zoom` (`--factor`, `--at`/`--dur`) |
 | strip letterbox/pillarbox | `autocrop` (cropdetect scan → crop, `--buffer N` keeps N px edge) |
 | contact sheet / preview grid | `sheet` (`--cols`/`--rows`/`--tile` → PNG, `--time` stamps, `--from`/`--to` window) |

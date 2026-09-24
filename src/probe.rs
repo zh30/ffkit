@@ -57,6 +57,11 @@ pub struct Probe {
     /// slate-matching TC; zero decode. None when absent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timecode: Option<String>,
+    /// Every metadata tag grouped by source ("format", "stream:0", …) —
+    /// a metadata audit: what did the last export actually stamp.
+    /// Skipped when the file carries none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 fn is_zero(v: &u32) -> bool {
@@ -246,6 +251,28 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
             })
         });
 
+    let tags = {
+        let mut m = serde_json::Map::new();
+        if let Some(t) = parsed.format.as_ref().and_then(|f| f.tags.as_ref()) {
+            if !t.is_empty() {
+                m.insert("format".to_string(), serde_json::json!(t));
+            }
+        }
+        for (i, s) in parsed.streams.iter().enumerate() {
+            if let Some(t) = s.tags.as_ref() {
+                if !t.is_empty() {
+                    let idx = s.index.unwrap_or(i as u32);
+                    m.insert(format!("stream:{idx}"), serde_json::json!(t));
+                }
+            }
+        }
+        if m.is_empty() {
+            None
+        } else {
+            Some(m)
+        }
+    };
+
     Ok(Probe {
         duration,
         width: video.and_then(|v| v.width),
@@ -304,6 +331,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
             _ => None,
         },
         timecode,
+        tags,
     })
 }
 

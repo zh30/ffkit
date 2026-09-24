@@ -582,3 +582,7 @@ an atempo'd whole-file render would shift the window.
 - **`split --copy` snaps boundaries to the next keyframe** — the segment muxer with `-c copy` can only cut where a keyframe exists, so parts are approximate; the re-encode path (`-force_key_frames`) is the frame-exact one. Short fixtures need `-g N` to have any interior keyframe at all.
 - **WebVTT import takes the cue's first text line only** — chapter titles are single-line by design; cue identifiers and `-->` timing settings are skipped.
 - **`has_alpha` is decided from `pix_fmt` naming** (yuva*, rgba/bgra/argb/abgr, ya*, gbrap*, ayuv…) — vp9 alpha needs a yuva input *and* the encoder to keep it; a `color=` lavfi source silently encodes plain yuv420p.
+
+- **`extract --subs` re-muxes through the text encoders** — `-c:s copy` would write the source codec's binary layout (mov_text isn't srt); the .srt/.ass/.vtt extension picks `srt`/`ass`/`webvtt` so the container and codec always agree.
+- **`chapter --spread` puts mark i at `duration*i/N`** — last chapter ends exactly at EOF; ask for `--spread 3` on a 3s file and titles land 0/1/2s, none past the end (the at-end guard still rejects).
+- **`probe.tags` groups by `format` and `stream:N` with the *absolute* stream index** — the same index `attached_pic_indices` uses, so tag lookups and stream selection stay consistent on multi-track files.

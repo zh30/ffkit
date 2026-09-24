@@ -32516,3 +32516,136 @@ fn r257_split_copy_chapter_vtt_has_alpha() {
     let j = run_json(&["probe", f.to_str().unwrap()]);
     assert_eq!(j["probe"]["has_alpha"], false);
 }
+
+#[test]
+fn r258_extract_subs_chapter_spread_probe_tags() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    // fixture with two embedded subtitle tracks
+    let srt = d.join("e.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:01,000\nHello world\n\n2\n00:00:01,000 --> 00:00:02,000\nSecond line\n",
+    )
+    .unwrap();
+    let multi = d.join("multi.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-i",
+            f.to_str().unwrap(),
+            "-i",
+            srt.to_str().unwrap(),
+            "-map",
+            "0",
+            "-map",
+            "1",
+            "-c",
+            "copy",
+            "-c:s",
+            "mov_text",
+            multi.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+
+    // extract --subs: pulls the cue text out; bad outputs/subless input fail cleanly
+    let out = d.join("pulled.srt");
+    let j = run_json(&[
+        "extract",
+        multi.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--subs",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["subs"], true);
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.contains("Hello world"), "{text}");
+    let j = run_json(&[
+        "extract",
+        multi.to_str().unwrap(),
+        "-o",
+        d.join("pulled.mp4").to_str().unwrap(),
+        "--subs",
+    ]);
+    assert_eq!(j["status"], "failed");
+    let j = run_json(&[
+        "extract",
+        f.to_str().unwrap(),
+        "-o",
+        d.join("none.srt").to_str().unwrap(),
+        "--subs",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // chapter --spread: even grid + custom titles; guards fire
+    let vtt = d.join("sp.vtt");
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "-o",
+        vtt.to_str().unwrap(),
+        "--spread",
+        "2",
+        "--titles",
+        "Head,Tail",
+        "--vtt",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let text = std::fs::read_to_string(&vtt).unwrap();
+    assert!(text.contains("Head") && text.contains("Tail"), "{text}");
+    assert!(text.contains("00:00:00.000 -->"), "{text}");
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "-o",
+        d.join("x.mp4").to_str().unwrap(),
+        "--spread",
+        "3",
+        "--titles",
+        "a,b",
+    ]);
+    assert_eq!(j["status"], "failed");
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "-o",
+        d.join("x.mp4").to_str().unwrap(),
+        "--at",
+        "0|A",
+        "--titles",
+        "x",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // probe tags: meta-stamped file reports format+stream tag groups
+    let tagged = d.join("tagged.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-i",
+            f.to_str().unwrap(),
+            "-metadata",
+            "title=My Show",
+            "-c",
+            "copy",
+            tagged.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&["probe", tagged.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["probe"]["tags"]["format"]["title"], "My Show");
+}

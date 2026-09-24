@@ -381,6 +381,34 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+    if let Some(n) = args.spread {
+        if n == 0 {
+            return Err(Error::input("--spread needs N >= 1"));
+        }
+        let titles: Vec<String> = match &args.titles {
+            Some(raw) => {
+                let t: Vec<String> = raw.split(',').map(|s| s.trim().to_string()).collect();
+                if t.len() != n as usize {
+                    return Err(Error::input(format!(
+                        "--titles gives {} name(s) but --spread wants {n}",
+                        t.len()
+                    )));
+                }
+                if t.iter().any(|s| s.is_empty()) {
+                    return Err(Error::input("--titles has an empty entry"));
+                }
+                t
+            }
+            None => (1..=n).map(|i| format!("Chapter {i}")).collect(),
+        };
+        // even grid: mark i lands at duration*i/N — first at 0, none past the end
+        for (i, ti) in titles.into_iter().enumerate() {
+            marks.push((probe.duration * i as f64 / n as f64, ti));
+        }
+    }
+    if args.titles.is_some() && args.spread.is_none() {
+        return Err(Error::input("chapter --titles needs --spread"));
+    }
     for raw in &args.at {
         let (t, title) = raw
             .split_once('|')

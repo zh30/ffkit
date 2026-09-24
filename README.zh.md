@@ -95,12 +95,12 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | 动词 | 做什么 |
 |------|--------|
 | `doctor` | 本机 ffmpeg 是否可用、有哪些 encoder/filter |
-| `probe` | 时长、分辨率、编码、声道、`av_desync_ms` 唇音同步偏移 |
+| `probe` | 时长、分辨率、编码、声道、`av_desync_ms` 唇音同步偏移、`timecode` 容器时码、`has_alpha` α 通道、`tags` 元数据审计 |
 | `look` | 联系表（`--tiles`）或指定时间点（`--at`，可重复） |
 | `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges`、`--drop` 才帧精确（边界支持 `end`：`T-end` 到结尾、`end-N` 最后 N 秒）；`--fade N` 切口淡入淡出；`--black` 自动切掉 blackdetect ≥0.3s 黑段（死画面剔除，画面版的 cutsil） |
 | `concat` | 拼接 N 段（任意 xfade `--transition`，逗号列表逐接缝选转场）；`--level -14` 先统一各段响度；`--gap N` 段间插入黑场+静音 ；`--audio-fade N` 接缝处音频淡化（边界淡化，时长/同步不变）；`--list manifest.txt` 从清单文件读取片段路径（相对路径按清单所在目录解析） |
 | `fit` | 画幅 / 旋转 / 翻转（9:16、1:1、16:9…）；`--fit blur` 用模糊背景填满 ，`--position` 画面对齐黑边位置 ，`--strength` 模糊力度 |
-| `extract` | 抓静帧或 `--gif` 动图（`--bounce` 往返循环） | `--at`（`end` = 最后一帧 / 最后 --dur 秒，逗号 = 每点一张静帧——`--gif` 时每点一条动图）、`--width`、`--fps` ，`--loop` GIF 循环次数、`--colors` 调色板大小、`--alpha` 提取 α 通道为灰度 PNG（仅限带透明通道输入）、`--audio` 无损抽音轨（流拷贝——`-o` 扩展名选容器，拉音乐/对白轨给剪辑用；`--track N` 选第 N 轨）、`--gif --transparent` GIF 保留透明通道（Discord/Telegram 贴纸——需 prores 4444/qtrle 等含 α 输入）、`--webp` 动画 WebP 片段（比 GIF 小且原生保 α；`--lossless`、`--bounce` 可用） |
+| `extract` | 抓静帧或 `--gif` 动图（`--bounce` 往返循环） | `--at`（`end` = 最后一帧 / 最后 --dur 秒，逗号 = 每点一张静帧——`--gif` 时每点一条动图）、`--width`、`--fps` ，`--loop` GIF 循环次数、`--colors` 调色板大小、`--alpha` 提取 α 通道为灰度 PNG（仅限带透明通道输入）、`--audio` 无损抽音轨（流拷贝——`-o` 扩展名选容器，拉音乐/对白轨给剪辑用；`--track N` 选第 N 轨）、`--subs` 抽内嵌字幕轨为文本文件（`-o` .srt/.ass/.vtt 选字幕容器；`--track N` 选语种——成片字幕抽出改时轴/重烧录）、`--gif --transparent` GIF 保留透明通道（Discord/Telegram 贴纸——需 prores 4444/qtrle 等含 α 输入）、`--webp` 动画 WebP 片段（比 GIF 小且原生保 α；`--lossless`、`--bounce` 可用） |
 | `overlay` | logo/画中画；`--tile N` 全屏草稿水印 | logo、水印、画中画 | `--angle`、`--loop` 短视频循环、`--border` 画中画描边、`--mode` 混合合成（screen/multiply/softlight/dodge/burn/exclusion/hardmix/negation… 19 种 Photoshop 式混合） |
 | `broll` | 切入镜头（`--insert` 视频、`--still` 图片、`--motion kenburns` 推镜） | 切走 B-roll（`--insert --at --duration`）；口播声音和时长不变 ，`--audio` 听插播原声（`--volume` 音量） ，`--position` 画中画角位 + `--scale`，`--border` 描边、`--opacity` 半透明插播；`--at end` 片尾切入，逗号 `--at` 多处重复切入 |
 | `caption` | 烧录字幕（`--srt`、`--chunk`、`--karaoke`、`--box-color` 底板、`--wrap` 折行、`--from/--to` 只烧窗口内字幕（支持 `end`/`end-N`）） ，`--fade` 淡入淡出、`--opacity` 半透明水印字幕 |
@@ -127,7 +127,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `censor` | 区域打码（`--region x:y:w:h`，逗号列表可多处同时打码；`--mode` pixel|blur|solid（solid = 黑条遮盖）、`--strength` 强度、`--at`/`--dur`（逗号列表，需 `--dur`；`end` 可用）、`--shape circle` 椭圆遮罩） |
 | `bleep` | 消音哔声：`--at`/`--dur` 选段（逗号列表可消多处；`end` 可用），`--freq`/`--level` 调音 |
 | `boomerang` | 正放+倒放回弹循环（一段，社交平台常见玩法）（`--times` 循环次数） ，`--at/--dur` 局部往返——逗号列表可多处回弹，支持 `end` |
-| `chapter` | 在 `TIME|TITLE` 写入章节或 `--import` 导入标记文件（支持 YouTube `H:MM:SS Title` 行）；`--auto` / `--export` ffmeta / `--yt` 导出 YouTube 描述格式 / `--cue` CUE 表 / `--podcast` Podcasting 2.0 JSON 章节（有声书/播客播放器）/ `--lrc` LRC 同步歌词标记文件 / `--vtt` WebVTT 章节文件（网页 `<track kind="chapters">` 点击跳段）；`--import` 自动识别 .json/.cue/.lrc/.vtt 文件；`--list`；`--remove`；`--shift` 平移标记 |
+| `chapter` | 在 `TIME|TITLE` 写入章节或 `--import` 导入标记文件（支持 YouTube `H:MM:SS Title` 行）；`--auto` / `--export` ffmeta / `--yt` 导出 YouTube 描述格式 / `--cue` CUE 表 / `--podcast` Podcasting 2.0 JSON 章节（有声书/播客播放器）/ `--lrc` LRC 同步歌词标记文件 / `--vtt` WebVTT 章节文件（网页 `<track kind="chapters">` 点击跳段）；`--spread N` 等距网格标记（`--titles a,b,c` 命名——长节目统一目录）；`--import` 自动识别 .json/.cue/.lrc/.vtt 文件；`--list`；`--remove`；`--shift` 平移标记 |
 | `autocrop` | 自动检测并裁掉黑边（`cropdetect` 扫描 → `crop`；`--buffer N` 向外扩 N 像素） |
 | `sheet` | 宫格预览图（`--cols`x`--rows`、`--time` 每格时间戳、`--title` 标题行、`--from`/`--to` 采样窗口） |
 | `sprite` | 播放条预览雪碧图 + WebVTT（`--every` 间隔秒、`--width` 缩略图宽、`--cols`x`--rows` 每张格数、`--vtt` 路径、`--from`/`--to` 限定范围，支持 `end`）——播放器悬停预览 |

@@ -636,8 +636,13 @@ pub struct ExtractArgs {
     /// dialog track without re-encoding; -o extension picks the container)
     #[arg(long)]
     pub audio: bool,
-    /// With --audio: which audio track to pull, 0-based (default first —
-    /// pick the commentary/stem out of a multi-track file)
+    /// Extract an embedded subtitle track to a text file (-o .srt/.ass/.vtt
+    /// picks the caption container; pull captions out of a finished export
+    /// for re-timing or re-burning)
+    #[arg(long)]
+    pub subs: bool,
+    /// With --audio or --subs: which track to pull, 0-based (default first —
+    /// pick the commentary/stem or a language out of a multi-track file)
     #[arg(long)]
     pub track: Option<u32>,
     /// Keep alpha in the GIF (needs --gif + an alpha-channel input like
@@ -5805,11 +5810,19 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "list", "remove"])]
+    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "list", "remove", "spread"])]
     pub at: Vec<String>,
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
     pub auto: Option<f64>,
+    /// Generate N evenly-spaced marks instead of --at (uniform TOC for a
+    /// long episode/lecture — pair with --titles or any export flag)
+    #[arg(long)]
+    pub spread: Option<u32>,
+    /// Comma-separated titles for --spread N (must give exactly N names;
+    /// default "Chapter 1..N")
+    #[arg(long)]
+    pub titles: Option<String>,
     /// Write the chapter marks as an ffmetadata text file at -o instead of
     /// embedding them (hand the marks to an editor/DAW)
     #[arg(long)]
