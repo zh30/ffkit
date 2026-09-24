@@ -17,9 +17,10 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         && args.hold_start.is_none()
         && !args.even
         && args.ar.is_none()
+        && args.channels.is_none()
     {
         return Err(Error::input(
-            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ",
+            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N",
         ));
     }
     if let Some(r) = args.ar {
@@ -151,7 +152,14 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
             }
             af.push_str(&format!("loudnorm=I={l:.1}:TP=-1.5:LRA=11,"));
         }
-        af.push_str(&format!("aresample={rate},aformat=channel_layouts=stereo"));
+        let layout = match args.channels.unwrap_or(2) {
+            1 => "mono",
+            2 => "stereo",
+            n => return Err(Error::input(format!("--channels is 1 or 2, got {n}"))),
+        };
+        af.push_str(&format!(
+            "aresample={rate},aformat=channel_layouts={layout}"
+        ));
         // silence-pad the tail so audio length matches a frame hold
         if held_secs > 0.0 {
             let whole = ((probe.duration + held_secs) * rate as f64).round() as u64;
@@ -178,6 +186,7 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         "hold": args.hold,
         "hold_start": args.hold_start,
         "ar": args.ar,
+        "channels": args.channels,
     }));
     Ok(c)
 }

@@ -72,6 +72,33 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "--vbitrate applies to video presets (h264/hevc/webm/av1)",
         ));
     }
+    if args.copy_video {
+        if matches!(preset, TranscodePreset::Gif)
+            || matches!(
+                preset,
+                TranscodePreset::Mp3
+                    | TranscodePreset::Aac
+                    | TranscodePreset::Wav
+                    | TranscodePreset::Flac
+                    | TranscodePreset::Opus
+            )
+        {
+            return Err(Error::input(
+                "--copy-video applies to video presets (h264/hevc/webm/av1/prores/dnxhd/proxy)",
+            ));
+        }
+        if args.fps.is_some()
+            || args.range.is_some()
+            || args.interlaced
+            || args.field_order.is_some()
+            || args.alpha
+            || args.vbitrate.is_some()
+        {
+            return Err(Error::input(
+                "--copy-video stream-copies the picture — drop --fps/--range/--interlaced/--field-order/--alpha/--vbitrate",
+            ));
+        }
+    }
 
     match preset {
         TranscodePreset::Mp3
@@ -101,26 +128,30 @@ fn proxy(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
-    argv.extend([
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-crf",
-        &crf.to_string(),
-        "-pix_fmt",
-        "yuv420p",
-        "-movflags",
-        "+faststart",
-    ]);
-    let mut vf = String::from("scale=w='min(960,iw)':h=-2");
-    if let Some(fps) = args.fps {
-        vf.push_str(&format!(",fps={fps}"));
+    if args.copy_video {
+        argv.extend(["-c:v", "copy", "-movflags", "+faststart"]);
+    } else {
+        argv.extend([
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            &crf.to_string(),
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+        ]);
+        let mut vf = String::from("scale=w='min(960,iw)':h=-2");
+        if let Some(fps) = args.fps {
+            vf.push_str(&format!(",fps={fps}"));
+        }
+        vf.push_str(range_tag(args));
+        vf.push_str(&interlace_tag(args));
+        vf.push_str(field_tag(args));
+        argv.extend(["-vf", &vf]);
     }
-    vf.push_str(range_tag(args));
-    vf.push_str(&interlace_tag(args));
-    vf.push_str(field_tag(args));
-    argv.extend(["-vf", &vf]);
     if probe.has_audio {
         if args.copy_audio {
             argv.extend(["-c:a", "copy"]);
@@ -132,7 +163,7 @@ fn proxy(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     ar_ac(&mut argv, args);
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({"proxy": true}));
+    c = c.with_extra(json!({"proxy": true, "copy_video": args.copy_video}));
     Ok(c)
 }
 
@@ -182,26 +213,30 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
     if probe.has_video {
-        argv.extend([
-            "-c:v",
-            "libx264",
-            "-preset",
-            "medium",
-            "-crf",
-            &crf.to_string(),
-            "-pix_fmt",
-            "yuv420p",
-            "-movflags",
-            "+faststart",
-        ]);
-        let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
-        if let Some(fps) = args.fps {
-            vf.push_str(&format!(",fps={fps}"));
+        if args.copy_video {
+            argv.extend(["-c:v", "copy"]);
+        } else {
+            argv.extend([
+                "-c:v",
+                "libx264",
+                "-preset",
+                "medium",
+                "-crf",
+                &crf.to_string(),
+                "-pix_fmt",
+                "yuv420p",
+                "-movflags",
+                "+faststart",
+            ]);
+            let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
+            if let Some(fps) = args.fps {
+                vf.push_str(&format!(",fps={fps}"));
+            }
+            vf.push_str(range_tag(args));
+            vf.push_str(&interlace_tag(args));
+            vf.push_str(field_tag(args));
+            argv.extend(["-vf", &vf]);
         }
-        vf.push_str(range_tag(args));
-        vf.push_str(&interlace_tag(args));
-        vf.push_str(field_tag(args));
-        argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
         if args.copy_audio {
@@ -223,26 +258,30 @@ fn hevc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
     if probe.has_video {
-        argv.extend([
-            "-c:v",
-            "libx265",
-            "-preset",
-            "medium",
-            "-crf",
-            &crf.to_string(),
-            "-pix_fmt",
-            "yuv420p",
-            "-tag:v",
-            "hvc1",
-        ]);
-        let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
-        if let Some(fps) = args.fps {
-            vf.push_str(&format!(",fps={fps}"));
+        if args.copy_video {
+            argv.extend(["-c:v", "copy"]);
+        } else {
+            argv.extend([
+                "-c:v",
+                "libx265",
+                "-preset",
+                "medium",
+                "-crf",
+                &crf.to_string(),
+                "-pix_fmt",
+                "yuv420p",
+                "-tag:v",
+                "hvc1",
+            ]);
+            let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
+            if let Some(fps) = args.fps {
+                vf.push_str(&format!(",fps={fps}"));
+            }
+            vf.push_str(range_tag(args));
+            vf.push_str(&interlace_tag(args));
+            vf.push_str(field_tag(args));
+            argv.extend(["-vf", &vf]);
         }
-        vf.push_str(range_tag(args));
-        vf.push_str(&interlace_tag(args));
-        vf.push_str(field_tag(args));
-        argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
         if args.copy_audio {
@@ -264,24 +303,28 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
     if probe.has_video {
-        argv.extend([
-            "-c:v",
-            "libvpx-vp9",
-            "-b:v",
-            "0",
-            "-crf",
-            &crf.to_string(),
-            "-pix_fmt",
-            if args.alpha { "yuva420p" } else { "yuv420p" },
-        ]);
-        let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
-        if let Some(fps) = args.fps {
-            vf.push_str(&format!(",fps={fps}"));
+        if args.copy_video {
+            argv.extend(["-c:v", "copy"]);
+        } else {
+            argv.extend([
+                "-c:v",
+                "libvpx-vp9",
+                "-b:v",
+                "0",
+                "-crf",
+                &crf.to_string(),
+                "-pix_fmt",
+                if args.alpha { "yuva420p" } else { "yuv420p" },
+            ]);
+            let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
+            if let Some(fps) = args.fps {
+                vf.push_str(&format!(",fps={fps}"));
+            }
+            vf.push_str(range_tag(args));
+            vf.push_str(&interlace_tag(args));
+            vf.push_str(field_tag(args));
+            argv.extend(["-vf", &vf]);
         }
-        vf.push_str(range_tag(args));
-        vf.push_str(&interlace_tag(args));
-        vf.push_str(field_tag(args));
-        argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
         if args.copy_audio {
@@ -305,20 +348,24 @@ fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
     if probe.has_video {
-        if crate::engine::ffmpeg_major().unwrap_or(7) >= 7 {
-            argv.extend(["-c:v", "libsvtav1", "-preset", "6"]);
+        if args.copy_video {
+            argv.extend(["-c:v", "copy"]);
         } else {
-            argv.extend(["-c:v", "libaom-av1", "-cpu-used", "4", "-row-mt", "1"]);
+            if crate::engine::ffmpeg_major().unwrap_or(7) >= 7 {
+                argv.extend(["-c:v", "libsvtav1", "-preset", "6"]);
+            } else {
+                argv.extend(["-c:v", "libaom-av1", "-cpu-used", "4", "-row-mt", "1"]);
+            }
+            argv.extend(["-crf", &crf, "-b:v", "0", "-pix_fmt", "yuv420p"]);
+            let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
+            if let Some(fps) = args.fps {
+                vf.push_str(&format!(",fps={fps}"));
+            }
+            vf.push_str(range_tag(args));
+            vf.push_str(&interlace_tag(args));
+            vf.push_str(field_tag(args));
+            argv.extend(["-vf", &vf]);
         }
-        argv.extend(["-crf", &crf, "-b:v", "0", "-pix_fmt", "yuv420p"]);
-        let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
-        if let Some(fps) = args.fps {
-            vf.push_str(&format!(",fps={fps}"));
-        }
-        vf.push_str(range_tag(args));
-        vf.push_str(&interlace_tag(args));
-        vf.push_str(field_tag(args));
-        argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
         if args.copy_audio {
@@ -433,36 +480,40 @@ fn prores(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
     if probe.has_video {
-        if args.alpha {
-            argv.extend([
-                "-c:v",
-                "prores_ks",
-                "-profile:v",
-                "4",
-                "-pix_fmt",
-                "yuva444p10le",
-                "-vendor",
-                "apl0",
-            ]);
+        if args.copy_video {
+            argv.extend(["-c:v", "copy"]);
         } else {
-            argv.extend([
-                "-c:v",
-                "prores_ks",
-                "-profile:v",
-                "3",
-                "-pix_fmt",
-                "yuv422p10le",
-            ]);
-        }
-        let fps_vf = args.fps.map(|fps| format!("fps={fps}")).unwrap_or_default();
-        let prores_vf = format!(
-            "{fps_vf}{}{}{}",
-            range_tag(args),
-            interlace_tag(args),
-            field_tag(args)
-        );
-        if !prores_vf.is_empty() {
-            argv.extend(["-vf", prores_vf.trim_start_matches(',')]);
+            if args.alpha {
+                argv.extend([
+                    "-c:v",
+                    "prores_ks",
+                    "-profile:v",
+                    "4",
+                    "-pix_fmt",
+                    "yuva444p10le",
+                    "-vendor",
+                    "apl0",
+                ]);
+            } else {
+                argv.extend([
+                    "-c:v",
+                    "prores_ks",
+                    "-profile:v",
+                    "3",
+                    "-pix_fmt",
+                    "yuv422p10le",
+                ]);
+            }
+            let fps_vf = args.fps.map(|fps| format!("fps={fps}")).unwrap_or_default();
+            let prores_vf = format!(
+                "{fps_vf}{}{}{}",
+                range_tag(args),
+                interlace_tag(args),
+                field_tag(args)
+            );
+            if !prores_vf.is_empty() {
+                argv.extend(["-vf", prores_vf.trim_start_matches(',')]);
+            }
         }
     }
     if probe.has_audio {
@@ -497,22 +548,26 @@ fn dnxhd(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
     if probe.has_video {
-        argv.extend([
-            "-c:v",
-            "dnxhd",
-            "-profile:v",
-            "dnxhr_hq",
-            "-pix_fmt",
-            "yuv422p",
-        ]);
-        let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
-        if let Some(fps) = args.fps {
-            vf.push_str(&format!(",fps={fps}"));
+        if args.copy_video {
+            argv.extend(["-c:v", "copy"]);
+        } else {
+            argv.extend([
+                "-c:v",
+                "dnxhd",
+                "-profile:v",
+                "dnxhr_hq",
+                "-pix_fmt",
+                "yuv422p",
+            ]);
+            let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
+            if let Some(fps) = args.fps {
+                vf.push_str(&format!(",fps={fps}"));
+            }
+            vf.push_str(range_tag(args));
+            vf.push_str(&interlace_tag(args));
+            vf.push_str(field_tag(args));
+            argv.extend(["-vf", &vf]);
         }
-        vf.push_str(range_tag(args));
-        vf.push_str(&interlace_tag(args));
-        vf.push_str(field_tag(args));
-        argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
         if args.copy_audio {

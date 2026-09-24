@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.279.0] — 2026-09-24
+
+### Added
+- `slideshow --list FILE` — read the still order from a manifest (one path per line, `#` comments, relative paths resolve against the list's directory): curated order beyond `--sort`
+- `scan --bitrate` — video-bitrate curve from the packet map without decoding: `bitrate_mean_mbps`, `bitrate_peak_mbps` (worst 0.5s window), `bitrate_spike_at` for platform peak-rate ingest specs
+- `meta --copyright` — copyright/license tag (lands in mp4 too)
+- `conform --channels 1|2` — force mono/stereo inside conform (mono podcast masters), alongside `--ar`
+- `transcode --copy-video` — stream-copy the picture while re-encoding only the audio (fix bad audio / repack); video filter flags are rejected with it
+
 ## [0.278.0] — 2026-09-24
 
 ### Added

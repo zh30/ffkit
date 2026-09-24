@@ -13,6 +13,33 @@ use crate::paths;
 /// that fades out at the end. Audio track is always present (silent bed when
 /// none is given) so players and socials never see a soundless file.
 pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
+    let mut args = args;
+    if let Some(list) = &args.list {
+        if !args.inputs.is_empty() {
+            return Err(Error::input(
+                "slideshow --list takes stills from the file — drop the positional inputs",
+            ));
+        }
+        paths::ensure_input(list)?;
+        let text = std::fs::read_to_string(list)
+            .map_err(|e| Error::input(format!("can't read {}: {e}", list.display())))?;
+        let dir = list.parent().unwrap_or_else(|| Path::new(""));
+        for line in text.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let p = PathBuf::from(line);
+            args.inputs
+                .push(if p.is_absolute() { p } else { dir.join(p) });
+        }
+        if args.inputs.is_empty() {
+            return Err(Error::input(format!(
+                "{} has no usable image paths",
+                list.display()
+            )));
+        }
+    }
     if args.inputs.len() < 2 {
         return Err(Error::input("slideshow needs at least two images"));
     }

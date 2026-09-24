@@ -31,6 +31,7 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         ("composer", args.composer.as_deref()),
         ("bpm", bpm_text.as_deref()),
         ("lyrics", lyrics_text.as_deref()),
+        ("copyright", args.copyright.as_deref()),
         ("comment", args.comment.as_deref()),
     ]
     .into_iter()

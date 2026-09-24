@@ -464,6 +464,80 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
             .map(|t| t.lines().filter(|l| !l.starts_with('#')).count())
             .unwrap_or(0);
     }
+    // --bitrate: video-rate curve from packet sizes — no decode. 0.5s
+    // windows bucket pts→bytes so VBR spikes (scene changes) show up as
+    // peak Mbps; platform ingest specs cap the peak, not the average.
+    let mut br_peak_mbps = 0.0f64;
+    let mut br_spike_at = 0.0f64;
+    let mut br_mean_mbps = 0.0f64;
+    if args.bitrate {
+        let mut argv = Argv::ffprobe();
+        argv.extend([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "packet=pts_time,size",
+            "-of",
+            "csv=p=0",
+        ]);
+        argv.push(&args.input);
+        if let Ok(sp) = spawn::run(&argv, g.timeout, false) {
+            let mut bucket_pts = 0.0f64;
+            let mut bucket_bytes = 0u64;
+            let mut total_bytes = 0u64;
+            let mut first_pts: Option<f64> = None;
+            let mut last_pts = 0.0f64;
+            fn flush(at: f64, bytes: u64, total: &mut u64, peak: &mut f64, spike: &mut f64) {
+                *total += bytes;
+                let mbps = bytes as f64 * 8.0 / 0.5 / 1e6;
+                if mbps > *peak {
+                    *peak = mbps;
+                    *spike = at;
+                }
+            }
+            for line in String::from_utf8_lossy(&sp.stdout).lines() {
+                let mut f = line.trim().split(',');
+                let Some(Ok(pts)) = f.next().map(|v| v.parse::<f64>()) else {
+                    continue;
+                };
+                let Some(Ok(size)) = f.next().map(|v| v.parse::<u64>()) else {
+                    continue;
+                };
+                if first_pts.is_none() {
+                    first_pts = Some(pts);
+                    bucket_pts = pts;
+                }
+                last_pts = pts;
+                if pts - bucket_pts >= 0.5 {
+                    flush(
+                        bucket_pts,
+                        bucket_bytes,
+                        &mut total_bytes,
+                        &mut br_peak_mbps,
+                        &mut br_spike_at,
+                    );
+                    bucket_pts = pts;
+                    bucket_bytes = 0;
+                }
+                bucket_bytes += size;
+            }
+            if bucket_bytes > 0 {
+                flush(
+                    bucket_pts,
+                    bucket_bytes,
+                    &mut total_bytes,
+                    &mut br_peak_mbps,
+                    &mut br_spike_at,
+                );
+            }
+            let span = last_pts - first_pts.unwrap_or(last_pts);
+            if span > 0.0 {
+                br_mean_mbps = total_bytes as f64 * 8.0 / span / 1e6;
+            }
+        }
+    }
     // --deadair DB: dead-air map for podcast/talking-head QC — reuses the
     // silence detector so one `scan` reports pauses alongside video faults
     let mut deadair_ranges: Vec<serde_json::Value> = Vec::new();
@@ -786,6 +860,11 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     if args.hash {
         extra["hash_file"] = json!(hash_file);
         extra["hash_frames"] = json!(hash_frames);
+    }
+    if args.bitrate {
+        extra["bitrate_mean_mbps"] = json!((br_mean_mbps * 100.0).round() / 100.0);
+        extra["bitrate_peak_mbps"] = json!((br_peak_mbps * 100.0).round() / 100.0);
+        extra["bitrate_spike_at"] = json!(br_spike_at);
     }
     Ok(Contract::ok("scan", None, Some(probe)).with_extra(extra))
 }

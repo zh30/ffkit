@@ -31568,3 +31568,163 @@ fn r251_concat_list_scan_hash_chapter_lrc_import_meta_music_conform_ar_test() {
         .unwrap();
     assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "44100");
 }
+
+#[test]
+fn r252_slideshow_list_scan_bitrate_meta_copyright_conform_channels_copy_video_test() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let d = dir.path().to_path_buf();
+
+    // slideshow --list: stills order from a manifest (comments skipped,
+    // relative paths resolve against the list's directory)
+    let sd = d.join("stills");
+    std::fs::create_dir_all(&sd).unwrap();
+    for (name, col) in [("a.png", "red"), ("b.png", "green"), ("c.png", "blue")] {
+        let o = Command::new("ffmpeg")
+            .args([
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color={col}:size=64x64"),
+                "-frames:v",
+                "1",
+            ])
+            .arg(sd.join(name))
+            .output()
+            .unwrap();
+        assert!(o.status.success());
+    }
+    std::fs::write(sd.join("deck.txt"), "a.png\n# skip\nb.png\nc.png\n").unwrap();
+    let j = run_json(&[
+        "slideshow",
+        "-o",
+        &d.join("ss.mp4").to_string_lossy(),
+        "--list",
+        &sd.join("deck.txt").to_string_lossy(),
+        "--per",
+        "0.5",
+        "--fade",
+        "0",
+        "--size",
+        "160x90",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(d.join("ss.mp4"))
+        .output()
+        .unwrap();
+    let dur: f64 = String::from_utf8_lossy(&o.stdout).trim().parse().unwrap();
+    assert!((dur - 1.5).abs() < 0.4, "dur={dur}");
+
+    // scan --bitrate: packet-map bitrate curve, peak window
+    let j = run_json(&["scan", &f.to_string_lossy(), "--bitrate"]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let mean = j["extra"]["bitrate_mean_mbps"].as_f64().unwrap();
+    let peak = j["extra"]["bitrate_peak_mbps"].as_f64().unwrap();
+    assert!(mean > 0.0 && peak >= mean, "mean={mean} peak={peak}");
+    assert!(j["extra"]["bitrate_spike_at"].as_f64().is_some());
+
+    // meta --copyright lands in container tags
+    let tag = d.join("tag.mkv");
+    let j = run_json(&[
+        "meta",
+        &f.to_string_lossy(),
+        "-o",
+        &tag.to_string_lossy(),
+        "--copyright",
+        "2026 Me",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format_tags=copyright",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&tag)
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "2026 Me");
+
+    // conform --channels 1: mono master
+    let j = run_json(&[
+        "conform",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("mono.mp4").to_string_lossy(),
+        "--channels",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["channels"], 1);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream=channels",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(d.join("mono.mp4"))
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "1");
+
+    // transcode --copy-video: stream-copy picture, re-encode audio
+    let j = run_json(&[
+        "transcode",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("cpv.mp4").to_string_lossy(),
+        "--copy-video",
+        "--abitrate",
+        "64k",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "stream=codec_name",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(d.join("cpv.mp4"))
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "h264");
+    // copy + filter flags rejected cleanly
+    let j = run_json(&[
+        "transcode",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("bad.mp4").to_string_lossy(),
+        "--copy-video",
+        "--fps",
+        "24",
+    ]);
+    assert_eq!(j["status"], "failed");
+}

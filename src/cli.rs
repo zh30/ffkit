@@ -1069,6 +1069,12 @@ pub struct TranscodeArgs {
     /// Keep the original audio bitstream (no re-encode) while transcoding video
     #[arg(long)]
     pub copy_audio: bool,
+    /// Keep the original video bitstream (no re-encode) while transcoding
+    /// audio — fix bad audio / repack without touching the picture.
+    /// Video filter flags (--fps/--range/--interlaced/--field-order/--alpha)
+    /// can't apply to a copied stream
+    #[arg(long)]
+    pub copy_video: bool,
     /// GIF-only: palette size 2–256 (smaller = tinier file, banding)
     #[arg(long)]
     pub colors: Option<u32>,
@@ -2737,6 +2743,9 @@ pub struct MetaArgs {
     /// are stripped so players show plain lines
     #[arg(long)]
     pub lyrics: Option<PathBuf>,
+    /// Copyright / license tag (release metadata; lands in mp4 too)
+    #[arg(long)]
+    pub copyright: Option<String>,
     /// Fix the display rotation flag (0/90/180/270) without re-encoding
     #[arg(long)]
     pub rotate: Option<u32>,
@@ -2813,6 +2822,11 @@ pub struct ReplaceArgs {
 pub struct SlideshowArgs {
     /// Still images, in order
     pub inputs: Vec<PathBuf>,
+    /// Read still paths from a manifest file — one path per line, '#'
+    /// comments allowed, relative paths resolve against the list's
+    /// directory; curated order beyond --sort's name/mtime
+    #[arg(long)]
+    pub list: Option<PathBuf>,
     #[arg(short, long)]
     pub output: PathBuf,
     /// Seconds each image stays on screen
@@ -4809,6 +4823,10 @@ pub struct ConformArgs {
     /// pass 44100 for podcast/CD deliverables, 96000 for masters)
     #[arg(long)]
     pub ar: Option<u32>,
+    /// Audio channel count (1 = mono for voice/podcast masters,
+    /// 2 = stereo — the default)
+    #[arg(long)]
+    pub channels: Option<u8>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5416,6 +5434,11 @@ pub struct ScanArgs {
     /// `hash_frames` in the report)
     #[arg(long)]
     pub hash: bool,
+    /// Video-bitrate curve QC from the packet map (no decode):
+    /// `bitrate_mean_mbps`, `bitrate_peak_mbps` (worst 0.5s window),
+    /// `bitrate_spike_at` — platform peak-rate spec checks
+    #[arg(long)]
+    pub bitrate: bool,
 }
 
 #[derive(clap::Args, Debug)]

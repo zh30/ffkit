@@ -561,3 +561,6 @@ an atempo'd whole-file render would shift the window.
 - **mp4/mov muxers silently drop unknown metadata keys** — `bpm`/`tmpo` never land (ffmpeg movenc has a fixed tag whitelist; mp3/mkv/flac keep them). If a tag must survive, deliver in an open container or test the probe yourself.
 - **framemd5 with `-c copy` hashes compressed packets, not frames** — packet checksums differ from decoded-frame checksums; archive manifests should decode (no `-c copy`).
 - **LRC `[offset:+500]` headers parse as bare numbers** — a naive timestamp parser turns the offset tag into a mark at +500s; only treat `[mm:ss]`-style brackets (containing ':') as marks.
+- `publisher` IS in the mp4/mov tag whitelist and lands; `copyright` also lands — but `bpm`/`tmpo` don't (movenc fixed whitelist). For podcast tags check per-key with ffprobe, don't assume "some tags land".
+- `transcode --copy-video` can't combine with any video filter flag (filters never see a copied stream) — it errors; it's for audio-only re-encodes and repacks.
+- ffprobe packet sizes measure compressed payload only — `scan --bitrate` reports codec bitrate, not container bitrate (container overhead isn't in packet.size).
