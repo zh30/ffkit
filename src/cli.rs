@@ -1332,6 +1332,10 @@ pub enum DeliverPlatform {
     /// Spotify Canvas loop 9:16 (1080x1920, -14 LUFS — the 3-8s vertical
     /// loop behind a track; cut the loop first, then deliver)
     Canvas,
+    /// Snapchat Spotlight 9:16 (1080x1920, -14 LUFS)
+    Snapchat,
+    /// 微博 feed video 16:9 landscape (1920x1080, -14 LUFS)
+    Weibo,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3962,6 +3966,11 @@ pub struct RemuxArgs {
     /// times on capture files (players that can't seek negative ts)
     #[arg(long)]
     pub offset: Option<f64>,
+    /// Keep + reorder audio tracks by per-type index (comma list: `1,0`
+    /// swaps the first two tracks, unlisted tracks are dropped) — players
+    /// that only play track 0 need the program mix first
+    #[arg(long)]
+    pub audio_order: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4645,6 +4654,10 @@ pub struct TimerArgs {
     /// start (event/sports overlays — not for elapsed timing)
     #[arg(long)]
     pub clock: bool,
+    /// Show the local wall date YYYY-MM-DD (static — air-date/archive
+    /// overlays); with --clock it prefixes the time readout
+    #[arg(long)]
+    pub date: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -5062,7 +5075,8 @@ pub struct InsertArgs {
     /// Clip spliced in whole (scaled to the base size)
     #[arg(long)]
     pub clip: PathBuf,
-    /// Splice point in the base (h:mm:ss or seconds, or `end` to append)
+    /// Splice point in the base (h:mm:ss or seconds, `end` to append,
+    /// `chapterN` = start of embedded chapter N as `chapter --list` shows it)
     #[arg(long)]
     pub at: String,
     /// xfade into and out of the insert (any xfade name) instead of a hard cut

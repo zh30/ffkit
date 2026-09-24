@@ -199,6 +199,61 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("remux --lang: input has no audio"));
         }
     }
+    // --audio-order 1,0: keep + reorder audio tracks by per-type index.
+    // Unlisted tracks are dropped (same surface as --lang's keep-list).
+    let audio_order: Vec<usize> = match &args.audio_order {
+        None => Vec::new(),
+        Some(raw) => {
+            let v: Vec<usize> = raw
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(|s| {
+                    s.parse().map_err(|_| {
+                        Error::input("remux --audio-order needs track indices (e.g. 1,0)")
+                    })
+                })
+                .collect::<Result<_, _>>()?;
+            if v.is_empty() {
+                return Err(Error::input("remux --audio-order: no track indices given"));
+            }
+            let mut seen = std::collections::HashSet::new();
+            for i in &v {
+                if !seen.insert(*i) {
+                    return Err(Error::input("remux --audio-order: duplicate track index"));
+                }
+            }
+            v
+        }
+    };
+    if !audio_order.is_empty() {
+        if args.audio_delay.is_some() || args.video_delay.is_some() {
+            return Err(Error::input(
+                "remux --audio-order re-maps tracks — drop --audio-delay/--video-delay",
+            ));
+        }
+        if args.video {
+            return Err(Error::input(
+                "remux --audio-order picks audio tracks — --video drops all audio",
+            ));
+        }
+        if !langs.is_empty() {
+            return Err(Error::input(
+                "remux --audio-order replaces the audio map — drop --lang",
+            ));
+        }
+        if !probe.has_audio {
+            return Err(Error::input("remux --audio-order: input has no audio"));
+        }
+        let n_tracks = probe.streams.iter().filter(|s| s.kind == "audio").count();
+        for i in &audio_order {
+            if *i >= n_tracks {
+                return Err(Error::input(format!(
+                    "remux --audio-order {i}: input only has {n_tracks} audio track(s)"
+                )));
+            }
+        }
+    }
     if args.audio {
         if !probe.has_audio {
             return Err(Error::input("remux --audio: input has no audio"));
@@ -212,7 +267,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "wav" | "aif" | "aiff" | "caf" => src.starts_with("pcm"),
             _ => true,
         };
-        if langs.is_empty() {
+        if !audio_order.is_empty() {
+            for i in &audio_order {
+                argv.extend(["-map", format!("0:a:{i}").as_str()]);
+            }
+        } else if langs.is_empty() {
             argv.extend(["-map", "0:a"]);
         } else {
             for l in &langs {
@@ -255,6 +314,14 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if args.no_subs {
             // negative maps drop subtitle/data streams; attachments stay
             argv.extend(["-map", "0", "-map", "-0:s", "-map", "-0:d", "-c", "copy"]);
+        } else if !audio_order.is_empty() {
+            // track-ordered repack: every video + the listed audio tracks
+            // in the asked order (unlisted tracks drop out)
+            argv.extend(["-map", "0:v"]);
+            for i in &audio_order {
+                argv.extend(["-map", format!("0:a:{i}").as_str()]);
+            }
+            argv.extend(["-map", "0:s?", "-map", "0:d?", "-c", "copy"]);
         } else if !langs.is_empty() {
             // language-filtered repack: every video + only LANG-tagged audio
             argv.extend(["-map", "0:v"]);

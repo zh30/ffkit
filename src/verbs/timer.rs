@@ -70,6 +70,36 @@ pub(crate) fn local_clock_secs() -> f64 {
     ((utc + off).rem_euclid(86400)) as f64
 }
 
+// Local wall date YYYY-MM-DD — `date` output when available, UTC civil
+// (Hinnant) as the fallback.
+fn local_date_str() -> String {
+    let out = std::process::Command::new("date")
+        .arg("+%Y-%m-%d")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| s.len() == 10);
+    if let Some(s) = out {
+        return s;
+    }
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    let z = secs.div_euclid(86400) + 719468;
+    let era = z.div_euclid(146097);
+    let doe = z.rem_euclid(146097);
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
 pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "timer")?;
@@ -87,6 +117,18 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
             "--clock seeds from the system clock — drop --down/--start/--tc",
         ));
     }
+    if args.date
+        && (args.down
+            || args.start.is_some()
+            || args.tc.is_some()
+            || matches!(args.format, TimerFormat::Ms))
+    {
+        return Err(Error::input(
+            "--date is a calendar readout — drop --down/--start/--tc/--format ms",
+        ));
+    }
+    // A date without --clock draws the calendar alone — no animated fields.
+    let date_only = args.date && !args.clock;
     if args.tc.is_some() && matches!(args.format, TimerFormat::Ms) {
         return Err(Error::input("--tc shows frames instead of centiseconds"));
     }
@@ -177,6 +219,26 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     let dot_path = tmp.path().join("dot.png");
     dot.save(&dot_path)
         .map_err(|e| Error::output(format!("write dot: {e}")))?;
+    // --date: the calendar readout is one static image (no animation cells)
+    let date_png = if args.date {
+        let mut img = crate::raster::render_title_styled(
+            &local_date_str(),
+            &font_bytes,
+            vw,
+            fg,
+            args.size as f32,
+        )?;
+        if let Some(op) = args.opacity {
+            crate::raster::alpha_scale(&mut img, op)?;
+        }
+        let w = img.width();
+        let p = tmp.path().join("date.png");
+        img.save(&p)
+            .map_err(|e| Error::output(format!("write date: {e}")))?;
+        Some((p, w))
+    } else {
+        None
+    };
 
     let hours = probe.duration > 3600.0 || at > 3600.0 || tc_start.is_some() || args.clock;
     // Layout: [hh:]mm:ss[;ff] — each digit field is one sprite cell wide.
@@ -185,6 +247,13 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     let mut total_w = (fields + u32::from(tc_start.is_some())) * cw + colons * colw;
     if ms {
         total_w += dotw + cw;
+    }
+    // The date prefix takes its rendered width + a half-cell gap.
+    if let Some((_, dw)) = &date_png {
+        total_w += *dw + cw / 2;
+    }
+    if date_only {
+        total_w = date_png.as_ref().map(|(_, dw)| *dw).unwrap_or(0);
     }
     let m = args.margin;
     let (x0, y) = match args.position.as_str() {
@@ -236,7 +305,10 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         None
     };
-    let box_idx = 4usize;
+    // input order: sprite colon dot (animated modes only) then box then
+    // the date image — indices follow the -i sequence pushed below
+    let box_idx = if date_only { 1usize } else { 4 };
+    let date_idx = box_idx + usize::from(box_png.is_some());
 
     let split_labels: String = (0..xparts.len()).map(|i| format!("[sp{i}]")).collect();
     let mut fc = String::new();
@@ -251,75 +323,78 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         "0:v".to_string()
     };
-    fc.push_str(&format!(
-        "{sc}[1:v]format=rgba[spr];[spr]split={}{split_labels}",
-        xparts.len(),
-        sc = if fc.is_empty() { "" } else { ";" }
-    ));
-    // crop each field out of the advancing sprite
-    for (i, (kind, _)) in xparts.iter().enumerate() {
-        let expr = match kind.as_str() {
-            "hh" => format!("min(99,floor(({tv})/3600))"),
-            "mm" => format!("mod(floor(({tv})/60),60)"),
-            "cs" => format!("mod(floor(({tv})*100),100)"),
-            "ff" => format!("mod(floor(({tv})*{fps:.5}),{ncells})"),
-            _ => format!("mod(floor({tv}),60)"),
-        };
-        fc.push_str(&format!(
-            ";[sp{i}]crop=w={cw}:h={ch}:x='{expr}*{cw}':y=0[f{i}]"
-        ));
-    }
-    // overlay chain: field, colon, field, colon, field
     let mut xoff = 0u32; // pixel offset from x0
     let mut pass = 0usize;
-    for (i, (kind, w)) in xparts.iter().enumerate() {
-        if i > 0 {
-            // ":" between fields, "." before centiseconds
-            let (sep, sepw) = if kind == "cs" { (3, dotw) } else { (2, colw) };
-            let out = format!("v{pass}");
-            fc.push_str(&format!(
-                ";[{cur}][{sep}:v]overlay=x={x0}+{xoff}:y={y}:shortest=1:{enable}[{out}]"
-            ));
-            cur = out;
-            xoff += sepw;
-            pass += 1;
-        }
-        let _ = kind;
+    if let Some((_, dw)) = &date_png {
+        // static calendar prefix — a bare --date draws this alone
+        let sc = if fc.is_empty() { "" } else { ";" };
         let out = format!("v{pass}");
         fc.push_str(&format!(
-            ";[{cur}][f{i}]overlay=x={x0}+{xoff}:y={y}:shortest=1:{enable}[{out}]"
+            "{sc}[{cur}][{date_idx}:v]overlay=x={x0}:y={y}:shortest=1:{enable}[{out}]"
         ));
         cur = out;
-        xoff += w;
         pass += 1;
+        xoff += *dw + cw / 2;
+    }
+    if !date_only {
+        fc.push_str(&format!(
+            "{sc}[1:v]format=rgba[spr];[spr]split={}{split_labels}",
+            xparts.len(),
+            sc = if fc.is_empty() { "" } else { ";" }
+        ));
+        // crop each field out of the advancing sprite
+        for (i, (kind, _)) in xparts.iter().enumerate() {
+            let expr = match kind.as_str() {
+                "hh" => format!("min(99,floor(({tv})/3600))"),
+                "mm" => format!("mod(floor(({tv})/60),60)"),
+                "cs" => format!("mod(floor(({tv})*100),100)"),
+                "ff" => format!("mod(floor(({tv})*{fps:.5}),{ncells})"),
+                _ => format!("mod(floor({tv}),60)"),
+            };
+            fc.push_str(&format!(
+                ";[sp{i}]crop=w={cw}:h={ch}:x='{expr}*{cw}':y=0[f{i}]"
+            ));
+        }
+        // overlay chain: field, colon, field, colon, field
+        for (i, (kind, w)) in xparts.iter().enumerate() {
+            if i > 0 {
+                // ":" between fields, "." before centiseconds
+                let (sep, sepw) = if kind == "cs" { (3, dotw) } else { (2, colw) };
+                let out = format!("v{pass}");
+                fc.push_str(&format!(
+                    ";[{cur}][{sep}:v]overlay=x={x0}+{xoff}:y={y}:shortest=1:{enable}[{out}]"
+                ));
+                cur = out;
+                xoff += sepw;
+                pass += 1;
+            }
+            let _ = kind;
+            let out = format!("v{pass}");
+            fc.push_str(&format!(
+                ";[{cur}][f{i}]overlay=x={x0}+{xoff}:y={y}:shortest=1:{enable}[{out}]"
+            ));
+            cur = out;
+            xoff += w;
+            pass += 1;
+        }
     }
 
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
-    argv.extend([
-        "-loop".to_string(),
-        "1".to_string(),
-        "-framerate".to_string(),
-        format!("{fps:.3}"),
-        "-i".to_string(),
-        sprite_path.display().to_string(),
-    ]);
-    argv.extend([
-        "-loop".to_string(),
-        "1".to_string(),
-        "-framerate".to_string(),
-        format!("{fps:.3}"),
-        "-i".to_string(),
-        colon_path.display().to_string(),
-    ]);
-    argv.extend([
-        "-loop".to_string(),
-        "1".to_string(),
-        "-framerate".to_string(),
-        format!("{fps:.3}"),
-        "-i".to_string(),
-        dot_path.display().to_string(),
-    ]);
+    // image inputs in index order: sprite/colon/dot (skipped for a bare
+    // --date), then box, then the date card — matches box_idx/date_idx
+    if !date_only {
+        for p in [&sprite_path, &colon_path, &dot_path] {
+            argv.extend([
+                "-loop".to_string(),
+                "1".to_string(),
+                "-framerate".to_string(),
+                format!("{fps:.3}"),
+                "-i".to_string(),
+                p.display().to_string(),
+            ]);
+        }
+    }
     if let Some((bp, _)) = &box_png {
         argv.extend([
             "-loop".to_string(),
@@ -328,6 +403,16 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
             format!("{fps:.3}"),
             "-i".to_string(),
             bp.display().to_string(),
+        ]);
+    }
+    if let Some((dp, _)) = &date_png {
+        argv.extend([
+            "-loop".to_string(),
+            "1".to_string(),
+            "-framerate".to_string(),
+            format!("{fps:.3}"),
+            "-i".to_string(),
+            dp.display().to_string(),
         ]);
     }
     argv.extend(["-filter_complex".to_string(), fc]);
@@ -360,6 +445,7 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
         "until": if args.dur.is_some() { Some(until) } else { None },
         "hours": hours,
         "clock": args.clock,
+        "date": args.date,
     }));
     Ok(c)
 }

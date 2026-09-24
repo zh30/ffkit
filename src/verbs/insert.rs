@@ -22,12 +22,36 @@ pub fn run(args: InsertArgs, g: &Globals) -> Result<Contract, Error> {
             "insert: clip must have an audio stream when the base does",
         ));
     }
+    let wants_chapter = args.at.split(',').any(|p| p.trim().starts_with("chapter"));
+    let marks = if wants_chapter {
+        let m = crate::probe::chapter_marks(&args.input, g.timeout)?;
+        if m.is_empty() {
+            return Err(Error::input(
+                "insert --at chapterN: input has no embedded chapters",
+            ));
+        }
+        m
+    } else {
+        Vec::new()
+    };
     let mut ats = Vec::new();
     for part in args.at.split(',') {
         let p = part.trim();
         let at = if p == "end" {
             // splice just before the tail (the bound below requires strictly-inside)
             base.duration - 0.06
+        } else if let Some(rest) = p.strip_prefix("chapter") {
+            let n: usize = rest
+                .trim_start_matches(':')
+                .parse()
+                .map_err(|_| Error::input("--at chapterN needs a 1-based chapter number"))?;
+            if n == 0 || n > marks.len() {
+                return Err(Error::input(format!(
+                    "--at chapter{n}: input only has {} chapter(s)",
+                    marks.len()
+                )));
+            }
+            marks[n - 1].start
         } else {
             parse_time(p)?
         };

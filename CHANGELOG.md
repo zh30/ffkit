@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- `insert --at chapterN` — splice at the start of embedded chapter N (`chapter --list` numbering; mixes with seconds/`end` in the comma list; composes with `--replace` to patch one section in a chaptered file)
+- `remux --audio-order 1,0` — keep + reorder audio tracks by per-type index (unlisted tracks drop; puts the program mix on track 0 for players that only read the first track; `--lang`/`--video`/delay flags conflict)
+- `timer --date` — burn the local wall date YYYY-MM-DD (air-date/archive overlay; static readout — prefixes the `--clock` time when both are set)
+- `deliver --platform snapchat` (9:16 1080x1920 Spotlight) + `weibo` (16:9 1920x1080) — more one-shot canvases on the −14 LUFS pipeline
+
+## [0.291.0] — 2026-09-24
+
 ## [0.290.0] — 2026-09-24
 
 ### Added

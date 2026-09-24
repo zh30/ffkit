@@ -33280,3 +33280,337 @@ fn r263_extract_keyframes_slideshow_titles_deliver_canvas_live_title() {
     ]);
     assert_eq!(j["status"], "ok", "{}", j["error"]);
 }
+
+#[test]
+fn r264_insert_at_chapter_remux_audio_order_timer_date_deliver_snapchat() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // a 3s GOP-poor base + chapter marks at 1s/2s
+    let base = d.path().join("base.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=3:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=3",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&base)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let marks = d.path().join("marks.txt");
+    std::fs::write(&marks, "0 Intro\n1 One\n2 Two\n").unwrap();
+    let ch = d.path().join("ch.mp4");
+    let j = run_json(&[
+        "remux",
+        base.to_str().unwrap(),
+        "--chapters",
+        marks.to_str().unwrap(),
+        "-o",
+        ch.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+
+    // insert --at chapter2 splices at the chapter boundary (1s) → ~4s
+    let clip = d.path().join("clip.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:duration=1:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&clip)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let ins = d.path().join("ins.mp4");
+    let j = run_json(&[
+        "insert",
+        ch.to_str().unwrap(),
+        "--clip",
+        clip.to_str().unwrap(),
+        "--at",
+        "chapter2",
+        "-o",
+        ins.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let jp = run_json(&["probe", ins.to_str().unwrap()]);
+    assert!(jp["probe"]["duration"].as_f64().unwrap() > 3.8);
+    // red clip landed inside chapter 2's span (frame at 1.5s is red)
+    let px = |f: &Path, ss: &str| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-ss", ss, "-i"])
+            .arg(f)
+            .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+            .output()
+            .unwrap()
+            .stdout
+    };
+    let f15 = px(&ins, "1.5");
+    let r: u64 = f15.iter().step_by(3).map(|b| *b as u64).sum::<u64>() / (f15.len() as u64 / 3);
+    let g: u64 = f15
+        .iter()
+        .skip(1)
+        .step_by(3)
+        .map(|b| *b as u64)
+        .sum::<u64>()
+        / (f15.len() as u64 / 3);
+    assert!(
+        r > 180 && g < 60,
+        "1.5s frame should be the red insert r={r} g={g}"
+    );
+    // --replace at a chapter keeps the base duration
+    let rep = d.path().join("rep.mp4");
+    let j = run_json(&[
+        "insert",
+        ch.to_str().unwrap(),
+        "--clip",
+        clip.to_str().unwrap(),
+        "--at",
+        "chapter2",
+        "--replace",
+        "-o",
+        rep.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let jp = run_json(&["probe", rep.to_str().unwrap()]);
+    assert!(jp["probe"]["duration"].as_f64().unwrap() < 3.2);
+    // out of range / no chapters
+    let j = run_json(&[
+        "insert",
+        ch.to_str().unwrap(),
+        "--clip",
+        clip.to_str().unwrap(),
+        "--at",
+        "chapter9",
+        "-o",
+        d.path().join("x.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+    let j = run_json(&[
+        "insert",
+        f.to_str().unwrap(),
+        "--clip",
+        clip.to_str().unwrap(),
+        "--at",
+        "chapter1",
+        "-o",
+        d.path().join("x.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // remux --audio-order: swap two eng/jpn tracks
+    let two = d.path().join("two.mkv");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map",
+            "2:a",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-metadata:s:a:0",
+            "language=eng",
+            "-metadata:s:a:1",
+            "language=jpn",
+            "-shortest",
+        ])
+        .arg(&two)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let sw = d.path().join("sw.mkv");
+    let j = run_json(&[
+        "remux",
+        two.to_str().unwrap(),
+        "--audio-order",
+        "1,0",
+        "-o",
+        sw.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let jp = run_json(&["probe", sw.to_str().unwrap()]);
+    let langs: Vec<&str> = jp["probe"]["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|s| s["kind"] == "audio")
+        .map(|s| s["language"].as_str().unwrap_or(""))
+        .collect();
+    assert_eq!(langs, ["jpn", "eng"], "audio tracks should be swapped");
+    // keep-only + validation paths
+    let one = d.path().join("one.mkv");
+    let j = run_json(&[
+        "remux",
+        two.to_str().unwrap(),
+        "--audio-order",
+        "0",
+        "-o",
+        one.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let jp = run_json(&["probe", one.to_str().unwrap()]);
+    let n_audio = jp["probe"]["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|s| s["kind"] == "audio")
+        .count();
+    assert_eq!(n_audio, 1);
+    let j = run_json(&[
+        "remux",
+        two.to_str().unwrap(),
+        "--audio-order",
+        "5",
+        "-o",
+        d.path().join("e.mkv").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+    let j = run_json(&[
+        "remux",
+        two.to_str().unwrap(),
+        "--audio-order",
+        "1,1",
+        "-o",
+        d.path().join("e.mkv").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // timer --date: bottom-right zone shows a rendered calendar
+    let dt = d.path().join("dt.mp4");
+    let j = run_json(&[
+        "timer",
+        f.to_str().unwrap(),
+        "--date",
+        "-o",
+        dt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["date"], true);
+    let zone = |p: &Path| -> u64 {
+        let out = Command::new("ffmpeg")
+            .args(["-i"])
+            .arg(p)
+            .args([
+                "-vf",
+                "select=eq(n\\,15),crop=140:60:160:170",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+                "-",
+            ])
+            .output()
+            .unwrap()
+            .stdout;
+        out.iter().map(|b| *b as u64).sum()
+    };
+    assert!(zone(&f) != zone(&dt), "date zone should differ from source");
+    // --date --clock prefixes the time readout; conflicts refuse
+    let j = run_json(&[
+        "timer",
+        f.to_str().unwrap(),
+        "--date",
+        "--clock",
+        "-o",
+        d.path().join("dtc.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let j = run_json(&[
+        "timer",
+        f.to_str().unwrap(),
+        "--date",
+        "--down",
+        "-o",
+        d.path().join("bad.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // deliver snapchat (9:16) + weibo (16:9) canvases
+    let sn = d.path().join("sn.mp4");
+    let j = run_json(&[
+        "deliver",
+        f.to_str().unwrap(),
+        "--platform",
+        "snapchat",
+        "-o",
+        sn.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let jp = run_json(&["probe", sn.to_str().unwrap()]);
+    assert_eq!(jp["probe"]["width"], 1080);
+    assert_eq!(jp["probe"]["height"], 1920);
+    let wb = d.path().join("wb.mp4");
+    let j = run_json(&[
+        "deliver",
+        f.to_str().unwrap(),
+        "--platform",
+        "weibo",
+        "-o",
+        wb.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let jp = run_json(&["probe", wb.to_str().unwrap()]);
+    assert_eq!(jp["probe"]["width"], 1920);
+    assert_eq!(jp["probe"]["height"], 1080);
+}
