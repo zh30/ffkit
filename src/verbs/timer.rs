@@ -45,35 +45,43 @@ fn parse_tc(raw: &str, fps: f64) -> Result<f64, Error> {
 
 // Seconds into the local day — reads the TZ offset out of `date +%z`
 // (UTC when date is unavailable).
-pub(crate) fn local_clock_secs() -> f64 {
+pub(crate) fn local_clock_secs(utc_mode: bool) -> f64 {
     let utc = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
-    let off = std::process::Command::new("date")
-        .arg("+%z")
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .and_then(|s| {
-            let s = s.trim();
-            let (sign, d) = s.split_at(1);
-            let h: i64 = d.get(..2)?.parse().ok()?;
-            let m: i64 = d.get(2..4)?.parse().ok()?;
-            Some(if sign == "-" {
-                -(h * 3600 + m * 60)
-            } else {
-                h * 3600 + m * 60
+    let off = if utc_mode {
+        0
+    } else {
+        std::process::Command::new("date")
+            .arg("+%z")
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .and_then(|s| {
+                let s = s.trim();
+                let (sign, d) = s.split_at(1);
+                let h: i64 = d.get(..2)?.parse().ok()?;
+                let m: i64 = d.get(2..4)?.parse().ok()?;
+                Some(if sign == "-" {
+                    -(h * 3600 + m * 60)
+                } else {
+                    h * 3600 + m * 60
+                })
             })
-        })
-        .unwrap_or(0);
+            .unwrap_or(0)
+    };
     ((utc + off).rem_euclid(86400)) as f64
 }
 
 // Local wall date YYYY-MM-DD — `date` output when available, UTC civil
 // (Hinnant) as the fallback.
-fn local_date_str() -> String {
-    let out = std::process::Command::new("date")
+fn local_date_str(utc_mode: bool) -> String {
+    let mut cmd = std::process::Command::new("date");
+    if utc_mode {
+        cmd.arg("-u");
+    }
+    let out = cmd
         .arg("+%Y-%m-%d")
         .output()
         .ok()
@@ -127,6 +135,11 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
             "--date is a calendar readout — drop --down/--start/--tc/--format ms",
         ));
     }
+    if args.utc && !args.clock && !args.date {
+        return Err(Error::input(
+            "--utc sets the readout's zone — needs --clock or --date",
+        ));
+    }
     // A date without --clock draws the calendar alone — no animated fields.
     let date_only = args.date && !args.clock;
     if args.tc.is_some() && matches!(args.format, TimerFormat::Ms) {
@@ -140,7 +153,7 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     // --down: display the remaining time to the window end
     // --start / --tc seed the readout: up counts N+t-at, down counts N-(t-at).
     let tv = if args.clock {
-        format!("{:.3}+(t-{at:.3})", local_clock_secs())
+        format!("{:.3}+(t-{at:.3})", local_clock_secs(args.utc))
     } else if args.down {
         let start = args
             .start
@@ -222,7 +235,7 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     // --date: the calendar readout is one static image (no animation cells)
     let date_png = if args.date {
         let mut img = crate::raster::render_title_styled(
-            &local_date_str(),
+            &local_date_str(args.utc),
             &font_bytes,
             vw,
             fg,
@@ -446,6 +459,7 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
         "hours": hours,
         "clock": args.clock,
         "date": args.date,
+        "utc": args.utc,
     }));
     Ok(c)
 }

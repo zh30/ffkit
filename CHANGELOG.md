@@ -2,14 +2,28 @@
 
 ## [Unreleased]
 
+## [0.292.0] — 2026-09-24
+
+### Added
+
+- `extract --audio/--subs --all` — dump every track of that kind to `stem_aN.<ext>`/`stem_sN.<ext>` (multi-language releases — rip all dubs or all caption tracks in one pass; `--track` conflicts)
+- `remux --sub-lang LANG` — keep only subtitle tracks tagged with that language (comma list keeps several; multi-subtitle releases pick the captions to ship)
+- `timer --utc` — read the `--clock`/`--date` readout in UTC instead of local time (broadcast logs, cross-timezone crews)
+- `deliver --platform whatsapp` — 9:16 1080x1920 Status canvas on the −14 LUFS pipeline
+- `chapter --scenes` — scdet scene-cut detection generates marks at every cut (auto-TOC for unmarked masters, same detector `split --scenes` uses)
+
+### Fixed
+
+- `scan --scenes` found no cuts — ffmpeg's metadata=print emits `lavfi.scd.time=` (equals), not the `:` form the parser matched; now accepts both and dedupes the boundary-frame double report
+
+## [0.291.0] — 2026-09-24
+
 ### Added
 
 - `insert --at chapterN` — splice at the start of embedded chapter N (`chapter --list` numbering; mixes with seconds/`end` in the comma list; composes with `--replace` to patch one section in a chaptered file)
 - `remux --audio-order 1,0` — keep + reorder audio tracks by per-type index (unlisted tracks drop; puts the program mix on track 0 for players that only read the first track; `--lang`/`--video`/delay flags conflict)
 - `timer --date` — burn the local wall date YYYY-MM-DD (air-date/archive overlay; static readout — prefixes the `--clock` time when both are set)
 - `deliver --platform snapchat` (9:16 1080x1920 Spotlight) + `weibo` (16:9 1920x1080) — more one-shot canvases on the −14 LUFS pipeline
-
-## [0.291.0] — 2026-09-24
 
 ## [0.290.0] — 2026-09-24
 

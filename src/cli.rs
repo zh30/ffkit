@@ -649,6 +649,10 @@ pub struct ExtractArgs {
     /// pick the commentary/stem or a language out of a multi-track file)
     #[arg(long)]
     pub track: Option<u32>,
+    /// With --audio or --subs: pull EVERY track — writes stem_aN/stem_sN
+    /// files next to -o (multitrack dubs/captions out in one pass)
+    #[arg(long)]
+    pub all: bool,
     /// Keep alpha in the GIF (needs --gif + an alpha-channel input like
     /// prores 4444/qtrle/webm — Discord/Telegram sticker exports)
     #[arg(long)]
@@ -1336,6 +1340,8 @@ pub enum DeliverPlatform {
     Snapchat,
     /// 微博 feed video 16:9 landscape (1920x1080, -14 LUFS)
     Weibo,
+    /// WhatsApp Status 9:16 (1080x1920, -14 LUFS)
+    Whatsapp,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3881,6 +3887,11 @@ pub struct RemuxArgs {
     /// rip just that language's track; fails when no track matches
     #[arg(long)]
     pub lang: Option<String>,
+    /// Keep only subtitle tracks tagged with these languages (comma list
+    /// like --lang; multi-language releases — keep just the captions your
+    /// audience reads; fails when no track matches)
+    #[arg(long)]
+    pub sub_lang: Option<String>,
     /// Make audio track N (0-based among audio streams) the default on
     /// multi-track files — players pick this one first (fixes the wrong
     /// language playing on a multi-language release)
@@ -4658,6 +4669,10 @@ pub struct TimerArgs {
     /// overlays); with --clock it prefixes the time readout
     #[arg(long)]
     pub date: bool,
+    /// With --clock/--date: read UTC instead of the local timezone
+    /// (broadcast/satellite overlays, multi-region simulcast slates)
+    #[arg(long)]
+    pub utc: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -5895,11 +5910,15 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "list", "remove", "spread"])]
+    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "list", "remove", "spread", "scenes"])]
     pub at: Vec<String>,
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
     pub auto: Option<f64>,
+    /// Auto-place chapters at scene cuts (scdet — lecture/talking-head
+    /// chapters where silence gaps don't exist)
+    #[arg(long)]
+    pub scenes: bool,
     /// Generate N evenly-spaced marks instead of --at (uniform TOC for a
     /// long episode/lecture — pair with --titles or any export flag)
     #[arg(long)]

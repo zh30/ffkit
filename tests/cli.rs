@@ -33614,3 +33614,283 @@ fn r264_insert_at_chapter_remux_audio_order_timer_date_deliver_snapchat() {
     assert_eq!(jp["probe"]["width"], 1920);
     assert_eq!(jp["probe"]["height"], 1080);
 }
+
+#[test]
+fn r265_extract_all_remux_sub_lang_timer_utc_whatsapp_chapter_scenes() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // multi-track mkv: eng+jpn audio + eng+fra subs
+    let e = d.path().join("e.srt");
+    std::fs::write(&e, "1\n00:00:00,000 --> 00:00:01,000\nHello eng\n\n").unwrap();
+    let fr = d.path().join("f.srt");
+    std::fs::write(&fr, "1\n00:00:00,000 --> 00:00:01,000\nBonjour fra\n\n").unwrap();
+    let dual = d.path().join("dual.mkv");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=2:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=2",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=550:duration=2",
+            "-i",
+            e.to_str().unwrap(),
+            "-i",
+            fr.to_str().unwrap(),
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map",
+            "2:a",
+            "-map",
+            "3",
+            "-map",
+            "4",
+            "-metadata:s:a:0",
+            "language=eng",
+            "-metadata:s:a:1",
+            "language=jpn",
+            "-metadata:s:s:0",
+            "language=eng",
+            "-metadata:s:s:1",
+            "language=fra",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-c:s",
+            "srt",
+            "-shortest",
+        ])
+        .arg(&dual)
+        .status()
+        .unwrap();
+    assert!(st.success());
+
+    // extract --audio --all: every audio track into its own file
+    let j = run_json(&[
+        "extract",
+        dual.to_str().unwrap(),
+        "-o",
+        &d.path().join("rip.mka").to_string_lossy(),
+        "--audio",
+        "--all",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["files"].as_array().unwrap().len(), 2);
+    let a1 = d.path().join("rip_a1.mka");
+    assert!(a1.exists());
+    let tag = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream_tags=language",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&a1)
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&tag.stdout).trim(), "jpn");
+
+    // extract --subs --all: every subtitle track into its own file
+    let j = run_json(&[
+        "extract",
+        dual.to_str().unwrap(),
+        "-o",
+        &d.path().join("cap.srt").to_string_lossy(),
+        "--subs",
+        "--all",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let s1 = std::fs::read_to_string(d.path().join("cap_s1.srt")).unwrap();
+    assert!(s1.contains("Bonjour fra"), "{s1}");
+
+    // --all and --track are exclusive
+    let j = run_json(&[
+        "extract",
+        dual.to_str().unwrap(),
+        "-o",
+        &d.path().join("x.mka").to_string_lossy(),
+        "--audio",
+        "--all",
+        "--track",
+        "1",
+    ]);
+    assert_eq!(j["status"], "failed", "--all + --track must fail");
+
+    // remux --sub-lang: keep only the fra subtitle, audio untouched
+    let out = d.path().join("fra.mkv");
+    let j = run_json(&[
+        "remux",
+        dual.to_str().unwrap(),
+        "--sub-lang",
+        "fra",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let tag = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "s",
+            "-show_entries",
+            "stream_tags=language",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&tag.stdout).trim(), "fra");
+    let kinds = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    assert_eq!(
+        String::from_utf8_lossy(&kinds.stdout)
+            .trim()
+            .split('\n')
+            .count(),
+        4
+    );
+
+    // --sub-lang + --no-subs is contradictory
+    let j = run_json(&[
+        "remux",
+        dual.to_str().unwrap(),
+        "--sub-lang",
+        "fra",
+        "--no-subs",
+        "-o",
+        &d.path().join("x2.mkv").to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "failed", "--sub-lang + --no-subs must fail");
+
+    // timer --utc: UTC clock/date readouts; bare --utc refused
+    let j = run_json(&[
+        "timer",
+        f.to_str().unwrap(),
+        "-o",
+        &d.path().join("tc.mp4").to_string_lossy(),
+        "--clock",
+        "--utc",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["utc"], true);
+    let j = run_json(&[
+        "timer",
+        f.to_str().unwrap(),
+        "-o",
+        &d.path().join("td.mp4").to_string_lossy(),
+        "--date",
+        "--utc",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let j = run_json(&[
+        "timer",
+        f.to_str().unwrap(),
+        "-o",
+        &d.path().join("t2.mp4").to_string_lossy(),
+        "--utc",
+    ]);
+    assert_eq!(j["status"], "failed", "bare --utc must fail");
+
+    // deliver whatsapp: 9:16 canvas
+    let wa = d.path().join("wa.mp4");
+    let j = run_json(&[
+        "deliver",
+        f.to_str().unwrap(),
+        "--platform",
+        "whatsapp",
+        "-o",
+        wa.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let jp = run_json(&["probe", wa.to_str().unwrap()]);
+    assert_eq!(jp["probe"]["width"], 1080);
+    assert_eq!(jp["probe"]["height"], 1920);
+
+    // chapter --scenes: scdet marks the testsrc2→smptebars cut at 1.2s
+    let cut = d.path().join("cut.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=duration=1.2:size=320x240:rate=15",
+            "-f",
+            "lavfi",
+            "-i",
+            "smptebars=duration=1.4:size=320x240:rate=15",
+            "-filter_complex",
+            "[0:v][1:v]concat=n=2:v=1:a=0[v]",
+            "-map",
+            "[v]",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+        ])
+        .arg(&cut)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let ch = d.path().join("ch.mp4");
+    let j = run_json(&[
+        "chapter",
+        cut.to_str().unwrap(),
+        "-o",
+        ch.to_str().unwrap(),
+        "--scenes",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let chs = j["extra"]["chapters"].as_array().unwrap();
+    assert_eq!(chs.len(), 2, "{chs:?}");
+    let t = chs[1]["time"].as_f64().unwrap();
+    assert!(t > 1.0 && t < 1.4, "{t}");
+    let j = run_json(&[
+        "chapter",
+        cut.to_str().unwrap(),
+        "-o",
+        &d.path().join("x3.mp4").to_string_lossy(),
+        "--scenes",
+        "--auto",
+        "1",
+    ]);
+    assert_eq!(j["status"], "failed", "--scenes + --auto must fail");
+}

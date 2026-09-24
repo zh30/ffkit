@@ -138,7 +138,11 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
                 freeze_ends.push(v);
             }
         }
-        if let Some(rest) = line.split("lavfi.scd.time:").nth(1) {
+        if let Some(rest) = line
+            .split("lavfi.scd.time=")
+            .nth(1)
+            .or_else(|| line.split("lavfi.scd.time:").nth(1))
+        {
             if let Ok(t) = rest.trim().split(' ').next().unwrap_or("").parse::<f64>() {
                 scene_cuts.push(t);
             }
@@ -649,6 +653,8 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
             || cd_x2 + 1 < probe.width.unwrap_or(0) as i64
             || cd_y2 + 1 < probe.height.unwrap_or(0) as i64);
 
+    // scdet reports a cut on both boundary frames — collapse near-dupes
+    scene_cuts.dedup_by(|a, b| (*a - *b).abs() < 0.05);
     let mut extra = json!({
         "freeze_min": freeze_min,
         "black_min": black_min,

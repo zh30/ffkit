@@ -45,6 +45,16 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
                 .collect()
         })
         .unwrap_or_default();
+    let sub_langs: Vec<&str> = args
+        .sub_lang
+        .as_deref()
+        .map(|s| {
+            s.split(',')
+                .map(str::trim)
+                .filter(|l| !l.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
     if args.no_cover && args.cover.is_some() {
         return Err(Error::input("remux --no-cover and --cover are exclusive"));
     }
@@ -199,6 +209,35 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("remux --lang: input has no audio"));
         }
     }
+    for l in &sub_langs {
+        if !l.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+            return Err(Error::input(
+                "remux --sub-lang wants ISO-639 codes (eng, jpn, zh-hans; comma list ok)",
+            ));
+        }
+    }
+    if !sub_langs.is_empty() {
+        if args.no_subs {
+            return Err(Error::input(
+                "remux --sub-lang keeps subtitle tracks — --no-subs drops them all",
+            ));
+        }
+        if args.audio || args.video {
+            return Err(Error::input(
+                "remux --sub-lang picks a subtitle track — --audio/--video drops them all",
+            ));
+        }
+        if args.audio_delay.is_some() || args.video_delay.is_some() {
+            return Err(Error::input(
+                "remux --sub-lang only applies to a full repack — drop --audio-delay/--video-delay",
+            ));
+        }
+        if probe.subtitle_streams == 0 {
+            return Err(Error::input(
+                "remux --sub-lang: input has no subtitle streams",
+            ));
+        }
+    }
     // --audio-order 1,0: keep + reorder audio tracks by per-type index.
     // Unlisted tracks are dropped (same surface as --lang's keep-list).
     let audio_order: Vec<usize> = match &args.audio_order {
@@ -321,14 +360,33 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             for i in &audio_order {
                 argv.extend(["-map", format!("0:a:{i}").as_str()]);
             }
-            argv.extend(["-map", "0:s?", "-map", "0:d?", "-c", "copy"]);
-        } else if !langs.is_empty() {
-            // language-filtered repack: every video + only LANG-tagged audio
-            argv.extend(["-map", "0:v"]);
-            for l in &langs {
-                argv.extend(["-map", format!("0:a:m:language:{l}").as_str()]);
+            if sub_langs.is_empty() {
+                argv.extend(["-map", "0:s?"]);
+            } else {
+                for l in &sub_langs {
+                    argv.extend(["-map", format!("0:s:m:language:{l}").as_str()]);
+                }
             }
-            argv.extend(["-map", "0:s?", "-map", "0:d?", "-c", "copy"]);
+            argv.extend(["-map", "0:d?", "-c", "copy"]);
+        } else if !langs.is_empty() || !sub_langs.is_empty() {
+            // language-filtered repack: every video + only the tagged
+            // audio/subtitle tracks (unlisted tracks drop out)
+            argv.extend(["-map", "0:v?"]);
+            if langs.is_empty() {
+                argv.extend(["-map", "0:a?"]);
+            } else {
+                for l in &langs {
+                    argv.extend(["-map", format!("0:a:m:language:{l}").as_str()]);
+                }
+            }
+            if sub_langs.is_empty() {
+                argv.extend(["-map", "0:s?"]);
+            } else {
+                for l in &sub_langs {
+                    argv.extend(["-map", format!("0:s:m:language:{l}").as_str()]);
+                }
+            }
+            argv.extend(["-map", "0:d?", "-c", "copy"]);
         } else {
             argv.extend(["-map", "0", "-c", "copy"]);
         }

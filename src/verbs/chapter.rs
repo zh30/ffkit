@@ -4,6 +4,7 @@ use crate::cli::{ChapterArgs, Globals};
 use crate::contract::{Contract, Status};
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
+use crate::spawn::{self, Argv};
 
 /// WebVTT cue timestamp: HH:MM:SS.mmm
 fn vtt_ts(t: f64) -> String {
@@ -321,6 +322,16 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         return Ok(c.with_extra(json!({ "chapters_removed": true })));
     }
 
+    if args.scenes {
+        if args.auto.is_some() {
+            return Err(Error::input(
+                "chapter --scenes and --auto are exclusive (different detectors)",
+            ));
+        }
+        if !probe.has_video {
+            return Err(Error::input("chapter --scenes needs a video input"));
+        }
+    }
     let mut marks: Vec<(f64, String)> = Vec::new();
     if let Some(min_gap) = args.auto {
         let silences = crate::silence::detect(&args.input, -35.0, min_gap, g.timeout, true)?;
@@ -332,6 +343,44 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         }
         if !marks.is_empty() {
             marks.insert(0, (0.0, "Part 1".to_string()));
+        }
+    }
+    if args.scenes {
+        // scdet flags each cut — chapters for lecture/talking-head footage
+        // where the silence gaps --auto listens for don't exist. One extra
+        // decode pass; metadata=print writes lavfi.scd.time to stdout.
+        let mut det = Argv::ffmpeg();
+        det.push("-i");
+        det.push(&args.input);
+        det.extend([
+            "-vf",
+            "scdet=t=10,metadata=print:file=-",
+            "-an",
+            "-f",
+            "null",
+            "-",
+        ]);
+        let sp = spawn::require_ok(&det, spawn::run(&det, g.timeout, false)?)?;
+        let mut cuts: Vec<f64> = Vec::new();
+        for line in spawn::stdout_str(&sp).unwrap_or_default().lines() {
+            if let Some(rest) = line
+                .split("lavfi.scd.time=")
+                .nth(1)
+                .or_else(|| line.split("lavfi.scd.time:").nth(1))
+            {
+                if let Ok(t) = rest.trim().split(' ').next().unwrap_or("").parse::<f64>() {
+                    if t > 0.2 && t < probe.duration - 0.2 {
+                        cuts.push(t);
+                    }
+                }
+            }
+        }
+        cuts.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        if !cuts.is_empty() {
+            marks.push((0.0, "Scene 1".to_string()));
+            for (i, t) in cuts.iter().enumerate() {
+                marks.push((*t, format!("Scene {}", i + 2)));
+            }
         }
     }
     if let Some(path) = &args.import {
@@ -431,7 +480,7 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
     marks.dedup_by(|a, b| (a.0 - b.0).abs() < 0.05);
     if marks.is_empty() {
         return Err(Error::input(
-            "chapter needs --at TIME|TITLE or --auto found no silence gaps",
+            "chapter needs --at TIME|TITLE, or the detector (--auto/--scenes) found no marks",
         ));
     }
     if marks[0].0 > 0.05 {

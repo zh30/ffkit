@@ -40,7 +40,7 @@ pub fn run(args: CountdownArgs, g: &Globals) -> Result<Contract, Error> {
             (Ok(h), Ok(m), Ok(s)) if h < 24.0 && m < 60.0 && s < 60.0 => (h, m, s),
             _ => return Err(Error::input("--target must be HH:MM or HH:MM:SS")),
         };
-        let delta = (h * 3600.0 + m * 60.0 + s - crate::verbs::timer::local_clock_secs())
+        let delta = (h * 3600.0 + m * 60.0 + s - crate::verbs::timer::local_clock_secs(false))
             .rem_euclid(86400.0);
         count = delta.round() as u32;
         if !(1..=600).contains(&count) {

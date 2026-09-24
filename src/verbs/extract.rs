@@ -222,6 +222,46 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
         if !probe.has_audio {
             return Err(Error::input("extract --audio: input has no audio"));
         }
+        if args.all {
+            if args.track.is_some() {
+                return Err(Error::input(
+                    "extract --all rips every track — drop --track",
+                ));
+            }
+            let n = probe.streams.iter().filter(|s| s.kind == "audio").count();
+            let stem = args
+                .output
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "audio".to_string());
+            argv.push("-i");
+            argv.push(&args.input);
+            let mut files: Vec<String> = Vec::new();
+            for i in 0..n {
+                let f = args
+                    .output
+                    .with_file_name(format!("{stem}_a{i}.{ext}"))
+                    .display()
+                    .to_string();
+                argv.extend(["-map", format!("0:a:{i}").as_str(), "-vn", "-c:a", "copy"]);
+                argv.push(&f);
+                files.push(f);
+            }
+            // write_job verifies files[0]; extras lists every ripped track.
+            let c = engine::write_job(
+                "extract",
+                &[&args.input],
+                Path::new(&files[0]),
+                vec![argv],
+                g,
+            )?;
+            return Ok(c.with_extra(serde_json::json!({
+                "audio": true,
+                "all": true,
+                "tracks": n,
+                "files": files,
+            })));
+        }
         let track = args.track.unwrap_or(0);
         argv.push("-i");
         argv.push(&args.input);
@@ -244,6 +284,51 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input(
                 "extract --subs: input has no subtitle streams",
             ));
+        }
+        let codec = match ext.as_str() {
+            "srt" => "srt",
+            "ass" | "ssa" => "ass",
+            "vtt" => "webvtt",
+            _ => return Err(Error::input("extract --subs: -o must be .srt/.ass/.vtt")),
+        };
+        if args.all {
+            if args.track.is_some() {
+                return Err(Error::input(
+                    "extract --all rips every track — drop --track",
+                ));
+            }
+            let stem = args
+                .output
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "subs".to_string());
+            argv.push("-i");
+            argv.push(&args.input);
+            let mut files: Vec<String> = Vec::new();
+            for i in 0..probe.subtitle_streams {
+                let f = args
+                    .output
+                    .with_file_name(format!("{stem}_s{i}.{ext}"))
+                    .display()
+                    .to_string();
+                let sel = format!("0:s:{i}");
+                argv.extend(["-map", sel.as_str(), "-vn", "-an", "-c:s", codec]);
+                argv.push(&f);
+                files.push(f);
+            }
+            let c = engine::write_job(
+                "extract",
+                &[&args.input],
+                Path::new(&files[0]),
+                vec![argv],
+                g,
+            )?;
+            return Ok(c.with_extra(serde_json::json!({
+                "subs": true,
+                "all": true,
+                "tracks": probe.subtitle_streams,
+                "files": files,
+            })));
         }
         let track = args.track.unwrap_or(0);
         if track >= probe.subtitle_streams {
