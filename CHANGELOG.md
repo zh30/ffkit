@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.308.0] — 2026-09-24
+
+### Added
+- `chapter --srt` exports the mark list as a soft-subtitle file — every chapter title becomes a cue spanning to the next mark/EOF (burn or mux to preview where seek points land)
+- `subs --strip-tags` drops inline markup from cue text — `{\…}` ASS override blocks (`<…>` tags are already stripped at parse) for transcripts that would burn literal markup
+- `probe`/`scan` `streams[].sample_rate` — per-track audio sample-rate QC on mixed-rate files (checks `conform --ar`/`transcode --ar` landed per track)
+- `deliver --platform` +7: `soundcloud`/`mixcloud`/`audiomack`/`bandcamp`/`vevo`/`roku`/`plex` — music-platform, podcast and TV-device canvases (16:9 1080p, −14 LUFS pipeline)
+
 ## [0.307.0] — 2026-09-24
 
 ### Added

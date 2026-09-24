@@ -79,6 +79,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.max_lines.is_some()
         || args.replace.is_some()
         || args.strip_speakers
+        || args.strip_tags
         || args.wrap.is_some()
         || args.find.is_some()
     {
@@ -398,6 +399,16 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+    let mut tags_stripped = 0usize;
+    if args.strip_tags {
+        for c in &mut cues {
+            let out = crate::srt::strip_markup(&c.text);
+            if out != c.text {
+                c.text = out;
+                tags_stripped += 1;
+            }
+        }
+    }
     let mut found = 0usize;
     if let Some(needle) = &args.find {
         let n = needle.to_lowercase();
@@ -453,6 +464,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "gapped": gapped,
         "replaced": replaced,
         "stripped": stripped,
+        "tags_stripped": tags_stripped,
         "rewrapped": rewrapped,
         "find": args.find,
         "found": found,

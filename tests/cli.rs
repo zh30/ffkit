@@ -36366,3 +36366,79 @@ fn r280_no_chapters_audio_loop_stream_title() {
         assert_eq!(pr["probe"]["streams"][0]["width"], 1920, "{pr}");
     }
 }
+
+#[test]
+fn r281_srt_striptags_sample_rate_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+    // --strip-tags removes <> and {} markup from cue text
+    let tagged = d.path().join("tagged.srt");
+    std::fs::write(
+        &tagged,
+        "1\n00:00:00,000 --> 00:00:00,500\n<i>Hello</i> <b>world</b>\n\n2\n00:00:00,600 --> 00:00:01,000\n{\\an8}centered {\\i1}italic{\\i0}\n\n",
+    )
+    .unwrap();
+    let clean = d.path().join("clean.srt");
+    let j = run_json(&[
+        "subs",
+        tagged.to_str().unwrap(),
+        "-o",
+        clean.to_str().unwrap(),
+        "--strip-tags",
+    ]);
+    assert_eq!(j["status"], "ok");
+    // parse_srt already drops <...> tags at load — only the {\…} cue counts as changed
+    assert_eq!(j["extra"]["tags_stripped"], 1);
+    let txt = std::fs::read_to_string(&clean).unwrap();
+    assert!(txt.contains("Hello world"));
+    assert!(txt.contains("centered italic"));
+    assert!(!txt.contains("<i>") && !txt.contains("{"));
+
+    // chapter --srt: each mark becomes a cue spanning to the next mark / EOF
+    let toc = d.path().join("toc.srt");
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "--srt",
+        "-o",
+        toc.to_str().unwrap(),
+        "--at",
+        "0|Intro",
+        "--at",
+        "0.4|Middle",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["exported"], "srt");
+    let srt = std::fs::read_to_string(&toc).unwrap();
+    assert!(srt.contains("00:00:00,000 --> 00:00:00,400"));
+    assert!(srt.contains("00:00:00,400 --> 00:00:01,000"));
+    assert!(srt.contains("Intro") && srt.contains("Middle"));
+
+    // streams[].sample_rate QC
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let a = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+    assert_eq!(a["sample_rate"], 44100);
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    assert!(v.get("sample_rate").is_none());
+
+    // new 16:9 platform canvases
+    for p in ["soundcloud", "bandcamp", "roku"] {
+        let out = d.path().join(format!("{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["probe"]["width"], 1920);
+        assert_eq!(j["probe"]["height"], 1080);
+    }
+}

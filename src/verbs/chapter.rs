@@ -557,7 +557,15 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
     }
 
     let meta = ffmeta_table(&marks, probe.duration);
-    if args.export || args.yt || args.cue || args.podcast || args.lrc || args.vtt || args.csv {
+    if args.export
+        || args.yt
+        || args.cue
+        || args.podcast
+        || args.lrc
+        || args.vtt
+        || args.csv
+        || args.srt
+    {
         let text = if args.csv {
             // Resolve/Premiere marker + spreadsheet exchange: H:MM:SS.mmm,Title
             marks
@@ -580,6 +588,24 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
                 .collect::<Vec<_>>()
                 .join("\n")
                 + "\n"
+        } else if args.srt {
+            // Chapter TOC as soft subtitles: each mark is a cue titled by
+            // the chapter, spanning to the next mark / EOF — burn or mux
+            // it to preview where seek points land
+            let cues: Vec<crate::srt::Cue> = marks
+                .iter()
+                .enumerate()
+                .map(|(i, (t, ti))| crate::srt::Cue {
+                    start: *t,
+                    end: if i + 1 < marks.len() {
+                        marks[i + 1].0
+                    } else {
+                        probe.duration
+                    },
+                    text: ti.clone(),
+                })
+                .collect();
+            crate::srt::to_srt(&cues)
         } else if args.vtt {
             // WebVTT chapters file — <track kind="chapters"> on a web
             // <video> gives click-to-seek nav without an editor timeline
@@ -674,7 +700,7 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         })?;
         let mut c = Contract::ok("chapter", Some(args.output.display().to_string()), None);
         c = c.with_extra(json!({
-            "exported": if args.csv { "csv" } else if args.vtt { "vtt" } else if args.lrc { "lrc" } else if args.podcast { "podcast" } else if args.yt { "youtube" } else if args.cue { "cue" } else { "ffmetadata" },
+            "exported": if args.csv { "csv" } else if args.vtt { "vtt" } else if args.lrc { "lrc" } else if args.podcast { "podcast" } else if args.yt { "youtube" } else if args.cue { "cue" } else if args.srt { "srt" } else { "ffmetadata" },
             "chapters": marks
                 .iter()
                 .map(|(t, ti)| json!({"time": t, "title": ti}))

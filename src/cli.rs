@@ -1478,6 +1478,20 @@ pub enum DeliverPlatform {
     Napster,
     /// JOOX video single 16:9 landscape (1920x1080, -14 LUFS)
     Joox,
+    /// SoundCloud video upload 16:9 landscape (1920x1080, -14 LUFS)
+    Soundcloud,
+    /// Mixcloud DJ-set video 16:9 landscape (1920x1080, -14 LUFS)
+    Mixcloud,
+    /// Audiomack release video 16:9 landscape (1920x1080, -14 LUFS)
+    Audiomack,
+    /// Bandcamp track-page video 16:9 landscape (1920x1080, -14 LUFS)
+    Bandcamp,
+    /// VEVO music video 16:9 landscape (1920x1080, -14 LUFS)
+    Vevo,
+    /// Roku channel video 16:9 landscape (1920x1080, -14 LUFS)
+    Roku,
+    /// Plex library video 16:9 landscape (1920x1080, -14 LUFS)
+    Plex,
     /// Spotify video podcast 16:9 landscape (1920x1080, -14 LUFS)
     Spotify,
     /// Apple Podcasts video episode 16:9 landscape (1920x1080, -14 LUFS)
@@ -2922,6 +2936,11 @@ pub struct SubsArgs {
     /// `ALL-CAPS NAME:` prefixes (auto-generated transcripts; extras: stripped)
     #[arg(long)]
     pub strip_speakers: bool,
+    /// Strip inline markup from cue text — `<i>`/`<b>`/`<font …>` tags and
+    /// `{\…}` ASS override blocks (transcripts that burn literal markup;
+    /// extras: tags_stripped)
+    #[arg(long)]
+    pub strip_tags: bool,
     /// Rewrap cue text at N chars per line (portrait-phone captions;
     /// extras: rewrapped)
     #[arg(long)]
@@ -6307,7 +6326,7 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "csv", "list", "remove", "spread", "scenes"])]
+    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "csv", "srt", "list", "remove", "spread", "scenes"])]
     pub at: Vec<String>,
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
@@ -6355,6 +6374,11 @@ pub struct ChapterArgs {
     /// (--import reads .csv back: header row + quoted titles ok)
     #[arg(long)]
     pub csv: bool,
+    /// Write marks as an .srt file at -o — each mark becomes a cue titled
+    /// with the chapter name, spanning to the next mark (TOC as soft
+    /// subs; burn to preview where seek points land)
+    #[arg(long)]
+    pub srt: bool,
     /// Import marks from a text file: lines "TIME|TITLE" or "TIME,TITLE"
     /// ('#' comments and blank lines skipped)
     #[arg(long)]

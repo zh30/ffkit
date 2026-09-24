@@ -49,6 +49,38 @@ pub fn parse_srt(raw: &str) -> Result<Vec<Cue>, Error> {
     Ok(cues)
 }
 
+/// Remove inline markup a cue may carry: HTML-ish `<i>`/`<b>`/
+/// `<font …>` spans and ASS `{\…}` override blocks.
+pub fn strip_markup(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(ch) = chars.next() {
+        match ch {
+            '<' => {
+                for c in chars.by_ref() {
+                    if c == '>' {
+                        break;
+                    }
+                }
+            }
+            '{' => {
+                for c in chars.by_ref() {
+                    if c == '}' {
+                        break;
+                    }
+                }
+            }
+            _ => out.push(ch),
+        }
+    }
+    out.split('\n')
+        .map(|l| l.trim_end().to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string()
+}
+
 pub fn to_srt(cues: &[Cue]) -> String {
     let mut out = String::new();
     for (i, c) in cues.iter().enumerate() {

@@ -652,3 +652,6 @@ an atempo'd whole-file render would shift the window.
 - **clap won't take a bare negative for an `f64` flag** — `--audio-offset -1` parses `-1` as a new flag (exit 2, no JSON). Negative values only pass in `--flag=-1` equals-form, which reaches the verb's own range check.
 
 - **A short `--audio` bed silently pads with `apad`, not music** — the slideshow bed chain is `apad,atrim=duration=…`: past the bed's end the montage gets digital silence (−91dB tail). `-stream_loop -1` is an input option BEFORE `-i` (`--audio-loop`) and repeats the bed instead; the `afade` tail then fades real audio, not silence.
+
+- **`.srt` load already strips `<…>` markup** — `parse_srt` runs every cue line through the tag-stripper, so `subs --strip-tags` only ever *counts* cues carrying `{\…}` ASS override blocks in `tags_stripped` (the `<i>`/`<b>` cues were already clean at ingest). The flag still handles both — the count is "cues whose text changed", not "tags seen".
+- **Chapter exports write *defined* marks, not embedded ones** — `--srt`/`--csv`/`--vtt`/… serialize the marks you set with `--at`/`--import`/`--spread`/`--auto`/`--scenes` in the same run; embedded container chapters only come back via `--list`. `chapter file --srt` alone fails "needs --at …" by design.

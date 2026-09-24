@@ -134,6 +134,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Yandexmusic
         | DeliverPlatform::Napster
         | DeliverPlatform::Joox
+        | DeliverPlatform::Soundcloud
+        | DeliverPlatform::Mixcloud
+        | DeliverPlatform::Audiomack
+        | DeliverPlatform::Bandcamp
+        | DeliverPlatform::Vevo
+        | DeliverPlatform::Roku
+        | DeliverPlatform::Plex
         | DeliverPlatform::Spotify
         | DeliverPlatform::Apple
         | DeliverPlatform::Amazonmusic
@@ -537,6 +544,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Yandexmusic => "yandexmusic",
         DeliverPlatform::Napster => "napster",
         DeliverPlatform::Joox => "joox",
+        DeliverPlatform::Soundcloud => "soundcloud",
+        DeliverPlatform::Mixcloud => "mixcloud",
+        DeliverPlatform::Audiomack => "audiomack",
+        DeliverPlatform::Bandcamp => "bandcamp",
+        DeliverPlatform::Vevo => "vevo",
+        DeliverPlatform::Roku => "roku",
+        DeliverPlatform::Plex => "plex",
         DeliverPlatform::Spotify => "spotify",
         DeliverPlatform::Apple => "apple",
         DeliverPlatform::Amazonmusic => "amazonmusic",

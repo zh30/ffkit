@@ -104,6 +104,10 @@ pub struct ProbeStream {
     pub height: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub channels: Option<u32>,
+    /// Audio sample rate Hz (audio streams — QC after `conform --ar` /
+    /// `transcode --ar` on multi-rate files)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sample_rate: Option<u32>,
     /// Player-default track (disposition.default) — QC which track a
     /// player picks before `remux --default-audio`/`--default-sub`.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -420,6 +424,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 width: s.width,
                 height: s.height,
                 channels: s.channels,
+                sample_rate: s.sample_rate.as_deref().and_then(|v| v.parse().ok()),
                 default: s
                     .disposition
                     .as_ref()
