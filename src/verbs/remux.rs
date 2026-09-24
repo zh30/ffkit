@@ -107,6 +107,38 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             v
         }
     };
+    // --drop 1,3: absolute stream indices — drops ONLY the listed streams
+    // (inverse of --keep; pull one track out, keep the rest)
+    let drop: Vec<usize> = match &args.drop {
+        None => Vec::new(),
+        Some(raw) => {
+            let v: Vec<usize> = raw
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(|s| {
+                    s.parse().map_err(|_| {
+                        Error::input("remux --drop needs absolute stream indices (e.g. 1,3)")
+                    })
+                })
+                .collect::<Result<_, _>>()?;
+            if v.is_empty() {
+                return Err(Error::input("remux --drop: no stream indices given"));
+            }
+            let mut seen = std::collections::HashSet::new();
+            for i in &v {
+                if !seen.insert(*i) {
+                    return Err(Error::input("remux --drop: duplicate stream index"));
+                }
+            }
+            v
+        }
+    };
+    if !drop.is_empty() && !keep.is_empty() {
+        return Err(Error::input(
+            "remux --keep and --drop express the same pick — use one",
+        ));
+    }
     if let Some(d) = args.audio_delay {
         if !d.is_finite() || d == 0.0 {
             return Err(Error::input(
@@ -558,6 +590,36 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+    if !drop.is_empty() {
+        if args.audio || args.video || !langs.is_empty() || !sub_langs.is_empty() {
+            return Err(Error::input(
+                "remux --drop picks streams itself — drop --audio/--video/--lang/--sub-lang",
+            ));
+        }
+        if !audio_order.is_empty() || !sub_order.is_empty() || !video_order.is_empty() {
+            return Err(Error::input(
+                "remux --drop is absolute-indexed — drop --audio-order/--sub-order/--video-order",
+            ));
+        }
+        if args.audio_delay.is_some() || args.video_delay.is_some() {
+            return Err(Error::input(
+                "remux --drop re-maps streams — drop --audio-delay/--video-delay",
+            ));
+        }
+        if args.no_subs || args.no_video || args.no_audio || args.no_attachments {
+            return Err(Error::input(
+                "remux --drop drops by index — drop the --no-* kind flags",
+            ));
+        }
+        let n_streams = probe.streams.len();
+        for i in &drop {
+            if *i >= n_streams {
+                return Err(Error::input(format!(
+                    "remux --drop {i}: input only has {n_streams} stream(s)",
+                )));
+            }
+        }
+    }
     // The subtitle map set used wherever a repack lists subs explicitly:
     // ordered indices > language tags > every sub (optional so sub-free
     // sources don't fail)
@@ -574,6 +636,12 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if !keep.is_empty() {
         for i in &keep {
             argv.extend(["-map", format!("0:{i}").as_str()]);
+        }
+        argv.extend(["-c", "copy"]);
+    } else if !drop.is_empty() {
+        argv.extend(["-map", "0"]);
+        for i in &drop {
+            argv.extend(["-map", format!("-0:{i}").as_str()]);
         }
         argv.extend(["-c", "copy"]);
     } else if args.audio {
@@ -966,7 +1034,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     let mut c = c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "no_video": args.no_video, "no_audio": args.no_audio, "no_attachments": args.no_attachments, "keep": args.keep, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "no_video": args.no_video, "no_audio": args.no_audio, "no_attachments": args.no_attachments, "keep": args.keep, "drop": args.drop, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts }),
     );
     if let Some((key, kid)) = enc_kv {
         c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));

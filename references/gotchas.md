@@ -648,3 +648,5 @@ an atempo'd whole-file render would shift the window.
 
 - **`-af`/`-filter:a` can't sit on a `-filter_complex` output** — stream-specifier filters attach to mapped *input* streams; when the audio comes OUT of a graph (a concat label), the gain must ride inside the graph chain itself (`live --volume` injects `,volume=` into the audio chain, or builds a bare `[0:a]volume[r][avol]` graph when nothing else needs one). An audio-only graph leaves the video map empty — fall back to the raw `-map 0:v`, not the graph's (missing) video label.
 - **`chapter --rate` applies before `--shift`** — retiming is fixed scale-then-offset (the same order `subs --resync` solves). Marks authored for a sped-up cut divide by the rate; check a mark past EOF isn't created — the end-of-file guard still rejects at the scaled time.
+
+- **clap won't take a bare negative for an `f64` flag** — `--audio-offset -1` parses `-1` as a new flag (exit 2, no JSON). Negative values only pass in `--flag=-1` equals-form, which reaches the verb's own range check.

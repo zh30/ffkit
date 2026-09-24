@@ -1450,6 +1450,20 @@ pub enum DeliverPlatform {
     Wistia,
     /// Domestika course video 16:9 landscape (1920x1080, -14 LUFS)
     Domestika,
+    /// Steam store-page video 16:9 landscape (1920x1080, -14 LUFS)
+    Steam,
+    /// itch.io game-page video 16:9 landscape (1920x1080, -14 LUFS)
+    Itch,
+    /// Shopee product video 16:9 landscape (1920x1080, -14 LUFS)
+    Shopee,
+    /// Lazada product video 16:9 landscape (1920x1080, -14 LUFS)
+    Lazada,
+    /// Taobao product video 16:9 landscape (1920x1080, -14 LUFS)
+    Taobao,
+    /// DLive stream video 16:9 landscape (1920x1080, -14 LUFS)
+    Dlive,
+    /// Minds video 16:9 landscape (1920x1080, -14 LUFS)
+    Minds,
     /// Spotify video podcast 16:9 landscape (1920x1080, -14 LUFS)
     Spotify,
     /// Apple Podcasts video episode 16:9 landscape (1920x1080, -14 LUFS)
@@ -3190,6 +3204,10 @@ pub struct SlideshowArgs {
     /// ring out under the last still instead of cutting abruptly)
     #[arg(long)]
     pub audio_fade: Option<f64>,
+    /// Start the music bed T seconds in — skip the intro, use the chorus
+    /// (--fit measures the montage against the bed's remaining length)
+    #[arg(long)]
+    pub audio_offset: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4295,6 +4313,10 @@ pub struct RemuxArgs {
     /// streams drop)
     #[arg(long)]
     pub keep: Option<String>,
+    /// Drop ONLY these absolute stream indices, comma list — inverse of
+    /// --keep (pull one commentary track / one language out, keep the rest)
+    #[arg(long)]
+    pub drop: Option<String>,
     /// Decrypt a CENC-encrypted input while repacking — 32-hex AES-CTR
     /// key (ClearKey receipt files; pair with --encrypt to rotate keys)
     #[arg(long)]

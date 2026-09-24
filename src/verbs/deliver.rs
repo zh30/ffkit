@@ -120,6 +120,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Gumroad
         | DeliverPlatform::Wistia
         | DeliverPlatform::Domestika
+        | DeliverPlatform::Steam
+        | DeliverPlatform::Itch
+        | DeliverPlatform::Shopee
+        | DeliverPlatform::Lazada
+        | DeliverPlatform::Taobao
+        | DeliverPlatform::Dlive
+        | DeliverPlatform::Minds
         | DeliverPlatform::Spotify
         | DeliverPlatform::Apple
         | DeliverPlatform::Amazonmusic
@@ -509,6 +516,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Gumroad => "gumroad",
         DeliverPlatform::Wistia => "wistia",
         DeliverPlatform::Domestika => "domestika",
+        DeliverPlatform::Steam => "steam",
+        DeliverPlatform::Itch => "itch",
+        DeliverPlatform::Shopee => "shopee",
+        DeliverPlatform::Lazada => "lazada",
+        DeliverPlatform::Taobao => "taobao",
+        DeliverPlatform::Dlive => "dlive",
+        DeliverPlatform::Minds => "minds",
         DeliverPlatform::Spotify => "spotify",
         DeliverPlatform::Apple => "apple",
         DeliverPlatform::Amazonmusic => "amazonmusic",

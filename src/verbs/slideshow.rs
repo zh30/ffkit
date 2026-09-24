@@ -61,11 +61,27 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     }
     // Probe the music bed up front: --fit borrows its duration for the
     // per-still solve below.
+    if let Some(off) = args.audio_offset {
+        if args.audio.is_none() {
+            return Err(Error::input("--audio-offset needs --audio"));
+        }
+        if !off.is_finite() || off < 0.0 {
+            return Err(Error::input("--audio-offset must be >= 0 seconds"));
+        }
+    }
     let bed_probe = if let Some(bed) = &args.audio {
         paths::ensure_input(bed)?;
         let p = engine::probe_or_err(bed, g)?;
         if !p.has_audio {
             return Err(Error::input("slideshow: --audio file has no audio stream"));
+        }
+        if let Some(off) = args.audio_offset {
+            if off >= p.duration {
+                return Err(Error::input(format!(
+                    "--audio-offset {off}s lands past the bed's end ({:.1}s)",
+                    p.duration
+                )));
+            }
         }
         Some(p)
     } else {
@@ -102,7 +118,9 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     // the target runtime (total = n*per - (n-1)*fade). --fit takes the
     // target from the audio bed's length.
     let dur_target = args.dur.or(if args.fit {
-        bed_probe.as_ref().map(|p| p.duration)
+        bed_probe
+            .as_ref()
+            .map(|p| p.duration - args.audio_offset.unwrap_or(0.0))
     } else {
         None
     });
@@ -227,6 +245,9 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     let bed_idx = if let Some(bed) = &args.audio {
+        if let Some(off) = args.audio_offset {
+            argv.extend(["-ss", format!("{off}").as_str()]);
+        }
         argv.extend(["-i"]);
         argv.push(bed);
         Some(next_input)

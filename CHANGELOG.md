@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.306.0] — 2026-09-24
+
+### Added
+- `remux --drop 1,3` — drop ONLY the listed absolute stream indices (inverse of `--keep` — pull one commentary track or one language out and keep the rest; conflicts with the per-type selectors/orders, range-checked against `probe.streams`).
+- `probe`/`scan` `streams[].forced` — FORCED-disposition flag per stream (QC that `remux --forced-sub` landed; rides the same ffprobe call).
+- `slideshow --audio-offset SEC` — start the music bed T seconds in (skip the intro, use the chorus; `--fit` measures the montage against the bed's remainder).
+- `deliver --platform steam|itch|shopee|lazada|taobao|dlive|minds` — game-store & marketplace video canvases (16:9 1080p, −14 LUFS).
+
 ## [0.305.0] — 2026-09-24
 
 ### Added

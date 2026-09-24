@@ -35998,3 +35998,192 @@ fn r278_find_rate_chapter_count_live_volume_course_platforms() {
         assert_eq!(pr["probe"]["streams"][0]["width"], 1920, "{pr}");
     }
 }
+
+#[test]
+fn r279_drop_forced_stream_audio_offset() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+    // multi.mkv: video + 2 audio (440Hz / 880Hz) so --drop can pick one out
+    let multi = d.path().join("multi.mkv");
+    let m = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        multi.to_str().unwrap(),
+    ]);
+    assert_eq!(m["status"], "ok", "{m}");
+    // remux --drop N removes only that absolute stream index
+    let drop = d.path().join("drop.mkv");
+    let j = run_json(&[
+        "remux",
+        multi.to_str().unwrap(),
+        "-o",
+        drop.to_str().unwrap(),
+        "--drop",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["drop"], "1", "{j}");
+    let pr = run_json(&["probe", drop.to_str().unwrap()]);
+    assert_eq!(pr["probe"]["has_audio"], false, "{pr}");
+    assert_eq!(pr["probe"]["streams"].as_array().unwrap().len(), 1, "{pr}");
+    // --drop conflicts with selectors and ranges-checked
+    for extra in [
+        vec!["--drop", "1", "--audio"],
+        vec!["--drop", "9"],
+        vec!["--drop", "1", "--lang", "eng"],
+        vec!["--drop", "1", "--keep", "0"],
+        vec!["--drop", "1", "--no-video"],
+        vec!["--drop", "a"],
+        vec!["--drop", "1,1"],
+    ] {
+        let o = d.path().join("bad.mkv");
+        let mut a = vec!["remux", multi.to_str().unwrap(), "-o", o.to_str().unwrap()];
+        a.extend_from_slice(&extra);
+        let m = run_json(&a);
+        assert_eq!(m["status"], "failed", "{extra:?}: {m}");
+    }
+    // probe streams[].forced reads the forced disposition flag
+    let srt = d.path().join("f.srt");
+    std::fs::write(&srt, "1\n00:00:00,100 --> 00:00:00,500\nforced line\n").unwrap();
+    // embed the srt, then force-flag it
+    let fm2 = d.path().join("forced2.mkv");
+    let j2 = run_json(&[
+        "subs",
+        f.to_str().unwrap(),
+        "-o",
+        fm2.to_str().unwrap(),
+        "--mux",
+        srt.to_str().unwrap(),
+    ]);
+    assert_eq!(j2["status"], "ok", "{j2}");
+    let fm = d.path().join("forced.mkv");
+    let j = run_json(&[
+        "remux",
+        fm2.to_str().unwrap(),
+        "-o",
+        fm.to_str().unwrap(),
+        "--forced-sub",
+        "0",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", fm.to_str().unwrap()]);
+    let streams = pr["probe"]["streams"].as_array().unwrap();
+    let sub = streams
+        .iter()
+        .find(|s| s["kind"] == "subtitle")
+        .expect("subtitle stream");
+    assert_eq!(sub["forced"], true, "{pr}");
+    // slideshow --audio-offset starts the bed T seconds in
+    let p1 = d.path().join("a.png");
+    let p2 = d.path().join("b.png");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=red:size=64x64",
+            "-frames:v",
+            "1",
+        ])
+        .arg(p1.to_str().unwrap())
+        .output()
+        .unwrap();
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=blue:size=64x64",
+            "-frames:v",
+            "1",
+        ])
+        .arg(p2.to_str().unwrap())
+        .output()
+        .unwrap();
+    let bed = d.path().join("bed.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=4",
+            "-c:a",
+            "aac",
+        ])
+        .arg(bed.to_str().unwrap())
+        .output()
+        .unwrap();
+    let so = d.path().join("so.mp4");
+    let j = run_json(&[
+        "slideshow",
+        p1.to_str().unwrap(),
+        p2.to_str().unwrap(),
+        "--per",
+        "0.5",
+        "--audio",
+        bed.to_str().unwrap(),
+        "--audio-offset",
+        "2",
+        "--fit",
+        "-o",
+        so.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    // --fit measures against the bed remainder (4 - 2 = 2s)
+    let pr = run_json(&["probe", so.to_str().unwrap()]);
+    let dur = pr["probe"]["duration"].as_f64().unwrap();
+    assert!((1.8..2.3).contains(&dur), "{pr}");
+    for (flag, why) in [
+        ("--audio-offset", "past end"),
+        ("--audio-offset=-1", "negative"),
+    ] {
+        let o = d.path().join("bad.mp4");
+        let mut a = vec![
+            "slideshow",
+            p1.to_str().unwrap(),
+            p2.to_str().unwrap(),
+            "--audio",
+            bed.to_str().unwrap(),
+            flag,
+        ];
+        if flag == "--audio-offset" {
+            a.push("9");
+        }
+        a.extend_from_slice(&["-o", o.to_str().unwrap()]);
+        let m = run_json(&a);
+        assert_eq!(m["status"], "failed", "{why}: {m}");
+    }
+    let m = run_json(&[
+        "slideshow",
+        p1.to_str().unwrap(),
+        "--audio-offset",
+        "1",
+        "-o",
+        d.path().join("bad2.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(m["status"], "failed", "{m}");
+    // 7 new marketplace platforms land on the 1920x1080 canvas
+    for plat in [
+        "steam", "itch", "shopee", "lazada", "taobao", "dlive", "minds",
+    ] {
+        let o = d.path().join(format!("d_{plat}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            plat,
+        ]);
+        assert_eq!(j["status"], "ok", "{plat}: {j}");
+        let pr = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pr["probe"]["streams"][0]["width"], 1920, "{pr}");
+    }
+}

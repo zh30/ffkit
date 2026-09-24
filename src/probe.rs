@@ -104,6 +104,10 @@ pub struct ProbeStream {
     /// player picks before `remux --default-audio`/`--default-sub`.
     #[serde(default, skip_serializing_if = "is_false")]
     pub default: bool,
+    /// FORCED-flagged subtitle track — QC that `remux --forced-sub` landed
+    /// (film-style captions players auto-show for the audience's language)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub forced: bool,
 }
 
 fn is_false(v: &bool) -> bool {
@@ -415,6 +419,12 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                     .disposition
                     .as_ref()
                     .and_then(|d| d.get("default").copied())
+                    .unwrap_or(0)
+                    == 1,
+                forced: s
+                    .disposition
+                    .as_ref()
+                    .and_then(|d| d.get("forced").copied())
                     .unwrap_or(0)
                     == 1,
             })
