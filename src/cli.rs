@@ -1436,6 +1436,20 @@ pub enum DeliverPlatform {
     Kajabi,
     /// Patreon post video 16:9 landscape (1920x1080, -14 LUFS)
     Patreon,
+    /// Spotify video podcast 16:9 landscape (1920x1080, -14 LUFS)
+    Spotify,
+    /// Apple Podcasts video episode 16:9 landscape (1920x1080, -14 LUFS)
+    Apple,
+    /// Amazon Music video podcast 16:9 landscape (1920x1080, -14 LUFS)
+    Amazonmusic,
+    /// iHeartRadio video podcast 16:9 landscape (1920x1080, -14 LUFS)
+    Iheartradio,
+    /// Pandora video podcast 16:9 landscape (1920x1080, -14 LUFS)
+    Pandora,
+    /// Castbox video podcast 16:9 landscape (1920x1080, -14 LUFS)
+    Castbox,
+    /// Podbean video podcast 16:9 landscape (1920x1080, -14 LUFS)
+    Podbean,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2846,6 +2860,11 @@ pub struct SubsArgs {
     /// extension caps at the next cue's start so it can't re-overlap)
     #[arg(long)]
     pub min_dur: Option<f64>,
+    /// Enforce at least SEC seconds of silence between adjacent cues —
+    /// trim the earlier cue's tail when the gap is shorter (broadcast
+    /// spec is ~2 frames; extras: gapped)
+    #[arg(long)]
+    pub min_gap: Option<f64>,
     /// Report cues with more than N text lines (broadcast spec is 2)
     #[arg(long)]
     pub max_lines: Option<usize>,
@@ -4114,6 +4133,17 @@ pub struct RemuxArgs {
     /// the audio track)
     #[arg(long)]
     pub no_video: bool,
+    /// Drop audio streams in the repack (silent deliverable that keeps
+    /// picture/subtitles/cover — screencast library, muted B-roll
+    /// master; unlike --video which rips ONLY the video track)
+    #[arg(long)]
+    pub no_audio: bool,
+    /// Drop attachment streams in the repack (embedded fonts/payloads —
+    /// slim down a file whose subtitles keep their styling via
+    /// installed-system fonts; --no-cover only removes attached_pic
+    /// cover art, this removes the rest)
+    #[arg(long)]
+    pub no_attachments: bool,
     /// Lossless trim: start the repack at SEC (keyframe-accurate seek —
     /// repackage just a segment without re-encoding)
     #[arg(long)]

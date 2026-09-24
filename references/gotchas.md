@@ -642,3 +642,6 @@ an atempo'd whole-file render would shift the window.
 
 - **mp4/mov drop stream-level `title=` for EVERY kind** — `-metadata:s:v:0 title=`/`:a:`/`:s:` never lands in movenc's output (the format-level whitelist is separate and does keep `title`/`artist`/…). `--title-audio`/`--title-subs`/`--title-video` need an mkv/webm output; verify with `probe` `tags.stream:N.title`, not exit code.
 - **dashenc on ffmpeg 4.4 has no CENC options** — `-encryption_scheme`/`-encryption_key` are movenc-only (dashenc gained them in 5.x). For encrypted DASH, `remux --encrypt` the mp4 first, then `dash --copy` the encrypted file.
+
+- **`-map -0:t` hits attachment streams, NOT attached_pic cover art** — cover art is a *video* stream with an `attached_pic` disposition, so `--no-cover` (index-based negative maps) and `--no-attachments` (`-0:t` specifier) are different jobs. Check kinds with `probe` `streams[].kind == "attachment"` vs `attached_pic_indices`.
+- **ffmpeg 4.4's mkv AND mp4 muxers refuse raw data streams** — "Only audio, video, and subtitles are supported for Matroska" / "codec not currently supported". Camera telemetry/GPMF tracks can only be dropped (`-map -0:d`), never remuxed on this version.

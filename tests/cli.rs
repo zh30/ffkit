@@ -35753,3 +35753,152 @@ fn r276_resync_no_video_title_video_platforms() {
     let pr = run_json(&["probe", ud.to_str().unwrap()]);
     assert_eq!(pr["probe"]["streams"][0]["width"], 1920);
 }
+
+#[test]
+fn r277_no_audio_no_attach_min_gap_import_srt_podcasts() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let base = fixture(d.path());
+
+    // remux --no-audio: silent repack keeps picture+subs, drops audio
+    let silent = d.path().join("silent.mkv");
+    let j = run_json(&[
+        "remux",
+        base.to_str().unwrap(),
+        "-o",
+        silent.to_str().unwrap(),
+        "--no-audio",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", silent.to_str().unwrap()]);
+    assert_eq!(pr["probe"]["has_audio"], false, "{pr}");
+    assert_eq!(pr["probe"]["has_video"], true, "{pr}");
+    // --no-audio + --no-audio-conflicting flags refuse before any write
+    let xmkv = d.path().join("x.mkv");
+    for extra in [
+        vec!["--no-video"],
+        vec!["--lang", "eng"],
+        vec!["--audio-order", "0"],
+    ] {
+        let mut args = vec![
+            "remux",
+            base.to_str().unwrap(),
+            "-o",
+            xmkv.to_str().unwrap(),
+            "--no-audio",
+        ];
+        args.extend(extra);
+        assert_eq!(run_json(&args)["status"], "failed", "{args:?}");
+    }
+
+    // remux --no-attachments: embedded font/payload streams drop
+    let font = d.path().join("f.ttf");
+    std::fs::write(&font, b"fake-font").unwrap();
+    let att = d.path().join("att.mkv");
+    let j = run_json(&[
+        "remux",
+        base.to_str().unwrap(),
+        "-o",
+        att.to_str().unwrap(),
+        "--attach",
+        font.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let noatt = d.path().join("noatt.mkv");
+    let j = run_json(&[
+        "remux",
+        att.to_str().unwrap(),
+        "-o",
+        noatt.to_str().unwrap(),
+        "--no-attachments",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", noatt.to_str().unwrap()]);
+    assert!(
+        pr["probe"]["streams"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|s| s["kind"] != "attachment"),
+        "{pr}"
+    );
+    // refuses when nothing to drop
+    let j = run_json(&[
+        "remux",
+        base.to_str().unwrap(),
+        "-o",
+        d.path().join("x2.mkv").to_str().unwrap(),
+        "--no-attachments",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // subs --min-gap: earlier cue's tail trims to keep the gap
+    let srt = d.path().join("g.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:01,000 --> 00:00:01,950\nHello\n\n2\n00:00:02,000 --> 00:00:03,000\nWorld\n",
+    )
+    .unwrap();
+    let gout = d.path().join("g2.srt");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        gout.to_str().unwrap(),
+        "--min-gap",
+        "0.25",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["gapped"], 1, "{j}");
+    let text = std::fs::read_to_string(&gout).unwrap();
+    assert!(text.contains("00:00:01,750"), "{text}");
+
+    // chapter --import .srt: transcript cues become chapter marks
+    let srt2 = d.path().join("ch.srt");
+    std::fs::write(
+        &srt2,
+        "1\n00:00:00,200 --> 00:00:00,400\nIntro section\n\n2\n00:00:00,600 --> 00:00:00,800\nMain topic\n",
+    )
+    .unwrap();
+    let emb = d.path().join("emb.mp4");
+    let j = run_json(&[
+        "chapter",
+        base.to_str().unwrap(),
+        "-o",
+        emb.to_str().unwrap(),
+        "--import",
+        srt2.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_chapters",
+            "-of",
+            "default=noprint_wrappers=1",
+        ])
+        .arg(&emb)
+        .output()
+        .unwrap();
+    let out = String::from_utf8_lossy(&o.stdout);
+    assert!(out.contains("Main topic"), "{out}");
+
+    // podcast-host canvases (16:9 1080p)
+    for (plat, file) in [("spotify", "sp.mp4"), ("apple", "ap.mp4")] {
+        let o = d.path().join(file);
+        let j = run_json(&[
+            "deliver",
+            base.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            plat,
+        ]);
+        assert_eq!(j["status"], "ok", "{j}");
+        let pr = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pr["probe"]["streams"][0]["width"], 1920, "{pr}");
+    }
+}

@@ -440,6 +440,18 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             marks.extend(parse_vtt_list(&text, path)?);
         } else if kind == "csv" {
             marks.extend(parse_csv_list(&text, path)?);
+        } else if kind == "srt" {
+            // transcript → chapters: every cue start becomes a mark titled
+            // by the cue's first line (auto-chapter a subtitle track for
+            // player scrubbing)
+            for c in crate::srt::parse_srt(&text)
+                .map_err(|e| Error::input(format!("--import {}: {e}", path.display())))?
+            {
+                let title = c.text.lines().next().unwrap_or("").trim().to_string();
+                if !title.is_empty() {
+                    marks.push((c.start, title));
+                }
+            }
         } else {
             for (ln, line) in text.lines().enumerate() {
                 let line = line.trim();

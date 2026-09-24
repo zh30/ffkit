@@ -261,6 +261,52 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if !probe.has_video {
             return Err(Error::input("remux --no-video: input has no video"));
         }
+        if args.no_audio {
+            return Err(Error::input(
+                "remux: --no-video + --no-audio leaves an empty container",
+            ));
+        }
+    }
+    if args.no_audio {
+        if args.video || args.audio {
+            return Err(Error::input(
+                "remux --no-audio drops audio — it conflicts with --audio/--video",
+            ));
+        }
+        if !keep.is_empty() {
+            return Err(Error::input(
+                "remux --no-audio drops the audio map — --keep picks streams directly",
+            ));
+        }
+        if args.audio_order.is_some()
+            || args.audio_delay.is_some()
+            || args.default_audio.is_some()
+            || args.lang.is_some()
+        {
+            return Err(Error::input(
+                "remux --no-audio drops the audio tracks — drop the audio-only flags",
+            ));
+        }
+        if !probe.has_audio {
+            return Err(Error::input("remux --no-audio: input has no audio"));
+        }
+    }
+    if args.no_attachments {
+        if args.cover.is_some() || !args.attach.is_empty() || args.no_cover {
+            return Err(Error::input(
+                "remux --no-attachments conflicts with --cover/--attach/--no-cover",
+            ));
+        }
+        if !keep.is_empty() {
+            return Err(Error::input(
+                "remux --no-attachments drops the attachment map — --keep picks streams directly",
+            ));
+        }
+        if !probe.streams.iter().any(|s| s.kind == "attachment") {
+            return Err(Error::input(
+                "remux --no-attachments: input has no attachment streams",
+            ));
+        }
     }
     if args.no_subs && (args.audio || args.video) {
         return Err(Error::input(
@@ -581,6 +627,14 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         // audio deliverable that keeps its subs/cover/attachments —
         // everything except the video streams stays
         argv.extend(["-map", "0", "-map", "-0:v", "-c", "copy"]);
+    } else if args.no_audio {
+        // silent deliverable that keeps picture/subs/cover/attachments —
+        // everything except the audio streams stays
+        argv.extend(["-map", "0", "-map", "-0:a", "-c", "copy"]);
+    } else if args.no_attachments {
+        // strip embedded font/payload streams (attached_pic cover art is
+        // --no-cover's job; 't' specifiers hit the rest)
+        argv.extend(["-map", "0", "-map", "-0:t", "-c", "copy"]);
     } else if args.audio_delay.is_some() {
         // sync fix: non-audio streams from input 0, audio from the
         // itsoffset-shifted second read of the same file
@@ -912,7 +966,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     let mut c = c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "no_video": args.no_video, "keep": args.keep, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "no_video": args.no_video, "no_audio": args.no_audio, "no_attachments": args.no_attachments, "keep": args.keep, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts }),
     );
     if let Some((key, kid)) = enc_kv {
         c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));

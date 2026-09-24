@@ -54,6 +54,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.dedupe
         || args.cps.is_some()
         || args.min_dur.is_some()
+        || args.min_gap.is_some()
         || args.max_lines.is_some()
         || args.replace.is_some()
         || args.strip_speakers
@@ -281,6 +282,20 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+    let mut gapped = 0usize;
+    if let Some(gap) = args.min_gap {
+        for i in 0..cues.len().saturating_sub(1) {
+            let next_start = cues[i + 1].start;
+            let c = &mut cues[i];
+            if c.end > next_start - gap {
+                c.end = (next_start - gap).max(c.start);
+                gapped += 1;
+            }
+        }
+        let before = cues.len();
+        cues.retain(|c| c.end > c.start);
+        dropped += before - cues.len();
+    }
     // text transforms — after timing ops so counts reflect the final cues
     let (mut replaced, mut stripped, mut rewrapped) = (0usize, 0usize, 0usize);
     if let Some(pair) = &args.replace {
@@ -400,11 +415,13 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "clamped": clamped,
         "dropped": dropped,
         "extended": extended,
+        "gapped": gapped,
         "replaced": replaced,
         "stripped": stripped,
         "rewrapped": rewrapped,
         "cues": cues.len(),
         "cps_limit": args.cps,
+        "min_gap": args.min_gap,
         "over_limit": over_limit,
         "worst_cps": (worst_cps * 100.0).round() / 100.0,
         "over_lines": over_lines,

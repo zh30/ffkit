@@ -113,6 +113,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Teachable
         | DeliverPlatform::Kajabi
         | DeliverPlatform::Patreon
+        | DeliverPlatform::Spotify
+        | DeliverPlatform::Apple
+        | DeliverPlatform::Amazonmusic
+        | DeliverPlatform::Iheartradio
+        | DeliverPlatform::Pandora
+        | DeliverPlatform::Castbox
+        | DeliverPlatform::Podbean
         | DeliverPlatform::Twitch => (1920, 1080),
         DeliverPlatform::X | DeliverPlatform::Mastodon | DeliverPlatform::Discord => (1280, 720),
         DeliverPlatform::Threads | DeliverPlatform::Instagram | DeliverPlatform::Facebook => {
@@ -488,6 +495,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Teachable => "teachable",
         DeliverPlatform::Kajabi => "kajabi",
         DeliverPlatform::Patreon => "patreon",
+        DeliverPlatform::Spotify => "spotify",
+        DeliverPlatform::Apple => "apple",
+        DeliverPlatform::Amazonmusic => "amazonmusic",
+        DeliverPlatform::Iheartradio => "iheartradio",
+        DeliverPlatform::Pandora => "pandora",
+        DeliverPlatform::Castbox => "castbox",
+        DeliverPlatform::Podbean => "podbean",
     }
 }
 

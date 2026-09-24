@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.304.0] — 2026-09-24
+
+### Added
+- `remux --no-audio` — drop the audio streams but keep picture/subtitles/cover/attachments (silent deliverable / muted B-roll — unlike `--video`, which rips only the video track).
+- `remux --no-attachments` — drop embedded font/payload attachment streams (`-map -0:t`; `--no-cover` only removes attached_pic cover art).
+- `subs --min-gap SEC` — enforce a minimum gap between adjacent cues by trimming the earlier cue's tail (broadcast spec ~2 frames; pairs with `--min-dur`/`--fix-overlaps` in the tidy pass).
+- `chapter --import` accepts `.srt` — a subtitle transcript becomes a chapter TOC (every cue becomes a mark titled by its first line).
+- `deliver --platform spotify|apple|amazonmusic|iheartradio|pandora|castbox|podbean` — video-podcast canvases (16:9 1080p, −14 LUFS).
+
 ## [0.303.0] — 2026-09-24
 
 ### Added
