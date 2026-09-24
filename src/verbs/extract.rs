@@ -25,7 +25,10 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
     if args.alpha && !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "webp") {
         return Err(Error::input("--alpha only applies to image output"));
     }
-    if args.alpha {
+    if args.transparent && !args.gif {
+        return Err(Error::input("--transparent needs --gif"));
+    }
+    if args.alpha || args.transparent {
         let probe = engine::probe_or_err(&args.input, g)?;
         let fmt = probe.pix_fmt.as_deref().unwrap_or("");
         let has_alpha = [
@@ -247,10 +250,13 @@ fn render_gif(
         .map_err(|e| Error::output(e.to_string()))?;
     let palette_path = palette.path().to_path_buf();
     let max_colors = args.colors.unwrap_or(256).clamp(2, 256);
-    gen.extend([
-        "-vf",
-        &format!("{scale},palettegen=stats_mode=full:max_colors={max_colors}"),
-    ]);
+    let palettegen = if args.transparent {
+        // reserve_transparent parks index 255 for full-alpha pixels
+        format!("{scale},palettegen=stats_mode=full:max_colors={max_colors}:reserve_transparent=1")
+    } else {
+        format!("{scale},palettegen=stats_mode=full:max_colors={max_colors}")
+    };
+    gen.extend(["-vf", palettegen.as_str()]);
     gen.push(&palette_path);
 
     let mut use_p = ffmpeg_base(g.progress);
@@ -269,16 +275,23 @@ fn render_gif(
     } else {
         format!("{scale}[x]")
     };
-    use_p.extend([
-        "-lavfi",
-        &format!("{seq};[x][1:v]paletteuse=dither=bayer"),
-        "-an",
-    ]);
+    let puse = if args.transparent {
+        format!("{seq};[x][1:v]paletteuse=dither=bayer:alpha_threshold=128")
+    } else {
+        format!("{seq};[x][1:v]paletteuse=dither=bayer")
+    };
+    use_p.extend(["-lavfi", puse.as_str(), "-an"]);
     if let Some(n) = args.loop_count {
         use_p.extend(["-loop", &n.to_string()]);
     }
     use_p.push(output);
     let r = engine::write_job("extract", &[&args.input], output, vec![gen, use_p], g);
     drop(palette);
-    r
+    r.map(|c| {
+        if args.transparent {
+            c.with_extra(serde_json::json!({ "transparent": true }))
+        } else {
+            c
+        }
+    })
 }

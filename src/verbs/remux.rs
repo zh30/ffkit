@@ -45,6 +45,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
                 .collect()
         })
         .unwrap_or_default();
+    if args.no_cover && args.cover.is_some() {
+        return Err(Error::input("remux --no-cover and --cover are exclusive"));
+    }
     if args.cover.is_some() && !langs.is_empty() {
         return Err(Error::input(
             "remux --cover and --lang pick different stream sets — use them separately",
@@ -163,6 +166,14 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-map", "0", "-c", "copy"]);
         }
     }
+    // --no-cover: drop attached_pic video streams (album/feed art) on the
+    // repack — disposition isn't a -map specifier, so each pic stream gets
+    // its own negative index map (after every positive -map)
+    if args.no_cover && !args.audio {
+        for i in &probe.attached_pic_indices {
+            argv.extend(["-map", format!("-0:{i}").as_str()]);
+        }
+    }
     // --cover: the image joins as an attached_pic video stream. Output
     // video index 0 is the pic itself on audio-only rips, otherwise it
     // trails the content's own video.
@@ -255,6 +266,6 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     Ok(c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "chapters": chap_n, "tags": tag_n }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n }),
     ))
 }

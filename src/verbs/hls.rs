@@ -32,9 +32,26 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     };
     std::fs::create_dir_all(&dir)
         .map_err(|e| Error::output(format!("create {}: {e}", paths::display(&dir))))?;
+    if args.time_names && args.single {
+        return Err(Error::input(
+            "hls --time-names doesn't apply to --single (one file, no names)",
+        ));
+    }
+    if args.independent && args.copy {
+        return Err(Error::input(
+            "hls --independent can't force keyframes on a --copy repack",
+        ));
+    }
+    if args.independent && !args.ladder.is_empty() {
+        return Err(Error::input(
+            "hls --independent doesn't apply to --ladder (per-rung GOPs)",
+        ));
+    }
     let seg_ext = if args.fmp4 { "m4s" } else { "ts" };
     let seg_tpl = if args.single {
         dir.join(format!("seg.{seg_ext}"))
+    } else if args.time_names {
+        dir.join(format!("seg_%Y%m%d-%H%M%S.{seg_ext}"))
     } else {
         dir.join(format!("seg_%03d.{seg_ext}"))
     };
@@ -317,8 +334,21 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.discontinuity {
         flags.push("discont_start");
     }
+    if args.independent {
+        flags.push("independent_segments");
+    }
     if !flags.is_empty() {
         argv.extend(["-hls_flags".to_string(), flags.join("+")]);
+    }
+    if args.time_names {
+        argv.extend(["-strftime".to_string(), "1".to_string()]);
+    }
+    if args.independent {
+        // every segment must start on a keyframe for the tag to be true
+        argv.extend([
+            "-force_key_frames".to_string(),
+            format!("expr:gte(t,n_forced*{})", args.seg),
+        ]);
     }
     if args.live {
         let win = args.live_window.unwrap_or(6);
@@ -408,6 +438,8 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "epoch": args.epoch,
         "date": args.date,
         "discontinuity": args.discontinuity,
+        "time_names": args.time_names,
+        "independent": args.independent,
         "live_window": if args.live { args.live_window.unwrap_or(6) } else { 0 },
     }));
     if let Some((p, uri)) = &key_info {

@@ -17,6 +17,79 @@ fn yt_ts(t: f64) -> String {
 /// Parse a YouTube-format chapter list ("mm:ss title" or "h:mm:ss title"
 /// per line) into (seconds, title) marks — the file `chapter --yt` writes
 /// and YouTube descriptions carry.
+fn parse_podcast_json(text: &str, path: &std::path::Path) -> Result<Vec<(f64, String)>, Error> {
+    let v: serde_json::Value = serde_json::from_str(text)
+        .map_err(|e| Error::input(format!("--import: {}: bad JSON: {e}", path.display())))?;
+    let arr = v["chapters"].as_array().ok_or_else(|| {
+        Error::input(format!(
+            "--import: {}: want {{\"chapters\":[{{\"startTime\":S,\"title\":T}}]}}",
+            path.display()
+        ))
+    })?;
+    let mut out = Vec::new();
+    for (i, ch) in arr.iter().enumerate() {
+        let t = ch["startTime"].as_f64().ok_or_else(|| {
+            Error::input(format!(
+                "--import: {}: chapter {} missing numeric startTime",
+                path.display(),
+                i + 1
+            ))
+        })?;
+        let title = ch["title"].as_str().unwrap_or("").trim().to_string();
+        out.push((t, title));
+    }
+    if out.is_empty() {
+        return Err(Error::input(format!(
+            "--import: {}: no chapters found",
+            path.display()
+        )));
+    }
+    Ok(out)
+}
+
+fn parse_cue_list(text: &str, path: &std::path::Path) -> Result<Vec<(f64, String)>, Error> {
+    // CUE sheet: TITLE "name" inside a TRACK, then INDEX 01 mm:ss:ff (75fps)
+    let mut out: Vec<(f64, String)> = Vec::new();
+    let mut pending_title: Option<String> = None;
+    let mut in_track = false;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.starts_with("TRACK") {
+            in_track = true;
+        } else if in_track && line.starts_with("TITLE") {
+            let t = line[5..].trim().trim_matches('"').to_string();
+            if !t.is_empty() {
+                pending_title = Some(t);
+            }
+        } else if in_track && line.starts_with("INDEX 01") {
+            let ts = line[8..].trim();
+            let parts: Vec<&str> = ts.split(':').collect();
+            if parts.len() == 3 {
+                if let (Ok(mm), Ok(ss), Ok(ff)) = (
+                    parts[0].parse::<f64>(),
+                    parts[1].parse::<f64>(),
+                    parts[2].parse::<f64>(),
+                ) {
+                    let secs = mm * 60.0 + ss + ff / 75.0;
+                    let n = out.len() + 1;
+                    out.push((
+                        secs,
+                        pending_title.take().unwrap_or_else(|| format!("Track {n}")),
+                    ));
+                }
+            }
+            pending_title = None;
+        }
+    }
+    if out.is_empty() {
+        return Err(Error::input(format!(
+            "--import: {}: no INDEX 01 marks found",
+            path.display()
+        )));
+    }
+    Ok(out)
+}
+
 pub(crate) fn parse_yt_list(path: &std::path::Path) -> Result<Vec<(f64, String)>, Error> {
     let text = std::fs::read_to_string(path)
         .map_err(|e| Error::input(format!("reading {}: {e}", path.display())))?;
@@ -141,12 +214,22 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(path) = &args.import {
         let text = std::fs::read_to_string(path)
             .map_err(|e| Error::input(format!("--import: {}: {e}", path.display())))?;
-        for (ln, line) in text.lines().enumerate() {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            let (t, title) = line
+        let kind = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if kind == "json" {
+            marks.extend(parse_podcast_json(&text, path)?);
+        } else if kind == "cue" {
+            marks.extend(parse_cue_list(&text, path)?);
+        } else {
+            for (ln, line) in text.lines().enumerate() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                let (t, title) = line
                 .split_once('|')
                 .or_else(|| line.split_once(','))
                 // YouTube-description style: "0:00 Intro" / "1:02:33 Outro"
@@ -157,16 +240,18 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
                         ln + 1
                     ))
                 })?;
-            let secs = crate::time::parse_time(t.trim())
-                .map_err(|_| Error::input(format!("--import line {}: bad time '{t}'", ln + 1)))?;
-            let title = title.trim().to_string();
-            if title.is_empty() {
-                return Err(Error::input(format!(
-                    "--import line {}: empty title",
-                    ln + 1
-                )));
+                let secs = crate::time::parse_time(t.trim()).map_err(|_| {
+                    Error::input(format!("--import line {}: bad time '{t}'", ln + 1))
+                })?;
+                let title = title.trim().to_string();
+                if title.is_empty() {
+                    return Err(Error::input(format!(
+                        "--import line {}: empty title",
+                        ln + 1
+                    )));
+                }
+                marks.push((secs, title));
             }
-            marks.push((secs, title));
         }
     }
     for raw in &args.at {

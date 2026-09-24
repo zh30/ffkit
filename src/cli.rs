@@ -614,6 +614,10 @@ pub struct ExtractArgs {
     /// dialog track without re-encoding; -o extension picks the container)
     #[arg(long)]
     pub audio: bool,
+    /// Keep alpha in the GIF (needs --gif + an alpha-channel input like
+    /// prores 4444/qtrle/webm — Discord/Telegram sticker exports)
+    #[arg(long)]
+    pub transparent: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1243,6 +1247,8 @@ pub enum DeliverPlatform {
     Kuaishou,
     /// B站 16:9 landscape upload (1920x1080, -14 LUFS)
     Bilibili,
+    /// Pinterest idea-pin 2:3 portrait feed (1000x1500, -14 LUFS)
+    Pinterest,
     /// Audio-only podcast pack (m4a, AAC 128k/48k, -16 LUFS — feed spec)
     Podcast,
     /// Audiobook pack (m4b, AAC 96k/48k, -16 LUFS — Apple Books/Audible;
@@ -3762,6 +3768,10 @@ pub struct RemuxArgs {
     /// upload — camera/GPS/app tags; combine with --title etc to retag)
     #[arg(long)]
     pub strip_meta: bool,
+    /// Drop attached_pic (cover art) streams on the repack — slim a tagged
+    /// audio book/m4a back to bare tracks; conflicts with --cover
+    #[arg(long)]
+    pub no_cover: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4627,6 +4637,14 @@ pub struct HlsArgs {
     /// pairs with --start/--epoch when re-opening a playlist)
     #[arg(long)]
     pub discontinuity: bool,
+    /// Name segments by wall-clock time (seg_YYYYmmdd-HHMMSS.ts — archive
+    /// recordings whose filenames say when they were captured; -strftime)
+    #[arg(long)]
+    pub time_names: bool,
+    /// Tag EXT-X-INDEPENDENT-SEGMENTS + force a keyframe at every segment
+    /// boundary (seek/trick-play VOD; conflicts with --copy and --ladder)
+    #[arg(long)]
+    pub independent: bool,
 }
 
 #[derive(clap::Args, Debug)]

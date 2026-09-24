@@ -30419,3 +30419,287 @@ fn r245_maxrate_hlsdate_podcastjson_slidesort_test() {
     assert!(order[1].ends_with("cc.png"), "{order:?}");
     assert!(order[2].ends_with("bb.png"), "{order:?}");
 }
+
+#[test]
+fn r246_timenames_independent_transparent_nocover_chimport_pinterest_test() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn ffmpeg(args: &[String]) -> std::process::Output {
+        Command::new("ffmpeg").args(args).output().expect("ffmpeg")
+    }
+    fn probe_csv(args: &[String]) -> String {
+        let o = Command::new("ffprobe")
+            .args(args)
+            .output()
+            .expect("ffprobe");
+        String::from_utf8_lossy(&o.stdout).into_owned()
+    }
+
+    // hls --time-names: segments get wall-clock filenames (seg_YYYYmmdd-HHMMSS)
+    let ht = d.join("ht");
+    let j = run_json(&[
+        "hls",
+        &f.to_string_lossy(),
+        "-o",
+        &ht.to_string_lossy(),
+        "--time-names",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["time_names"], true);
+    let mut found_clock = false;
+    for e in std::fs::read_dir(&ht).unwrap() {
+        let n = e.unwrap().file_name().to_string_lossy().into_owned();
+        if n.starts_with("seg_") && n.ends_with(".ts") {
+            let stem = &n[4..n.len() - 3];
+            let digits: String = stem.chars().filter(|c| c.is_ascii_digit()).collect();
+            assert_eq!(digits.len(), 14, "bad clock name {n}");
+            assert_eq!(stem.chars().nth(8), Some('-'), "bad clock name {n}");
+            found_clock = true;
+        }
+    }
+    assert!(found_clock, "no clock-named segments in {ht:?}");
+    // --time-names + --single is rejected
+    let j = run_json(&[
+        "hls",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("hs").to_string_lossy(),
+        "--time-names",
+        "--single",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // hls --independent: EXT-X-INDEPENDENT-SEGMENTS tag lands
+    let hi = d.join("hi");
+    let j = run_json(&[
+        "hls",
+        &f.to_string_lossy(),
+        "-o",
+        &hi.to_string_lossy(),
+        "--independent",
+        "--seg",
+        "0.5",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["independent"], true);
+    let pl = std::fs::read_to_string(hi.join("index.m3u8")).unwrap();
+    assert!(pl.contains("EXT-X-INDEPENDENT-SEGMENTS"), "{pl}");
+    // rejected on --copy (can't force keyframes on a repack)
+    let j = run_json(&[
+        "hls",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("hc").to_string_lossy(),
+        "--independent",
+        "--copy",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // extract --gif --transparent: alpha survives the palette
+    let amov = d.join("alpha.mov");
+    let o = ffmpeg(&[
+        s("-hide_banner"),
+        s("-loglevel"),
+        s("error"),
+        s("-y"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("color=c=black@0:size=64x64:d=1,format=rgba[bg];color=c=red:size=20x20:d=1,format=rgba[fg];[bg][fg]overlay=22:22"),
+        s("-c:v"),
+        s("qtrle"),
+        amov.to_string_lossy().into_owned(),
+    ]);
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    let tg = d.join("t.gif");
+    let j = run_json(&[
+        "extract",
+        &amov.to_string_lossy(),
+        "-o",
+        &tg.to_string_lossy(),
+        "--gif",
+        "--transparent",
+        "--dur",
+        "0.5",
+        "--width",
+        "64",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let px = |x: u32, y: u32| -> Vec<u8> {
+        let out = d.join(format!("px{x}_{y}.rgba"));
+        let o = ffmpeg(&[
+            s("-hide_banner"),
+            s("-loglevel"),
+            s("error"),
+            s("-y"),
+            s("-i"),
+            tg.to_string_lossy().into_owned(),
+            s("-vf"),
+            format!("format=rgba,crop=1:1:{x}:{y}"),
+            s("-f"),
+            s("rawvideo"),
+            out.to_string_lossy().into_owned(),
+        ]);
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+        std::fs::read(&out).unwrap()
+    };
+    // corner (0,0) is the transparent bg; (32,32) is the red square
+    assert_eq!(px(0, 0)[3], 0, "corner should be fully transparent");
+    let mid = px(32, 32);
+    assert_eq!(mid[3], 255, "square should be opaque");
+    assert!(mid[0] > 150 && mid[1] < 60, "square should be red: {mid:?}");
+    // non-alpha input rejected up front
+    let j = run_json(&[
+        "extract",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("b.gif").to_string_lossy(),
+        "--gif",
+        "--transparent",
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(j["error"]["message"].as_str().unwrap().contains("no alpha"));
+
+    // remux --no-cover: attached_pic stream dropped on repack
+    let cov = d.join("cv.mp4");
+    let j = run_json(&[
+        "remux",
+        &f.to_string_lossy(),
+        "-o",
+        &cov.to_string_lossy(),
+        "--cover",
+        &amov.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let nc = d.join("nc.mp4");
+    let j = run_json(&[
+        "remux",
+        &cov.to_string_lossy(),
+        "-o",
+        &nc.to_string_lossy(),
+        "--no-cover",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["no_cover"], true);
+    let codecs = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-select_streams"),
+        s("v"),
+        s("-show_entries"),
+        s("stream=codec_name"),
+        s("-of"),
+        s("csv=p=0"),
+        nc.to_string_lossy().into_owned(),
+    ]);
+    assert!(!codecs.contains("mjpeg"), "cover pic survived: {codecs}");
+    assert!(codecs.lines().count() == 1, "expected 1 video: {codecs}");
+    // --no-cover + --cover is a clean conflict
+    let j = run_json(&[
+        "remux",
+        &cov.to_string_lossy(),
+        "-o",
+        &d.join("x.mp4").to_string_lossy(),
+        "--no-cover",
+        "--cover",
+        &amov.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // chapter --import auto-detects .json (Podcasting 2.0) and .cue
+    let marks = d.join("marks.txt");
+    std::fs::write(&marks, "0:00 Intro\n0:00.5 Topic\n").unwrap();
+    let pj = d.join("ch.json");
+    let j = run_json(&[
+        "chapter",
+        &f.to_string_lossy(),
+        "-o",
+        &pj.to_string_lossy(),
+        "--podcast",
+        "--import",
+        &marks.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let chd = d.join("chd.mp4");
+    let j = run_json(&[
+        "chapter",
+        &f.to_string_lossy(),
+        "-o",
+        &chd.to_string_lossy(),
+        "--import",
+        &pj.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let ch = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_chapters"),
+        s("-of"),
+        s("csv=p=0"),
+        chd.to_string_lossy().into_owned(),
+    ]);
+    assert!(ch.contains("Intro") && ch.contains("Topic"), "{ch}");
+    let cf = d.join("ch.cue");
+    let j = run_json(&[
+        "chapter",
+        &f.to_string_lossy(),
+        "-o",
+        &cf.to_string_lossy(),
+        "--cue",
+        "--import",
+        &marks.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let chd2 = d.join("chd2.mp4");
+    let j = run_json(&[
+        "chapter",
+        &f.to_string_lossy(),
+        "-o",
+        &chd2.to_string_lossy(),
+        "--import",
+        &cf.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let ch = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_chapters"),
+        s("-of"),
+        s("csv=p=0"),
+        chd2.to_string_lossy().into_owned(),
+    ]);
+    assert!(ch.contains("Intro") && ch.contains("Topic"), "{ch}");
+
+    // deliver --platform pinterest: 1000x1500 idea-pin canvas
+    let pin = d.join("pin.mp4");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &pin.to_string_lossy(),
+        "--platform",
+        "pinterest",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["platform"], "pinterest");
+    let wh = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-select_streams"),
+        s("v"),
+        s("-show_entries"),
+        s("stream=width,height"),
+        s("-of"),
+        s("csv=p=0"),
+        pin.to_string_lossy().into_owned(),
+    ]);
+    assert!(wh.trim().starts_with("1000,1500"), "{wh}");
+}

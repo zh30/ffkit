@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.273.0] — 2026-09-23
+
+### Added
+- `hls --time-names` — segments named by wall-clock time (`seg_YYYYmmdd-HHMMSS.ts`) so archived recordings carry their airtime in the filename; conflicts with `--single`
+- `hls --independent` — tags `EXT-X-INDEPENDENT-SEGMENTS` and forces a keyframe at every segment boundary (`-force_key_frames` per `--seg`); rejected on `--copy`/`--ladder`
+- `extract --gif --transparent` — keeps alpha in the exported GIF (Discord/Telegram stickers) via `palettegen reserve_transparent` + `paletteuse alpha_threshold`; requires an alpha-capable input (prores 4444/qtrle), fails cleanly otherwise
+- `remux --no-cover` — drops attached_pic cover-art streams on the repack (per-index negative maps from probe disposition data; `-0:v:m:attached_pic` doesn't work — it's a disposition flag, not stream metadata)
+- `chapter --import` now auto-detects `.json` (Podcasting 2.0 `chapters[]`) and `.cue` (TRACK/INDEX mm:ss:ff) by extension, round-tripping with `--podcast`/`--cue` exports
+- `deliver --platform pinterest` — 1000x1500 (2:3) idea-pin canvas, same −14 LUFS pack pipeline
+
+
 ## [0.272.0] — 2026-09-23
 
 - `live --maxrate`/`--bufsize` — CBR rate caps on the stream encode (Twitch ≤6000k, YouTube ingest specs); `--bufsize` alone also works, and when unset it auto-fills to 2× `--maxrate` (suffix-aware: `4500k` → `9000k`)

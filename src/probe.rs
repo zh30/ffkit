@@ -34,6 +34,10 @@ pub struct Probe {
     pub variable_frame_rate_suspected: bool,
     #[serde(default, skip_serializing_if = "is_zero")]
     pub subtitle_streams: u32,
+    /// Absolute stream indices carrying the attached_pic disposition
+    /// (album/feed art muxed as a video stream)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attached_pic_indices: Vec<u32>,
 }
 
 fn is_zero(v: &u32) -> bool {
@@ -79,6 +83,9 @@ struct FfprobeOut {
 struct FfprobeStream {
     #[serde(default)]
     codec_type: String,
+    index: Option<u32>,
+    #[serde(default)]
+    disposition: Option<std::collections::HashMap<String, i64>>,
     #[serde(default)]
     codec_name: Option<String>,
     width: Option<u32>,
@@ -225,6 +232,18 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
             .iter()
             .filter(|s| s.codec_type == "subtitle")
             .count() as u32,
+        attached_pic_indices: parsed
+            .streams
+            .iter()
+            .filter(|s| {
+                s.disposition
+                    .as_ref()
+                    .and_then(|d| d.get("attached_pic").copied())
+                    .unwrap_or(0)
+                    == 1
+            })
+            .filter_map(|s| s.index)
+            .collect(),
     })
 }
 
