@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.288.0] — 2026-09-24
+
+### Added
+
+- `extract --chapter N` — pull the Nth embedded chapter (1-based, `chapter --list` numbering) as its own file; frame-accurate re-encode (audiobook/lecture segment export)
+- `remux --itsscale R` — re-stamp the whole container without re-encoding (1.042 = PAL 25→24 pull-down, 0.96 = film→PAL speed-up; audio retimes with the picture; conflicts with --from/--to/--audio-delay/--video-delay)
+- `frames --nth N` — every-Nth-frame still dump by frame index (dataset/QC sampling — distinct from the --every seconds grid)
+- `deliver --platform vimeo` + `bluesky` — 1920x1080 landscape canvases (same −14 LUFS pipeline)
+
 ## [0.287.0] — 2026-09-24
 
 ### Added

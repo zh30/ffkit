@@ -86,9 +86,11 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
 
     let target_i = args.lufs.unwrap_or(TARGET_I);
     let (fw, fh) = match args.platform {
-        DeliverPlatform::Youtube | DeliverPlatform::Bilibili | DeliverPlatform::Linkedin => {
-            (1920, 1080)
-        }
+        DeliverPlatform::Youtube
+        | DeliverPlatform::Bilibili
+        | DeliverPlatform::Linkedin
+        | DeliverPlatform::Vimeo
+        | DeliverPlatform::Bluesky => (1920, 1080),
         DeliverPlatform::X => (1280, 720),
         DeliverPlatform::Square => (1080, 1080),
         DeliverPlatform::Xhs => (1080, 1440),
@@ -402,6 +404,8 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Pinterest => "pinterest",
         DeliverPlatform::X => "x",
         DeliverPlatform::Linkedin => "linkedin",
+        DeliverPlatform::Vimeo => "vimeo",
+        DeliverPlatform::Bluesky => "bluesky",
         DeliverPlatform::Circle => "circle",
     }
 }

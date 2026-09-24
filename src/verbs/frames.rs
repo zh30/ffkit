@@ -125,6 +125,22 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
                 })),
         );
     }
+    // --nth: every Nth frame — dataset/QC sampling by frame count, not seconds
+    let mut argv_vsync: Option<&str> = None;
+    if let Some(n) = args.nth {
+        if n < 2 {
+            return Err(Error::input("--nth wants N >= 2 (every Nth frame)"));
+        }
+        if args.count.is_some() || args.untile.is_some() || !args.at.is_empty() {
+            return Err(Error::input(
+                "--nth overrides --every — drop --count/--untile/--at",
+            ));
+        }
+        // -vsync 0 keeps the dropped-frame gaps — default cfr duplicates
+        // the selected frames back into nearly every slot
+        vf = format!("select='not(mod(n\\,{n}))'");
+        argv_vsync = Some("0");
+    }
     // --count spreads N stills across ~95% of the clip (thumb --count spacing);
     // a higher rate lands the last pts past EOF and drops a frame.
     let mut frame_cap: Option<u32> = None;
@@ -142,6 +158,9 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);
+    if let Some(v) = argv_vsync {
+        argv.extend(["-vsync", v]);
+    }
     argv.extend(["-vf", &vf]);
     if let Some(n) = frame_cap {
         argv.extend(["-frames:v", &n.to_string()]);

@@ -653,6 +653,10 @@ pub struct ExtractArgs {
     /// prores 4444/qtrle/webm — Discord/Telegram sticker exports)
     #[arg(long)]
     pub transparent: bool,
+    /// Pull the Nth embedded chapter (1-based — audiobook/lecture segment
+    /// export: `chapter --list` shows the numbering)
+    #[arg(long)]
+    pub chapter: Option<u32>,
     /// Animated WebP clip instead of a still (libwebp — smaller than GIF,
     /// keeps alpha natively; --bounce works too)
     #[arg(long)]
@@ -1305,6 +1309,10 @@ pub enum DeliverPlatform {
     X,
     /// LinkedIn feed video 16:9 landscape (1920x1080, -14 LUFS)
     Linkedin,
+    /// Vimeo upload 16:9 landscape (1920x1080, -14 LUFS)
+    Vimeo,
+    /// Bluesky feed video 16:9 landscape (1920x1080, -14 LUFS)
+    Bluesky,
     /// Telegram video-note circle (640x640 1:1, mono audio — кружок spec)
     Circle,
     /// Audio-only podcast pack (m4a, AAC 128k/48k, -16 LUFS — feed spec)
@@ -3928,6 +3936,11 @@ pub struct RemuxArgs {
     /// deliverables — same idea as --default-audio)
     #[arg(long)]
     pub default_sub: Option<usize>,
+    /// Retime the whole container by a factor — re-stamp timestamps without
+    /// re-encoding (1.042 = PAL 25→24 pull-down, 0.96 = film→PAL speed-up
+    /// for broadcast; audio pulls with the picture)
+    #[arg(long)]
+    pub itsscale: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4447,6 +4460,10 @@ pub struct FramesArgs {
     /// N evenly-spaced stills across the clip (overrides --every)
     #[arg(long)]
     pub count: Option<u32>,
+    /// Every Nth frame instead of a time grid — dataset/QC sampling
+    /// (overrides --every; e.g. --nth 10 on 30fps = 3 stills/sec)
+    #[arg(long)]
+    pub nth: Option<u32>,
     /// Split every frame into a COLSxROWS tile sequence instead —
     /// breaks a contact-sheet/mosaic back into per-tile stills (untile)
     #[arg(long)]

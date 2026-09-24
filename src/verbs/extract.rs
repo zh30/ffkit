@@ -57,6 +57,60 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut argv = ffmpeg_base(g.progress);
 
+    // --chapter: pull the Nth embedded chapter (1-based — the number
+    // `chapter --list` prints) as its own file. Re-encodes so the start
+    // lands frame-accurate (copy would snap to the chapter's keyframe).
+    if let Some(n) = args.chapter {
+        if args.audio || args.subs || args.gif || args.webp || args.alpha {
+            return Err(Error::input(
+                "extract --chapter pulls a video+audio range — drop the other modes",
+            ));
+        }
+        if n == 0 {
+            return Err(Error::input(
+                "extract --chapter is 1-based (see chapter --list)",
+            ));
+        }
+        let marks = crate::probe::chapter_marks(&args.input, g.timeout)?;
+        if marks.is_empty() {
+            return Err(Error::input(
+                "extract --chapter: input has no embedded chapters",
+            ));
+        }
+        let idx = (n - 1) as usize;
+        if idx >= marks.len() {
+            return Err(Error::input(format!(
+                "extract --chapter {n}: input only has {} chapter(s)",
+                marks.len()
+            )));
+        }
+        let probe = engine::probe_or_err(&args.input, g)?;
+        let start = marks[idx].start;
+        let end = marks
+            .get(idx + 1)
+            .map(|m| m.start)
+            .unwrap_or(probe.duration);
+        argv.push("-ss");
+        argv.push(format!("{start:.3}"));
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend(["-t", format!("{:.3}", end - start).as_str()]);
+        if probe.has_video {
+            argv.extend(["-c:v", "libx264", "-preset", "fast", "-crf", "18"]);
+        }
+        if probe.has_audio {
+            argv.extend(["-c:a", "aac"]);
+        }
+        argv.push(&args.output);
+        let c = engine::write_job("extract", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(serde_json::json!({
+            "chapter": n,
+            "title": marks[idx].title,
+            "start": start,
+            "end": end,
+        })));
+    }
+
     // --audio: demux an audio track untouched (music/dialog rip —
     // no decode, no re-encode; -o extension picks the container,
     // --track picks commentary/stem in a multi-track file)

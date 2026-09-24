@@ -32855,3 +32855,131 @@ fn r260_concat_chapters_probe_rotation_deliver_lufs_live_no_audio() {
     ]);
     assert_eq!(j["status"], "failed");
 }
+
+#[test]
+fn r261_extract_chapter_remux_itsscale_frames_nth_deliver_vimeo() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let d = dir.path();
+
+    // chaptered book.mp4 via concat --chapters (2x ~1s segments)
+    let book = d.join("book.mp4");
+    let j = run_json(&[
+        "concat",
+        f.to_str().unwrap(),
+        f.to_str().unwrap(),
+        "-o",
+        book.to_str().unwrap(),
+        "--chapters",
+    ]);
+    assert_eq!(j["status"], "ok");
+
+    // extract --chapter 2 pulls the second embedded chapter
+    let ch2 = d.join("ch2.mp4");
+    let j = run_json(&[
+        "extract",
+        book.to_str().unwrap(),
+        "-o",
+        ch2.to_str().unwrap(),
+        "--chapter",
+        "2",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["chapter"], 2);
+    let j = run_json(&["probe", ch2.to_str().unwrap()]);
+    let dur = j["probe"]["duration"].as_f64().unwrap();
+    assert!((0.4..=1.6).contains(&dur), "duration {dur}");
+    // --chapter 9 on a 2-chapter file refuses
+    let j = run_json(&[
+        "extract",
+        book.to_str().unwrap(),
+        "-o",
+        d.join("x.mp4").to_str().unwrap(),
+        "--chapter",
+        "9",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // remux --itsscale stretches the container without re-encoding
+    let pull = d.join("pull.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        pull.to_str().unwrap(),
+        "--itsscale",
+        "1.25",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["itsscale"], 1.25);
+    let before = run_json(&["probe", f.to_str().unwrap()]);
+    let after = run_json(&["probe", pull.to_str().unwrap()]);
+    let d0 = before["probe"]["duration"].as_f64().unwrap();
+    let d1 = after["probe"]["duration"].as_f64().unwrap();
+    assert!((d1 / d0 - 1.25).abs() < 0.08, "{d0} -> {d1}");
+    // conflicts refuse
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        d.join("x.mp4").to_str().unwrap(),
+        "--itsscale",
+        "1.25",
+        "--from",
+        "0.5",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // frames --nth 10 on a 10fps clip → frames 0,10,20 = 3 stills
+    let j = run_json(&[
+        "frames",
+        f.to_str().unwrap(),
+        "-o",
+        d.join("nth_%03d.png").to_str().unwrap(),
+        "--nth",
+        "10",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let n = std::fs::read_dir(d)
+        .unwrap()
+        .filter(|e| {
+            e.as_ref()
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with("nth_")
+        })
+        .count();
+    assert_eq!(n, 3, "{n} stills");
+    let j = run_json(&[
+        "frames",
+        f.to_str().unwrap(),
+        "-o",
+        d.join("x.png").to_str().unwrap(),
+        "--nth",
+        "1",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // deliver --platform vimeo/bluesky land on the 1080p canvas
+    for p in ["vimeo", "bluesky"] {
+        let o = d.join(format!("{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+            "--preview",
+            "0.5",
+        ]);
+        assert_eq!(j["status"], "ok");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920);
+        assert_eq!(j["probe"]["height"], 1080);
+    }
+}

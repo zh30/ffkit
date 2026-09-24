@@ -92,6 +92,24 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     // Input-side -ss seeks to the nearest keyframe at/below --from — the
     // lossless-trim trade-off (cut/split re-encode for frame accuracy).
+    if let Some(r) = args.itsscale {
+        if !(r.is_finite() && r > 0.0 && r != 1.0) {
+            return Err(Error::input(
+                "remux --itsscale needs a positive factor != 1",
+            ));
+        }
+        if args.from.is_some() || args.to.is_some() {
+            return Err(Error::input(
+                "remux --itsscale rescales the timeline — pick it or --from/--to",
+            ));
+        }
+        if args.audio_delay.is_some() || args.video_delay.is_some() {
+            return Err(Error::input(
+                "remux --itsscale conflicts with --audio-delay/--video-delay (timestamp shifts)",
+            ));
+        }
+        argv.extend(["-itsscale".into(), r.to_string()]);
+    }
     if let Some(f) = args.from {
         argv.extend(["-ss".into(), f.to_string()]);
     }
@@ -453,7 +471,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     let mut c = c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale }),
     );
     if let Some((key, kid)) = enc_kv {
         c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));
