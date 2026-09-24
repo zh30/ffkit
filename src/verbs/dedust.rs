@@ -1,4 +1,4 @@
-use crate::cli::DedustArgs;
+use crate::cli::{DedustArgs, DedustEngine};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -15,13 +15,25 @@ pub fn run(args: DedustArgs, g: &crate::cli::Globals) -> Result<Contract, Error>
 
     // erosion kills bright peaks (luma plane); dilation kills dark pockets.
     // threshold1/2/3=0 leaves chroma untouched — only luma specks are removed.
+    // --engine temporal instead min/maxes each pixel against the previous
+    // frame (tlut2): one-frame sparkles & VHS dropouts vanish entirely.
     let mut parts: Vec<String> = Vec::new();
-    for _ in 0..size {
-        if light {
-            parts.push("erosion=threshold1=0:threshold2=0:threshold3=0".to_string());
+    match args.engine {
+        Some(DedustEngine::Temporal) => {
+            let op = if args.dark { "max" } else { "min" };
+            parts.push(format!(
+                "tlut2=c0='{op}(x,y)':c1='{op}(x,y)':c2='{op}(x,y)'"
+            ));
         }
-        if args.dark {
-            parts.push("dilation=threshold1=0:threshold2=0:threshold3=0".to_string());
+        _ => {
+            for _ in 0..size {
+                if light {
+                    parts.push("erosion=threshold1=0:threshold2=0:threshold3=0".to_string());
+                }
+                if args.dark {
+                    parts.push("dilation=threshold1=0:threshold2=0:threshold3=0".to_string());
+                }
+            }
         }
     }
     let mut vf = parts.join(",");
@@ -51,6 +63,7 @@ pub fn run(args: DedustArgs, g: &crate::cli::Globals) -> Result<Contract, Error>
         "size": size,
         "light": light,
         "dark": args.dark,
+        "engine": format!("{:?}", args.engine.unwrap_or(DedustEngine::Morpho)).to_lowercase(),
         "filter": vf,
     })))
 }

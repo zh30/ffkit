@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.256.0
+version: 0.257.0
 
 
 
@@ -128,7 +128,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | subtle watermark | `overlay` (`--opacity` on `--image`) |
 | split a podcast on pauses | `split` (`--silence=-35` — cuts at gap midpoints) |
 | music bed that eases in/out | `music` (`--fade` on the bed) |
-| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass/warm/air`), `--band` parametric, `--tilt`, `--deemph riaa/cd/fm50/fm75` undoes vinyl/FM/CD pre-emphasis, `--shelf low|high:FREQ:GAIN` shelves (rumble cut / air shelf), `--notch FREQ[:WIDTH]` kills a resonance, `--brickwall LO,HI` FFT bandpass (telephone / speech-band 300,3400), `--lowpass`/`--highpass`/`--bandpass FREQ[:W]` resonant Butterworth filters |
+| one-word EQ curve | `eq` (`--preset voice/podcast/bright/bass/warm/air`), `--band` parametric, `--tilt`, `--deemph riaa/cd/fm50/fm75` undoes vinyl/FM/CD pre-emphasis, `--shelf low|high:FREQ:GAIN` shelves (rumble cut / air shelf), `--notch FREQ[:WIDTH]` kills a resonance, `--brickwall LO,HI` FFT bandpass (telephone / speech-band 300,3400), `--lowpass`/`--highpass`/`--bandpass FREQ[:W]` resonant Butterworth filters (+`--linear` = sinc+afir linear-phase ~60dB-stopband mastering cuts, no --at), `--subcut FREQ` mic-stand rumble, `--supercut FREQ` ultrasonic hiss on 96k masters |
 | soft b-roll cutaway edges | `broll` (`--fade`), `--position` pip (+`--border` ring), `--opacity` ghost insert |
 | stills at exact moments | `frames` (`--at 12,45,90`) |
 | audiogram on any canvas | `audiogram` (`--size` — 1080x1920, 1920x1080, 1080x1080) |
@@ -168,7 +168,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | audiogram CQT music spectrum | `audiogram --mode cqt` |
 | audiogram scrolling spectrogram | `audiogram --mode spectro` |
 | find black/frozen stretches (QC) | `scan` (JSON extras; no -o) — also `interlaced`/frames_* from idet, `has_cc`/`cc_lines` EIA-608 closed captions, `crop_hint`/`letterboxed` cropdetect letterbox QC, `vfr`/`vfr_ratio` variable-frame-rate QC, `--dupe REF` MPEG-7 duplicate/re-upload match, `--text` OCR burned text, `rg_gain_db`/`rg_peak` ReplayGain tags, `--motion` VMAF motion score (`motion_avg`/`motion_max` — bitrate-budget QC), `--timecode` VITC readout (`vitc`/`vitc_tc`/`vitc_frames` broadcast-master QC), `--bbox` content bounds (`content_detected`/`content_box`/`content_fill` — works on any uniform background, not just black) |
-| dust specks / hot pixels | `dedust` (`--size` 1-4, `--dark` for dark specks; morphology, not blur) |
+| dust specks / hot pixels | `dedust` (`--size` 1-4, `--dark` for dark specks; morphology, not blur; `--engine temporal` tlut2 kills one-frame sparkles/VHS dropouts) |
 | inverse telecine | `deinterlace --engine fieldmatch` (film 29.97i → 23.976p) |
 | denoise without melting detail | `vdenoise --engine edge` (nlmeans masked to flat areas) |
 | fill border slivers | `extend` `--left|--right|--top|--bottom N --mode smear` (chroma-key rims, leftover letterbox) |
@@ -185,7 +185,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | butter-smooth 60fps | `interp` (`--fps 60`; `--slow 0.5` = smooth slow-mo from normal footage — motion-compensated in-betweens) |
 | archive interlaced | `deinterlace --engine mcdeint` (motion-compensated — best quality, slowest) |
 | white balance by Kelvin | `grade --kelvin 3000` (tungsten 2700 / daylight 5500 / cool 9000 — the camera dial, not a warm slider) |
-| SD looks green in HD edit | `matrix` --to bt709 (colormatrix converts 601→709 — not just re-tagging) |
+| SD looks green in HD edit | `matrix` --to bt709 (colormatrix converts 601→709 — not just re-tagging; `--engine colorspace` also maps primaries+transfer for bt2020↔709) |
 | film-style B&W | `bw --weights 1.5,0.3,0.1` (channel weights — red filter darkens skies like film) |
 | blockbuster split-tone | `grade --split 0.8` (teal shadows + orange highlights; negative flips) |
 | freeform tone curve | `grade --curve "0/0.08 0.5/0.55 1/1"` (matte fade / S-curve; curves master points) |
@@ -247,7 +247,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | visual diff | `diff` (`--side` reference beside diff; `--mode mask --threshold` bare change-mask QC) |
 | glitched/dropped frames | `repair` (`--ref` another take, `--at`/`--dur` the bad stretch, `--ref-at` the clean frame to paste in — freezeframes) |
 | magnify subtle motion | `amplify` (`--amount` factor, `--radius` frames, `--threshold` diff cap, `--at` window) |
-| keep one color | `selective` (`--color C`/`--similarity`/`--blend` edge feather, `--at` window) |
+| keep one color | `selective` (`--color C`/`--similarity`/`--blend` edge feather, `--engine chroma` chromahold for saturated hues, `--at` window) |
 | test card | `bars` (`--size`/`--dur`/`--hd`/`--tone` 1kHz, `--kind sd|pal100|pal75|rgb|yuv|allrgb|allyuv|mptest` other patterns — allrgb/allyuv = full color-cube QC sweeps, mptest = encoder-torture cycle) |
 | QC scope overlay | `scope` (`--mode vector|wave|hist|mvs|data|qp|pix|osc|drift|loud|cie|palette` — drift = luma-ramp curve, loud = loudness-over-time curve, cie = CIE-1931 gamut horseshoe, palette = color-swatch grid (GIF/8-bit QC), `--position` corner, `--at` window) |
 | anamorphic restore | `desqueeze` (`--factor` lens ratio, `--axis`) |

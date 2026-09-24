@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::cli::{Globals, SelectiveArgs};
+use crate::cli::{Globals, SelectiveArgs, SelectiveEngine};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
@@ -19,9 +19,14 @@ pub fn run(args: SelectiveArgs, g: &Globals) -> Result<Contract, Error> {
     let color = crate::color::lavfi(&args.color);
 
     // colorhold: native keep-color — pixels outside the similarity range turn
-    // gray, blend feathers the edge
+    // gray, blend feathers the edge. chromahold does the same in YUV
+    // chroma space — tracks saturated hues better on uneven subjects.
+    let (filt, engine_name) = match args.engine {
+        Some(SelectiveEngine::Chroma) => ("chromahold", "chromahold"),
+        _ => ("colorhold", "colorhold"),
+    };
     let chain = format!(
-        "colorhold=color={c}:similarity={s:.2}:blend={b:.2}",
+        "{filt}=color={c}:similarity={s:.2}:blend={b:.2}",
         c = color,
         s = args.similarity,
         b = args.blend
@@ -56,6 +61,6 @@ pub fn run(args: SelectiveArgs, g: &Globals) -> Result<Contract, Error> {
 
     let c2 = engine::write_job("selective", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c2.with_extra(
-        json!({ "color": args.color, "similarity": args.similarity, "blend": args.blend }),
+        json!({ "color": args.color, "similarity": args.similarity, "blend": args.blend, "engine": engine_name }),
     ))
 }

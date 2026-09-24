@@ -31,6 +31,8 @@ pub fn write_job(
         paths::ensure_input(input)?;
     }
     paths::ensure_output_allowed(output, inputs, g.overwrite)?;
+    let mut argvs = argvs;
+    retarget_audio_codec(&mut argvs, output);
     let commands = commands_of(&argvs);
 
     if g.dry_run {
@@ -60,6 +62,32 @@ pub fn write_job(
 
     let probed = probe::probe(output, Duration::from_secs(60))?;
     Ok(Contract::ok(tool, Some(paths::display(output)), Some(probed)).with_commands(commands))
+}
+
+/// Verbs hard-code `-c:a aac`, which writes an AAC payload into whatever
+/// container `-o` names — AAC-in-.wav fails to decode on some ffmpeg 4.x
+/// builds. Rewrite aac to a codec the extension actually carries.
+fn retarget_audio_codec(argvs: &mut [Argv], output: &Path) {
+    let codec = match output
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("wav") => "pcm_s16le",
+        Some("flac") => "flac",
+        Some("ogg") | Some("oga") => "libvorbis",
+        Some("opus") => "libopus",
+        Some("mp3") => "libmp3lame",
+        _ => return,
+    };
+    for argv in argvs.iter_mut() {
+        for i in 0..argv.args.len().saturating_sub(1) {
+            if argv.args[i] == "-c:a" && argv.args[i + 1] == "aac" {
+                argv.args[i + 1] = spawn::os(codec);
+            }
+        }
+    }
 }
 
 pub fn ffmpeg_base(progress: bool) -> Argv {

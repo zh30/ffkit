@@ -135,7 +135,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `cutsil` | Strip dead air at head+tail of an audio file (`--thresh` dB) |
 | `channel --mode ms` | Decode mid/side-recorded stereo back to L/R (stereotools ms>lr) |
 | `channel` | Channel surgery: `--mode dualmono|mono|swap|invert|mix51|pan|widen|split|ambience|mid|side|haas|surround|base|bal|bands|sync|earwax|stereowiden` (`stereowiden` M/S widener, `--amount` crossfeed) (stereo→`_L/_R.wav` stems, M/S extract, haas widening, stereo→5.1 upmix); `--pan -1..1` pan / `bal` rebalance lopsided stereo / `base` stereo base (-1 mono fold, +1 wide) | `bands --freqs 300,3000` → `<stem>_bandN.wav` frequency-band stems (acrossover) | `sync --side right --cm 34` delay one side by mic distance (two-mic comb-filter fix, compensationdelay) | `earwax` headphone-oriented stereo widening |
-| `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--curve` freehand F,G;F,G line (firequalizer), `--graphic` 18-band classic EQ, `--tilt` warm↔bright, `--deemph riaa/cd/fm50/fm75` undoes vinyl/FM/CD pre-emphasis; `--shelf low|high:FREQ:GAIN` shelves, `--notch FREQ[:WIDTH]` kills a resonance, `--brickwall LO,HI` FFT brick-wall bandpass, `--lowpass`/`--highpass`/`--bandpass FREQ[:W]` resonant Butterworth filters; `end` ok, comma list = several windows |
+| `eq` | Audio shelving EQ: `--bass`/`--treble`/`--presence`, `--preset` dB (`--at`/`--dur` window) , `--band` parametric F:G[:W], `--curve` freehand F,G;F,G line (firequalizer), `--graphic` 18-band classic EQ, `--tilt` warm↔bright, `--deemph riaa/cd/fm50/fm75` undoes vinyl/FM/CD pre-emphasis; `--shelf low|high:FREQ:GAIN` shelves, `--notch FREQ[:WIDTH]` kills a resonance, `--brickwall LO,HI` FFT brick-wall bandpass, `--lowpass`/`--highpass`/`--bandpass FREQ[:W]` resonant Butterworth (`--linear` = linear-phase FIR mastering cuts, no `--at`), `--subcut`/`--supercut FREQ` rumble & ultrasonic cleanup; `end` ok, comma list = several windows |
 | `reverb` | Room ambience on a voice: `--size room\|hall\|cave`, `--wet` (`--at`/`--dur` window); `end` ok, comma list = several windows. `--ir file.wav` = convolution reverb from impulse-response packs (cathedral/plate), `--tail` rings past the end |
 | `fx` | Audio FX rack: tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio/saturate/excite/bass/muffled/crystal/sub/crossfeed/autopan (`--kind`, `--strength`, `--at`/`--dur`); `end` ok, comma list = several windows | `--kind ringmod` TRUE ring modulation (amultiply + sine carrier, `--strength` sweeps 25-500Hz) | `--kind crush` bitcrusher (bits+sample-rate destruction) | `--kind fshift` frequency shifter (metallic alien voice, 50→2000Hz) | `--kind contrast` dynamics tilt (>0.5 punch, <0.5 level) |
 | `rotate` | 90/180/270 or mirror: `--deg`/`--flip`, free `--angle` tilt, `--at`/`--dur` windowed tilt (comma list) |
@@ -209,7 +209,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `equalize` | Auto-contrast via `histeq` for flat/washed footage, `--strength`/`--intensity`/`--at` window |
 | `pick` | Dominant-color report at a timestamp: mean hex + 3x2 zone swatches (JSON only) |
 | `diff` | Visual diff between two clips: amplified difference blend, `--side` shows reference | `--mode mask --threshold` bare change-mask QC |
-| `selective` | Keep one color, desaturate the rest: `--color` + `--similarity`, `--blend` edge feather, `--at` windows |
+| `selective` | Keep one color, desaturate the rest: `--color` + `--similarity`, `--blend` edge feather, `--engine chroma` chromahold for saturated hues, `--at` windows |
 | `amplify` | Motion magnification — subtle change becomes visible (`--amount` factor, `--radius` frames, `--threshold` diff cap, `--at` windows) |
 | `cartoon` | Comic look: posterized base (`--levels` 2-16) + ink outlines from edge-detect, `--at` windows |
 | `heat` | Thermal / false-color luma map: `--preset` magma|inferno|plasma|viridis|turbo|cividis|range1|range2|shadows|highlights, `--opacity`, `--at` windows |
@@ -241,7 +241,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `meme` | Top/bottom meme captions (`--outline`, `--at/--dur` window — comma list for several spots; `--at end` tail) , `--position` text block top/center/bottom; `--wrap` folds, `--align` line alignment, `--fade` edge fades with --at/--dur, `--opacity` ghost text |
 | `voice` | Podcast voice one-shot: `agate`→`acompressor`→`loudnorm` (`--threshold`, `--lufs`, `--at`/`--dur` window, `end` ok, comma list = several windows) |
 | `deinterlace` | Fix interlaced footage (`--mode`, `--parity` field order, `--engine` yadif/bwdif/estdif/kerndeint) ，`--engine` 含 `detelecine`（确定节奏反电视电影）、`mcdeint`（运动补偿）| `--engine w3fdif` Weston 3-field | `--engine separate` 50i→50p field-per-frame (smooth slow-mo source) | `--engine pullup` IVTC telecine reversal | `--engine phase` field-order swap (wrong-parity captures) | `--engine field` top-field extract (half-height, fastest preview) |
-| `dedust` | Remove dust specks / hot pixels: `--size` 1-4, bright specks by default, `--dark` for dark ones; morphology (erosion/dilation), not a blur | `--at`/`--dur` |
+| `dedust` | Remove dust specks / hot pixels: `--size` 1-4, bright specks by default, `--dark` for dark ones; morphology (erosion/dilation), not a blur; `--engine temporal` tlut2 kills one-frame sparkles / VHS dropouts | `--at`/`--dur` |
 | `extend` | Stretch edge pixels to fill border strips: `--left/--right/--top/--bottom` px, `--mode smear|mirror|fixed|reflect|wrap|fade` | - |
 | `tonemap` | HDR → SDR: zscale → linear light → tonemap curve → bt709 (`--algo hable|reinhard|gamma|clip|linear`, `--peak` nits) | - |
 | `telecine` | Pull 24p film up to interlaced NTSC fields (`--pattern 23` 3:2 pulldown, `--field tff|bff`) — inverse of fieldmatch | - |
@@ -249,7 +249,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `dejudder` | Remove pullup judder (`--cycle 4` for 3:2 pulldown wobble) | - |
 | `despill` | Remove green/blue screen spill from keyed edges (`--type`, `--mix`, `--expand`, `--at`/`--dur`) | - |
 | `interp` | Motion-compensated interpolation: `--fps 60` upres, `--slow 0.5` smooth slow-mo | - | `--engine minterpolate|framerate` |
-| `matrix` | Convert color matrices (`--from bt601 --to bt709` — fixes SD-gone-green; auto-detects source) | - |
+| `matrix` | Convert color matrices (`--from bt601 --to bt709` — fixes SD-gone-green; auto-detects source; `--engine colorspace` also maps primaries + transfer, the bt2020↔709 path) | - |
 | `legalize` | Clamp luma to broadcast-safe 16-235 (`--min`/`--max`, `--at`/`--dur`) | - |
 | `levels` | Photoshop levels: `--in-min/--in-max/--out-min/--out-max` (crush rescue, matte fade) | - |
 | `aberrate` | Chromatic aberration fringe — `--amount` px (VHS / glitch edge look) | - |

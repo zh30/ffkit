@@ -211,7 +211,11 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
     }
     // --lowpass/--highpass/--bandpass FREQ[:WIDTH] — resonant Butterworth
     // pair: LP/HP take a Q width (default 0.707, no resonance peak),
-    // bandpass takes a half-band width in Hz (default FREQ/2)
+    // bandpass takes a half-band width in Hz (default FREQ/2). --linear
+    // swaps the IIR pair for a sinc+afir FIR convolver (flat passband,
+    // steep stopband, zero phase smear) — needs a 2-input graph, so the
+    // freqs are collected into `sinc_parts` instead of the chain.
+    let mut sinc_parts: Vec<String> = Vec::new();
     for (spec, name) in [
         (&args.lowpass, "lowpass"),
         (&args.highpass, "highpass"),
@@ -233,8 +237,37 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
             if !(0.0..=99999.0).contains(&w) || w == 0.0 {
                 return Err(Error::input(format!("--{name} WIDTH must be > 0")));
             }
-            chain.push(format!("{name}=f={f:.0}:w={w:.3}"));
+            if args.linear {
+                match name {
+                    "lowpass" => sinc_parts.push(format!("lp={f:.0}")),
+                    "highpass" => sinc_parts.push(format!("hp={f:.0}")),
+                    _ => {
+                        sinc_parts.extend([format!("hp={:.0}", f - w), format!("lp={:.0}", f + w)])
+                    }
+                }
+            } else {
+                chain.push(format!("{name}=f={f:.0}:w={w:.3}"));
+            }
         }
+    }
+    // --subcut FREQ — order-10 sub-bass highpass (mic-stand rumble, wind,
+    // handling below the voice band)
+    if let Some(f) = args.subcut {
+        if !(2.0..=200.0).contains(&f) {
+            return Err(Error::input("--subcut FREQ must be 2..200 Hz"));
+        }
+        chain.push(format!("asubcut=cutoff={f:.0}:order=10"));
+    }
+    // --supercut FREQ — order-10 ultrasonic lowpass: kills hiss/pilot
+    // tones above the hearing band on 96k+ masters
+    if let Some(f) = args.supercut {
+        let nyq = probe.sample_rate.unwrap_or(44100) as f64 / 2.0;
+        if f < 20000.0 || f >= nyq {
+            return Err(Error::input(format!(
+                "--supercut FREQ must be 20000..{nyq:.0} Hz (under Nyquist)"
+            )));
+        }
+        chain.push(format!("asupercut=cutoff={f:.0}:order=10"));
     }
     if bass != 0.0 {
         chain.push(format!("bass=g={}", bass));
@@ -245,7 +278,19 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
     if treble != 0.0 {
         chain.push(format!("treble=g={}", treble));
     }
-    if chain.is_empty() {
+    if args.linear {
+        if sinc_parts.is_empty() {
+            return Err(Error::input(
+                "--linear applies to --lowpass/--highpass/--bandpass",
+            ));
+        }
+        if args.at.is_some() {
+            return Err(Error::input(
+                "--linear can't be windowed (sinc+afir runs whole-file)",
+            ));
+        }
+    }
+    if chain.is_empty() && sinc_parts.is_empty() {
         return Err(Error::input("eq needs at least one nonzero band"));
     }
     let af = chain.join(",");
@@ -262,6 +307,21 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
             }
             None
         }
+    };
+    let fc = if args.linear {
+        let sr = probe.sample_rate.unwrap_or(44100);
+        let mut g2 = format!(
+            "sinc={}:sample_rate={sr}:att=80[fir];[0:a][fir]afir[eq]",
+            sinc_parts.join(":")
+        );
+        if chain.is_empty() {
+            g2.push_str(";[eq]acopy[aout]");
+        } else {
+            g2.push_str(&format!(";[eq]{af}[aout]"));
+        }
+        Some(g2)
+    } else {
+        fc
     };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");

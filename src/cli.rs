@@ -1805,12 +1805,24 @@ pub struct SelectiveArgs {
     /// Edge softness 0-1 (feather the kept color into the gray field)
     #[arg(long, default_value_t = 0.0)]
     pub blend: f64,
+    /// Hold engine — chroma (YUV chroma-space hold) tracks saturated
+    /// hues better than the RGB colorhold on uneven subjects
+    #[arg(long, value_enum)]
+    pub engine: Option<SelectiveEngine>,
     /// Only apply inside window(s); comma list, 'end' = tail
     #[arg(long)]
     pub at: Option<String>,
     /// Window length in seconds (required with --at)
     #[arg(long)]
     pub dur: Option<f64>,
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+pub enum SelectiveEngine {
+    /// colorhold — RGB-space keep-color (default)
+    Color,
+    /// chromahold — YUV chroma-space keep-color
+    Chroma,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -3288,6 +3300,19 @@ pub struct EqArgs {
     /// FREQ/2); isolates a band without the brickwall's FFT frame echo
     #[arg(long)]
     pub bandpass: Option<String>,
+    /// Linear-phase FIR for the resonant filters (sinc+afir): flat
+    /// passband, ~60dB stopband, zero phase smear — mastering-safe cuts.
+    /// Applies to --lowpass/--highpass/--bandpass; can't take --at
+    #[arg(long)]
+    pub linear: bool,
+    /// Sub-bass cut FREQ Hz (2-200) — mic-stand rumble, wind, handling
+    /// noise under the voice band; order-10 highpass
+    #[arg(long)]
+    pub subcut: Option<f64>,
+    /// Ultrasonic cut FREQ Hz (20000-192000) — hiss/pilot-tone cleanup
+    /// above the hearing band on high-sample-rate masters
+    #[arg(long)]
+    pub supercut: Option<f64>,
     /// Apply the EQ only from here (bass boost on the drop)
     #[arg(long)]
     pub at: Option<String>,
@@ -3685,6 +3710,14 @@ pub enum DeinterlaceMode {
     Field,
 }
 
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+pub enum DedustEngine {
+    /// erosion/dilation morphology on the luma plane (default)
+    Morpho,
+    /// tlut2 temporal min/max — one-frame sparkles & dropouts
+    Temporal,
+}
+
 #[derive(clap::Args, Debug)]
 pub struct DedustArgs {
     pub input: PathBuf,
@@ -3699,6 +3732,10 @@ pub struct DedustArgs {
     /// Remove dark specks (film-negative dust, dead pixels)
     #[arg(long, default_value_t = false)]
     pub dark: bool,
+    /// Dedust engine — temporal kills one-frame sparkles (film dust,
+    /// VHS dropouts) the morphology pass misses
+    #[arg(long, value_enum)]
+    pub engine: Option<DedustEngine>,
     /// Dedust only from this time (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
@@ -3782,6 +3819,15 @@ pub enum ColorMatrix {
     Fcc,
 }
 
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+pub enum MatrixEngine {
+    /// colormatrix — matrix coefficient conversion (fast, tag-safe)
+    Colormatrix,
+    /// colorspace — full conversion incl. primaries + transfer curve
+    /// (gamut-aware; the bt2020 ↔ bt709 path)
+    Colorspace,
+}
+
 #[derive(clap::Args, Debug)]
 pub struct MatrixArgs {
     pub input: PathBuf,
@@ -3793,6 +3839,10 @@ pub struct MatrixArgs {
     /// Destination matrix — convert into this space
     #[arg(long, value_enum, default_value_t = ColorMatrix::Bt709)]
     pub to: ColorMatrix,
+    /// Conversion engine — colorspace also maps primaries + transfer
+    /// (bt2020 HDR ↔ 709 SDR gamut work), not just the matrix coeff
+    #[arg(long, value_enum)]
+    pub engine: Option<MatrixEngine>,
     /// Convert only from this time (needs --dur)
     #[arg(long)]
     pub at: Option<String>,

@@ -432,3 +432,22 @@ an atempo'd whole-file render would shift the window.
   `16s x 16s` swatch grid; its `s` option is swatch pixels, not WxH.
 - **`avgblur` `sizeX` is kernel half-width, planes=15 hits Y/U/V** —
   sigma≈2·sizeX gives comparable spread to gblur.
+
+- **`monochrome`'s cb/cr tint params do nothing on 4.4** — U/V planes
+  stay at 128 even at cr=1/cb=-1/size=10/high=1 (only luma moves).
+  Tinted-B&W stays with `duotone`; don't wire `bw --tint`.
+- **`fieldorder` is a passthrough on demuxed input** — the filter needs
+  frames that arrive flagged interlaced; demuxed prores/.mov loses the
+  flag on 4.4 so nothing gets reordered (idet still reads TFF after
+  fieldorder=bff). Field-order fixing needs a different path.
+- **`afireqsrc` doesn't exist on 4.4** (5.0+); the linear-phase EQ path
+  is `sinc`+`afir` instead — `eq --linear` convolves a kaiser-windowed
+  impulse (att up to 180dB, phase response knob via `phase=`).
+- **`asubcut`/`asupercut`/`asuperpass`/`asuperstop` are edge-band
+  specialists**: asubcut cutoff is capped at 200Hz (rumble below the
+  voice), asupercut only accepts ≥20kHz (ultrasonic — needs hi-res
+  sample rates to matter). asuperpass/asuperstop are the matching
+  ultrasonic band pass/stop — unwired for now.
+- **AAC-in-.wav now auto-retargets**: `engine::write_job` rewrites
+  `-c:a aac` to pcm_s16le/flac/libmp3lame/libvorbis/libopus by output
+  extension — AAC-in-WAV misdecoded on some ffmpeg 4.x builds.

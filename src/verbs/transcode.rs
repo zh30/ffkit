@@ -78,21 +78,24 @@ fn range_tag(args: &TranscodeArgs) -> &'static str {
     }
 }
 
-fn interlace_tag(args: &TranscodeArgs) -> &'static str {
+fn interlace_tag(args: &TranscodeArgs) -> String {
     // il interleaves fields (progressive → interlaced), setfield tags tff —
     // broadcast/air-master delivery specs want both the picture woven and
     // the container flag set. weave pairs real consecutive frames into
-    // fields — true 2x-rate-to-interlace conversion (halves the fps)
-    if !args.interlaced {
-        return "";
+    // fields — true 2x-rate-to-interlace conversion (halves the fps).
+    let mut s = String::new();
+    if args.interlaced {
+        s.push_str(match args.interlace_mode {
+            // tinterlace interleave_top: consecutive frames → alternating
+            // top/bottom fields — real temporal interlacing (60p→30i), NOT
+            // ffmpeg's weave filter (that one stacks full frames vertically)
+            Some(crate::cli::InterlaceKind::Weave) => {
+                ",tinterlace=mode=interleave_top,setfield=tff"
+            }
+            _ => ",il=luma_mode=i:chroma_mode=i,setfield=tff",
+        });
     }
-    match args.interlace_mode {
-        // tinterlace interleave_top: consecutive frames → alternating
-        // top/bottom fields — real temporal interlacing (60p→30i), NOT
-        // ffmpeg's weave filter (that one stacks full frames vertically)
-        Some(crate::cli::InterlaceKind::Weave) => ",tinterlace=mode=interleave_top,setfield=tff",
-        _ => ",il=luma_mode=i:chroma_mode=i,setfield=tff",
-    }
+    s
 }
 
 fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
@@ -119,7 +122,7 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             vf.push_str(&format!(",fps={fps}"));
         }
         vf.push_str(range_tag(args));
-        vf.push_str(interlace_tag(args));
+        vf.push_str(&interlace_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -158,7 +161,7 @@ fn hevc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             vf.push_str(&format!(",fps={fps}"));
         }
         vf.push_str(range_tag(args));
-        vf.push_str(interlace_tag(args));
+        vf.push_str(&interlace_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -195,7 +198,7 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             vf.push_str(&format!(",fps={fps}"));
         }
         vf.push_str(range_tag(args));
-        vf.push_str(interlace_tag(args));
+        vf.push_str(&interlace_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -230,7 +233,7 @@ fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             vf.push_str(&format!(",fps={fps}"));
         }
         vf.push_str(range_tag(args));
-        vf.push_str(interlace_tag(args));
+        vf.push_str(&interlace_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {
@@ -415,7 +418,7 @@ fn dnxhd(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             vf.push_str(&format!(",fps={fps}"));
         }
         vf.push_str(range_tag(args));
-        vf.push_str(interlace_tag(args));
+        vf.push_str(&interlace_tag(args));
         argv.extend(["-vf", &vf]);
     }
     if probe.has_audio {

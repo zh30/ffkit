@@ -26732,3 +26732,230 @@ fn r229_eq_resonant_bbox_weave_mptest_palette_avgblur() {
         assert_eq!(j["extra"]["filter"], "avgblur");
     }
 }
+
+#[test]
+fn r230_eq_linear_subcut_supercut_selchroma_matrixcs_dedust_wavcodec() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    fn mean_of(p: &Path) -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-hide_banner", "-i"])
+            .arg(p)
+            .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .lines()
+            .find_map(|l| {
+                l.split("mean_volume:")
+                    .nth(1)
+                    .and_then(|r| r.split_whitespace().next())
+                    .and_then(|t| t.parse::<f64>().ok())
+            })
+            .expect("mean_volume")
+    }
+
+    // eq --linear — sinc+afir linear-phase brick-wall: lp=1000 kills 5kHz
+    if has_filter("sinc") && has_filter("afir") {
+        let s = dir.path().join("s5k.m4a");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=5000:duration=1",
+                "-c:a",
+                "aac",
+            ])
+            .arg(&s)
+            .status()
+            .map(|st| st.success())
+            .unwrap_or(false));
+        let o = dir.path().join("lp_lin.m4a");
+        let j = run_json(&[
+            "eq",
+            &s.to_string_lossy(),
+            "--lowpass",
+            "1000",
+            "--linear",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        assert!(
+            mean_of(&o) < -40.0,
+            "linear lp=1000 should crush 5kHz: {}",
+            mean_of(&o)
+        );
+    }
+
+    // eq --subcut 100 — order-10 sub-bass cut kills 30Hz rumble
+    if has_filter("asubcut") {
+        let s = dir.path().join("s30.m4a");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=30:duration=1",
+                "-c:a",
+                "aac",
+            ])
+            .arg(&s)
+            .status()
+            .map(|st| st.success())
+            .unwrap_or(false));
+        let o = dir.path().join("subcut.m4a");
+        let j = run_json(&[
+            "eq",
+            &s.to_string_lossy(),
+            "--subcut",
+            "100",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        assert!(
+            mean_of(&o) < -40.0,
+            "asubcut should crush 30Hz: {}",
+            mean_of(&o)
+        );
+    }
+
+    // eq --supercut 20000 — ultrasonic cut kills a 30kHz pilot tone on a
+    // 96kHz master; also proves the -o .wav path retargets aac → pcm_s16le
+    if has_filter("asupercut") {
+        let s = dir.path().join("s30k.wav");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=30000:duration=1:sample_rate=96000",
+                "-c:a",
+                "pcm_s24le",
+            ])
+            .arg(&s)
+            .status()
+            .map(|st| st.success())
+            .unwrap_or(false));
+        let o = dir.path().join("sup.wav");
+        let j = run_json(&[
+            "eq",
+            &s.to_string_lossy(),
+            "--supercut",
+            "20000",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        assert_eq!(j["probe"]["acodec"], "pcm_s16le");
+        assert!(
+            mean_of(&o) < -50.0,
+            "asupercut should crush 30kHz: {}",
+            mean_of(&o)
+        );
+    }
+
+    // selective --engine chroma — chromahold keeps the red end, grays the rest
+    if has_filter("chromahold") {
+        let j = run_json(&[
+            "selective",
+            &f.to_string_lossy(),
+            "--color",
+            "red",
+            "--engine",
+            "chroma",
+            "-o",
+            &dir.path().join("selc.mp4").to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        assert_eq!(j["extra"]["engine"], "chromahold");
+    }
+
+    // matrix --engine colorspace — primaries+trc aware 601→709
+    if has_filter("colorspace") {
+        let j = run_json(&[
+            "matrix",
+            &f.to_string_lossy(),
+            "--from",
+            "bt601",
+            "--to",
+            "bt709",
+            "--engine",
+            "colorspace",
+            "-o",
+            &dir.path().join("mxcs.mp4").to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+    }
+
+    // dedust --engine temporal — tlut2 min(x,y) erases a one-frame sparkle
+    if has_filter("tlut2") {
+        let spark = dir.path().join("spark.mp4");
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=gray:s=64x64:d=0.5:r=10",
+                "-vf",
+                "drawbox=x=20:y=20:w=8:h=8:c=white:t=fill:enable='eq(n,3)'",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+            ])
+            .arg(&spark)
+            .status()
+            .map(|st| st.success())
+            .unwrap_or(false));
+        let o = dir.path().join("dd.mp4");
+        let j = run_json(&[
+            "dedust",
+            &spark.to_string_lossy(),
+            "--engine",
+            "temporal",
+            "-o",
+            &o.to_string_lossy(),
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        // frame 3 sparkle area should be back to gray (~128), not white (255)
+        let px = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+            .arg(&o)
+            .args([
+                "-vf",
+                "select=eq(n\\,3),crop=8:8:20:20,format=gray",
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        let avg = px.stdout.iter().map(|b| *b as u64).sum::<u64>() / px.stdout.len().max(1) as u64;
+        assert!(avg < 170, "sparkle should be suppressed: avg={avg}");
+    }
+}

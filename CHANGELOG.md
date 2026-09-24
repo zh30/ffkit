@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.257.0] — 2026-09-23
+
+- `eq --linear` — linear-phase FIR mode for `--lowpass`/`--highpass`/`--bandpass` (sinc+afir: flat passband, ~60dB stopband, zero phase smear — mastering-safe cuts; no `--at`)
+- `eq --subcut FREQ` / `eq --supercut FREQ` — order-10 sub-bass & ultrasonic cuts (mic-stand rumble below the voice band; 20kHz+ hiss/pilot tones on hi-res masters)
+- `selective --engine chroma` — chromahold keeps saturated hues in YUV chroma space (uneven subjects the RGB colorhold misses)
+- `matrix --engine colorspace` — full conversion incl. primaries + transfer curve (the bt2020↔bt709 gamut path, not just the matrix coeff)
+- `dedust --engine temporal` — tlut2 temporal min/max removes one-frame sparkles & VHS dropouts the morphology pass misses
+- fix: `-o .wav`/`flac`/`mp3`/`ogg`/`opus` no longer writes an AAC payload — `engine::write_job` retargets `-c:a aac` to a codec the container carries (aac-in-.wav misdecoded on ffmpeg 4.x)
+
 ## [0.256.0] — 2026-09-23
 
 - `eq --lowpass`/`--highpass`/`--bandpass FREQ[:W]` — resonant Butterworth filters (synth-style sweeps, rumble/hiss roll-off sharper than shelves; Q width for LP/HP, half-band Hz for bandpass)
