@@ -36187,3 +36187,182 @@ fn r279_drop_forced_stream_audio_offset() {
         assert_eq!(pr["probe"]["streams"][0]["width"], 1920, "{pr}");
     }
 }
+
+#[test]
+fn r280_no_chapters_audio_loop_stream_title() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+    // chaptered input via ffmetadata
+    let meta = d.path().join("ch.txt");
+    std::fs::write(
+        &meta,
+        ";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=500\ntitle=A\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=500\nEND=1000\ntitle=B\n",
+    )
+    .unwrap();
+    let cht = d.path().join("cht.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args(["-y", "-i"])
+        .arg(f.to_str().unwrap())
+        .args(["-i"])
+        .arg(meta.to_str().unwrap())
+        .args([
+            "-map",
+            "0",
+            "-map_metadata",
+            "1",
+            "-map_chapters",
+            "1",
+            "-c",
+            "copy",
+        ])
+        .arg(cht.to_str().unwrap())
+        .output()
+        .unwrap();
+    assert!(st.status.success(), "{st:?}");
+    let pr = run_json(&["probe", cht.to_str().unwrap()]);
+    assert_eq!(pr["probe"]["chapter_count"], 2, "{pr}");
+    // remux --no-chapters strips the embedded TOC losslessly
+    let nc = d.path().join("nc.mp4");
+    let j = run_json(&[
+        "remux",
+        cht.to_str().unwrap(),
+        "-o",
+        nc.to_str().unwrap(),
+        "--no-chapters",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["no_chapters"], true, "{j}");
+    let pr = run_json(&["probe", nc.to_str().unwrap()]);
+    assert_eq!(pr["probe"]["chapter_count"], 0, "{pr}");
+    // --no-chapters refuses --chapters
+    let marks = d.path().join("m.txt");
+    std::fs::write(&marks, "0:00 A\n0:01 B\n").unwrap();
+    let m = run_json(&[
+        "remux",
+        cht.to_str().unwrap(),
+        "-o",
+        d.path().join("bad.mp4").to_str().unwrap(),
+        "--no-chapters",
+        "--chapters",
+        marks.to_str().unwrap(),
+    ]);
+    assert_eq!(m["status"], "failed", "{m}");
+    // slideshow --audio-loop repeats a short bed across the montage
+    let p1 = d.path().join("a.png");
+    let p2 = d.path().join("b.png");
+    for (p, c) in [(&p1, "red"), (&p2, "blue")] {
+        std::process::Command::new("ffmpeg")
+            .args(["-y", "-f", "lavfi", "-i"])
+            .arg(format!("color={c}:size=64x64"))
+            .args(["-frames:v", "1"])
+            .arg(p.to_str().unwrap())
+            .output()
+            .unwrap();
+    }
+    let bed = d.path().join("bed.m4a");
+    std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(bed.to_str().unwrap())
+        .output()
+        .unwrap();
+    let so = d.path().join("loop.mp4");
+    let j = run_json(&[
+        "slideshow",
+        p1.to_str().unwrap(),
+        p2.to_str().unwrap(),
+        "--per",
+        "1",
+        "--audio",
+        bed.to_str().unwrap(),
+        "--audio-loop",
+        "-o",
+        so.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["audio_loop"], true, "{j}");
+    // tail of the montage (past the 1s bed) carries looped music, not silence
+    let vd = std::process::Command::new("ffmpeg")
+        .args(["-i"])
+        .arg(so.to_str().unwrap())
+        .args([
+            "-af",
+            "atrim=start=1.0:end=1.35,volumedetect",
+            "-f",
+            "null",
+            "-",
+        ])
+        .output()
+        .unwrap();
+    let err = String::from_utf8_lossy(&vd.stderr);
+    let mean: f64 = err
+        .split("mean_volume: ")
+        .nth(1)
+        .and_then(|t| t.split(' ').next())
+        .and_then(|t| t.parse().ok())
+        .unwrap_or(-99.0);
+    assert!(mean > -60.0, "looped tail should carry music: {err}");
+    for extra in [vec!["--audio-loop", "--fit"], vec!["--audio-loop"]] {
+        let mut a = vec!["slideshow", p1.to_str().unwrap(), p2.to_str().unwrap()];
+        if extra == vec!["--audio-loop", "--fit"] {
+            a.extend_from_slice(&["--audio", bed.to_str().unwrap()]);
+        }
+        a.extend_from_slice(&extra);
+        let bad = d.path().join("bad.mp4");
+        a.extend_from_slice(&["-o", bad.to_str().unwrap()]);
+        let m = run_json(&a);
+        assert_eq!(m["status"], "failed", "{extra:?}: {m}");
+    }
+    // probe streams[].title reads per-track display names
+    let titled = d.path().join("t.mkv");
+    let j = run_json(&[
+        "meta",
+        f.to_str().unwrap(),
+        "-o",
+        titled.to_str().unwrap(),
+        "--title-audio",
+        "Program Mix",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", titled.to_str().unwrap()]);
+    let audio = pr["probe"]["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["kind"] == "audio")
+        .expect("audio stream");
+    assert_eq!(audio["title"], "Program Mix", "{pr}");
+    // 7 new marketplace/music platforms land on the 1920x1080 canvas
+    for plat in [
+        "telegram",
+        "tidal",
+        "deezer",
+        "qobuz",
+        "yandexmusic",
+        "napster",
+        "joox",
+    ] {
+        let o = d.path().join(format!("d_{plat}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            plat,
+        ]);
+        assert_eq!(j["status"], "ok", "{plat}: {j}");
+        let pr = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pr["probe"]["streams"][0]["width"], 1920, "{pr}");
+    }
+}

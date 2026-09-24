@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.307.0] — 2026-09-24
+
+### Added
+- `remux --no-chapters` — strip embedded container chapters in the repack (`-map_chapters -1`; clean deliverable for players that render a broken TOC; conflicts with `--chapters`).
+- `probe`/`scan` `streams[].title` — per-track display title in the stream table (QC that `meta --title-audio`/`--title-subs`/`--title-video` landed; mkv/webm).
+- `slideshow --audio-loop` — repeat a short music bed across the whole montage (`-stream_loop -1`; short jingle under a long slideshow — refused with `--fit`, which already ends on the bed).
+- `deliver --platform telegram|tidal|deezer|qobuz|yandexmusic|napster|joox` — Telegram posts & music-platform video singles (16:9 1080p, −14 LUFS).
+
 ## [0.306.0] — 2026-09-24
 
 ### Added

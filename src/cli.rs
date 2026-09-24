@@ -1464,6 +1464,20 @@ pub enum DeliverPlatform {
     Dlive,
     /// Minds video 16:9 landscape (1920x1080, -14 LUFS)
     Minds,
+    /// Telegram channel/chat video 16:9 landscape (1920x1080, -14 LUFS)
+    Telegram,
+    /// TIDAL video single 16:9 landscape (1920x1080, -14 LUFS)
+    Tidal,
+    /// Deezer video single 16:9 landscape (1920x1080, -14 LUFS)
+    Deezer,
+    /// Qobuz video single 16:9 landscape (1920x1080, -14 LUFS)
+    Qobuz,
+    /// Yandex Music video single 16:9 landscape (1920x1080, -14 LUFS)
+    Yandexmusic,
+    /// Napster video single 16:9 landscape (1920x1080, -14 LUFS)
+    Napster,
+    /// JOOX video single 16:9 landscape (1920x1080, -14 LUFS)
+    Joox,
     /// Spotify video podcast 16:9 landscape (1920x1080, -14 LUFS)
     Spotify,
     /// Apple Podcasts video episode 16:9 landscape (1920x1080, -14 LUFS)
@@ -3208,6 +3222,10 @@ pub struct SlideshowArgs {
     /// (--fit measures the montage against the bed's remaining length)
     #[arg(long)]
     pub audio_offset: Option<f64>,
+    /// Loop the music bed when it's shorter than the montage
+    /// (-stream_loop -1 — short jingle under a long slideshow)
+    #[arg(long)]
+    pub audio_loop: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4180,6 +4198,10 @@ pub struct RemuxArgs {
     /// cover art, this removes the rest)
     #[arg(long)]
     pub no_attachments: bool,
+    /// Strip embedded container chapters in the repack — clean audio
+    /// deliverable/clip for players that show a broken TOC
+    #[arg(long)]
+    pub no_chapters: bool,
     /// Lossless trim: start the repack at SEC (keyframe-accurate seek —
     /// repackage just a segment without re-encoding)
     #[arg(long)]

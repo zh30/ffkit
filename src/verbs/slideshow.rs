@@ -61,6 +61,16 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     }
     // Probe the music bed up front: --fit borrows its duration for the
     // per-still solve below.
+    if args.audio_loop {
+        if args.audio.is_none() {
+            return Err(Error::input("--audio-loop needs --audio"));
+        }
+        if args.fit {
+            return Err(Error::input(
+                "--audio-loop makes the bed endless — --fit already ends on the bed",
+            ));
+        }
+    }
     if let Some(off) = args.audio_offset {
         if args.audio.is_none() {
             return Err(Error::input("--audio-offset needs --audio"));
@@ -245,6 +255,9 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     let bed_idx = if let Some(bed) = &args.audio {
+        if args.audio_loop {
+            argv.extend(["-stream_loop", "-1"]);
+        }
         if let Some(off) = args.audio_offset {
             argv.extend(["-ss", format!("{off}").as_str()]);
         }
@@ -366,6 +379,7 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         },
         "canvas": format!("{w}x{h}"),
         "music_bed": args.audio.is_some(),
+        "audio_loop": args.audio_loop,
         "audio_fade": bed_tail,
         "fit": args.fit,
         "seed": args.shuffle,

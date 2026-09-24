@@ -127,6 +127,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Taobao
         | DeliverPlatform::Dlive
         | DeliverPlatform::Minds
+        | DeliverPlatform::Telegram
+        | DeliverPlatform::Tidal
+        | DeliverPlatform::Deezer
+        | DeliverPlatform::Qobuz
+        | DeliverPlatform::Yandexmusic
+        | DeliverPlatform::Napster
+        | DeliverPlatform::Joox
         | DeliverPlatform::Spotify
         | DeliverPlatform::Apple
         | DeliverPlatform::Amazonmusic
@@ -523,6 +530,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Taobao => "taobao",
         DeliverPlatform::Dlive => "dlive",
         DeliverPlatform::Minds => "minds",
+        DeliverPlatform::Telegram => "telegram",
+        DeliverPlatform::Tidal => "tidal",
+        DeliverPlatform::Deezer => "deezer",
+        DeliverPlatform::Qobuz => "qobuz",
+        DeliverPlatform::Yandexmusic => "yandexmusic",
+        DeliverPlatform::Napster => "napster",
+        DeliverPlatform::Joox => "joox",
         DeliverPlatform::Spotify => "spotify",
         DeliverPlatform::Apple => "apple",
         DeliverPlatform::Amazonmusic => "amazonmusic",

@@ -94,6 +94,10 @@ pub struct ProbeStream {
     pub codec: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
+    /// Per-track display title (meta --title-audio/--title-subs/
+    /// --title-video writes these; mkv/webm only — mp4 drops them)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub width: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -412,6 +416,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 kind: s.codec_type.clone(),
                 codec: s.codec_name.clone(),
                 language: s.tags.as_ref().and_then(|t| t.get("language").cloned()),
+                title: s.tags.as_ref().and_then(|t| t.get("title").cloned()),
                 width: s.width,
                 height: s.height,
                 channels: s.channels,

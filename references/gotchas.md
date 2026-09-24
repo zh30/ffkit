@@ -650,3 +650,5 @@ an atempo'd whole-file render would shift the window.
 - **`chapter --rate` applies before `--shift`** — retiming is fixed scale-then-offset (the same order `subs --resync` solves). Marks authored for a sped-up cut divide by the rate; check a mark past EOF isn't created — the end-of-file guard still rejects at the scaled time.
 
 - **clap won't take a bare negative for an `f64` flag** — `--audio-offset -1` parses `-1` as a new flag (exit 2, no JSON). Negative values only pass in `--flag=-1` equals-form, which reaches the verb's own range check.
+
+- **A short `--audio` bed silently pads with `apad`, not music** — the slideshow bed chain is `apad,atrim=duration=…`: past the bed's end the montage gets digital silence (−91dB tail). `-stream_loop -1` is an input option BEFORE `-i` (`--audio-loop`) and repeats the bed instead; the `afade` tail then fades real audio, not silence.
