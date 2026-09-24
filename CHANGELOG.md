@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.286.0] — 2026-09-24
+
+### Added
+- `live --audio-only` — drop the video path and push an aac-only feed: audio podcast/radio streaming from any source file (a concert video goes out as pure audio); video-shaping flags (`--card`/`--slate`/`--overlay`/`--subs`/`--vertical`/`--codec`/`--gop`/`--preset`/`--scale`) are refused
+- `meta --description/--synopsis/--hd` — podcast/audiobook publishing tags: episode notes + store blurb + the iTunes `hd_video` HD badge (verified on mp4: all three land; `rating` is still movenc-whitelist-dropped — see gotchas)
+- `probe`/`scan` report `streams` — every elementary stream at its absolute index (`index`/`kind`/`codec`/`language`/`width`/`height`/`channels`); multi-track QC before `remux --lang` or `extract --track` (dub/subtitle audits on deliverables)
+
 ## [0.285.0] — 2026-09-24
 
 ### Added

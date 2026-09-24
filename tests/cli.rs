@@ -32649,3 +32649,100 @@ fn r258_extract_subs_chapter_spread_probe_tags() {
     assert_eq!(j["status"], "ok");
     assert_eq!(j["probe"]["tags"]["format"]["title"], "My Show");
 }
+
+#[test]
+fn r259_meta_desc_probe_streams_live_audio_only() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    // meta publishing tags: description/synopsis land, --hd writes hd_video=1
+    let tagged = d.join("t.mp4");
+    let j = run_json(&[
+        "meta",
+        f.to_str().unwrap(),
+        "-o",
+        tagged.to_str().unwrap(),
+        "--description",
+        "Episode 42 notes and links",
+        "--synopsis",
+        "Short blurb",
+        "--hd",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let tags_out = std::process::Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format_tags",
+            tagged.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    let tags = String::from_utf8_lossy(&tags_out.stdout);
+    assert!(
+        tags.contains("TAG:description=Episode 42 notes and links"),
+        "{tags}"
+    );
+    assert!(tags.contains("TAG:synopsis=Short blurb"), "{tags}");
+    assert!(tags.contains("TAG:hd_video=1"), "{tags}");
+
+    // probe.streams: every elementary stream at its absolute index
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    assert!(streams.len() >= 2);
+    assert_eq!(streams[0]["kind"], "video");
+    assert_eq!(streams[1]["kind"], "audio");
+    assert!(streams[1]["channels"].is_u64());
+
+    // live --audio-only conflicts: video-shaping flags are refused
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        "tcp://x",
+        "--audio-only",
+        "--vertical",
+    ]);
+    assert_eq!(j["status"], "failed");
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        "tcp://x",
+        "--audio-only",
+        "--codec",
+        "hevc",
+    ]);
+    assert_eq!(j["status"], "failed");
+    // audio-only on a no-audio input is refused before streaming
+    let silent = d.join("silent.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=d=1:s=64x64:r=10",
+            "-an",
+            silent.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&[
+        "live",
+        silent.to_str().unwrap(),
+        "--to",
+        "tcp://x",
+        "--audio-only",
+    ]);
+    assert_eq!(j["status"], "failed");
+}

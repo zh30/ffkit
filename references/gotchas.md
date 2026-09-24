@@ -586,3 +586,7 @@ an atempo'd whole-file render would shift the window.
 - **`extract --subs` re-muxes through the text encoders** — `-c:s copy` would write the source codec's binary layout (mov_text isn't srt); the .srt/.ass/.vtt extension picks `srt`/`ass`/`webvtt` so the container and codec always agree.
 - **`chapter --spread` puts mark i at `duration*i/N`** — last chapter ends exactly at EOF; ask for `--spread 3` on a 3s file and titles land 0/1/2s, none past the end (the at-end guard still rejects).
 - **`probe.tags` groups by `format` and `stream:N` with the *absolute* stream index** — the same index `attached_pic_indices` uses, so tag lookups and stream selection stay consistent on multi-track files.
+
+- **movenc drops `rating` but keeps `description`/`synopsis`/`episode_id`/`hd_video`.** `-metadata rating=600` never lands on mp4/m4a on ffmpeg 4.4 — iTunes content-rating has to come from elsewhere; the other publishing tags are all in the whitelist.
+- **`live --audio-only` still writes FLV/MPEG-TS, not mp3/aac.** The container is chosen by transport (`rtmp/tcp`→flv, `udp/srt`→mpegts); aac-in-FLV is a valid audio-only stream — don't expect an `.mp3`-style file on the wire.
+- **`probe.streams[].index` is the absolute ffprobe index**, not the per-type ordinal — `extract --subs --track N` counts subtitle streams (`0:s:N`) while `remux` stream maps count absolute; keep them distinct when scripting.

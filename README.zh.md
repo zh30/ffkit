@@ -95,7 +95,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | 动词 | 做什么 |
 |------|--------|
 | `doctor` | 本机 ffmpeg 是否可用、有哪些 encoder/filter |
-| `probe` | 时长、分辨率、编码、声道、`av_desync_ms` 唇音同步偏移、`timecode` 容器时码、`has_alpha` α 通道、`tags` 元数据审计 |
+| `probe` | 时长、分辨率、编码、声道、`av_desync_ms` 唇音同步偏移、`timecode` 容器时码、`has_alpha` α 通道、`tags` 元数据审计、`streams` 逐轨清单（index/kind/codec/语种） |
 | `look` | 联系表（`--tiles`）或指定时间点（`--at`，可重复） |
 | `cut` | 剪切；默认无损 copy，`--accurate`、`--ranges`、`--drop` 才帧精确（边界支持 `end`：`T-end` 到结尾、`end-N` 最后 N 秒）；`--fade N` 切口淡入淡出；`--black` 自动切掉 blackdetect ≥0.3s 黑段（死画面剔除，画面版的 cutsil） |
 | `concat` | 拼接 N 段（任意 xfade `--transition`，逗号列表逐接缝选转场）；`--level -14` 先统一各段响度；`--gap N` 段间插入黑场+静音 ；`--audio-fade N` 接缝处音频淡化（边界淡化，时长/同步不变）；`--list manifest.txt` 从清单文件读取片段路径（相对路径按清单所在目录解析） |
@@ -140,7 +140,7 @@ ffkit look branded.mp4 --at 1 -o frame.png
 | `fx` | 音效机架：tremolo/vibrato/flanger/phaser/chorus/echo/lofi/radio/saturate/excite/bass/muffled/crystal/sub/crossfeed/autopan（`--kind`、`--strength`、`--at`/`--dur`），支持 `end`，逗号列表可多段 | `--kind ringmod` 真环形调制（amultiply 乘正弦载波，`--strength` 扫 25-500Hz） | `--kind crush` 位深+采样率破坏（数字低保真） | `--kind fshift` 移频（金属外星声，`--strength` 扫 50→2000Hz） | `--kind contrast` 动态倾斜（>0.5 更冲击，<0.5 更平稳） | `--kind wah` 自动哇音（asendcmd 驱动谐振 equalizer 峰在 350→2700Hz 扫动，`--strength` 控 LFO 速率） |
 | `rotate` | 旋转 90/180/270 或镜像：`--deg`/`--flip`、`--angle` 任意角度倾斜、`--at`/`--dur` 窗口倾斜（支持逗号列表） |
 | `delogo` | 抹掉烧录的台标/水印区域：`--x --y --w --h`，或 `--regions x:y:w:h,...` 一次抹多处；`--at`/`--dur` 只处理窗口，`--at end` 片尾（`--soft` 柔化去除、`--shape circle` 椭圆遮罩） | `--image` 手绘遮罩 | `--find logo.png` 自动定位（find_rect 扫前 15 秒，免手填坐标） | `--find + --track` 逐帧追踪移动水印（cover_rect 实时模糊） |
-| `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--disc`/`--composer`/`--bpm`/`--lyrics file.lrc`/`--copyright`/`--comment`，另加 `--album-artist`/`--show`/`--season`/`--episode`/`--network` 剧集/播客订阅源标签组，再补 `--creation-time`/`--location` 归档时间戳与拍摄地戳 + `--media-type` iTunes 类型原子 + `--gapless` 无缝专辑标记）+ `--rotate`、`--clear` 显示旋转，无损拷贝 |
+| `meta` | 容器标签（`--title`/`--artist`/`--album`/`--genre`/`--date`/`--track`/`--disc`/`--composer`/`--bpm`/`--lyrics file.lrc`/`--copyright`/`--comment`，另加 `--album-artist`/`--show`/`--season`/`--episode`/`--network` 剧集/播客订阅源标签组，再补 `--creation-time`/`--location` 归档时间戳与拍摄地戳 + `--media-type` iTunes 类型原子 + `--gapless` 无缝专辑标记 + `--description`/`--synopsis` 单集文案与简介 + `--hd` iTunes 高清徽标）+ `--rotate`、`--clear` 显示旋转，无损拷贝 |
 | `subs` | 提取（`--stream`、`--all` 全部）/烧录/封装字幕（`--shift`（±N；`--from`/`--to` 可只平移窗口内字幕）/`--merge`/`--rate`、烧录样式 + `--outline`/`--box` 衬底/`--align`/`--from`/`--to` 窗口（支持 `end`/`end-N`）、`--margin` 像素边距、`--safe`）；`--convert` .srt↔.vtt 互转；`--case` 大小写；`--burn-si N` 直接烧内嵌第 N 条字幕轨；`--encoding gbk` 解码老编码字幕文件 |
 | `thumb` | 抓封面帧（`--at`（`end` = 最后一帧，逗号 `--at` 每点一张）/`--frame`、`--count` 均布 N 张（`--from`/`--to` 限定范围，支持 `end`/`end-N`）、`--width`）→ jpg/png/webp；`--scenes` 场景切换抓帧 | `--best` 代表帧 |
 | `solid` | 纯色视频卡（`--color`、`--size`、`--dur`、`--fps` 帧率，可选静音轨）（`--gradient` 渐变、`--noise` 颗粒） |（`--color`/`--gradient` 支持颜色名与十六进制） ，`--text` 卡片文字（`--wrap` 折行、`--align` 对齐） |

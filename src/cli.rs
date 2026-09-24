@@ -2801,6 +2801,15 @@ pub struct MetaArgs {
     /// DJ mixes shouldn't gap between tracks
     #[arg(long)]
     pub gapless: bool,
+    /// Long description — podcast episode notes / audiobook blurb
+    #[arg(long)]
+    pub description: Option<String>,
+    /// Short synopsis (iTunes stores both; stores show this in listings)
+    #[arg(long)]
+    pub synopsis: Option<String>,
+    /// iTunes hd_video atom — mark the file as HD for store listings
+    #[arg(long)]
+    pub hd: bool,
     /// Fix the display rotation flag (0/90/180/270) without re-encoding
     #[arg(long)]
     pub rotate: Option<u32>,
@@ -4713,6 +4722,10 @@ pub struct LiveArgs {
     /// (TikTok/Reels/抖音 live — combines with --to any ingest)
     #[arg(long)]
     pub vertical: bool,
+    /// Drop the video track and stream audio only — audio podcast/radio
+    /// push from any source (a concert file goes out as an aac-only feed)
+    #[arg(long)]
+    pub audio_only: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]

@@ -42,6 +42,7 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         }
     };
     let gapless_text = if args.gapless { Some("1") } else { None };
+    let hd_text = if args.hd { Some("1") } else { None };
     let tags: Vec<(&str, &str)> = [
         ("title", args.title.as_deref()),
         ("artist", args.artist.as_deref()),
@@ -63,6 +64,9 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         ("location", args.location.as_deref()),
         ("media_type", media_text),
         ("gapless_playback", gapless_text),
+        ("description", args.description.as_deref()),
+        ("synopsis", args.synopsis.as_deref()),
+        ("hd_video", hd_text),
         ("comment", args.comment.as_deref()),
     ]
     .into_iter()

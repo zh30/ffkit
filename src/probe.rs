@@ -62,6 +62,30 @@ pub struct Probe {
     /// Skipped when the file carries none.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<serde_json::Map<String, serde_json::Value>>,
+    /// Every elementary stream at its absolute index — multi-track QC:
+    /// which stream carries which codec/language before a `remux --lang`
+    /// or `extract --track` (dub/subtitle audits on deliverables).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub streams: Vec<ProbeStream>,
+}
+
+/// One line of the stream table — index matches `remux`/`extract`
+/// stream selection and `probe.tags`' `stream:N` keys.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ProbeStream {
+    pub index: u32,
+    /// video | audio | subtitle | data | attachment | …
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub codec: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub width: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub height: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub channels: Option<u32>,
 }
 
 fn is_zero(v: &u32) -> bool {
@@ -332,6 +356,20 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
         },
         timecode,
         tags,
+        streams: parsed
+            .streams
+            .iter()
+            .enumerate()
+            .map(|(i, s)| ProbeStream {
+                index: s.index.unwrap_or(i as u32),
+                kind: s.codec_type.clone(),
+                codec: s.codec_name.clone(),
+                language: s.tags.as_ref().and_then(|t| t.get("language").cloned()),
+                width: s.width,
+                height: s.height,
+                channels: s.channels,
+            })
+            .collect(),
     })
 }
 
