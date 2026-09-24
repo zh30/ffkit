@@ -33091,3 +33091,192 @@ fn r262_insert_replace_remux_offset_probe_start_time_deliver_threads() {
         assert_eq!(j["probe"]["height"], h);
     }
 }
+
+#[test]
+fn r263_extract_keyframes_slideshow_titles_deliver_canvas_live_title() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+
+    // extract --keyframes: one image per I-frame (GOP boundary stills)
+    let gop = d.join("gop.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=d=1:s=320x240:r=10",
+            "-c:v",
+            "libx264",
+            "-g",
+            "5",
+            gop.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&[
+        "extract",
+        gop.to_str().unwrap(),
+        "--keyframes",
+        "-o",
+        d.join("kf.png").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let stills = j["extra"]["stills"].as_array().unwrap();
+    assert_eq!(
+        stills.len(),
+        2,
+        "1s @10fps g5 → keyframes at frame 0 and 5, got {stills:?}"
+    );
+    // bare -o gets the %03d suffix
+    assert!(d.join("kf_001.png").exists());
+    // refuses mixed modes
+    let j = run_json(&[
+        "extract",
+        gop.to_str().unwrap(),
+        "--keyframes",
+        "--audio",
+        "-o",
+        d.join("k2_%02d.png").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // slideshow --titles: comma slots in slide order, empty = skip
+    let mk = |name: &str, c: &str| {
+        let p = d.join(name);
+        let st = Command::new("ffmpeg")
+            .args([
+                "-y",
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color=c={c}:s=640x480:d=0.1"),
+                "-frames:v",
+                "1",
+                p.to_str().unwrap(),
+            ])
+            .status()
+            .unwrap();
+        assert!(st.success());
+        p
+    };
+    let p1 = mk("a.png", "red");
+    let p2 = mk("b.png", "blue");
+    let ss = d.join("ss.mp4");
+    let j = run_json(&[
+        "slideshow",
+        p1.to_str().unwrap(),
+        p2.to_str().unwrap(),
+        "--per",
+        "0.5",
+        "--fade",
+        "0",
+        "--titles",
+        "First,",
+        "-o",
+        ss.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["titles"], serde_json::json!(["First", ""]));
+    // too many slots → clean error
+    let j = run_json(&[
+        "slideshow",
+        p1.to_str().unwrap(),
+        p2.to_str().unwrap(),
+        "--per",
+        "0.5",
+        "--titles",
+        "a,b,c",
+        "-o",
+        d.join("ss2.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // deliver --platform canvas: Spotify Canvas 9:16
+    let canv = d.join("canv.mp4");
+    let j = run_json(&[
+        "deliver",
+        gop.to_str().unwrap(),
+        "-o",
+        canv.to_str().unwrap(),
+        "--platform",
+        "canvas",
+        "--preview",
+        "0.5",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let j = run_json(&["probe", canv.to_str().unwrap()]);
+    assert_eq!(j["probe"]["width"], 1080);
+    assert_eq!(j["probe"]["height"], 1920);
+
+    // live --title rides the FLV metadata + the --record archive
+    let f = fixture(d);
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let (tx_port, rx_port) = std::sync::mpsc::channel();
+    let (tx_head, rx_head) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let port = listener.local_addr().unwrap().port();
+        tx_port.send(port).unwrap();
+        if let Ok((mut sock, _)) = listener.accept() {
+            use std::io::Read;
+            let mut head = Vec::new();
+            let mut buf = [0u8; 8192];
+            // FLV onMetaData sits near the stream head — grab enough of it
+            while head.len() < 4096 {
+                match sock.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => head.extend_from_slice(&buf[..n]),
+                }
+            }
+            let _ = tx_head.send(head);
+            while sock.read(&mut buf).map(|n| n > 0).unwrap_or(false) {}
+        }
+    });
+    let port = rx_port.recv().unwrap();
+    let rec = d.join("rec.mp4");
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        &format!("tcp://127.0.0.1:{port}"),
+        "--title",
+        "Night Show",
+        "--record",
+        rec.to_str().unwrap(),
+        "--until",
+        "1.5",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["title"], "Night Show");
+    let head = rx_head
+        .recv_timeout(std::time::Duration::from_secs(20))
+        .unwrap();
+    assert!(
+        head.windows(10).any(|w| w == b"Night Show"),
+        "FLV head should carry the title"
+    );
+    let jp = run_json(&["probe", rec.to_str().unwrap()]);
+    assert_eq!(jp["probe"]["tags"]["format"]["title"], "Night Show");
+
+    // overlay --mode: remaining blend modes wire through
+    let ov = d.join("ov.mp4");
+    let j = run_json(&[
+        "overlay",
+        f.to_str().unwrap(),
+        "--video",
+        f.to_str().unwrap(),
+        "--mode",
+        "grainmerge",
+        "-o",
+        ov.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+}

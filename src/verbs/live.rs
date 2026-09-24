@@ -47,6 +47,11 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
     if args.slate.is_none() && args.slate_dur.is_some() {
         return Err(Error::input("live --slate-dur needs --slate"));
     }
+    if let Some(t) = &args.title {
+        if t.trim().is_empty() {
+            return Err(Error::input("live --title is empty"));
+        }
+    }
     let slate_dur = args.slate_dur.unwrap_or(10.0);
     if args.slate.is_some() && (!slate_dur.is_finite() || slate_dur <= 0.0) {
         return Err(Error::input("live --slate-dur needs a positive duration"));
@@ -498,6 +503,9 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
                 argv.extend(["-map", amap]);
             }
         }
+        if let Some(t) = &args.title {
+            argv.extend(["-metadata".into(), format!("title={t}")]);
+        }
         argv.extend(["-f".to_string(), "tee".to_string(), dests]);
     } else {
         if args.test && fc.is_empty() {
@@ -507,6 +515,9 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             if has_audio {
                 argv.extend(["-map", amap]);
             }
+        }
+        if let Some(t) = &args.title {
+            argv.extend(["-metadata".into(), format!("title={t}")]);
         }
         argv.extend(["-f".into(), fmt.into(), args.to.clone()]);
     }
@@ -538,6 +549,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         "list": args.list,
         "files": list_files.len(),
         "test": args.test,
+        "title": args.title,
     })))
 }
 

@@ -1,7 +1,10 @@
+use std::path::{Path, PathBuf};
+
 use crate::cli::{ExtractArgs, Globals};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
+use crate::paths;
 use crate::time::{fmt_time, parse_time};
 
 pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
@@ -109,6 +112,106 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
             "start": start,
             "end": end,
         })));
+    }
+
+    // --keyframes: every I-frame as an image — GOP-boundary stills
+    // (keyframe-interval QC, timelapse source, fast scene scouting).
+    // select + image2 needs -vsync 0, else default cfr duplicates the
+    // survivors back into nearly every slot.
+    if args.keyframes {
+        if args.audio
+            || args.subs
+            || args.gif
+            || args.webp
+            || args.alpha
+            || args.chapter.is_some()
+            || args.at.is_some()
+        {
+            return Err(Error::input(
+                "extract --keyframes is its own mode — drop the other modes",
+            ));
+        }
+        if !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "webp") {
+            return Err(Error::input(
+                "extract --keyframes: -o must be an image (.png/.jpg/.webp)",
+            ));
+        }
+        // Same stem_%03d convention as frames: a bare -o gets the
+        // sequence suffix added automatically.
+        let out_s = args.output.to_string_lossy().into_owned();
+        let template: PathBuf = if out_s.contains('%') {
+            PathBuf::from(out_s)
+        } else {
+            let stem = args
+                .output
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "keyframe".into());
+            args.output
+                .parent()
+                .unwrap_or_else(|| Path::new("."))
+                .join(format!("{stem}_%03d.{ext}"))
+        };
+        argv.push("-i");
+        argv.push(&args.input);
+        let mut vf = String::from("select='eq(pict_type\\,I)'");
+        if let Some(w) = args.width {
+            vf.push_str(&format!(",scale={w}:-2"));
+        }
+        argv.extend(["-vsync", "0", "-vf", vf.as_str()]);
+        argv.push(&template);
+
+        let commands = engine::commands_of(std::slice::from_ref(&argv));
+        if g.dry_run {
+            return Ok(
+                Contract::dry_run("extract", Some(paths::display(&template)), None)
+                    .with_commands(commands),
+            );
+        }
+        if let Err(e) = engine::run_argvs(&[argv], g) {
+            return Ok(Contract::failed("extract", &e).with_commands(commands));
+        }
+        let dir = template
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let name = template
+            .file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let (pre, post) = match name.split_once('%') {
+            Some((a, b)) => match b.find('.') {
+                Some(d) => (a.to_string(), b[d..].to_string()),
+                None => (a.to_string(), String::new()),
+            },
+            None => (name.clone(), String::new()),
+        };
+        let mut parts = Vec::new();
+        for e in std::fs::read_dir(dir)? {
+            let e = e?;
+            let fname = e.file_name().to_string_lossy().into_owned();
+            if fname.starts_with(&pre) && fname.ends_with(&post) {
+                parts.push(e.path());
+            }
+        }
+        parts.sort();
+        if parts.is_empty() {
+            return Err(Error::verification(format!(
+                "extract --keyframes wrote no files matching {}",
+                template.display()
+            )));
+        }
+        return Ok(
+            Contract::ok("extract", Some(paths::display(&template)), None)
+                .with_commands(commands)
+                .with_extra(serde_json::json!({
+                    "keyframes": true,
+                    "stills": parts
+                        .iter()
+                        .map(|p| paths::display(p))
+                        .collect::<Vec<_>>(),
+                })),
+        );
     }
 
     // --audio: demux an audio track untouched (music/dialog rip —

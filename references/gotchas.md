@@ -601,3 +601,7 @@ an atempo'd whole-file render would shift the window.
 
 - **Empty concat segments hang ffmpeg** — a `trim` window past EOF yields zero frames and the `concat` filter waits on the pad forever; when a splice/replace tail could land past EOF, drop that segment from `n` instead of feeding an empty pin (insert --replace hit this).
 - **`-output_ts_offset` is an output option** — it must sit with the output URL (after `-i`/`-map`), not on the input side like `-itsscale`/`-itsoffset`; placement decides whether ffmpeg honours it.
+
+- **A single-frame overlay input repeats its last frame at EOF** — `overlay`'s default eof_action is `repeat`, so feeding a rendered PNG as a bare `-i` (no `-loop`) still covers the whole target segment. That's exactly a per-slide caption sticker — no loop needed (slideshow --titles relies on it).
+- **`-metadata title=` ahead of `-f tee` lands on every destination** — the tee muxer forwards global metadata to each child, so one flag titles the pushed stream AND the `--record` archive (verified: FLV onMetaData + mp4 `title` tag both carried it).
+- **blend's 33 modes include no-op traps** — `normal` is just the top input passthrough (worthless as a choice); the useful stragglers are grainmerge/grainextract (film-grain composite), the `*128` neutral-128 variants, and/or/xor (channel logic), average/extremity/freeze/heat. `extract --keyframes` needs the same `-vsync 0` as `frames --nth` (select + image2 — the cfr re-duplication trap).

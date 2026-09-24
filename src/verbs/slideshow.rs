@@ -148,6 +148,32 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     let total = n as f64 * per - (n as f64 - 1.0) * args.fade;
     let fps = args.fps;
 
+    // --titles: bottom caption strip on each still, slots in the final
+    // slide order — an empty comma entry leaves that slide uncaptioned.
+    let titles: Vec<Option<String>> = match &args.titles {
+        Some(raw) => {
+            let v: Vec<String> = raw.split(',').map(|s| s.trim().to_string()).collect();
+            if v.len() > n {
+                return Err(Error::input(format!(
+                    "--titles has {} entries for {n} stills — one comma slot per slide",
+                    v.len()
+                )));
+            }
+            (0..n)
+                .map(|i| v.get(i).filter(|t| !t.is_empty()).cloned())
+                .collect()
+        }
+        None => vec![None; n],
+    };
+    let cap_count = titles.iter().flatten().count();
+    let font_bytes = if cap_count > 0 {
+        let fp = crate::font::resolve(None)?;
+        Some(std::fs::read(&fp)?)
+    } else {
+        None
+    };
+    let tmp = tempfile::tempdir().map_err(|e| Error::output(e.to_string()))?;
+
     let mut argv = ffmpeg_base(g.progress);
     for p in &ordered {
         if args.motion == SlideMotion::Kenburns {
@@ -161,10 +187,35 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
             argv.push(p);
         }
     }
+    // Caption PNGs ride as extra inputs after the stills (a single-frame
+    // overlay input repeats on eof, which is exactly a per-slide sticker).
+    let mut cap_input: Vec<Option<usize>> = vec![None; n];
+    let mut next_input = n;
+    for (i, text) in titles.iter().enumerate() {
+        if let Some(text) = text {
+            let bytes = font_bytes.as_deref().unwrap_or(&[]);
+            let ow = ((w as f32 / 8.0 * 0.5) * 0.06).round().clamp(2.0, 24.0) as u32;
+            let img = crate::raster::render_title_outlined(
+                text,
+                bytes,
+                w,
+                [255, 255, 255],
+                0.5,
+                ([0, 0, 0], ow),
+            )?;
+            let png = tmp.path().join(format!("cap{i}.png"));
+            img.save(&png)
+                .map_err(|e| Error::output(format!("write caption png: {e}")))?;
+            argv.extend(["-i"]);
+            argv.push(&png);
+            cap_input[i] = Some(next_input);
+            next_input += 1;
+        }
+    }
     let bed_idx = if let Some(bed) = &args.audio {
         argv.extend(["-i"]);
         argv.push(bed);
-        Some(n)
+        Some(next_input)
     } else {
         argv.extend(["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]);
         None
@@ -173,7 +224,14 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     // Normalize every still to the canvas first.
     let mut fc = String::new();
     let zoom_frames = (per * fps).round() as u32;
-    for i in 0..n {
+    for (i, cap) in cap_input.iter().enumerate() {
+        // Titled slides normalize to n{i} first so the caption overlays
+        // onto the finished canvas (bar-letterboxed or zooming alike).
+        let pin = if cap.is_some() {
+            format!("n{i}")
+        } else {
+            format!("s{i}")
+        };
         if args.motion == SlideMotion::Kenburns {
             // Fill the canvas so the zoom window never catches bars, then
             // drift: even stills push in, odd stills pull out.
@@ -186,13 +244,16 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
                 "[{i}:v]scale={w}:{h}:force_original_aspect_ratio=increase,\
                  crop={w}:{h},setsar=1,\
                  zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={zoom_frames}:s={w}x{h}:fps={fps:.3},\
-                 format=yuv420p[s{i}];"
+                 format=yuv420p[{pin}];"
             ));
         } else {
             fc.push_str(&format!(
                 "[{i}:v]scale={w}:{h}:force_original_aspect_ratio=decrease,\
-                 pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:{bg},setsar=1,fps={fps:.3},format=yuv420p[s{i}];"
+                 pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:{bg},setsar=1,fps={fps:.3},format=yuv420p[{pin}];"
             ));
+        }
+        if let Some(ci) = cap {
+            fc.push_str(&format!("[{pin}][{ci}:v]overlay=(W-w)/2:H*0.94-h[s{i}];"));
         }
     }
     if args.fade > 0.0 {
@@ -217,7 +278,9 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         fc.push_str(&format!("{seq}concat=n={n}:v=1:a=0[vout];"));
     }
 
-    let audio_in = bed_idx.unwrap_or(n);
+    // Caption PNGs shifted the input numbering — the silent bed (when
+    // no --audio is given) is the last input, at index next_input.
+    let audio_in = bed_idx.unwrap_or(next_input);
     if bed_idx.is_some() {
         // Bed: pad/trim to the montage length, fade the last 0.8s.
         fc.push_str(&format!(
@@ -275,6 +338,10 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
             crate::cli::SlideSort::Mtime => "mtime",
         }),
         "order": ordered.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
+        "titles": titles
+            .iter()
+            .map(|t| t.as_deref().unwrap_or(""))
+            .collect::<Vec<_>>(),
         "expected_duration": total,
     }));
     Ok(c)

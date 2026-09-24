@@ -657,6 +657,11 @@ pub struct ExtractArgs {
     /// export: `chapter --list` shows the numbering)
     #[arg(long)]
     pub chapter: Option<u32>,
+    /// Dump every keyframe (I-frame) as an image — -o needs a %03d-style
+    /// template (GOP-boundary stills: keyframe-interval QC, timelapse
+    /// source, scene-jump scouting without decoding the whole file)
+    #[arg(long)]
+    pub keyframes: bool,
     /// Animated WebP clip instead of a still (libwebp — smaller than GIF,
     /// keeps alpha natively; --bounce works too)
     #[arg(long)]
@@ -1324,6 +1329,9 @@ pub enum DeliverPlatform {
     /// Audiobook pack (m4b, AAC 96k/48k, -16 LUFS — Apple Books/Audible;
     /// pair with --chapters/--title/--author for a finished book)
     Audiobook,
+    /// Spotify Canvas loop 9:16 (1080x1920, -14 LUFS — the 3-8s vertical
+    /// loop behind a track; cut the loop first, then deliver)
+    Canvas,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2957,6 +2965,11 @@ pub struct SlideshowArgs {
     /// a camera-dump folder; overrides arg order, loses to --shuffle)
     #[arg(long, value_enum)]
     pub sort: Option<SlideSort>,
+    /// Per-still bottom captions, comma list in the final slide order
+    /// (after --sort/--shuffle — an empty entry skips that still):
+    /// travel-photo labels, portfolio credits, event recaps
+    #[arg(long)]
+    pub titles: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4763,6 +4776,10 @@ pub struct LiveArgs {
     /// surveillance feeds (the ingest program supplies its own bed)
     #[arg(long)]
     pub no_audio: bool,
+    /// Show/stream title written into the FLV/TS container metadata (and
+    /// the --record archive) — ingest dashboards and players display it
+    #[arg(long)]
+    pub title: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]

@@ -98,6 +98,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         DeliverPlatform::Wechat => (1080, 1260),
         DeliverPlatform::Pinterest => (1000, 1500),
         DeliverPlatform::Circle => (640, 640),
+        DeliverPlatform::Canvas => (1080, 1920),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -410,6 +411,7 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Threads => "threads",
         DeliverPlatform::Mastodon => "mastodon",
         DeliverPlatform::Circle => "circle",
+        DeliverPlatform::Canvas => "canvas",
     }
 }
 

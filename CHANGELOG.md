@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.290.0] — 2026-09-24
+
+### Added
+
+- `extract --keyframes` — dump every I-frame as an image (bare `-o` gets the `stem_%03d` sequence suffix): GOP-boundary stills for keyframe-interval QC, timelapse source, fast scene scouting
+- `slideshow --titles a,,c` — bottom caption strip on each still (comma slots in the final slide order after --sort/--shuffle; empty entries skip a slide)
+- `deliver --platform canvas` — Spotify Canvas loop canvas (9:16 1080x1920, −14 LUFS)
+- `live --title "Show"` — write the show name into the FLV/TS stream metadata + the `--record` archive (ingest dashboards display it)
+- `overlay --mode` — 12 more blend modes wired (31 total): grainmerge/grainextract grain composites, multiply128/addition128/difference128 neutral-128 variants, and/or/xor channel logic, average/extremity/freeze/heat
+
 ## [0.289.0] — 2026-09-24
 
 ### Added

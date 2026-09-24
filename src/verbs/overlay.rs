@@ -182,6 +182,20 @@ pub fn run(args: OverlayArgs, g: &Globals) -> Result<Contract, Error> {
             "glow",
             "phoenix",
             "reflect",
+            // film-grain / texture composites and the 128-neutral variants
+            "grainmerge",
+            "grainextract",
+            "multiply128",
+            "addition128",
+            "difference128",
+            // threshold / channel logic composites
+            "and",
+            "or",
+            "xor",
+            "average",
+            "extremity",
+            "freeze",
+            "heat",
         ];
         if !MODES.contains(&mode.as_str()) {
             return Err(Error::input(format!(
