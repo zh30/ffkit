@@ -35105,3 +35105,60 @@ fn r271_subs_readability_min_dur_deliver_meta_feed() {
     assert_eq!(s["height"], 1350);
     let _ = base;
 }
+
+#[test]
+fn r272_subs_text_transforms_deliver_kick_line_vk() {
+    if !has_ffmpeg() {
+        eprintln!("skip: no ffmpeg");
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let base = fixture(d.path());
+    // subs --replace/--strip-speakers/--wrap on a labeled transcript
+    let labeled = d.path().join("labeled.srt");
+    std::fs::write(
+        &labeled,
+        "1\n00:00:00,000 --> 00:00:02,000\nSPEAKER 1: The protagonist Jonn left\n\n         2\n00:00:03,000 --> 00:00:05,000\n[MARY] Jonn said this line is far too long for portrait phone screens today\n\n         3\n00:00:06,000 --> 00:00:08,000\nNormal line stays\n",
+    )
+    .unwrap();
+    let clean = d.path().join("clean.srt");
+    let j = run_json(&[
+        "subs",
+        labeled.to_str().unwrap(),
+        "-o",
+        clean.to_str().unwrap(),
+        "--strip-speakers",
+        "--wrap",
+        "30",
+        "--replace",
+        "Jonn,John",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["replaced"], 2, "{j}");
+    assert_eq!(j["extra"]["stripped"], 2, "{j}");
+    assert_eq!(j["extra"]["rewrapped"], 1, "{j}");
+    let text = std::fs::read_to_string(&clean).unwrap();
+    assert!(text.contains("The protagonist John left"), "{text}");
+    assert!(!text.contains("SPEAKER"), "{text}");
+    assert!(!text.contains("[MARY]"), "{text}");
+    assert!(
+        text.contains("far too\nlong for portrait phone\nscreens today"),
+        "{text}"
+    );
+    // deliver --platform line: JP messaging 9:16 canvas
+    let line = d.path().join("line.mp4");
+    let j = run_json(&[
+        "deliver",
+        base.to_str().unwrap(),
+        "-o",
+        line.to_str().unwrap(),
+        "--platform",
+        "line",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", line.to_str().unwrap()]);
+    let s = pr["probe"]["streams"].as_array().unwrap()[0].clone();
+    assert_eq!(s["width"], 1080);
+    assert_eq!(s["height"], 1920);
+    let _ = base;
+}

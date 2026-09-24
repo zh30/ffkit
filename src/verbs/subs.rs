@@ -46,6 +46,9 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.cps.is_some()
         || args.min_dur.is_some()
         || args.max_lines.is_some()
+        || args.replace.is_some()
+        || args.strip_speakers
+        || args.wrap.is_some()
     {
         return tidy(&args, g);
     }
@@ -223,7 +226,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         != Some("srt")
     {
         return Err(Error::input(
-            "subs --sort/--fix-overlaps/--dedupe/--cps/--min-dur/--max-lines take an .srt input",
+            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--cps/--min-dur/--max-lines/--replace/--strip-speakers/--wrap) take an .srt input",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -269,6 +272,86 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+    // text transforms — after timing ops so counts reflect the final cues
+    let (mut replaced, mut stripped, mut rewrapped) = (0usize, 0usize, 0usize);
+    if let Some(pair) = &args.replace {
+        let (old, new) = pair
+            .split_once(',')
+            .ok_or_else(|| Error::input("subs --replace wants OLD,NEW"))?;
+        for c in &mut cues {
+            let t = c.text.replace(old, new);
+            if t != c.text {
+                c.text = t;
+                replaced += 1;
+            }
+        }
+    }
+    if args.strip_speakers {
+        for c in &mut cues {
+            let t = c
+                .text
+                .lines()
+                .map(|l| {
+                    let l = l.trim_start();
+                    // [NAME] / <NAME> bracketed labels, or ALL-CAPS NAME: labels
+                    let bracket = if l.starts_with('[') {
+                        l.find(']')
+                    } else if l.starts_with('<') {
+                        l.find('>')
+                    } else {
+                        None
+                    };
+                    if let Some(end) = bracket {
+                        if end <= 32 {
+                            return l[end + 1..].trim_start();
+                        }
+                    }
+                    if let Some(colon) = l.find(':') {
+                        let head = &l[..colon];
+                        if colon <= 30
+                            && !head.is_empty()
+                            && head.chars().all(|ch| {
+                                ch.is_ascii_uppercase()
+                                    || ch.is_ascii_digit()
+                                    || " .'_-".contains(ch)
+                            })
+                            && head.chars().any(|ch| ch.is_ascii_uppercase())
+                        {
+                            return l[colon + 1..].trim_start();
+                        }
+                    }
+                    l
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            if t != c.text {
+                c.text = t;
+                stripped += 1;
+            }
+        }
+    }
+    if let Some(n) = args.wrap {
+        for c in &mut cues {
+            let mut out = String::new();
+            let mut col = 0usize;
+            for w in c.text.split_whitespace() {
+                let wl = w.chars().count();
+                if col > 0 && col + 1 + wl > n {
+                    out.push('\n');
+                    col = 0;
+                } else if col > 0 {
+                    out.push(' ');
+                    col += 1;
+                }
+                out.push_str(w);
+                col += wl;
+            }
+            if out != c.text {
+                c.text = out;
+                rewrapped += 1;
+            }
+        }
+    }
     if cues.is_empty() {
         return Err(Error::input("tidying removed every cue"));
     }
@@ -308,6 +391,9 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "clamped": clamped,
         "dropped": dropped,
         "extended": extended,
+        "replaced": replaced,
+        "stripped": stripped,
+        "rewrapped": rewrapped,
         "cues": cues.len(),
         "cps_limit": args.cps,
         "over_limit": over_limit,

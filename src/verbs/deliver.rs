@@ -93,6 +93,8 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Bluesky
         | DeliverPlatform::Amazon
         | DeliverPlatform::Rumble
+        | DeliverPlatform::Kick
+        | DeliverPlatform::Vk
         | DeliverPlatform::Twitch => (1920, 1080),
         DeliverPlatform::X | DeliverPlatform::Mastodon | DeliverPlatform::Discord => (1280, 720),
         DeliverPlatform::Threads | DeliverPlatform::Instagram | DeliverPlatform::Facebook => {
@@ -103,9 +105,10 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         DeliverPlatform::Wechat => (1080, 1260),
         DeliverPlatform::Pinterest => (1000, 1500),
         DeliverPlatform::Circle => (640, 640),
-        DeliverPlatform::Canvas | DeliverPlatform::Snapchat | DeliverPlatform::Whatsapp => {
-            (1080, 1920)
-        }
+        DeliverPlatform::Canvas
+        | DeliverPlatform::Snapchat
+        | DeliverPlatform::Whatsapp
+        | DeliverPlatform::Line => (1080, 1920),
         DeliverPlatform::Weibo => (1920, 1080),
         _ => (1080, 1920),
     };
@@ -431,6 +434,9 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Amazon => "amazon",
         DeliverPlatform::Etsy => "etsy",
         DeliverPlatform::Rumble => "rumble",
+        DeliverPlatform::Kick => "kick",
+        DeliverPlatform::Line => "line",
+        DeliverPlatform::Vk => "vk",
     }
 }
 

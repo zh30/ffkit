@@ -1374,6 +1374,12 @@ pub enum DeliverPlatform {
     Etsy,
     /// Rumble/Odysee video 16:9 landscape (1920x1080, -14 LUFS)
     Rumble,
+    /// Kick stream clip/VOD 16:9 landscape (1920x1080, -14 LUFS)
+    Kick,
+    /// LINE video post 9:16 vertical (1080x1920, -14 LUFS)
+    Line,
+    /// VK clip 16:9 landscape (1920x1080, -14 LUFS)
+    Vk,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2787,6 +2793,18 @@ pub struct SubsArgs {
     /// Report cues with more than N text lines (broadcast spec is 2)
     #[arg(long)]
     pub max_lines: Option<usize>,
+    /// Find/replace inside cue text — `OLD,NEW` (rename a character or
+    /// fix a typo across the whole file; extras: replaced)
+    #[arg(long)]
+    pub replace: Option<String>,
+    /// Strip speaker labels from cue text — `[NAME]` / `<NAME>` /
+    /// `ALL-CAPS NAME:` prefixes (auto-generated transcripts; extras: stripped)
+    #[arg(long)]
+    pub strip_speakers: bool,
+    /// Rewrap cue text at N chars per line (portrait-phone captions;
+    /// extras: rewrapped)
+    #[arg(long)]
+    pub wrap: Option<usize>,
 }
 
 #[derive(clap::Args, Debug)]

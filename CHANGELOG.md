@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.299.0] — 2026-09-24
+
+### Added
+
+- `subs --replace OLD,NEW` — find/replace inside cue text across the whole file (rename a character, fix a repeated typo; `replaced` count)
+- `subs --strip-speakers` — strip `[NAME]` / `<NAME>` / `ALL-CAPS NAME:` speaker-label prefixes from cue text (auto-generated transcripts; digits/underscores allowed — `SPEAKER_1:`/`SPEAKER 1:`; `stripped` count)
+- `subs --wrap N` — rewrap cue text at N chars per line (portrait-phone captions; `rewrapped` count)
+- `deliver --platform kick`/`vk` (16:9 1920x1080) + `line` (9:16 1080x1920 — LINE video posts)
+
 ## [0.298.0] — 2026-09-24
 
 ### Added
