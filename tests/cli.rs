@@ -28323,3 +28323,208 @@ fn r237_overlay_modes_channels_scale_frag() {
     ]);
     assert_eq!(j["status"], "failed");
 }
+
+#[test]
+fn r238_fit_preview_record_until_nosubs() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn probe_csv(args: &[String]) -> String {
+        let o = Command::new("ffprobe")
+            .args(args)
+            .output()
+            .expect("ffprobe");
+        String::from_utf8_lossy(&o.stdout).into_owned()
+    }
+
+    // speed --fit SEC: retimes the clip to the target length — factor is
+    // derived (dur/fit), no manual math for "make this take exactly N sec"
+    let fit = d.join("fit.mp4");
+    let j = run_json(&[
+        "speed",
+        &f.to_string_lossy(),
+        "-o",
+        &fit.to_string_lossy(),
+        "--fit",
+        "0.5",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let dur: f64 = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_entries"),
+        s("format=duration"),
+        s("-of"),
+        s("csv=p=0"),
+        fit.to_string_lossy().into_owned(),
+    ])
+    .trim()
+    .parse()
+    .unwrap();
+    assert!((dur - 0.5).abs() < 0.15, "--fit 0.5 output dur {dur}");
+    let j = run_json(&[
+        "speed",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("badfit.mp4").to_string_lossy(),
+        "--fit",
+        "0.01",
+    ]);
+    assert_eq!(j["status"], "failed", "out-of-range factor must fail");
+
+    // deliver --preview SEC: renders just the pack's head for approval QC —
+    // lands the platform canvas + loudnorm chain, just shorter
+    for (platform, name) in [("reels", "prev.mp4"), ("podcast", "prev.m4a")] {
+        let p = d.join(name);
+        let j = run_json(&[
+            "deliver",
+            &f.to_string_lossy(),
+            "-o",
+            &p.to_string_lossy(),
+            "--platform",
+            platform,
+            "--preview",
+            "0.5",
+        ]);
+        assert_eq!(j["status"], "ok", "{platform}: {}", j["error"]);
+        let dur: f64 = probe_csv(&[
+            s("-v"),
+            s("error"),
+            s("-show_entries"),
+            s("format=duration"),
+            s("-of"),
+            s("csv=p=0"),
+            p.to_string_lossy().into_owned(),
+        ])
+        .trim()
+        .parse()
+        .unwrap();
+        assert!((dur - 0.5).abs() < 0.2, "{platform} preview dur {dur}");
+    }
+
+    // remux --no-subs: full repack minus subtitle/data streams
+    let srt = d.join("subs.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,900\nHELLO\n").unwrap();
+    let sub = d.join("withsub.mkv");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-i",
+            &f.to_string_lossy(),
+            "-f",
+            "srt",
+            "-i",
+            &srt.to_string_lossy(),
+            "-map",
+            "0",
+            "-map",
+            "1",
+            "-c",
+            "copy",
+            "-c:s",
+            "srt",
+            &sub.to_string_lossy(),
+        ])
+        .output()
+        .unwrap();
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    let nosub = d.join("nosub.mp4");
+    let j = run_json(&[
+        "remux",
+        &sub.to_string_lossy(),
+        "-o",
+        &nosub.to_string_lossy(),
+        "--no-subs",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let csv = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_entries"),
+        s("stream=codec_type"),
+        s("-of"),
+        s("csv=p=0"),
+        nosub.to_string_lossy().into_owned(),
+    ]);
+    assert!(
+        !csv.contains("subtitle"),
+        "subtitle stream should be dropped: {csv}"
+    );
+    assert!(csv.contains("video") && csv.contains("audio"));
+    let j = run_json(&[
+        "remux",
+        &sub.to_string_lossy(),
+        "-o",
+        &d.join("bad.mp4").to_string_lossy(),
+        "--no-subs",
+        "--audio",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // live --record FILE --until SEC: tee muxer — the ingest URL gets the
+    // stream AND a local archive lands on disk, one encode feeding both
+    let (tx_port, rx_port) = std::sync::mpsc::channel::<u16>();
+    let (tx_head, rx_head) = std::sync::mpsc::channel::<Vec<u8>>();
+    std::thread::spawn(move || {
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        tx_port.send(l.local_addr().unwrap().port()).unwrap();
+        if let Ok((mut c, _)) = l.accept() {
+            use std::io::Read;
+            let mut head = vec![0u8; 9];
+            let _ = c.read_exact(&mut head);
+            let _ = tx_head.send(head);
+            let mut buf = vec![0u8; 8192];
+            while c.read(&mut buf).map(|n| n > 0).unwrap_or(false) {}
+        }
+    });
+    let port = rx_port
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
+    let arch = d.join("arch.mp4");
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--to",
+        &format!("tcp://127.0.0.1:{port}"),
+        "--record",
+        &arch.to_string_lossy(),
+        "--until",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let head = rx_head
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .unwrap();
+    assert_eq!(&head[..3], b"FLV", "ingest should still get the stream");
+    let dur: f64 = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_entries"),
+        s("format=duration"),
+        s("-of"),
+        s("csv=p=0"),
+        arch.to_string_lossy().into_owned(),
+    ])
+    .trim()
+    .parse()
+    .unwrap_or(0.0);
+    assert!((dur - 1.0).abs() < 0.5, "--until 1 archive dur {dur}");
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--to",
+        &format!("tcp://127.0.0.1:{port}"),
+        "--record",
+        &d.join("arch.bogus").to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "failed");
+}

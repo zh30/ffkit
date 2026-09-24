@@ -28,6 +28,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if args.audio && args.video {
         return Err(Error::input("remux: --audio and --video are exclusive"));
     }
+    if args.no_subs && (args.audio || args.video) {
+        return Err(Error::input(
+            "remux --no-subs only applies to a full repack — drop --audio/--video",
+        ));
+    }
     if args.audio {
         if !probe.has_audio {
             return Err(Error::input("remux --audio: input has no audio"));
@@ -59,7 +64,12 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         }
         argv.extend(["-map", "0:v", "-c:v", "copy"]);
     } else {
-        argv.extend(["-map", "0", "-c", "copy"]);
+        if args.no_subs {
+            // negative maps drop subtitle/data streams; attachments stay
+            argv.extend(["-map", "0", "-map", "-0:s", "-map", "-0:d", "-c", "copy"]);
+        } else {
+            argv.extend(["-map", "0", "-c", "copy"]);
+        }
     }
     if let Some(a) = &args.aspect {
         if args.audio || !probe.has_video {
@@ -83,6 +93,6 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
 
     let c = engine::write_job("remux", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs }),
     ))
 }

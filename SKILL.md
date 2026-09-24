@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.264.0
+version: 0.265.0
 
 
 
@@ -55,7 +55,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | news-ticker crawl | `scroll` (`--mode ticker`, `--bg` opaque bar, `--speed` px/s) |
 | AV1 delivery | `transcode` (`--preset av1`) |
 | podcast/voice → mp3/m4a/wav/flac/opus | `transcode` (`--preset mp3`/`aac`/`wav`/`flac`/`opus` — `-vn` audio-only) |
-| podcast feed pack (−16 LUFS spec) | `deliver --platform podcast` (m4a AAC 128k/48k, loudnorm to feed spec; works on audio-only sources) |
+| podcast feed pack (−16 LUFS spec) | `deliver --platform podcast` (m4a AAC 128k/48k, loudnorm to feed spec; works on audio-only sources); any platform: `--preview SEC` renders just the pack's head for approval QC |
 | resample/force channels on export | `transcode --ar 48000 --channels 1|2` (broadcast 48k stereo, podcast mono — re-encode only, `--copy-audio` skips) |
 | audiogram of just the best bit(s) | `audiogram` (`--from/--to` one segment; `--at a,b --dur 30` = one clip per point → `stem_N.mp4`) |
 | cover still | `cover` (`--blur` ambient pad, `--size` canvas, comma `--at` = one cover per time) |
@@ -78,7 +78,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | warm faces only | `grade --skin -1..1` (selectivecolor reds channel — warms skin, leaves the rest) |
 | HALD image LUT | `grade --lut look.png` (PNG/JPG → haldclut; Darktable/RawTherapee exports) |
 | karaoke / keep only the vocal | `vocal` (`--at`/`--dur` window, `--mode karaoke` drops the center, `isolate` keeps it — stereo only; `--amount` partial) |
-| container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart); `--audio` rips the track, `--video` video-only, `--aspect 16:9` fixes display AR; `--frag` fragmented MP4 (moof/mfra — playable while still being written, HLS/DASH pipelines) |
+| container swap, no re-encode | `remux` (mkv→mp4 etc., `-c copy` + faststart); `--audio` rips the track, `--video` video-only, `--aspect 16:9` fixes display AR; `--frag` fragmented MP4 (moof/mfra — playable while still being written, HLS/DASH pipelines); `--no-subs` drops subtitle/data streams in the repack (clean deliverable) |
 | top/bottom caption meme | `meme` (`--top`/`--bottom` text, `--color`, `--size`, `--outline`, `--at/--dur` window — `--at end` covers the tail), `--position` center/bottom, `--wrap` + `--align` multiline, `--fade` edge fades (needs --at/--dur), `--opacity` ghost text |
 | fix my podcast voice | `voice` — one-shot chain: gate hiss → compress swings → loudnorm `--lufs` (default −16); `--at`/`--dur` windows it |
 | slideshow that runs exactly N seconds | `slideshow` (`--dur` spreads the runtime across the stills, `--bg` letterbox color) |
@@ -96,7 +96,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | drop the audio track entirely | `mute` (stream-copy video, no re-encode), `--at/--dur` window |
 | elapsed-time corner counter | `timer`/`countdown` (`--at` takes `end`) (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds), `--down` countdown, `--start` seed, `--opacity` ghost HUD; `timer --tc 01:00:00:00` burns a running HH:MM:SS:FF timecode (dailies/review copies) |
 | web-embed HLS package | `hls` (`--seg` seconds, `--single` one-file, `--copy` repack, `--poster` writes poster.jpg, `--poster-at T` picks the frame, `--encrypt`/`--key HEX`/`--key-uri URI` AES-128 segments + key.bin/key.info) → dir/`index.m3u8` + `seg_*.ts`; `--ladder 1080,720,480` → ABR variant playlists + `master.m3u8`; `--audio-only` podcast HLS; `--fmp4` CMAF `.m4s` segments |
-| go live / push a stream | `live` (`--to rtmp://…` / `rtmps://` / `tcp://` / `udp://`, `--loop` forever, `--vbitrate`/`--abitrate`, `--scale WxH` downscale a big master to ingest size, `--fps N` cap output rate; real-time `-re` pacing + x264/aac ingest encode); `deliver --to` streams the rendered platform pack to the same ingest URLs) |
+| go live / push a stream | `live` (`--to rtmp://…` / `rtmps://` / `tcp://` / `udp://`, `--loop` forever, `--vbitrate`/`--abitrate`, `--scale WxH` downscale a big master to ingest size, `--fps N` cap output rate, `--record file.mp4` archive the stream locally while pushing (tee — encode once, mux twice), `--until SEC` auto-stop the stream (premiere windows); real-time `-re` pacing + x264/aac ingest encode); `deliver --to` streams the rendered platform pack to the same ingest URLs) |
 
 | check encode quality loss | `qa` `ref.mp4 test.mp4` → psnr/ssim/msad/vif numbers (`--metric`) |
 | normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill) |
@@ -318,7 +318,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | watch-time progress bar | `progress` (`--color`, `--height`, `--edge`, `--bg` track, `--reverse` depletes the bar) |
 | freeze a beat / outro hold | `freeze` (`--ease`/`--reverse` swoop, `--zoom` push-in, `--at T --dur D` — comma `--at` freezes at several points, or `--end D`) |
 | blur a face / logo | `censor` (`--region x:y:w:h` — comma list covers several spots, `--mode pixel|blur|solid` (solid = black-bar redact), `--strength`, `--shape circle` ellipse mask; `--at`/`--dur` limits the window) |
-| slow-mo punch-in | `speed` (`--factor`/`--ramp`, `--at`/`--dur` for just one window) |
+| slow-mo punch-in | `speed` (`--factor`/`--ramp`, `--at`/`--dur` for just one window); `speed --fit SEC` retimes the whole clip to an exact length (auto factor — a 90s take --fit 15 becomes 6x) |
 | boomerang replay | `boomerang` (forward then reversed, one loop) |
 | YouTube/player chapters | `chapter` (`--at T|TITLE` repeatable, `--auto` silence gaps, `--remove` strips; lossless; `--yt` export/`--import` YouTube `H:MM:SS Title` lines) |
 | punch-zoom a moment | `zoom` (`--factor`, `--at`/`--dur`) |

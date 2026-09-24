@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.265.0] — 2026-09-23
+
+- `speed --fit SEC` — retime the clip to an exact length: factor = input duration / SEC is derived automatically (a 90s take `--fit 15` becomes 6x; same 0.25..8 factor range)
+- `deliver --preview SEC` — render only the pack's first SEC seconds for approval QC (canvas + loudnorm chain identical, just shorter; works on every platform incl. podcast)
+- `live --record file.mp4` — tee muxer: encode once, mux twice — the ingest URL gets the stream AND a local archive lands on disk (`.mp4/.mov/.mkv/.ts/.flv` picks the container)
+- `live --until SEC` — stop the stream automatically after SEC seconds (premiere windows, timed replays)
+- `remux --no-subs` — drop subtitle/data streams in a full repack (mkv with embedded subs → clean deliverable mp4; `-map 0 -map -0:s -map -0:d`)
+
 ## [0.264.0] — 2026-09-23
 
 - `overlay --mode` — 12 more Photoshop-style blend modes on the full-frame composite (burn, dodge, exclusion, hardlight, softlight, pinlight, vividlight, linearlight, hardmix, negation, subtract, divide, plus glow/phoenix/reflect — 19 total `blend=all_mode` names)

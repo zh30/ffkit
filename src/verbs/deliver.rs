@@ -108,6 +108,12 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     // --to: rendered pack pushed straight to ingest — drop faststart (no
     // moov in FLV), add zerolatency, emit -f flv instead of a file
     let to = args.to.clone();
+    if let Some(t) = args.preview {
+        if !t.is_finite() || t <= 0.0 {
+            return Err(Error::input("deliver --preview needs a positive duration"));
+        }
+        apply.extend(["-t", &t.to_string()]);
+    }
     if to.is_none() {
         apply.push(&args.output);
     }
@@ -235,6 +241,12 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
     apply.extend(["-c:a", "aac", "-ar", "48000", "-b:a", "128k"]);
     if let Some(ch) = args.channels {
         apply.extend(["-ac", &ch.to_string()]);
+    }
+    if let Some(t) = args.preview {
+        if !t.is_finite() || t <= 0.0 {
+            return Err(Error::input("deliver --preview needs a positive duration"));
+        }
+        apply.extend(["-t", &t.to_string()]);
     }
     apply.push(&args.output);
 

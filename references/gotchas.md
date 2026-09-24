@@ -499,3 +499,7 @@ an atempo'd whole-file render would shift the window.
 - A closure `|n| bytes.windows(n).any(...)` captures the OUTER `bytes` — a later shadowed `let bytes = read(other)` doesn't rebind it; byte-content checks in tests must take the buffer as a parameter, not capture it.
 - ffmpeg `-vf` after `-i` applies to the OUTPUT file — for the `live` verb the scale/-r must go between the input and the encode args (before `-f flv`), not at the front.
 - `-movflags frag_keyframe+empty_moov+default_base_moof` writes `moof` fragments + `mfra` index — assert those boxes exist (a plain `+faststart` remux has neither).
+- The `tee` muxer skips ffmpeg's default stream selection — without an explicit `-map 0:v -map 0:a` it errors "Output file #0 does not contain any stream". Syntax: `-f tee "[f=flv]url|[f=mp4]archive.mp4"` (encode once, mux twice).
+- `Argv::extend` takes `S: AsRef<OsStr>` — an array of bare `"x".into()` can't infer S (E0283). Use plain `&str` elements, or `.to_string()` when mixing with `format!`.
+- clap `required_unless_present = "other"` must become `required_unless_present_any = ["a","b"]` when a THIRD flag also satisfies the requirement — adding `--fit` beside `--factor`/`--ramp` breaks parsing unless fit is added to the exempt list.
+- `-map -0:s` drops subtitle streams, `-map -0:d` drops data — a positive `-map 0` must come first (negative maps subtract from the already-mapped set).

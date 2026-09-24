@@ -1169,6 +1169,9 @@ pub struct DeliverArgs {
     /// 2 = stereo)
     #[arg(long)]
     pub channels: Option<u8>,
+    /// Render only the first SEC seconds of the pack (approval/QC preview)
+    #[arg(long)]
+    pub preview: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -2405,8 +2408,12 @@ pub struct SpeedArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Playback factor: 2 = twice as fast, 0.5 = slow-mo
-    #[arg(long, required_unless_present = "ramp")]
+    #[arg(long, required_unless_present_any = ["ramp", "fit"])]
     pub factor: Option<f64>,
+    /// Retime to exactly SEC seconds (auto-picks the factor — a 90s take
+    /// --fit 15 becomes 6x). Within the same 0.25..8 factor range.
+    #[arg(long)]
+    pub fit: Option<f64>,
     /// Linear speed ramp FROM,TO across the input (or --at/--dur window), e.g. 0.5,3
     #[arg(long)]
     pub ramp: Option<String>,
@@ -3624,6 +3631,10 @@ pub struct RemuxArgs {
     /// stream-friendly container for HLS/DASH/live pipelines)
     #[arg(long)]
     pub frag: bool,
+    /// Drop subtitle and data streams in the repack (clean deliverable —
+    /// mkv with embedded subs → bare mp4)
+    #[arg(long)]
+    pub no_subs: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4340,6 +4351,13 @@ pub struct LiveArgs {
     /// Output frame rate on the stream (60fps capture → 30fps ingest)
     #[arg(long)]
     pub fps: Option<u32>,
+    /// Record a local archive copy while streaming (tee muxer — encode
+    /// once, mux twice; .mp4/.mov/.mkv/.ts extension picks the container)
+    #[arg(long)]
+    pub record: Option<PathBuf>,
+    /// Stop the stream automatically after SEC seconds (premiere windows)
+    #[arg(long)]
+    pub until: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

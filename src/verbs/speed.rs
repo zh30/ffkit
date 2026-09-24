@@ -19,6 +19,27 @@ pub fn run(args: SpeedArgs, g: &Globals) -> Result<Contract, Error> {
         }
         return ramp(args, &probe, g);
     }
+    if let Some(fit) = args.fit {
+        if args.factor.is_some() {
+            return Err(Error::input("--factor and --fit are exclusive"));
+        }
+        if args.at.is_some() {
+            return Err(Error::input("--fit retimes the whole clip — drop --at"));
+        }
+        if !fit.is_finite() || fit <= 0.0 {
+            return Err(Error::input("--fit needs a positive duration in seconds"));
+        }
+        if probe.duration <= 0.0 {
+            return Err(Error::input("speed --fit: can't read the input duration"));
+        }
+        let factor = probe.duration / fit;
+        if !(0.25..=8.0).contains(&factor) {
+            return Err(Error::input(format!(
+                "speed --fit {fit}s needs factor {factor:.2} — outside 0.25..8"
+            )));
+        }
+        return apply(args, factor, &probe, g);
+    }
     let factor = args
         .factor
         .ok_or_else(|| Error::input("speed needs --factor F (or --ramp FROM,TO)"))?;
@@ -30,7 +51,15 @@ pub fn run(args: SpeedArgs, g: &Globals) -> Result<Contract, Error> {
     if args.at.is_some() {
         return windowed(args, factor, &probe, g);
     }
+    apply(args, factor, &probe, g)
+}
 
+fn apply(
+    args: SpeedArgs,
+    factor: f64,
+    probe: &crate::probe::Probe,
+    g: &Globals,
+) -> Result<Contract, Error> {
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
     argv.push(&args.input);

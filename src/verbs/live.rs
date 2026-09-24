@@ -72,7 +72,48 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         argv.push("-an");
     }
-    argv.extend(["-f".into(), fmt.into(), args.to.clone()]);
+    if let Some(until) = args.until {
+        if !until.is_finite() || until <= 0.0 {
+            return Err(Error::input(
+                "live --until needs a positive duration in seconds",
+            ));
+        }
+        argv.extend(["-t".into(), until.to_string()]);
+    }
+    if let Some(rec) = &args.record {
+        crate::paths::ensure_output_allowed(rec, &[&args.input], g.overwrite)?;
+        let rec_ext = rec
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        let rec_fmt = match rec_ext.as_str() {
+            "mp4" | "mov" | "m4v" => "mp4",
+            "mkv" => "matroska",
+            "ts" | "mts" | "m2ts" => "mpegts",
+            "flv" => "flv",
+            _ => {
+                return Err(Error::input(
+                    "live --record needs a media extension (mp4/mov/mkv/ts/flv)",
+                ));
+            }
+        };
+        // tee muxer doesn't do default stream selection — map explicitly,
+        // then encode once and mux to ingest + local archive together
+        if probe.has_video {
+            argv.extend(["-map", "0:v"]);
+        }
+        if probe.has_audio {
+            argv.extend(["-map", "0:a"]);
+        }
+        argv.extend([
+            "-f".to_string(),
+            "tee".to_string(),
+            format!("[f={fmt}]{}|[f={rec_fmt}]{}", args.to, rec.display()),
+        ]);
+    } else {
+        argv.extend(["-f".into(), fmt.into(), args.to.clone()]);
+    }
 
     let contract = stream_out("live", &args.input, &args.to, vec![argv], g)?;
     Ok(contract.with_extra(json!({
@@ -81,6 +122,8 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         "vbitrate": vbitrate,
         "abitrate": abitrate,
         "format": fmt,
+        "record": args.record,
+        "until": args.until,
     })))
 }
 
