@@ -34,6 +34,9 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.append.is_some() {
         return append_sub(&args, g);
     }
+    if args.split.is_some() {
+        return split_sub(&args, g);
+    }
     if let Some(offset) = args.shift {
         return shift(&args, offset, g);
     }
@@ -724,45 +727,50 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             .unwrap_or_default()
     };
     let (in_ext, out_ext) = (ext(&args.input), ext(&args.output));
-    if in_ext != "srt" && in_ext != "vtt" {
+    if in_ext != "srt" && in_ext != "vtt" && in_ext != "ass" {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt input and .srt/.vtt/.txt output",
+            "subs --convert takes .srt/.vtt/.ass input and .srt/.vtt/.txt/.ass output",
         ));
     }
     if out_ext != "srt" && out_ext != "vtt" && out_ext != "txt" && out_ext != "ass" {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt input and .srt/.vtt/.txt/.ass output",
+            "subs --convert takes .srt/.vtt/.ass input and .srt/.vtt/.txt/.ass output",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
-    // vtt → srt-shaped blocks: drop WEBVTT/NOTE/STYLE blocks and cue settings.
-    let body = if in_ext == "vtt" {
-        raw.replace("\r\n", "\n")
-            .split("\n\n")
-            .filter(|b| {
-                let l = b.lines().next().unwrap_or("").trim();
-                !(l.starts_with("WEBVTT") || l.starts_with("NOTE") || l == "STYLE")
-            })
-            .map(|b| {
-                b.lines()
-                    .map(|l| {
-                        if l.contains("-->") {
-                            if let Some((a, rest)) = l.split_once("-->") {
-                                let e = rest.split_whitespace().next().unwrap_or("");
-                                return format!("{} --> {}", a.trim(), e);
-                            }
-                        }
-                        l.to_string()
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            })
-            .collect::<Vec<_>>()
-            .join("\n\n")
+    let mut cues = if in_ext == "ass" {
+        parse_ass(&raw)?
     } else {
-        raw
+        // vtt → srt-shaped blocks: drop WEBVTT/NOTE/STYLE blocks and cue
+        // settings.
+        let body = if in_ext == "vtt" {
+            raw.replace("\r\n", "\n")
+                .split("\n\n")
+                .filter(|b| {
+                    let l = b.lines().next().unwrap_or("").trim();
+                    !(l.starts_with("WEBVTT") || l.starts_with("NOTE") || l == "STYLE")
+                })
+                .map(|b| {
+                    b.lines()
+                        .map(|l| {
+                            if l.contains("-->") {
+                                if let Some((a, rest)) = l.split_once("-->") {
+                                    let e = rest.split_whitespace().next().unwrap_or("");
+                                    return format!("{} --> {}", a.trim(), e);
+                                }
+                            }
+                            l.to_string()
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                })
+                .collect::<Vec<_>>()
+                .join("\n\n")
+        } else {
+            raw
+        };
+        crate::srt::parse_srt(&body)?
     };
-    let mut cues = crate::srt::parse_srt(&body)?;
     if let Some(case) = args.case {
         apply_case(&mut cues, case);
     }
@@ -837,6 +845,203 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
 /// `subs a.srt --append b.srt -o ab.srt`: join two subtitle files — b's
 /// cues shift to start where a's last cue ends. The matching pattern is
 /// `concat` on the clips, then `--append` on their transcripts.
+/// `subs a.srt --split 30 -o part.srt` → part_0.srt + part_1.srt — the
+/// `split --at` counterpart for transcripts: each part's cues re-time to
+/// start at 0 so they stay in sync with the matching video segment.
+/// A cue spanning a cut keeps its head (end clamps to the cut).
+fn split_sub(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
+    let is_srt = args
+        .input
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("srt"))
+        .unwrap_or(false);
+    if !is_srt {
+        return Err(Error::input("subs --split takes a .srt input"));
+    }
+    let raw = args.split.as_ref().unwrap();
+    let mut cuts: Vec<f64> = Vec::new();
+    for part in raw.split(',') {
+        let t: f64 = part
+            .trim()
+            .parse()
+            .map_err(|_| Error::input("subs --split needs cut times in seconds (e.g. 30,75)"))?;
+        if t <= 0.0 {
+            return Err(Error::input("subs --split cuts must be > 0"));
+        }
+        cuts.push(t);
+    }
+    if cuts.is_empty() {
+        return Err(Error::input("subs --split needs at least one cut time"));
+    }
+    cuts.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    cuts.dedup();
+    let cues = crate::srt::parse_srt(&read_sub_file(&args.input, args.encoding.as_deref())?)?;
+    let stem = args
+        .output
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "part".to_string());
+    let mut bounds = vec![0.0];
+    bounds.extend(cuts.iter());
+    bounds.push(f64::INFINITY);
+    let mut files: Vec<String> = Vec::new();
+    let mut counts: Vec<usize> = Vec::new();
+    for i in 0..=cuts.len() {
+        let (lo, hi) = (bounds[i], bounds[i + 1]);
+        let part_cues: Vec<crate::srt::Cue> = cues
+            .iter()
+            .filter(|c| c.start >= lo && c.start < hi)
+            .map(|c| crate::srt::Cue {
+                start: c.start - lo,
+                end: (c.end - lo).min(hi - lo),
+                text: c.text.clone(),
+            })
+            .collect();
+        let f = args
+            .output
+            .with_file_name(format!("{stem}_{i}.srt"))
+            .display()
+            .to_string();
+        if !g.dry_run {
+            std::fs::write(&f, crate::srt::to_srt(&part_cues))
+                .map_err(|e| Error::output(e.to_string()))?;
+        }
+        files.push(f);
+        counts.push(part_cues.len());
+    }
+    if g.dry_run {
+        return Ok(Contract::dry_run(
+            "subs",
+            Some(crate::paths::display(&args.output)),
+            None,
+        ));
+    }
+    let verified = files.iter().all(|f| std::path::Path::new(f).is_file());
+    let mut c = Contract::ok("subs", Some(files[0].clone()), None);
+    c.verified = Some(verified);
+    Ok(c.with_extra(json!({
+        "mode": "split",
+        "cuts": cuts,
+        "parts": files.len(),
+        "cues": counts,
+        "files": files,
+    })))
+}
+
+/// .ass/.ssa input for --convert: pull `Dialogue:`/`Comment:` events from
+/// the [Events] section; the Format: line fixes the column order. ASS
+/// markup is flattened: `\N`/`\n` → newline, `\h` → space, `{...}`
+/// override blocks drop.
+fn parse_ass(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
+    let ts = |s: &str| -> Result<f64, Error> {
+        // H:MM:SS.cc
+        let s = s.trim();
+        let (h, rest) = s
+            .split_once(':')
+            .ok_or_else(|| Error::input(format!("subs --convert: bad ass timestamp '{s}'")))?;
+        let (m, sec) = rest
+            .split_once(':')
+            .ok_or_else(|| Error::input(format!("subs --convert: bad ass timestamp '{s}'")))?;
+        let h: f64 = h
+            .trim()
+            .parse()
+            .map_err(|_| Error::input(format!("subs --convert: bad ass timestamp '{s}'")))?;
+        let m: f64 = m
+            .trim()
+            .parse()
+            .map_err(|_| Error::input(format!("subs --convert: bad ass timestamp '{s}'")))?;
+        let sec: f64 = sec
+            .trim()
+            .parse()
+            .map_err(|_| Error::input(format!("subs --convert: bad ass timestamp '{s}'")))?;
+        Ok(h * 3600.0 + m * 60.0 + sec)
+    };
+    let mut in_events = false;
+    // default column order when no Format: line precedes the events
+    let (mut i_start, mut i_end, mut i_text) = (1usize, 2usize, 9usize);
+    let mut cols: Option<usize> = None;
+    let mut cues = Vec::new();
+    for line in raw.lines() {
+        let l = line.trim();
+        if l.starts_with('[') {
+            in_events = l.eq_ignore_ascii_case("[events]");
+            continue;
+        }
+        if !in_events {
+            continue;
+        }
+        if let Some(fmt) = l.strip_prefix("Format:") {
+            let names: Vec<String> = fmt
+                .split(',')
+                .map(|s| s.trim().to_ascii_lowercase())
+                .collect();
+            cols = Some(names.len());
+            for (i, name) in names.iter().enumerate() {
+                match name.as_str() {
+                    "start" => i_start = i,
+                    "end" => i_end = i,
+                    "text" => i_text = i,
+                    _ => {}
+                }
+            }
+            continue;
+        }
+        if !(l.starts_with("Dialogue:") || l.starts_with("Comment:")) {
+            continue;
+        }
+        let body = l.split_once(':').map(|(_, b)| b.trim()).unwrap_or("");
+        let n_cols = cols.unwrap_or(10);
+        // split into n_cols fields — the last split keeps commas in text
+        let mut fields: Vec<&str> = Vec::new();
+        let mut rest = body;
+        for _ in 0..n_cols.saturating_sub(1) {
+            match rest.split_once(',') {
+                Some((a, b)) => {
+                    fields.push(a);
+                    rest = b;
+                }
+                None => break,
+            }
+        }
+        fields.push(rest);
+        let get = |i: usize| fields.get(i).copied().unwrap_or("");
+        if i_start >= fields.len() || i_end >= fields.len() || i_text >= fields.len() {
+            continue;
+        }
+        let text = get(i_text)
+            .replace("\\N", "\n")
+            .replace("\\n", "\n")
+            .replace("\\h", " ");
+        // strip {\...} override blocks
+        let mut clean = String::new();
+        let mut depth: u32 = 0;
+        for ch in text.chars() {
+            match ch {
+                '{' => depth += 1,
+                '}' => depth = depth.saturating_sub(1),
+                _ if depth == 0 => clean.push(ch),
+                _ => {}
+            }
+        }
+        let text = clean.trim().to_string();
+        if text.is_empty() {
+            continue;
+        }
+        cues.push(crate::srt::Cue {
+            start: ts(get(i_start))?,
+            end: ts(get(i_end))?,
+            text,
+        });
+    }
+    if cues.is_empty() {
+        return Err(Error::input(
+            "subs --convert: no Dialogue events in the .ass file",
+        ));
+    }
+    Ok(cues)
+}
+
 fn append_sub(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
     let second = args.append.as_ref().unwrap();
     for p in [&args.input, second, &args.output] {

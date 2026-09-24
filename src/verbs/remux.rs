@@ -737,6 +737,29 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "+forced".to_string(),
         ]);
     }
+    // --default-video N: multi-angle files pick the hero angle players
+    // start on (per-type index — mirrors --default-audio)
+    if let Some(n) = args.default_video {
+        if args.audio {
+            return Err(Error::input(
+                "remux --default-video needs the picture kept — drop --audio",
+            ));
+        }
+        let n_v = probe.streams.iter().filter(|s| s.kind == "video").count();
+        if n_v == 0 {
+            return Err(Error::input("remux --default-video: input has no video"));
+        }
+        if n >= n_v {
+            return Err(Error::input(format!(
+                "remux --default-video {n}: only {n_v} video track(s)"
+            )));
+        }
+        argv.extend(["-disposition:v", "-default"]);
+        argv.extend([
+            "-disposition:v:".to_string() + &n.to_string(),
+            "+default".to_string(),
+        ]);
+    }
     // --timecode HH:MM:SS[:FF]: mov/mp4 write a tmcd track + stream tag,
     // mkv writes a TIMECODE format tag — dailies matching a camera slate
     if let Some(tc) = &args.timecode {
@@ -859,7 +882,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     let mut c = c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "keep": args.keep, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "keep": args.keep, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts }),
     );
     if let Some((key, kid)) = enc_kv {
         c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));

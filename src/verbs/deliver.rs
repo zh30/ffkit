@@ -102,6 +102,12 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Niconico
         | DeliverPlatform::Soop
         | DeliverPlatform::Xigua
+        | DeliverPlatform::Peertube
+        | DeliverPlatform::Floatplane
+        | DeliverPlatform::Nebula
+        | DeliverPlatform::Chzzk
+        | DeliverPlatform::Douyu
+        | DeliverPlatform::Huya
         | DeliverPlatform::Twitch => (1920, 1080),
         DeliverPlatform::X | DeliverPlatform::Mastodon | DeliverPlatform::Discord => (1280, 720),
         DeliverPlatform::Threads | DeliverPlatform::Instagram | DeliverPlatform::Facebook => {
@@ -119,7 +125,8 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Triller
         | DeliverPlatform::Likee
         | DeliverPlatform::Moj
-        | DeliverPlatform::Josh => (1080, 1920),
+        | DeliverPlatform::Josh
+        | DeliverPlatform::Weverse => (1080, 1920),
         DeliverPlatform::Weibo => (1920, 1080),
         _ => (1080, 1920),
     };
@@ -460,6 +467,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Likee => "likee",
         DeliverPlatform::Moj => "moj",
         DeliverPlatform::Josh => "josh",
+        DeliverPlatform::Peertube => "peertube",
+        DeliverPlatform::Floatplane => "floatplane",
+        DeliverPlatform::Nebula => "nebula",
+        DeliverPlatform::Chzzk => "chzzk",
+        DeliverPlatform::Douyu => "douyu",
+        DeliverPlatform::Huya => "huya",
+        DeliverPlatform::Weverse => "weverse",
     }
 }
 

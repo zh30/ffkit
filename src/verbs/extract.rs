@@ -349,6 +349,59 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
             "to": args.to,
         })));
     }
+    // --attachment N: rip the Nth attachment stream (fonts/files a
+    // `remux --attach` put in) back out to a file
+    if let Some(n) = args.attachment {
+        if args.audio
+            || args.subs
+            || args.gif
+            || args.webp
+            || args.alpha
+            || args.transparent
+            || args.keyframes
+            || args.chapter.is_some()
+            || args.all
+            || args.track.is_some()
+            || args.lang.is_some()
+            || args.from.is_some()
+            || args.to.is_some()
+            || args.at.is_some()
+        {
+            return Err(Error::input(
+                "extract --attachment rips an attachment stream — drop the other modes",
+            ));
+        }
+        let probe = engine::probe_or_err(&args.input, g)?;
+        let n_att = probe
+            .streams
+            .iter()
+            .filter(|s| s.kind == "attachment")
+            .count();
+        if n_att == 0 {
+            return Err(Error::input(
+                "extract --attachment: input has no attachment streams",
+            ));
+        }
+        if n as usize >= n_att {
+            return Err(Error::input(format!(
+                "extract --attachment {n}: input has {n_att} attachment(s)"
+            )));
+        }
+        // -dump_attachment:t:N is an INPUT option (dumps while demuxing,
+        // before -i) — the run still needs an output so it sinks to null
+        argv.extend([format!("-dump_attachment:t:{n}").as_str()]);
+        argv.push(&args.output);
+        argv.extend(["-i"]);
+        argv.push(&args.input);
+        argv.extend(["-f", "null", "-"]);
+        // raw payload file — ffprobe can't read it, so skip the probe pass
+        let c = engine::write_job_raw("extract", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(serde_json::json!({
+            "attachment": true,
+            "index": n,
+            "attachments": n_att,
+        })));
+    }
     // --subs: pull an embedded subtitle track into a text container —
     // .srt/.ass/.vtt picked by -o; subtitle codecs differ so this is a
     // re-mux through the text encoders, not a raw copy

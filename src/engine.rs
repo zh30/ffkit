@@ -64,6 +64,49 @@ pub fn write_job(
     Ok(Contract::ok(tool, Some(paths::display(output)), Some(probed)).with_commands(commands))
 }
 
+/// `write_job` for outputs ffprobe can't read (raw attachment dumps —
+/// `-dump_attachment` writes the payload bytes verbatim, no container).
+/// Same guarantees minus the probe pass.
+pub fn write_job_raw(
+    tool: &str,
+    inputs: &[&Path],
+    output: &Path,
+    argvs: Vec<Argv>,
+    g: &Globals,
+) -> Result<Contract, Error> {
+    for input in inputs {
+        paths::ensure_input(input)?;
+    }
+    paths::ensure_output_allowed(output, inputs, g.overwrite)?;
+    let mut argvs = argvs;
+    retarget_audio_codec(&mut argvs, output);
+    let commands = commands_of(&argvs);
+
+    if g.dry_run {
+        let probe = probe::probe(inputs[0], Duration::from_secs(60)).ok();
+        return Ok(
+            Contract::dry_run(tool, Some(paths::display(output)), probe).with_commands(commands)
+        );
+    }
+
+    if let Err(e) = run_argvs(&argvs, g) {
+        return Ok(Contract::failed(tool, &e).with_commands(commands));
+    }
+
+    let ok = std::fs::metadata(output)
+        .map(|m| m.len() > 0)
+        .unwrap_or(false);
+    if !ok {
+        return Err(Error::verification(format!(
+            "output missing or empty: {}",
+            output.display()
+        )));
+    }
+    let mut c = Contract::ok(tool, Some(paths::display(output)), None).with_commands(commands);
+    c.verified = Some(true);
+    Ok(c)
+}
+
 /// Verbs hard-code `-c:a aac`, which writes an AAC payload into whatever
 /// container `-o` names — AAC-in-.wav fails to decode on some ffmpeg 4.x
 /// builds. Rewrite aac to a codec the extension actually carries.

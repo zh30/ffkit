@@ -35407,3 +35407,195 @@ fn r274_video_order_forced_sub_ass_convert_platforms() {
     assert_eq!(pr["probe"]["streams"][0]["width"], 1920);
     assert_eq!(pr["probe"]["streams"][0]["height"], 1080);
 }
+
+#[test]
+fn r275_attachment_default_video_subs_split_ass_in() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let base = fixture(d.path());
+    // attachment mkv: two payload files attached
+    let pa = d.path().join("a.txt");
+    let pb = d.path().join("b.txt");
+    std::fs::write(&pa, "PAYLOAD_A").unwrap();
+    std::fs::write(&pb, "PAYLOAD_B").unwrap();
+    let att = d.path().join("att.mkv");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-i",
+            base.to_str().unwrap(),
+            "-attach",
+            pa.to_str().unwrap(),
+            "-attach",
+            pb.to_str().unwrap(),
+            "-metadata:s:t:0",
+            "mimetype=text/plain",
+            "-metadata:s:t:1",
+            "mimetype=text/plain",
+            "-c",
+            "copy",
+            att.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    // extract --attachment 1 → second payload verbatim
+    let out1 = d.path().join("out1.bin");
+    let j = run_json(&[
+        "extract",
+        att.to_str().unwrap(),
+        "--attachment",
+        "1",
+        "-o",
+        out1.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(std::fs::read_to_string(&out1).unwrap(), "PAYLOAD_B");
+    // out-of-range index errors instead of an empty dump
+    let j = run_json(&[
+        "extract",
+        att.to_str().unwrap(),
+        "--attachment",
+        "9",
+        "-o",
+        d.path().join("x.bin").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    // remux --default-video 1 flips the default flag to the second track
+    let mv = d.path().join("mv.mkv");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-i",
+            base.to_str().unwrap(),
+            "-filter_complex",
+            "color=c=red:s=320x240:d=1:r=10[alt]",
+            "-map",
+            "0:v",
+            "-map",
+            "[alt]",
+            "-map",
+            "0:a?",
+            "-c:a",
+            "copy",
+            "-c:v:0",
+            "copy",
+            "-c:v:1",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            mv.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    let dv = d.path().join("dv.mkv");
+    let j = run_json(&[
+        "remux",
+        mv.to_str().unwrap(),
+        "-o",
+        dv.to_str().unwrap(),
+        "--default-video",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "stream_disposition=default",
+            "-of",
+            "csv=p=0",
+            dv.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "0\n1");
+    let j = run_json(&[
+        "remux",
+        mv.to_str().unwrap(),
+        "-o",
+        d.path().join("x.mkv").to_str().unwrap(),
+        "--default-video",
+        "9",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    // subs --split 3: part_0 keeps cues 1-2 (spanning cue clamped at the
+    // cut), part_1 re-times the tail cue by -3
+    let sp = d.path().join("sp.srt");
+    std::fs::write(
+        &sp,
+        "1\n00:00:00,000 --> 00:00:02,000\nA line\n\n\
+         2\n00:00:02,500 --> 00:00:04,500\nSpanning cue\n\n\
+         3\n00:00:05,000 --> 00:00:06,000\nTail line\n",
+    )
+    .unwrap();
+    let j = run_json(&[
+        "subs",
+        sp.to_str().unwrap(),
+        "--split",
+        "3",
+        "-o",
+        d.path().join("part.srt").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["cues"][0], 2, "{j}");
+    assert_eq!(j["extra"]["cues"][1], 1, "{j}");
+    let p0 = std::fs::read_to_string(d.path().join("part_0.srt")).unwrap();
+    assert!(p0.contains("00:00:02,500 --> 00:00:03,000"), "{p0}");
+    let p1 = std::fs::read_to_string(d.path().join("part_1.srt")).unwrap();
+    assert!(p1.contains("00:00:02,000 --> 00:00:03,000"), "{p1}");
+    // subs --convert .ass input → .srt: Format-line column order honoured
+    let ass = d.path().join("in.ass");
+    std::fs::write(
+        &ass,
+        "[Script Info]\nScriptType: v4.00+\n\n[Events]\n\
+         Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n\
+         Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,first, line\n\
+         Dialogue: 0,0:00:02.50,0:00:04.00,Default,,0,0,0,,second {\\i1}styled{\\i0} text\n",
+    )
+    .unwrap();
+    let rt = d.path().join("rt.srt");
+    let j = run_json(&[
+        "subs",
+        ass.to_str().unwrap(),
+        "--convert",
+        "-o",
+        rt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["cues"], 2, "{j}");
+    let text = std::fs::read_to_string(&rt).unwrap();
+    assert!(text.contains("first, line"), "{text}");
+    assert!(text.contains("second styled text"), "{text}");
+    // peertube/weverse canvases
+    let pt = d.path().join("pt.mp4");
+    let j = run_json(&[
+        "deliver",
+        base.to_str().unwrap(),
+        "-o",
+        pt.to_str().unwrap(),
+        "--platform",
+        "peertube",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", pt.to_str().unwrap()]);
+    assert_eq!(pr["probe"]["streams"][0]["width"], 1920);
+    let wv = d.path().join("wv.mp4");
+    let j = run_json(&[
+        "deliver",
+        base.to_str().unwrap(),
+        "-o",
+        wv.to_str().unwrap(),
+        "--platform",
+        "weverse",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", wv.to_str().unwrap()]);
+    assert_eq!(pr["probe"]["streams"][0]["height"], 1920);
+}

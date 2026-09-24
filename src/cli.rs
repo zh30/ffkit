@@ -673,6 +673,10 @@ pub struct ExtractArgs {
     /// export: `chapter --list` shows the numbering)
     #[arg(long)]
     pub chapter: Option<u32>,
+    /// Rip the Nth attachment stream (0-based, per-type index) to a file
+    /// — pull fonts/files embedded by `remux --attach` back out (mkv/webm)
+    #[arg(long)]
+    pub attachment: Option<u32>,
     /// Dump every keyframe (I-frame) as an image — -o needs a %03d-style
     /// template (GOP-boundary stills: keyframe-interval QC, timelapse
     /// source, scene-jump scouting without decoding the whole file)
@@ -1404,6 +1408,20 @@ pub enum DeliverPlatform {
     Moj,
     /// Josh short video 9:16 vertical (1080x1920, -14 LUFS)
     Josh,
+    /// PeerTube video 16:9 landscape (1920x1080, -14 LUFS)
+    Peertube,
+    /// Floatplane video 16:9 landscape (1920x1080, -14 LUFS)
+    Floatplane,
+    /// Nebula video 16:9 landscape (1920x1080, -14 LUFS)
+    Nebula,
+    /// CHZZK (Naver) clip 16:9 landscape (1920x1080, -14 LUFS)
+    Chzzk,
+    /// Douyu clip 16:9 landscape (1920x1080, -14 LUFS)
+    Douyu,
+    /// Huya clip 16:9 landscape (1920x1080, -14 LUFS)
+    Huya,
+    /// Weverse fan clip 9:16 vertical (1080x1920, -14 LUFS)
+    Weverse,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2834,6 +2852,13 @@ pub struct SubsArgs {
     /// matching clips (extras: appended, offset)
     #[arg(long)]
     pub append: Option<PathBuf>,
+    /// Split cues at SECONDS into one .srt per segment (`-o part.srt` →
+    /// part_0.srt/part_1.srt/...; comma list = several cuts) — the
+    /// `split --at` counterpart for transcripts: cues are re-timed so
+    /// each part starts at 0, a cue spanning a cut keeps its head in the
+    /// earlier part
+    #[arg(long)]
+    pub split: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4154,6 +4179,10 @@ pub struct RemuxArgs {
     /// deliverables — same idea as --default-audio)
     #[arg(long)]
     pub default_sub: Option<usize>,
+    /// Make video track N (per-type index) the player default —
+    /// multi-angle files pick the hero angle players start on
+    #[arg(long)]
+    pub default_video: Option<usize>,
     /// Retime the whole container by a factor — re-stamp timestamps without
     /// re-encoding (1.042 = PAL 25→24 pull-down, 0.96 = film→PAL speed-up
     /// for broadcast; audio pulls with the picture)

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.302.0] — 2026-09-24
+
+### Added
+- `remux --default-video N` — pick the default video track on multi-angle/multi-cam files (the `--default-audio`/`--default-sub` mirror for video).
+- `extract --attachment N` — rip an attachment stream back out to a file (fonts/files a `remux --attach` embedded; mkv/webm).
+- `subs --split T1,T2,…` — cut an .srt at comma timestamps into `stem_0.srt`/`stem_1.srt`… parts, cues re-timed per part (split a transcript to match `split`/`cut` parts).
+- `subs --convert` accepts `.ass` input (Format-line column order honoured) on top of `.srt`/`.vtt`.
+- `deliver --platform peertube|floatplane|nebula|chzzk|douyu|huya` (16:9 1080p) and `weverse` (9:16 1080x1920).
+
 ## [0.301.0] — 2026-09-24
 
 ### Added
