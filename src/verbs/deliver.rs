@@ -99,6 +99,9 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Odysee
         | DeliverPlatform::Trovo
         | DeliverPlatform::Substack
+        | DeliverPlatform::Niconico
+        | DeliverPlatform::Soop
+        | DeliverPlatform::Xigua
         | DeliverPlatform::Twitch => (1920, 1080),
         DeliverPlatform::X | DeliverPlatform::Mastodon | DeliverPlatform::Discord => (1280, 720),
         DeliverPlatform::Threads | DeliverPlatform::Instagram | DeliverPlatform::Facebook => {
@@ -113,7 +116,10 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Snapchat
         | DeliverPlatform::Whatsapp
         | DeliverPlatform::Line
-        | DeliverPlatform::Triller => (1080, 1920),
+        | DeliverPlatform::Triller
+        | DeliverPlatform::Likee
+        | DeliverPlatform::Moj
+        | DeliverPlatform::Josh => (1080, 1920),
         DeliverPlatform::Weibo => (1920, 1080),
         _ => (1080, 1920),
     };
@@ -448,6 +454,12 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Substack => "substack",
         DeliverPlatform::Triller => "triller",
         DeliverPlatform::Lemon8 => "lemon8",
+        DeliverPlatform::Niconico => "niconico",
+        DeliverPlatform::Soop => "soop",
+        DeliverPlatform::Xigua => "xigua",
+        DeliverPlatform::Likee => "likee",
+        DeliverPlatform::Moj => "moj",
+        DeliverPlatform::Josh => "josh",
     }
 }
 

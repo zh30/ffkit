@@ -729,9 +729,9 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             "subs --convert takes .srt/.vtt input and .srt/.vtt/.txt output",
         ));
     }
-    if out_ext != "srt" && out_ext != "vtt" && out_ext != "txt" {
+    if out_ext != "srt" && out_ext != "vtt" && out_ext != "txt" && out_ext != "ass" {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt input and .srt/.vtt/.txt output",
+            "subs --convert takes .srt/.vtt input and .srt/.vtt/.txt/.ass output",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -779,6 +779,33 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             .collect::<Vec<_>>()
             .join(" ");
         s.push('\n');
+        s
+    } else if out_ext == "ass" {
+        // minimal styled ASS: Default style + one Dialogue line per cue —
+        // hand to Aegisub/anime-style pipelines for heavy styling
+        let mut s = String::from(
+            "[Script Info]\nTitle: ffkit subs convert\nScriptType: v4.00+\n\n\
+             [V4+ Styles]\n\
+             Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n\
+             Style: Default,Arial,20,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\n\n\
+             [Events]\n\
+             Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n",
+        );
+        for c in &cues {
+            // {} opens ASS override blocks — swap for parens so text
+            // can't be misparsed as styling markup
+            let text = c
+                .text
+                .replace('{', "(")
+                .replace('}', ")")
+                .replace('\n', "\\N");
+            s.push_str(&format!(
+                "Dialogue: 0,{},{},Default,,0,0,0,,{}\n",
+                ass_ts(c.start),
+                ass_ts(c.end),
+                text
+            ));
+        }
         s
     } else if out_ext == "vtt" {
         let mut s = String::from("WEBVTT\n\n");
@@ -871,6 +898,18 @@ fn apply_case(cues: &mut [crate::srt::Cue], case: crate::cli::TextCase) {
                 .join(" "),
         };
     }
+}
+
+/// ASS centisecond timestamp: H:MM:SS.cc
+fn ass_ts(secs: f64) -> String {
+    let cs = (secs.max(0.0) * 100.0).round() as u64;
+    format!(
+        "{}:{:02}:{:02}.{:02}",
+        cs / 360_000,
+        (cs / 6_000) % 60,
+        (cs / 100) % 60,
+        cs % 100
+    )
 }
 
 fn vtt_ts(secs: f64) -> String {

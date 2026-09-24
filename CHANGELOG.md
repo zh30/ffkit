@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.301.0] — 2026-09-24
+
+### Added
+
+- `remux --video-order 1,0` — keep + reorder video tracks by per-type index (multi-angle/multi-cam files: hero angle first, unlisted tracks drop; also works under `--video` for the angle rip)
+- `remux --forced-sub N` — flag subtitle track N as FORCED so players auto-show it for the audience's language (film-style forced captions; mkv/webm only — mp4/mov can't express the flag and refuse cleanly)
+- `subs --convert` to `.ass` — minimal styled ASS export ([Script Info] + Default style + Dialogue lines; Aegisub/anime-pipeline handoff, `{}` in cue text escaped to parens)
+- `deliver --platform niconico`/`soop`/`xigua` (16:9 1920x1080) + `likee`/`moj`/`josh` (9:16 1080x1920)
+
 ## [0.300.0] — 2026-09-24
 
 ### Added

@@ -1392,6 +1392,18 @@ pub enum DeliverPlatform {
     Triller,
     /// Lemon8 post 3:4 portrait (1080x1440, -14 LUFS)
     Lemon8,
+    /// Niconico upload 16:9 landscape (1920x1080, -14 LUFS)
+    Niconico,
+    /// SOOP (AfreecaTV) stream clip 16:9 landscape (1920x1080, -14 LUFS)
+    Soop,
+    /// Xigua video 16:9 landscape (1920x1080, -14 LUFS)
+    Xigua,
+    /// Likee short video 9:16 vertical (1080x1920, -14 LUFS)
+    Likee,
+    /// Moj short video 9:16 vertical (1080x1920, -14 LUFS)
+    Moj,
+    /// Josh short video 9:16 vertical (1080x1920, -14 LUFS)
+    Josh,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4161,6 +4173,16 @@ pub struct RemuxArgs {
     /// releases; unlisted tracks are dropped
     #[arg(long)]
     pub sub_order: Option<String>,
+    /// Keep + reorder video tracks by per-type index (comma list like
+    /// --audio-order) — multi-angle/multi-cam files pick the hero angle
+    /// or reorder angles; unlisted video tracks are dropped
+    #[arg(long)]
+    pub video_order: Option<String>,
+    /// Mark subtitle track N as FORCED (film-style forced-only captions —
+    /// players auto-show them for the audience's language without a
+    /// manual pick; pairs with --default-sub)
+    #[arg(long)]
+    pub forced_sub: Option<usize>,
     /// Keep ONLY the listed absolute stream indices (comma list,
     /// e.g. `0,3` keeps video 0 + audio 3 — the escape hatch when
     /// --audio-order/--sub-order/--lang can't express the pick; unlisted

@@ -35229,3 +35229,181 @@ fn r273_subs_append_txt_deliver_lemon8() {
     assert_eq!(s["height"], 1440);
     let _ = base;
 }
+
+#[test]
+fn r274_video_order_forced_sub_ass_convert_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    // two video tracks with distinct sizes + one audio → multi-angle file
+    let mv = d.path().join("mv.mkv");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=320x240:rate=15:d=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:rate=15:d=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:d=1",
+            "-map",
+            "0:v",
+            "-map",
+            "1:v",
+            "-map",
+            "2:a",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+            mv.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap()
+        .status;
+    assert!(st.success());
+    // --video-order 1,0: second angle becomes output video 0
+    let re = d.path().join("re.mkv");
+    let j = run_json(&[
+        "remux",
+        mv.to_str().unwrap(),
+        "-o",
+        re.to_str().unwrap(),
+        "--video-order",
+        "1,0",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", re.to_str().unwrap()]);
+    let streams = pr["probe"]["streams"].as_array().unwrap();
+    assert_eq!(streams[0]["width"], 160, "{streams:?}");
+    assert_eq!(streams[1]["width"], 320, "{streams:?}");
+    // out-of-range index is a clean input error
+    let j = run_json(&[
+        "remux",
+        mv.to_str().unwrap(),
+        "-o",
+        d.path().join("bad.mkv").to_str().unwrap(),
+        "--video-order",
+        "9",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    // srt-subtitled mkv → --forced-sub flags the sub stream forced=1
+    let srt = d.path().join("a.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:01,000\nforced line\n").unwrap();
+    let sub = d.path().join("sub.mkv");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:rate=10:d=1",
+            "-i",
+            srt.to_str().unwrap(),
+            "-map",
+            "0:v",
+            "-map",
+            "1:s",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:s",
+            "srt",
+            sub.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap()
+        .status;
+    assert!(st.success());
+    let forced = d.path().join("forced.mkv");
+    let j = run_json(&[
+        "remux",
+        sub.to_str().unwrap(),
+        "-o",
+        forced.to_str().unwrap(),
+        "--forced-sub",
+        "0",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "s",
+            "-show_entries",
+            "stream_disposition=forced",
+            "-of",
+            "csv=p=0",
+            forced.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "1");
+    // mp4 can't express forced subs → clean error, not a silent no-op
+    let j = run_json(&[
+        "remux",
+        sub.to_str().unwrap(),
+        "-o",
+        d.path().join("forced.mp4").to_str().unwrap(),
+        "--forced-sub",
+        "0",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    // subs --convert → .ass: ffmpeg re-reads the Dialogue lines back to srt
+    let ass = d.path().join("a.ass");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--convert",
+        "-o",
+        ass.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["format"], "ass", "{j}");
+    let text = std::fs::read_to_string(&ass).unwrap();
+    assert!(text.contains("Dialogue: 0,0:00:00.00,0:00:01.00"), "{text}");
+    let o = Command::new("ffmpeg")
+        .args(["-i", ass.to_str().unwrap(), "-f", "srt", "-"])
+        .output()
+        .unwrap();
+    assert!(String::from_utf8_lossy(&o.stdout).contains("forced line"));
+    // six regional platforms deliver the right canvas
+    let base = fixture(d.path());
+    let likee = d.path().join("likee.mp4");
+    let j = run_json(&[
+        "deliver",
+        base.to_str().unwrap(),
+        "-o",
+        likee.to_str().unwrap(),
+        "--platform",
+        "likee",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", likee.to_str().unwrap()]);
+    assert_eq!(pr["probe"]["streams"][0]["height"], 1920);
+    let xigua = d.path().join("xigua.mp4");
+    let j = run_json(&[
+        "deliver",
+        base.to_str().unwrap(),
+        "-o",
+        xigua.to_str().unwrap(),
+        "--platform",
+        "xigua",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", xigua.to_str().unwrap()]);
+    assert_eq!(pr["probe"]["streams"][0]["width"], 1920);
+    assert_eq!(pr["probe"]["streams"][0]["height"], 1080);
+}

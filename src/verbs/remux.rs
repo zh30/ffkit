@@ -369,6 +369,58 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             v
         }
     };
+    // --video-order 1,0: keep + reorder video tracks by per-type index
+    // (multi-angle/multi-cam files — hero angle first; unlisted drop)
+    let video_order: Vec<usize> = match &args.video_order {
+        None => Vec::new(),
+        Some(raw) => {
+            let v: Vec<usize> = raw
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(|s| {
+                    s.parse().map_err(|_| {
+                        Error::input("remux --video-order needs track indices (e.g. 1,0)")
+                    })
+                })
+                .collect::<Result<_, _>>()?;
+            if v.is_empty() {
+                return Err(Error::input("remux --video-order: no track indices given"));
+            }
+            let mut seen = std::collections::HashSet::new();
+            for i in &v {
+                if !seen.insert(*i) {
+                    return Err(Error::input("remux --video-order: duplicate track index"));
+                }
+            }
+            v
+        }
+    };
+    if !video_order.is_empty() {
+        if args.audio {
+            return Err(Error::input(
+                "remux --video-order picks video tracks — --audio drops all video",
+            ));
+        }
+        if args.audio_delay.is_some() || args.video_delay.is_some() {
+            return Err(Error::input(
+                "remux --video-order re-maps tracks — drop --audio-delay/--video-delay",
+            ));
+        }
+        if !langs.is_empty() {
+            return Err(Error::input(
+                "remux --video-order re-maps video — drop --lang",
+            ));
+        }
+        let n_tracks = probe.streams.iter().filter(|s| s.kind == "video").count();
+        for i in &video_order {
+            if *i >= n_tracks {
+                return Err(Error::input(format!(
+                    "remux --video-order {i}: input only has {n_tracks} video track(s)"
+                )));
+            }
+        }
+    }
     if !sub_order.is_empty() {
         if args.no_subs {
             return Err(Error::input(
@@ -410,9 +462,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
                 "remux --keep picks streams itself — drop --audio/--video/--lang/--sub-lang",
             ));
         }
-        if !audio_order.is_empty() || !sub_order.is_empty() {
+        if !audio_order.is_empty() || !sub_order.is_empty() || !video_order.is_empty() {
             return Err(Error::input(
-                "remux --keep is absolute-indexed — drop --audio-order/--sub-order",
+                "remux --keep is absolute-indexed — drop --audio-order/--sub-order/--video-order",
             ));
         }
         if args.audio_delay.is_some() || args.video_delay.is_some() {
@@ -491,7 +543,14 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if !probe.has_video {
             return Err(Error::input("remux --video: input has no video"));
         }
-        argv.extend(["-map", "0:v", "-c:v", "copy"]);
+        if !video_order.is_empty() {
+            for i in &video_order {
+                argv.extend(["-map", format!("0:v:{i}").as_str()]);
+            }
+        } else {
+            argv.extend(["-map", "0:v"]);
+        }
+        argv.extend(["-c:v", "copy"]);
     } else if args.audio_delay.is_some() {
         // sync fix: non-audio streams from input 0, audio from the
         // itsoffset-shifted second read of the same file
@@ -512,12 +571,22 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if args.no_subs {
             // negative maps drop subtitle/data streams; attachments stay
             argv.extend(["-map", "0", "-map", "-0:s", "-map", "-0:d", "-c", "copy"]);
-        } else if !audio_order.is_empty() {
-            // track-ordered repack: every video + the listed audio tracks
-            // in the asked order (unlisted tracks drop out)
-            argv.extend(["-map", "0:v"]);
-            for i in &audio_order {
-                argv.extend(["-map", format!("0:a:{i}").as_str()]);
+        } else if !audio_order.is_empty() || !video_order.is_empty() {
+            // per-type ordered repack: listed tracks in asked order per
+            // kind (unlisted tracks of that kind drop out)
+            if !video_order.is_empty() {
+                for i in &video_order {
+                    argv.extend(["-map", format!("0:v:{i}").as_str()]);
+                }
+            } else {
+                argv.extend(["-map", "0:v"]);
+            }
+            if !audio_order.is_empty() {
+                for i in &audio_order {
+                    argv.extend(["-map", format!("0:a:{i}").as_str()]);
+                }
+            } else {
+                argv.extend(["-map", "0:a?"]);
             }
             for m in &sub_map_args {
                 argv.extend(["-map", m.as_str()]);
@@ -639,6 +708,33 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend([
             "-disposition:s:".to_string() + &n.to_string(),
             "+default".to_string(),
+        ]);
+    }
+    // --forced-sub N: film-style forced captions — players auto-show them
+    // for the audience's language (adds forced to existing flags)
+    if let Some(n) = args.forced_sub {
+        if matches!(ext.as_str(), "mp4" | "mov" | "m4a") {
+            return Err(Error::input(
+                "remux --forced-sub: mp4/mov can't flag forced subs — use an mkv output",
+            ));
+        }
+        if args.audio || args.video || args.no_subs {
+            return Err(Error::input(
+                "remux --forced-sub needs a full repack with subtitle tracks",
+            ));
+        }
+        if probe.subtitle_streams == 0 {
+            return Err(Error::input("remux --forced-sub: input has no subtitles"));
+        }
+        if n >= probe.subtitle_streams as usize {
+            return Err(Error::input(format!(
+                "remux --forced-sub {n}: only {} subtitle track(s)",
+                probe.subtitle_streams
+            )));
+        }
+        argv.extend([
+            "-disposition:s:".to_string() + &n.to_string(),
+            "+forced".to_string(),
         ]);
     }
     // --timecode HH:MM:SS[:FF]: mov/mp4 write a tmcd track + stream tag,
@@ -763,7 +859,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     let mut c = c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "keep": args.keep, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "keep": args.keep, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts }),
     );
     if let Some((key, kid)) = enc_kv {
         c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));

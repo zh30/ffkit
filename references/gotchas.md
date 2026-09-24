@@ -632,3 +632,6 @@ an atempo'd whole-file render would shift the window.
 - **Speaker labels need digits + underscore, not just caps** — transcript exports write `SPEAKER 1:`/`SPEAKER_1:`; an all-caps check that rejects digits misses the commonest label form. ffkit's strip requires ≥1 uppercase letter AND only [A-Z0-9_ .'-] before the colon, so `Note:`/`Monday:` survive.
 
 - **`subs --append` offsets by the first file's last CUE end, not the clip's duration** — if the A-side video runs past its last subtitle (credits, outro silence), the appended cues land early. Verify the first clip's length before joining, or shift the joined file afterwards with `--shift`.
+
+- **mp4/mov can't express the FORCED subtitle flag** — `-disposition:s:0 forced` is accepted silently and writes `forced:0` on tx3g/mov_text; only matroska-family containers carry the flag. `remux --forced-sub` refuses mp4/mov/m4a outright rather than ship a silent no-op — verify the flag with `ffprobe -show_entries stream_disposition=forced`, not by exit code.
+- **Track-order indices are PER-TYPE, not absolute** — `--video-order 1,0` indexes the video-track list (`0:v:N`), matching `--audio-order`/`--sub-order`; absolute stream indices are `--keep`'s job. Mixing both errors out (a video index means nothing in the audio list).
