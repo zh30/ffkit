@@ -36442,3 +36442,149 @@ fn r281_srt_striptags_sample_rate_platforms() {
         assert_eq!(j["probe"]["height"], 1080);
     }
 }
+
+#[test]
+fn r282_sdh_profile_fade_in_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+    // --strip-sdh drops […]/(…) annotations and ♪ marks; empty cues drop
+    let sdh = d.path().join("sdh.srt");
+    std::fs::write(
+        &sdh,
+        "1\n00:00:00,000 --> 00:00:01,000\n[DOOR CREAKS] Hello there\n\n2\n00:00:01,100 --> 00:00:02,000\n♪ music playing ♪\n\n3\n00:00:02,100 --> 00:00:03,000\n(dog barking)\n\n",
+    )
+    .unwrap();
+    let clean = d.path().join("sdh_clean.srt");
+    let j = run_json(&[
+        "subs",
+        sdh.to_str().unwrap(),
+        "-o",
+        clean.to_str().unwrap(),
+        "--strip-sdh",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["sdh_stripped"], 3);
+    assert_eq!(j["extra"]["dropped"], 1);
+    assert_eq!(j["extra"]["cues"], 2);
+    let txt = std::fs::read_to_string(&clean).unwrap();
+    assert!(txt.contains("Hello there") && txt.contains("music playing"));
+    assert!(!txt.contains("DOOR") && !txt.contains("♪") && !txt.contains("dog"));
+
+    // streams[].profile — codec profile QC
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    assert!(v["profile"].as_str().unwrap().contains("High"));
+    let a = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+    assert_eq!(a["profile"], "LC");
+
+    // slideshow --audio-fade-in eases the bed head
+    let pics: Vec<std::path::PathBuf> = (0..2)
+        .map(|i| {
+            let p = d.path().join(format!("p{i}.png"));
+            let st = Command::new("ffmpeg")
+                .args([
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    &format!("color=c=0x{:02x}4050:size=64x64:d=0.2", 80 + i * 60),
+                    "-frames:v",
+                    "1",
+                    p.to_str().unwrap(),
+                ])
+                .status()
+                .unwrap();
+            assert!(st.success());
+            p
+        })
+        .collect();
+    let bed = d.path().join("bed.m4a");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=330:duration=4",
+            "-c:a",
+            "aac",
+            bed.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let out = d.path().join("fin.mp4");
+    let j = run_json(&[
+        "slideshow",
+        pics[0].to_str().unwrap(),
+        pics[1].to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--per",
+        "1.2",
+        "--fade",
+        "0.4",
+        "--audio",
+        bed.to_str().unwrap(),
+        "--audio-fade",
+        "0.4",
+        "--audio-fade-in",
+        "0.5",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["audio_fade_in"], 0.5);
+    // error paths
+    let j = run_json(&[
+        "slideshow",
+        pics[0].to_str().unwrap(),
+        pics[1].to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--per",
+        "1.2",
+        "--fade",
+        "0.4",
+        "--audio-fade-in",
+        "0.5",
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("--audio-fade-in needs --audio"));
+
+    // new 16:9 platform canvases
+    for p in [
+        "iqiyi",
+        "youku",
+        "wetv",
+        "viki",
+        "crunchyroll",
+        "funimation",
+        "mgtv",
+    ] {
+        let o = d.path().join(format!("{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok");
+        assert_eq!(j["probe"]["width"], 1920);
+        assert_eq!(j["probe"]["height"], 1080);
+    }
+}

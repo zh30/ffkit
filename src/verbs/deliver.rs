@@ -141,6 +141,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Vevo
         | DeliverPlatform::Roku
         | DeliverPlatform::Plex
+        | DeliverPlatform::Iqiyi
+        | DeliverPlatform::Youku
+        | DeliverPlatform::Wetv
+        | DeliverPlatform::Viki
+        | DeliverPlatform::Crunchyroll
+        | DeliverPlatform::Funimation
+        | DeliverPlatform::Mgtv
         | DeliverPlatform::Spotify
         | DeliverPlatform::Apple
         | DeliverPlatform::Amazonmusic
@@ -551,6 +558,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Vevo => "vevo",
         DeliverPlatform::Roku => "roku",
         DeliverPlatform::Plex => "plex",
+        DeliverPlatform::Iqiyi => "iqiyi",
+        DeliverPlatform::Youku => "youku",
+        DeliverPlatform::Wetv => "wetv",
+        DeliverPlatform::Viki => "viki",
+        DeliverPlatform::Crunchyroll => "crunchyroll",
+        DeliverPlatform::Funimation => "funimation",
+        DeliverPlatform::Mgtv => "mgtv",
         DeliverPlatform::Spotify => "spotify",
         DeliverPlatform::Apple => "apple",
         DeliverPlatform::Amazonmusic => "amazonmusic",

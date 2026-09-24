@@ -108,6 +108,35 @@ fn parse_srt_ts(s: &str) -> Result<f64, Error> {
     parse_time(&s.replace(',', "."))
 }
 
+/// Remove SDH/HI annotations a broadcast/transcript cue carries:
+/// `[SOUND]`/`[MUSIC]`/`(door creaks)` spans (whole-line or inline) and
+/// `♪`/`♫` song marks. Lines left empty are dropped.
+pub fn strip_sdh(text: &str) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    for line in text.split('\n') {
+        let mut out = String::with_capacity(line.len());
+        let mut chars = line.chars().peekable();
+        while let Some(ch) = chars.next() {
+            match ch {
+                '[' | '(' => {
+                    for c in chars.by_ref() {
+                        if c == ']' || c == ')' {
+                            break;
+                        }
+                    }
+                }
+                '♪' | '♫' => {}
+                _ => out.push(ch),
+            }
+        }
+        let out = out.trim().to_string();
+        if !out.is_empty() {
+            lines.push(out);
+        }
+    }
+    lines.join("\n")
+}
+
 fn strip_tags(s: &str) -> String {
     let mut out = String::new();
     let mut in_tag = false;

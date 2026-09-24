@@ -182,11 +182,26 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--audio-fade must be > 0 seconds"));
         }
     }
+    if let Some(af) = args.audio_fade_in {
+        if args.audio.is_none() {
+            return Err(Error::input("--audio-fade-in needs --audio"));
+        }
+        if !af.is_finite() || af <= 0.0 {
+            return Err(Error::input("--audio-fade-in must be > 0 seconds"));
+        }
+    }
     let total = n as f64 * per - (n as f64 - 1.0) * args.fade;
     if bed_tail >= total {
         return Err(Error::input(
             "--audio-fade must be shorter than the montage",
         ));
+    }
+    if let Some(af) = args.audio_fade_in {
+        if af >= total - bed_tail {
+            return Err(Error::input(
+                "--audio-fade-in must leave room before the tail fade",
+            ));
+        }
     }
     let fps = args.fps;
 
@@ -329,10 +344,14 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
     // Caption PNGs shifted the input numbering — the silent bed (when
     // no --audio is given) is the last input, at index next_input.
     let audio_in = bed_idx.unwrap_or(next_input);
+    let fade_in = match args.audio_fade_in {
+        Some(d) => format!(",afade=t=in:st=0:d={d:.3}"),
+        None => String::new(),
+    };
     if bed_idx.is_some() {
         // Bed: pad/trim to the montage length, fade the tail (--audio-fade).
         fc.push_str(&format!(
-            "[{audio_in}:a]apad,atrim=duration={total:.3},volume={bed_vol:.3},afade=t=out:st={:.3}:d={bed_tail:.3},aresample=48000[aout]",
+            "[{audio_in}:a]apad,atrim=duration={total:.3},volume={bed_vol:.3},afade=t=out:st={:.3}:d={bed_tail:.3}{fade_in},aresample=48000[aout]",
             total - bed_tail
         ));
     } else {
@@ -381,6 +400,7 @@ pub fn run(args: SlideshowArgs, g: &Globals) -> Result<Contract, Error> {
         "music_bed": args.audio.is_some(),
         "audio_loop": args.audio_loop,
         "audio_fade": bed_tail,
+        "audio_fade_in": args.audio_fade_in,
         "fit": args.fit,
         "seed": args.shuffle,
         "sort": args.sort.map(|s| match s {

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.309.0] — 2026-09-24
+
+### Added
+- `probe`/`scan` `streams[].profile` — codec profile per track (h264 High/Baseline, aac_lc) for platform ingest specs that reject High-10/4:2:2
+- `subs --strip-sdh` drops `[SOUND]`/`(door creaks)`/`♪`/`♫` hearing-impaired annotations — a dialogue-only transcript for burning (empty cues drop, extras report `sdh_stripped`)
+- `slideshow --audio-fade-in SEC` eases the music bed head in — pairs with `--audio-fade`'s tail fade (guards: needs --audio, must leave room for the tail)
+- `deliver --platform` +7: `iqiyi`/`youku`/`wetv`/`viki`/`crunchyroll`/`funimation`/`mgtv` — asian-streaming canvases (16:9 1080p, −14 LUFS pipeline)
+
 ## [0.308.0] — 2026-09-24
 
 ### Added

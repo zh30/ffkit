@@ -108,6 +108,10 @@ pub struct ProbeStream {
     /// `transcode --ar` on multi-rate files)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sample_rate: Option<u32>,
+    /// Codec profile string (h264 High/Baseline, aac_lc, …) — platform
+    /// ingest specs reject some profiles (High 10 / 4:2:2 on social)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile: Option<String>,
     /// Player-default track (disposition.default) — QC which track a
     /// player picks before `remux --default-audio`/`--default-sub`.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -189,6 +193,8 @@ struct FfprobeStream {
     channels: Option<u32>,
     #[serde(default)]
     sample_rate: Option<String>,
+    #[serde(default)]
+    profile: Option<String>,
     #[serde(default)]
     duration: Option<String>,
     #[serde(default)]
@@ -425,6 +431,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 height: s.height,
                 channels: s.channels,
                 sample_rate: s.sample_rate.as_deref().and_then(|v| v.parse().ok()),
+                profile: s.profile.clone(),
                 default: s
                     .disposition
                     .as_ref()

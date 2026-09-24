@@ -80,6 +80,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.replace.is_some()
         || args.strip_speakers
         || args.strip_tags
+        || args.strip_sdh
         || args.wrap.is_some()
         || args.find.is_some()
     {
@@ -399,6 +400,19 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+    let mut sdh_stripped = 0usize;
+    if args.strip_sdh {
+        for c in &mut cues {
+            let out = crate::srt::strip_sdh(&c.text);
+            if out != c.text {
+                c.text = out;
+                sdh_stripped += 1;
+            }
+        }
+        let before = cues.len();
+        cues.retain(|c| !c.text.trim().is_empty());
+        dropped += before - cues.len();
+    }
     let mut tags_stripped = 0usize;
     if args.strip_tags {
         for c in &mut cues {
@@ -465,6 +479,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "replaced": replaced,
         "stripped": stripped,
         "tags_stripped": tags_stripped,
+        "sdh_stripped": sdh_stripped,
         "rewrapped": rewrapped,
         "find": args.find,
         "found": found,

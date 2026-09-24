@@ -1492,6 +1492,20 @@ pub enum DeliverPlatform {
     Roku,
     /// Plex library video 16:9 landscape (1920x1080, -14 LUFS)
     Plex,
+    /// iQIYI upload 16:9 landscape (1920x1080, -14 LUFS)
+    Iqiyi,
+    /// Youku upload 16:9 landscape (1920x1080, -14 LUFS)
+    Youku,
+    /// WeTV (Tencent overseas) 16:9 landscape (1920x1080, -14 LUFS)
+    Wetv,
+    /// Viki (Rakuten) video 16:9 landscape (1920x1080, -14 LUFS)
+    Viki,
+    /// Crunchyroll video 16:9 landscape (1920x1080, -14 LUFS)
+    Crunchyroll,
+    /// Funimation video 16:9 landscape (1920x1080, -14 LUFS)
+    Funimation,
+    /// Mango TV / MGTV video 16:9 landscape (1920x1080, -14 LUFS)
+    Mgtv,
     /// Spotify video podcast 16:9 landscape (1920x1080, -14 LUFS)
     Spotify,
     /// Apple Podcasts video episode 16:9 landscape (1920x1080, -14 LUFS)
@@ -2941,6 +2955,11 @@ pub struct SubsArgs {
     /// extras: tags_stripped)
     #[arg(long)]
     pub strip_tags: bool,
+    /// Strip SDH/HI annotations from cue text — `[SOUND]`/`(door creaks)`
+    /// spans and `♪`/`♫` marks (burnable dialogue-only transcript;
+    /// extras: sdh_stripped, empty cues drop)
+    #[arg(long)]
+    pub strip_sdh: bool,
     /// Rewrap cue text at N chars per line (portrait-phone captions;
     /// extras: rewrapped)
     #[arg(long)]
@@ -3245,6 +3264,10 @@ pub struct SlideshowArgs {
     /// (-stream_loop -1 — short jingle under a long slideshow)
     #[arg(long)]
     pub audio_loop: bool,
+    /// Music-bed head fade-in seconds (eases the song in instead of
+    /// starting cold — pairs with --audio-fade's tail fade)
+    #[arg(long)]
+    pub audio_fade_in: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
