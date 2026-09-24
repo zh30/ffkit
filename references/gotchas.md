@@ -512,3 +512,6 @@ an atempo'd whole-file render would shift the window.
 - `0:a:m:language:L` positive map fails "matches no streams" when the tag is absent — that IS the loud failure path for a missing language; add `?` only if you want a soft pass-through.
 - `Contract::with_extra` REPLACES the whole extra object — collect every key in one `json!` call (adding a key later in a second with_extra drops the earlier keys).
 - `assert!(o.status.success())` on a Command::output loses the ffmpeg stderr — `assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr))` turns fixture-build failures readable.
+- `live --slate`: the still card rides `-loop 1 -t D -i img` as input 0 — `-stream_loop -1` must be pushed AFTER it (it binds to the NEXT `-i`, i.e. the content); swap the order and the slate loops forever while the content plays once.
+- Container chapters on mp4/m4b: build an ffmetadata `[CHAPTER]` table (TIMEBASE=1/1000, START/END in ms) and feed it as a `-f ffmetadata -i` input, then `-map_metadata IDX -map_chapters IDX`; chapters beyond `duration` get clamped by the muxer — use `END=dur` on the last one.
+- `-disposition:a -default` clears ALL audio defaults, `-disposition:a:N +default` sets one — both are output-stream specifiers and need a repack (`-map 0`), not a filtered `-map 0:a:…` subset.

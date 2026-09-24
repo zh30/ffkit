@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.268.0] — 2026-09-23
+
+- `deliver --platform audiobook` — audiobook feed pack (m4b, AAC 96k/48k, −16 LUFS): Apple Books/Audible-ready single file; forced `-f mp4` so chapters + cover write past the ipod-muxer limits
+- `deliver --chapters marks.txt` — embed real container chapters on podcast/audiobook packs from the YouTube-format list `chapter --yt` exports (`mm:ss title` → ffmetadata `[CHAPTER]` table → mp4 chpl); Apple Podcasts/Apple Books show them as seek stops
+- `deliver --title/--author/--album/--genre/--comment` — feed metadata tags written into every pack (author → artist): episode title, show name, audiobook synopsis ride inside the file
+- `live --slate card.png [--slate-dur SEC]` — starting-soon card before the content: normalized to the stream canvas with a silent bed, concat-joined ahead of the feed (premiere/scheduled-start countdown card)
+- `remux --default-audio N` — make audio track N the default on multi-track files (clear every audio default flag, set the pick): players lead with the language/edit you choose
+
 ## [0.267.0] — 2026-09-23
 
 - `remux --lang LANG` — keep only audio tracks tagged with a language (ISO-639: `eng`, `jpn`, …): multi-language releases down to one track, dub extraction; positive `-map 0:a:m:language:L` fails loudly when nothing matches; with `--audio` rips just that track

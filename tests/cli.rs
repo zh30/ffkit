@@ -29236,3 +29236,210 @@ fn r240_lang_shuffle_wrap_cover_test() {
     ]);
     assert!(kinds.contains("aac") && kinds.contains("mjpeg"), "{kinds}");
 }
+
+#[test]
+fn r241_audiobook_chapters_slate_default_test() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn probe_csv(args: &[String]) -> String {
+        let o = Command::new("ffprobe")
+            .args(args)
+            .output()
+            .expect("ffprobe");
+        String::from_utf8_lossy(&o.stdout).into_owned()
+    }
+    fn ffmpeg(args: &[String]) {
+        let o = Command::new("ffmpeg").args(args).output().unwrap();
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    }
+
+    // deliver --platform audiobook + --chapters + feed tags: real container
+    // chapters + Apple-style metadata on a 96k m4b
+    let song = d.join("song.m4a");
+    ffmpeg(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=300:sample_rate=48000:duration=4"),
+        s("-c:a"),
+        s("aac"),
+        s("-f"),
+        s("mp4"),
+        song.to_string_lossy().into_owned(),
+    ]);
+    let chf = d.join("ch.txt");
+    std::fs::write(&chf, "0:00 Intro\n1:30 Middle\n3:00 End\n").unwrap();
+    let book = d.join("book.m4b");
+    let j = run_json(&[
+        "deliver",
+        &song.to_string_lossy(),
+        "-o",
+        &book.to_string_lossy(),
+        "--platform",
+        "audiobook",
+        "--chapters",
+        &chf.to_string_lossy(),
+        "--title",
+        "My Book",
+        "--author",
+        "Jane Doe",
+        "--album",
+        "Series",
+        "--genre",
+        "Fiction",
+        "--comment",
+        "Synopsis",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["platform"], "audiobook");
+    assert_eq!(j["extra"]["chapters"], 3);
+    let chapters = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_chapters"),
+        s("-of"),
+        s("json"),
+        book.to_string_lossy().into_owned(),
+    ]);
+    assert!(
+        chapters.contains("Intro") && chapters.contains("Middle"),
+        "{chapters}"
+    );
+    let tags = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-show_entries"),
+        s("format_tags"),
+        s("-of"),
+        s("json"),
+        book.to_string_lossy().into_owned(),
+    ]);
+    assert!(
+        tags.contains("My Book") && tags.contains("Jane Doe"),
+        "{tags}"
+    );
+
+    // remux --default-audio: jpn becomes the players' pick
+    let dual = d.join("dual.mkv");
+    ffmpeg(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("testsrc=duration=2:size=320x240:rate=30"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=440:duration=2"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=550:duration=2"),
+        s("-map"),
+        s("0:v"),
+        s("-map"),
+        s("1:a"),
+        s("-map"),
+        s("2:a"),
+        s("-c:v"),
+        s("libx264"),
+        s("-c:a"),
+        s("aac"),
+        s("-metadata:s:a:0"),
+        s("language=eng"),
+        s("-metadata:s:a:1"),
+        s("language=jpn"),
+        s("-disposition:a:0"),
+        s("+default"),
+        s("-disposition:a:1"),
+        s("-default"),
+        dual.to_string_lossy().into_owned(),
+    ]);
+    let dual_d = d.join("dual_d.mp4");
+    let j = run_json(&[
+        "remux",
+        &dual.to_string_lossy(),
+        "-o",
+        &dual_d.to_string_lossy(),
+        "--default-audio",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let disp = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-select_streams"),
+        s("a"),
+        s("-show_entries"),
+        s("stream=index:stream_disposition=default"),
+        s("-of"),
+        s("json"),
+        dual_d.to_string_lossy().into_owned(),
+    ]);
+    let v: Value = serde_json::from_str(&disp).unwrap();
+    assert_eq!(v["streams"][0]["disposition"]["default"], 0, "{disp}");
+    assert_eq!(v["streams"][1]["disposition"]["default"], 1, "{disp}");
+
+    // live --slate: starting-soon card ahead of the content on the wire
+    let slate = d.join("slate.png");
+    ffmpeg(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("color=c=purple:size=320x240"),
+        s("-frames:v"),
+        s("1"),
+        slate.to_string_lossy().into_owned(),
+    ]);
+    let (tx_port, rx_port) = std::sync::mpsc::channel();
+    let (tx_head, rx_head) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tx_port.send(port).unwrap();
+        if let Ok((mut sock, _)) = listener.accept() {
+            use std::io::Read;
+            let mut buf = [0u8; 9];
+            let _ = sock.read_exact(&mut buf);
+            let _ = tx_head.send(buf.to_vec());
+            let mut sink = [0u8; 8192];
+            while sock.read(&mut sink).map(|n| n > 0).unwrap_or(false) {}
+        }
+    });
+    let port = rx_port.recv().unwrap();
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--slate",
+        &slate.to_string_lossy(),
+        "--slate-dur",
+        "0.5",
+        "--until",
+        "1",
+        "--to",
+        &format!("tcp://127.0.0.1:{port}"),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["slate"], true);
+    assert_eq!(j["extra"]["slate_dur"], 0.5);
+    let head = rx_head
+        .recv_timeout(std::time::Duration::from_secs(20))
+        .unwrap();
+    assert_eq!(&head[..3], b"FLV", "expected FLV magic, got {head:?}");
+}

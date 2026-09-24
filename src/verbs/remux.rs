@@ -118,6 +118,19 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-map", "0", "-c", "copy"]);
         }
     }
+    if let Some(n) = args.default_audio {
+        if args.audio || args.video || !probe.has_audio {
+            return Err(Error::input(
+                "remux --default-audio needs a full repack with audio tracks",
+            ));
+        }
+        // clear every audio default flag, then set it on the chosen track
+        argv.extend(["-disposition:a", "-default"]);
+        argv.extend([
+            "-disposition:a:".to_string() + &n.to_string(),
+            "+default".to_string(),
+        ]);
+    }
     if let Some(t) = args.to {
         // output duration, not a timeline position — input -ss already
         // rewound the stream to ~0
@@ -145,6 +158,6 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
 
     let c = engine::write_job("remux", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": lang }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": lang, "default_audio": args.default_audio }),
     ))
 }

@@ -1193,6 +1193,26 @@ pub struct DeliverArgs {
     /// (--platform podcast: attached_pic on the m4a — Apple/Spotify art)
     #[arg(long)]
     pub cover: Option<PathBuf>,
+    /// Embed chapter markers from a YouTube-format list ("mm:ss title" per
+    /// line — same file `chapter --yt` exports) on the audio feed pack
+    /// (podcast/audiobook: Apple Podcasts chapters, audiobook bookmarks)
+    #[arg(long)]
+    pub chapters: Option<PathBuf>,
+    /// Title metadata tag written into the pack (Apple Podcasts title)
+    #[arg(long)]
+    pub title: Option<String>,
+    /// Author/artist metadata tag (Apple Podcasts author)
+    #[arg(long)]
+    pub author: Option<String>,
+    /// Album/show metadata tag (podcast show name, audiobook title)
+    #[arg(long)]
+    pub album: Option<String>,
+    /// Genre metadata tag
+    #[arg(long)]
+    pub genre: Option<String>,
+    /// Comment/description metadata tag (audiobook synopsis, show notes)
+    #[arg(long)]
+    pub comment: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1219,6 +1239,9 @@ pub enum DeliverPlatform {
     Wechat,
     /// Audio-only podcast pack (m4a, AAC 128k/48k, -16 LUFS — feed spec)
     Podcast,
+    /// Audiobook pack (m4b, AAC 96k/48k, -16 LUFS — Apple Books/Audible;
+    /// pair with --chapters/--title/--author for a finished book)
+    Audiobook,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3685,6 +3708,11 @@ pub struct RemuxArgs {
     /// rip just that language's track; fails when no track matches
     #[arg(long)]
     pub lang: Option<String>,
+    /// Make audio track N (0-based among audio streams) the default on
+    /// multi-track files — players pick this one first (fixes the wrong
+    /// language playing on a multi-language release)
+    #[arg(long)]
+    pub default_audio: Option<usize>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4417,6 +4445,15 @@ pub struct LiveArgs {
     /// file — verify the stream key/latency before showtime
     #[arg(long)]
     pub test: bool,
+    /// Hold this image as a "starting soon" card for --slate-dur seconds
+    /// before the content begins (premiere/scheduled-start countdown card —
+    /// normalized to the stream canvas, silent audio bed)
+    #[arg(long)]
+    pub slate: Option<PathBuf>,
+    /// Seconds the --slate card stays up before switching to the content
+    /// (default 10)
+    #[arg(long)]
+    pub slate_dur: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

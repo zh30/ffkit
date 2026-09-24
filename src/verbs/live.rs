@@ -31,12 +31,25 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
     if args.list && args.input.is_none() {
         return Err(Error::input("live --list needs a manifest file"));
     }
+    if args.slate.is_some() && args.test {
+        return Err(Error::input("live --slate needs a real input — not --test"));
+    }
+    if args.slate.is_none() && args.slate_dur.is_some() {
+        return Err(Error::input("live --slate-dur needs --slate"));
+    }
+    let slate_dur = args.slate_dur.unwrap_or(10.0);
+    if args.slate.is_some() && (!slate_dur.is_finite() || slate_dur <= 0.0) {
+        return Err(Error::input("live --slate-dur needs a positive duration"));
+    }
+    if let Some(s) = &args.slate {
+        crate::paths::ensure_input(s)?;
+    }
 
     // --list: probe the first manifest entry for stream shape (the manifest
     // itself is a text file ffprobe can't read)
     let mut list_files: Vec<PathBuf> = Vec::new();
-    let (has_video, has_audio) = if args.test {
-        (true, true)
+    let (has_video, has_audio, pw, ph, pfps) = if args.test {
+        (true, true, 1280, 720, 30.0)
     } else {
         let input = args.input.as_deref().unwrap_or_else(|| Path::new(""));
         let probe_src = if args.list {
@@ -49,16 +62,50 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         if !probe.has_video && !probe.has_audio {
             return Err(Error::input("live: input has no media streams"));
         }
-        (probe.has_video, probe.has_audio)
+        (
+            probe.has_video,
+            probe.has_audio,
+            probe.width.unwrap_or(1280),
+            probe.height.unwrap_or(720),
+            probe.fps.unwrap_or(30.0),
+        )
     };
+    if args.slate.is_some() && !has_video {
+        return Err(Error::input(
+            "live --slate needs a video stream to hold the card over",
+        ));
+    }
 
     let vbitrate = args.vbitrate.as_deref().unwrap_or("2500k");
     let abitrate = args.abitrate.as_deref().unwrap_or("128k");
     // FLV for RTMP/plain-TCP ingest; MPEG-TS is the container UDP expects
     let fmt = if scheme == "udp" { "mpegts" } else { "flv" };
 
+    // canvas the stream renders at — slate card and content share it
+    let (cw, ch) = if let Some(sc) = &args.scale {
+        let mut p = sc.split('x');
+        match (
+            p.next().and_then(|v| v.parse::<u32>().ok()),
+            p.next().and_then(|v| v.parse::<u32>().ok()),
+        ) {
+            (Some(w), Some(h)) if w > 0 && h > 0 => (w, h),
+            _ => return Err(Error::input("live --scale needs WxH like 1280x720")),
+        }
+    } else {
+        (pw, ph)
+    };
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-re");
+    // slate goes first: looped still + silent bed, then the content inputs.
+    // -stream_loop must precede the CONTENT -i (it binds to the next input)
+    let mut ni = 0u32;
+    if let Some(s) = &args.slate {
+        argv.extend(["-loop", "1", "-t"]);
+        argv.push(slate_dur.to_string());
+        argv.push("-i");
+        argv.push(s);
+        ni = 1;
+    }
     if args.loop_ && !args.test {
         argv.extend(["-stream_loop", "-1"]);
     }
@@ -81,17 +128,9 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push(args.input.as_deref().unwrap_or_else(|| Path::new("")));
     }
     if has_video {
-        if let Some(sc) = &args.scale {
-            let mut p = sc.split('x');
-            let (w, h) = (
-                p.next().and_then(|v| v.parse::<u32>().ok()),
-                p.next().and_then(|v| v.parse::<u32>().ok()),
-            );
-            let (w, h) = match (w, h) {
-                (Some(w), Some(h)) if w > 0 && h > 0 => (w, h),
-                _ => return Err(Error::input("live --scale needs WxH like 1280x720")),
-            };
-            argv.extend(["-vf".into(), format!("scale={w}:{h}")]);
+        // scale rides inside filter_complex when a slate card is held
+        if args.scale.is_some() && args.slate.is_none() {
+            argv.extend(["-vf".into(), format!("scale={cw}:{ch}")]);
         }
         argv.extend([
             "-c:v".into(),
@@ -129,6 +168,33 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         }
         argv.extend(["-t".into(), until.to_string()]);
     }
+    // slate card: normalized still + silence concatenated before the content
+    if args.slate.is_some() {
+        let fps = args.fps.map(|f| f as f64).unwrap_or(pfps);
+        let vchain = format!(
+            "scale={cw}:{ch}:force_original_aspect_ratio=decrease,pad={cw}:{ch}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps={fps},format=yuv420p"
+        );
+        let mut fc = format!("[0:v]{vchain}[vs];");
+        if has_audio {
+            fc.push_str(&format!(
+                "anullsrc=r=48000:cl=stereo,atrim=duration={slate_dur}[as];"
+            ));
+        }
+        fc.push_str(&format!("[{ni}:v]{vchain}[vm];"));
+        let maps = if has_audio {
+            fc.push_str(&format!(
+                "[{ni}:a]aresample=48000,aformat=channel_layouts=stereo[am];[vs][as][vm][am]concat=n=2:v=1:a=1[v][a]"
+            ));
+            vec!["[v]".to_string(), "[a]".to_string()]
+        } else {
+            fc.push_str("[vs][vm]concat=n=2:v=1:a=0[v]");
+            vec!["[v]".to_string()]
+        };
+        argv.extend(["-filter_complex", fc.trim_end_matches(';')]);
+        for m in &maps {
+            argv.extend(["-map", m.as_str()]);
+        }
+    }
     // test mode maps its two lavfi inputs explicitly (video from input 0,
     // tone from input 1); file inputs use the normal stream indexes
     let (vmap, amap) = if args.test {
@@ -157,11 +223,13 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         };
         // tee muxer doesn't do default stream selection — map explicitly,
         // then encode once and mux to ingest + local archive together
-        if has_video {
-            argv.extend(["-map", vmap]);
-        }
-        if has_audio {
-            argv.extend(["-map", amap]);
+        if args.slate.is_none() {
+            if has_video {
+                argv.extend(["-map", vmap]);
+            }
+            if has_audio {
+                argv.extend(["-map", amap]);
+            }
         }
         argv.extend([
             "-f".to_string(),
@@ -169,7 +237,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             format!("[f={fmt}]{}|[f={rec_fmt}]{}", args.to, rec.display()),
         ]);
     } else {
-        if args.test {
+        if args.test && args.slate.is_none() {
             if has_video {
                 argv.extend(["-map", vmap]);
             }
@@ -184,6 +252,8 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(contract.with_extra(json!({
         "to": args.to,
         "loop": args.loop_,
+        "slate": args.slate.is_some(),
+        "slate_dur": if args.slate.is_some() { slate_dur } else { 0.0 },
         "vbitrate": vbitrate,
         "abitrate": abitrate,
         "format": fmt,

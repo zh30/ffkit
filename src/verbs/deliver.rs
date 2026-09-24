@@ -22,15 +22,24 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--logo-opacity must be 0..=1"));
         }
     }
-    if args.cover.is_some() && !matches!(args.platform, DeliverPlatform::Podcast) {
+    let audio_pack = matches!(
+        args.platform,
+        DeliverPlatform::Podcast | DeliverPlatform::Audiobook
+    );
+    if args.cover.is_some() && !audio_pack {
         return Err(Error::input(
-            "deliver --cover only applies to --platform podcast (feed art)",
+            "deliver --cover only applies to --platform podcast/audiobook (feed art)",
         ));
     }
-    if matches!(args.platform, DeliverPlatform::Podcast) {
+    if args.chapters.is_some() && !audio_pack {
+        return Err(Error::input(
+            "deliver --chapters only applies to --platform podcast/audiobook",
+        ));
+    }
+    if audio_pack {
         if args.logo.is_some() || args.intro.is_some() || args.outro.is_some() {
             return Err(Error::input(
-                "deliver --logo/--intro/--outro need a video platform — podcast has no picture",
+                "deliver --logo/--intro/--outro need a video platform — audio packs have no picture",
             ));
         }
         return podcast(args, &probe, g);
@@ -223,6 +232,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     if args.to.is_none() {
         apply.extend(["-movflags", "+faststart"]);
     }
+    push_metadata(&mut apply, &args);
 
     let mut measure: Option<Argv> = None;
     let mut measured: Option<serde_json::Value> = None;
@@ -364,6 +374,25 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Xhs => "xhs",
         DeliverPlatform::Wechat => "wechat",
         DeliverPlatform::Podcast => "podcast",
+        DeliverPlatform::Audiobook => "audiobook",
+    }
+}
+
+/// Apple-style container tags — title/author(album artist)/album/genre/
+/// comment land on every platform's output.
+fn push_metadata(apply: &mut Argv, args: &DeliverArgs) {
+    for (k, v) in [
+        ("title", &args.title),
+        ("artist", &args.author),
+        ("album", &args.album),
+        ("genre", &args.genre),
+        ("comment", &args.comment),
+    ] {
+        if let Some(v) = v {
+            if !v.trim().is_empty() {
+                apply.extend(["-metadata", &format!("{k}={v}")]);
+            }
+        }
     }
 }
 
@@ -378,13 +407,77 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
     let mut apply = ffmpeg_base(g.progress);
     apply.push("-i");
     apply.push(&args.input);
+    let mut ni = 1u32;
     if let Some(cover) = &args.cover {
         crate::paths::ensure_input(cover)?;
         apply.push("-i");
         apply.push(cover);
         apply.extend(["-map", "0:a", "-map", "1:v"]);
+        ni += 1;
     } else {
         apply.push("-vn");
+    }
+    // --chapters: YouTube-format marks ("mm:ss title", the file
+    // `chapter --yt` writes) become real container chapters — Apple
+    // Podcasts/Apple Books turn them into seek stops.
+    let mut chap_ms: Vec<(u64, String)> = Vec::new();
+    let mut chap_file: Option<std::path::PathBuf> = None;
+    if let Some(cf) = &args.chapters {
+        crate::paths::ensure_input(cf)?;
+        let text = std::fs::read_to_string(cf)
+            .map_err(|e| Error::input(format!("deliver --chapters: {e}")))?;
+        for (i, line) in text.lines().enumerate() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let (ts, title) = line.split_once(' ').ok_or_else(|| {
+                Error::input(format!(
+                    "deliver --chapters line {}: needs 'mm:ss title'",
+                    i + 1
+                ))
+            })?;
+            let secs = crate::time::parse_time(ts).map_err(|_| {
+                Error::input(format!(
+                    "deliver --chapters line {}: bad time '{ts}'",
+                    i + 1
+                ))
+            })?;
+            let title = title.trim();
+            if title.is_empty() {
+                return Err(Error::input(format!(
+                    "deliver --chapters line {}: empty title",
+                    i + 1
+                )));
+            }
+            chap_ms.push(((secs * 1000.0).round().max(0.0) as u64, title.to_string()));
+        }
+        if chap_ms.is_empty() {
+            return Err(Error::input("deliver --chapters: no marks in the file"));
+        }
+        chap_ms.sort_by_key(|c| c.0);
+        // ffmetadata input carrying the chapter table (mp4 chpl atom)
+        let dur_ms = (probe.duration * 1000.0).round().max(0.0) as u64;
+        let mut meta = String::from(";FFMETADATA1\n");
+        for (i, (t, ti)) in chap_ms.iter().enumerate() {
+            let end = chap_ms
+                .get(i + 1)
+                .map(|c| c.0)
+                .unwrap_or(dur_ms.max(*t + 1));
+            meta.push_str(&format!(
+                "[CHAPTER]\nTIMEBASE=1/1000\nSTART={t}\nEND={}\ntitle={}\n",
+                end,
+                ti.replace('\n', " ")
+            ));
+        }
+        let tmp =
+            std::env::temp_dir().join(format!("ffkit-deliver-chap-{}.ffmeta", std::process::id()));
+        std::fs::write(&tmp, meta).map_err(|e| Error::output(format!("writing chapters: {e}")))?;
+        apply.extend(["-f", "ffmetadata", "-i"]);
+        apply.push(&tmp);
+        apply.extend(["-map_metadata", &ni.to_string()]);
+        apply.extend(["-map_chapters", &ni.to_string()]);
+        chap_file = Some(tmp);
     }
     let mut m = Argv::ffmpeg();
     m.extend(["-nostats", "-i"]);
@@ -414,19 +507,22 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
             &loudnorm::measure_filter(PODCAST_I, TARGET_TP, TARGET_LRA),
         ]);
     }
-    apply.extend(["-c:a", "aac", "-ar", "48000", "-b:a", "128k"]);
-    if args.cover.is_some() {
-        // .m4a resolves to the ipod muxer, which rejects video streams in
-        // ffmpeg 4.x — force mp4 (same container) so mjpeg attaches.
-        apply.extend([
-            "-c:v",
-            "mjpeg",
-            "-disposition:v:1",
-            "attached_pic",
-            "-f",
-            "mp4",
-        ]);
+    let ab = if matches!(args.platform, DeliverPlatform::Audiobook) {
+        "96k"
+    } else {
+        "128k"
+    };
+    apply.extend(["-c:a", "aac", "-ar", "48000", "-b:a", ab]);
+    if args.cover.is_some() || matches!(args.platform, DeliverPlatform::Audiobook) {
+        // .m4a/.m4b resolve to the ipod muxer, which rejects video streams
+        // in ffmpeg 4.x — force mp4 (same container) so mjpeg attaches and
+        // the chapter table writes.
+        if args.cover.is_some() {
+            apply.extend(["-c:v", "mjpeg", "-disposition:v:1", "attached_pic"]);
+        }
+        apply.extend(["-f", "mp4"]);
     }
+    push_metadata(&mut apply, &args);
     if let Some(ch) = args.channels {
         apply.extend(["-ac", &ch.to_string()]);
     }
@@ -444,17 +540,23 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
         argvs.push(m);
     }
     argvs.push(apply);
-    let mut c = engine::write_job("deliver", &[&args.input], &args.output, argvs, g)?;
+    let run = engine::write_job("deliver", &[&args.input], &args.output, argvs, g);
+    if let Some(tmp) = &chap_file {
+        let _ = std::fs::remove_file(tmp);
+    }
+    let mut c = run?;
     if !g.dry_run {
         let mut commands = m_commands;
         commands.extend(c.commands.clone());
         c.commands = commands;
     }
+    let platform = platform_name(args.platform);
     Ok(c.with_extra(json!({
-        "platform": "podcast",
+        "platform": platform,
         "target_i": PODCAST_I,
         "target_tp": TARGET_TP,
         "measured": measured,
         "cover": args.cover.is_some(),
+        "chapters": chap_ms.len(),
     })))
 }
