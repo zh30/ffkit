@@ -33,6 +33,28 @@ pub fn run(args: MulticamArgs, g: &Globals) -> Result<Contract, Error> {
     if args.at.is_empty() {
         return Err(Error::input("multicam needs at least one --at cut"));
     }
+
+    // --align: cross-correlate the two audio tracks (same pass as `align`)
+    // and shift camera B's legs by the detected offset — multicam without a
+    // separate align run when the two takes started at different wall times.
+    let mut b_shift = 0.0f64;
+    let mut aligned_ms: Option<f64> = None;
+    if args.align {
+        if !probes[0].has_audio {
+            return Err(Error::input("--align needs an audio track in both inputs"));
+        }
+        let a = crate::verbs::align::pcm(&args.cam_a, Some(30.0))?;
+        let b = crate::verbs::align::pcm(&args.cam_b, Some(30.0))?;
+        let lag = crate::verbs::align::detect_lag(
+            &a,
+            &b,
+            (30.0 * crate::verbs::align::SAMPLE_RATE as f64) as usize,
+        )
+        .ok_or_else(|| Error::input("no usable audio to align (too short)"))?;
+        let ms = lag as f64 * 1000.0 / crate::verbs::align::SAMPLE_RATE as f64;
+        b_shift = ms / 1000.0;
+        aligned_ms = Some((ms * 10.0).round() / 10.0);
+    }
     let mut cuts: Vec<f64> = Vec::new();
     for s in &args.at {
         let t = if s.trim().eq_ignore_ascii_case("end") {
@@ -82,13 +104,23 @@ pub fn run(args: MulticamArgs, g: &Globals) -> Result<Contract, Error> {
         } else {
             format!("cs{src}")
         };
+        // --align shifts camera B's legs by the detected offset: its take
+        // started `b_shift` seconds off A's clock, so content for shared
+        // timeline time T lives at T + b_shift in B's file.
+        let (s2, e2) = if *src == 1 && b_shift != 0.0 {
+            let lo = (s + b_shift).max(0.0);
+            let hi = (e + b_shift).max(lo + 0.02).min(probes[1].duration);
+            (lo, hi)
+        } else {
+            (*s, *e)
+        };
         fc.push(format!(
-            "[{vsrc}]trim=start={s:.3}:end={e:.3},setpts=PTS-STARTPTS[vs{k}]"
+            "[{vsrc}]trim=start={s2:.3}:end={e2:.3},setpts=PTS-STARTPTS[vs{k}]"
         ));
         ins.push_str(&format!("[vs{k}]"));
         if has_audio && !args.keep_audio {
             fc.push(format!(
-                "[{src}:a]atrim=start={s:.3}:end={e:.3},asetpts=PTS-STARTPTS[as{k}]"
+                "[{src}:a]atrim=start={s2:.3}:end={e2:.3},asetpts=PTS-STARTPTS[as{k}]"
             ));
             ins.push_str(&format!("[as{k}]"));
         }
@@ -168,6 +200,6 @@ pub fn run(args: MulticamArgs, g: &Globals) -> Result<Contract, Error> {
 
     let inputs: Vec<&Path> = vec![&args.cam_a, &args.cam_b];
     let mut c = engine::write_job("multicam", &inputs, &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "cuts": cuts, "angles": n, "keep_audio": args.keep_audio, "transition": args.transition }));
+    c = c.with_extra(json!({ "cuts": cuts, "angles": n, "keep_audio": args.keep_audio, "transition": args.transition, "align_offset_ms": aligned_ms }));
     Ok(c)
 }

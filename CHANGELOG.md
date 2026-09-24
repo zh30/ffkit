@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.260.0] — 2026-09-23
+
+- `multicam --align` — auto-sync camera B to A by audio cross-correlation inside the switch (no separate `align` pass; two takes that started at different wall times line up in one step. Needs broadband in-sync audio — pure tones don't correlate)
+- `channel --mode merge --with B` — amerge: interleave two tracks into one multichannel file (two mono lav mics → stereo host-L/guest-R podcast; two stereo stems → quad). Unlike `mix` it keeps every channel discrete
+- `scope --mode graph` — graphmonitor live filtergraph stats card in the corner (frames in/out + queue + pts per filter — encode-pipeline debug viz)
+- `title --file notes.txt` — hook text from a file (long cards / generated copy)
+
 ## [0.259.0] — 2026-09-23
 
 - `fx --kind wah` — auto-wah: asendcmd sweeps a resonant equalizer peak 350→2700Hz (`--strength` sets the LFO rate) — funk/EDU wobble without a pedal

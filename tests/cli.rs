@@ -27491,3 +27491,205 @@ fn r232_wah_stackmean_proxy_aligncheck_testsrc_silence() {
         mean_of(&sil)
     );
 }
+
+#[test]
+fn r233_merge_scopegraph_multicamalign_titlefile() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+
+    fn sh(args: &[String]) {
+        let st = Command::new("ffmpeg").args(args).status().expect("ffmpeg");
+        assert!(st.success());
+    }
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn chan_mean(p: &Path, side: &str) -> f64 {
+        // per-channel level: pan picks c0/c1 (channelsplit leaves a dangling
+        // pad on the side you don't map — pan doesn't)
+        let ch = if side == "[L]" { "c0" } else { "c1" };
+        let fc = format!("pan=mono|c0={ch},volumedetect[out]");
+        let o = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-y",
+                "-i",
+                &p.to_string_lossy(),
+                "-filter_complex",
+                &fc,
+                "-map",
+                "[out]",
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .expect("volumedetect");
+        let e = String::from_utf8_lossy(&o.stderr);
+        e.split("mean_volume: ")
+            .nth(1)
+            .and_then(|r| r.split(" dB").next())
+            .unwrap_or("")
+            .trim()
+            .parse()
+            .unwrap_or(0.0)
+    }
+
+    // channel --mode merge: two mono mics → stereo, input 0 on L
+    let loud = d.join("loud.wav");
+    sh(&[
+        s("-hide_banner"),
+        s("-loglevel"),
+        s("error"),
+        s("-y"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=440:duration=1,volume=6dB"),
+        s("-c:a"),
+        s("pcm_s16le"),
+        loud.to_string_lossy().into_owned(),
+    ]);
+    let quiet = d.join("quiet.wav");
+    sh(&[
+        s("-hide_banner"),
+        s("-loglevel"),
+        s("error"),
+        s("-y"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("sine=frequency=880:duration=1,volume=-12dB"),
+        s("-c:a"),
+        s("pcm_s16le"),
+        quiet.to_string_lossy().into_owned(),
+    ]);
+    let mg = d.join("mg.wav");
+    let j = run_json(&[
+        "channel",
+        &loud.to_string_lossy(),
+        "-o",
+        &mg.to_string_lossy(),
+        "--mode",
+        "merge",
+        "--with",
+        &quiet.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let (l, r) = (chan_mean(&mg, "[L]"), chan_mean(&mg, "[R]"));
+    assert!(l - r > 10.0, "merge L loud / R quiet: L={l} R={r}");
+
+    // scope --mode graph: graphmonitor stats card renders
+    let f = fixture(d);
+    let scg = d.join("scg.mp4");
+    let j = run_json(&[
+        "scope",
+        &f.to_string_lossy(),
+        "-o",
+        &scg.to_string_lossy(),
+        "--mode",
+        "graph",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let v = run_json(&["probe", &scg.to_string_lossy()]);
+    assert!(v["probe"]["duration"].as_f64().unwrap() > 0.8);
+
+    // multicam --align: cam B audio shifted +400ms → offset lands ~400
+    let noise = d.join("noise.wav");
+    sh(&[
+        s("-hide_banner"),
+        s("-loglevel"),
+        s("error"),
+        s("-y"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("anoisesrc=duration=2.4:color=pink:amplitude=0.5:seed=42"),
+        s("-c:a"),
+        s("pcm_s16le"),
+        noise.to_string_lossy().into_owned(),
+    ]);
+    let cama = d.join("cama.mp4");
+    sh(&[
+        s("-hide_banner"),
+        s("-loglevel"),
+        s("error"),
+        s("-y"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("testsrc=duration=2:size=320x240:rate=30"),
+        s("-i"),
+        noise.to_string_lossy().into_owned(),
+        s("-map"),
+        s("0:v"),
+        s("-map"),
+        s("1:a"),
+        s("-c:v"),
+        s("libx264"),
+        s("-c:a"),
+        s("aac"),
+        s("-t"),
+        s("2"),
+        cama.to_string_lossy().into_owned(),
+    ]);
+    let camb = d.join("camb.mp4");
+    sh(&[
+        s("-hide_banner"),
+        s("-loglevel"),
+        s("error"),
+        s("-y"),
+        s("-f"),
+        s("lavfi"),
+        s("-i"),
+        s("testsrc2=duration=2:size=320x240:rate=30"),
+        s("-i"),
+        noise.to_string_lossy().into_owned(),
+        s("-filter_complex"),
+        s("[1:a]adelay=400:all=1[a]"),
+        s("-map"),
+        s("0:v"),
+        s("-map"),
+        s("[a]"),
+        s("-c:v"),
+        s("libx264"),
+        s("-c:a"),
+        s("aac"),
+        s("-t"),
+        s("2"),
+        camb.to_string_lossy().into_owned(),
+    ]);
+    let mc = d.join("mc.mp4");
+    let j = run_json(&[
+        "multicam",
+        &cama.to_string_lossy(),
+        &camb.to_string_lossy(),
+        "-o",
+        &mc.to_string_lossy(),
+        "--at",
+        "1.0",
+        "--align",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let off = j["extra"]["align_offset_ms"].as_f64().unwrap_or(0.0);
+    assert!((300.0..=500.0).contains(&off), "align ~400ms, got {off}");
+
+    // title --file: hook text from a file
+    let txt = d.join("hook.txt");
+    std::fs::write(&txt, "HELLO FROM FILE\nLINE TWO").unwrap();
+    let titled = d.join("titled.mp4");
+    let j = run_json(&[
+        "title",
+        &f.to_string_lossy(),
+        "-o",
+        &titled.to_string_lossy(),
+        "--file",
+        &txt.to_string_lossy(),
+        "--duration",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+}

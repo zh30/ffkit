@@ -478,3 +478,8 @@ an atempo'd whole-file render would shift the window.
 - `testsrc2` takes `size`/`rate`/`duration` params (fits the normal bars.rs branch); `mptestsrc` does NOT take `size=`.
 - `anullsrc=channel_layout=stereo:sample_rate=44100` produces true digital-black silence (−91dB) — the silence bed generator.
 - Equalizer `w` (width) is the full band width in Hz — `w=300` covers ±150 around center frequency.
+- `ainterleave` interleaves samples temporally — mono+mono becomes ONE mono stream of alternating samples (2s, 1 channel), NOT stereo. For dual-mic → stereo use `amerge` (input 0 lands on ch0/L, verified by level split).
+- `graphmonitor` consumes the stream and emits a stats card — overlay it via `split[a][b];[b]graphmonitor[sc];[a][sc]overlay` like other sink-renderers, never in the main path.
+- Pure tones (sine) defeat `detect_lag`/multicam `--align`: a 600Hz sine correlates at every 1.67ms period → 35ms false lag vs the true 400ms. Alignment needs broadband audio (speech, room tone, pink noise).
+- `channelsplit` errors on unmapped pads ("unconnected output"): extracting one side of stereo with `[L]` mapped and `[R]` dangling fails — use `pan=mono|c0=c0` / `c0=c1` to pick one channel instead.
+- `lut2` is a per-pixel two-input EXPRESSION filter (c0..c3 over x=input0 px, y=input1 px), not a LUT-map — gradient-map colorize via a ramp image does NOT work that way. Skipped.

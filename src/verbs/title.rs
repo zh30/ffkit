@@ -32,7 +32,14 @@ pub fn run(args: TitleArgs, g: &Globals) -> Result<Contract, Error> {
             "--align works on plain titles (drop --outline/--shadow)",
         ));
     }
-    let raw = args.text.trim();
+    let file_text;
+    let raw = if let Some(f) = &args.file {
+        file_text = std::fs::read_to_string(f)
+            .map_err(|e| Error::input(format!("--file {}: {e}", f.display())))?;
+        file_text.trim()
+    } else {
+        args.text.as_deref().unwrap_or("").trim()
+    };
     if raw.is_empty() {
         return Err(Error::input("--text is empty"));
     }

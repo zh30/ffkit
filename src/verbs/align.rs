@@ -13,11 +13,11 @@ use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
-const SAMPLE_RATE: u32 = 16_000;
+pub(crate) const SAMPLE_RATE: u32 = 16_000;
 const ANALYZE_SECS: f64 = 45.0;
 
 /// Decode `path` to mono s16 PCM at SAMPLE_RATE, truncated to ANALYZE_SECS.
-fn pcm(path: &Path, window: Option<f64>) -> Result<Vec<f32>, Error> {
+pub(crate) fn pcm(path: &Path, window: Option<f64>) -> Result<Vec<f32>, Error> {
     let mut a = vec![
         "-hide_banner".to_string(),
         "-nostdin".to_string(),
@@ -122,7 +122,7 @@ fn fft(a: &mut [Cx], inverse: bool) {
 }
 
 /// Lag of `b` relative to `a` in samples: positive = b's content starts later.
-fn detect_lag(a: &[f32], b: &[f32], max_lag: usize) -> Option<i64> {
+pub(crate) fn detect_lag(a: &[f32], b: &[f32], max_lag: usize) -> Option<i64> {
     if a.len() < 4_000 || b.len() < 4_000 {
         return None;
     }

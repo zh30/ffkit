@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.259.0
+version: 0.260.0
 
 
 
@@ -102,7 +102,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | sync a second take to the camera master | `align` (`ref target -o out` — auto-detects offset by audio cross-correlation; multi-cam, external recorder; `--window` bounds long takes; `--check` reports `offset_ms`/`direction` without rendering — sync QC) |
 | rolling end credits | `scroll` (`--text`/`--file`, `--at` comma list replays the roll at several marks / `end` with `--dur`, `--align`, `--wrap`, `--speed` px/s, `--opacity` ghost credits — text rolls bottom→top) |
 | splice a clip into the middle | `insert` (`--clip x.mp4 --at T`, comma list splices at several points, `end` appends — b-roll/ad read without manual split+concat; `--dur N` first N sec only), `--transition` xfade both joints, `--volume` clip audio |
-| two-camera angle switching | `multicam` (`A B --at t1,t2,...` (`end` ok) — run `align` first if the takes aren't synced; `--keep-audio` stays on cam A, `--transition` soft cuts) |
+| two-camera angle switching | `multicam` (`A B --at t1,t2,...` (`end` ok) — `--align` auto-syncs B to A by audio xcorr first (needs in-sync audio on both, broadband like speech/noise — pure tones don't correlate); `--keep-audio` stays on cam A, `--transition` soft cuts) |
 | reframe 9:16 keeping faces | `crop` (`--aspect 9:16 --anchor top` keeps the face) |
 | attach album cover art | `art` (`--image cover.png`) → mp3/m4a/mp4/mkv, `--extract` pull cover out |
 | grab a cover/thumbnail frame | `thumb` / `extract` / `cover` (`--at`, comma `--at` = one still per time; `thumb --frame`, `--count N` even spreads, `--from end-N` tail window) → jpg/png — comma `extract --gif --at` = one GIF per beat |
@@ -249,7 +249,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | magnify subtle motion | `amplify` (`--amount` factor, `--radius` frames, `--threshold` diff cap, `--at` window) |
 | keep one color | `selective` (`--color C`/`--similarity`/`--blend` edge feather, `--engine chroma` chromahold for saturated hues, `--at` window) |
 | test card | `bars` (`--size`/`--dur`/`--hd`/`--tone` 1kHz, `--kind sd|pal100|pal75|rgb|yuv|allrgb|allyuv|mptest|testsrc` other patterns — allrgb/allyuv = full color-cube QC sweeps, mptest = encoder-torture cycle, testsrc = all-in-one animated calibration card) |
-| QC scope overlay | `scope` (`--mode vector|wave|hist|mvs|data|qp|pix|osc|drift|loud|cie|palette` — drift = luma-ramp curve, loud = loudness-over-time curve, cie = CIE-1931 gamut horseshoe, palette = color-swatch grid (GIF/8-bit QC), `--position` corner, `--at` window) |
+| QC scope overlay | `scope` (`--mode vector|wave|hist|mvs|data|qp|pix|osc|drift|loud|cie|palette|graph` — drift = luma-ramp curve, loud = loudness-over-time curve, cie = CIE-1931 gamut horseshoe, palette = color-swatch grid (GIF/8-bit QC), graph = live filtergraph stats card (encode-pipeline debug), `--position` corner, `--at` window) |
 | anamorphic restore | `desqueeze` (`--factor` lens ratio, `--axis`) |
 | comic look | `cartoon` (`--levels` posterize, `--at` window) |
 | thermal luma map | `heat` (`--preset` pseudocolor, `--at` window) |
@@ -321,7 +321,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | strip letterbox/pillarbox | `autocrop` (cropdetect scan → crop, `--buffer N` keeps N px edge) |
 | contact sheet / preview grid | `sheet` (`--cols`/`--rows`/`--tile` → PNG, `--time` stamps, `--from`/`--to` window) |
 | player seek-preview thumbnails | `sprite` (`--every` secs → `<stem>-N.jpg` sheets + `.vtt` with `#xywh` cues) |
-| title card mid-clip | `title` (`--text`, `--at` S for lower-third timing) |
+| title card mid-clip | `title` (`--text` or `--file notes.txt`, `--at` S for lower-third timing) |
 | voice-over on video's own audio | `replace --audio V --mix G --duck` (sidechain) |
 | pitch-shift voice/music | `pitch` (`--at`/`--dur` window, `--semitones N`, duration preserved; `--formant` natural timbre via librubberband) |
 | film grain | `grade --grain N` |
@@ -338,7 +338,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | fix a color cast / white balance | `wb` (auto per-channel normalization; `--strength`, `--independence 0` keeps grade, `--smooth` frames, `--engine greyedge` gentler cast fix) |
 | QC a clip for strobes before posting | `scan` — also reports `flash_frames`/`flash_max_badness` (photosensitive-epilepsy check) |
 | stereo too wide / phase issues | `channel` `--mode base --pan -1..1` (-1 folds to mono, +1 widens) |
-| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `bal --pan -1..1` rebalance lopsided stereo, `split` → `_L/_R.wav` host/guest stems, `mid`/`side` M/S extract, `haas` stereo widening, `surround` stereo→5.1 upmix, `bands --freqs 300,3000` → `<stem>_bandN.wav` frequency-band stems for remixes, `sync --side right --cm 34` delay the closer mic by its distance to fix two-mic comb-filtering, `earwax` headphone widening) |
+| one-ear voice fix / pan the mix | `channel` (`--mode dualmono`/`mono`/`swap`/`mix51` surround→stereo, `pan --pan -1..1` to one ear, `bal --pan -1..1` rebalance lopsided stereo, `split` → `_L/_R.wav` host/guest stems, `merge --with B` two tracks → one multichannel file (mono+mono → stereo host-L/guest-R podcast), `mid`/`side` M/S extract, `haas` stereo widening, `surround` stereo→5.1 upmix, `bands --freqs 300,3000` → `<stem>_bandN.wav` frequency-band stems for remixes, `sync --side right --cm 34` delay the closer mic by its distance to fix two-mic comb-filtering, `earwax` headphone widening) |
 | loop to a length | `loop --until SEC` |
 | text draft watermark | `title --tile N` |
 | audio EQ polish | `eq` (`--bass`/`--treble`/`--presence` dB) |

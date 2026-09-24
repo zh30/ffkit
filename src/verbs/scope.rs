@@ -98,6 +98,11 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
         // clips. Renders its own square, so scale AFTER it
         ScopeMode::Cie => "ciescope=system=hdtv:gamuts=rec709".to_string(),
         ScopeMode::Palette => "showpalette".to_string(),
+        ScopeMode::Graph => {
+            // renders its own graph's stats (frames in/out, queued frames,
+            // pts) — encode-pipeline sanity viz; s scales the monitor card
+            format!("graphmonitor=s={sw}x{sh}:o=1", sw = sw, sh = sh)
+        }
         ScopeMode::Mvs | ScopeMode::Data => unreachable!(),
     };
     let (x, y) = match args.position.as_str() {
@@ -142,6 +147,16 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
             n = (sw / 16).clamp(1, 100),
             sw = sw,
             sh = sh,
+            x = x,
+            y = y,
+            en = en
+        )
+    } else if matches!(args.mode, ScopeMode::Graph) {
+        // graphmonitor consumes the stream and emits the monitor card, so it
+        // needs a split bypass like the other renderer modes
+        format!(
+            "[0:v]split[a][b];[b]{filt}[sc];[a][sc]overlay={x}:{y}{en}[v]",
+            filt = filt,
             x = x,
             y = y,
             en = en

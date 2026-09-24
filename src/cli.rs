@@ -1307,6 +1307,9 @@ pub enum ScopeMode {
     /// palette — frame's color palette swatch grid (GIF/8-bit QC: see the
     /// actual palette the encoder picked; palette-source review)
     Palette,
+    /// graphmonitor — live filtergraph stats card (frames in/out, queue,
+    /// pts) for encode-pipeline debugging
+    Graph,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2894,8 +2897,11 @@ pub struct TitleArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Hook text (newlines allowed)
+    #[arg(long, required_unless_present = "file")]
+    pub text: Option<String>,
+    /// Read the hook text from a file instead of --text
     #[arg(long)]
-    pub text: String,
+    pub file: Option<PathBuf>,
     /// Auto word-wrap the text at N chars per line
     #[arg(long)]
     pub wrap: Option<u32>,
@@ -3381,6 +3387,9 @@ pub struct ChannelArgs {
     /// With --mode sync: cm the --side mic sat closer to the source (0-100)
     #[arg(long)]
     pub cm: Option<f64>,
+    /// With --mode merge: second track interleaved after this one's channels
+    #[arg(long)]
+    pub with: Option<PathBuf>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
@@ -3437,6 +3446,10 @@ pub enum ChannelMode {
     /// earwax — headphone-oriented stereo widening (crossfeed delay); makes
     /// podcasts/videos feel less "inside the skull" on earbuds
     Earwax,
+    /// Merge --with FILE into one multichannel track (amerge): two mono mics
+    /// → stereo (host L / guest R), two stereo stems → quad; input 0 lands
+    /// on the first channels
+    Merge,
     /// stereowiden — dedicated M/S widener (delay+feedback+crossfeed): wider
     /// stereo image on mono-safe terms; --amount 0..1 scales crossfeed 0.05..0.8
     Stereowiden,
@@ -4473,6 +4486,10 @@ pub struct MulticamArgs {
     /// Switch to the other camera at each of these times (comma list)
     #[arg(long, value_delimiter = ',')]
     pub at: Vec<String>,
+    /// Auto-sync camera B to A by audio cross-correlation first — no separate
+    /// `align` pass when the two takes started at different wall times
+    #[arg(long)]
+    pub align: bool,
     /// Keep camera A's audio for the whole edit instead of cutting
     /// audio with the angle (interview standard)
     #[arg(long)]

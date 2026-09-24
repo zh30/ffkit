@@ -144,6 +144,39 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
             "cm": cm,
         })));
     }
+    if args.mode == ChannelMode::Merge {
+        // amerge interleaves whole inputs channel-wise: two mono lav mics
+        // become a stereo podcast track (input 0 = L), two stereo stems a
+        // quad file. Unlike mix(1) it keeps every channel discrete.
+        let other = args
+            .with
+            .as_deref()
+            .ok_or_else(|| Error::input("--mode merge needs --with FILE (the second track)"))?;
+        crate::paths::ensure_input(other)?;
+        let mut argv = ffmpeg_base(g.progress);
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.push("-i");
+        argv.push(other);
+        let fc = "[0:a][1:a]amerge=inputs=2[a]".to_string();
+        argv.extend(["-filter_complex", &fc, "-map", "[a]", "-map", "0:v?"]);
+        if probe.has_video {
+            argv.extend(["-c:v", "copy"]);
+        }
+        argv.extend(["-c:a", "aac"]);
+        argv.push(&args.output);
+        let c = engine::write_job(
+            "channel",
+            &[&args.input, other],
+            &args.output,
+            vec![argv],
+            g,
+        )?;
+        return Ok(c.with_extra(json!({
+            "mode": "Merge",
+            "with": other.display().to_string(),
+        })));
+    }
     let af = match args.mode {
         // single-mic voice recorded on one ear → copy ch0 to all
         ChannelMode::Dualmono => "pan=stereo|FL<c0|FR<c0".to_string(),
@@ -232,7 +265,7 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
         ChannelMode::Earwax => {
             "aformat=channel_layouts=stereo:sample_rates=44100,earwax".to_string()
         }
-        ChannelMode::Split | ChannelMode::Bands | ChannelMode::Sync => {
+        ChannelMode::Split | ChannelMode::Bands | ChannelMode::Sync | ChannelMode::Merge => {
             unreachable!("handled above")
         }
     };
