@@ -698,5 +698,24 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         json!(null)
     };
+    // HDR / wide-gamut QC straight from the container's colour metadata —
+    // zero extra decode. HDR = PQ (smpte2084) or HLG transfer; wide gamut =
+    // BT.2020 primaries. Untagged masters report the raw "unknown" strings.
+    let trc = probe
+        .color_transfer
+        .clone()
+        .unwrap_or_else(|| "unknown".into());
+    let prm = probe
+        .color_primaries
+        .clone()
+        .unwrap_or_else(|| "unknown".into());
+    extra["hdr"] = json!(matches!(
+        trc.as_str(),
+        "smpte2084" | "arib-std-b67" | "bt2020-10" | "bt2020-12"
+    ));
+    extra["wide_gamut"] = json!(prm.contains("2020"));
+    extra["color_space"] = json!(probe.color_space.clone());
+    extra["color_primaries"] = json!(prm);
+    extra["color_transfer"] = json!(trc);
     Ok(Contract::ok("scan", None, Some(probe)).with_extra(extra))
 }

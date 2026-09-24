@@ -54,10 +54,20 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --encrypt needs an ISOBMFF output (mp4/mov/m4a/m4b)",
         ));
     }
-    if args.cover.is_some() && !langs.is_empty() {
-        return Err(Error::input(
-            "remux --cover and --lang pick different stream sets — use them separately",
-        ));
+    if let Some(d) = args.audio_delay {
+        if !d.is_finite() || d == 0.0 {
+            return Err(Error::input(
+                "remux --audio-delay needs a nonzero seconds value",
+            ));
+        }
+        if !probe.has_audio {
+            return Err(Error::input("remux --audio-delay: input has no audio"));
+        }
+        if args.audio || args.video || !langs.is_empty() {
+            return Err(Error::input(
+                "remux --audio-delay only applies to a full repack — drop --audio/--video/--lang",
+            ));
+        }
     }
     let mut argv = ffmpeg_base(g.progress);
     // Input-side -ss seeks to the nearest keyframe at/below --from — the
@@ -65,9 +75,35 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(f) = args.from {
         argv.extend(["-ss".into(), f.to_string()]);
     }
+    if args.audio_delay.unwrap_or(0.0) < 0.0 {
+        // advancing the audio = delaying everything else instead
+        argv.extend([
+            "-itsoffset".into(),
+            (-args.audio_delay.unwrap()).to_string(),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     let mut ni = 1u32;
+    if let Some(d) = args.audio_delay {
+        if d > 0.0 {
+            if let Some(f) = args.from {
+                argv.extend(["-ss".into(), f.to_string()]);
+            }
+            argv.extend(["-itsoffset".into(), d.to_string()]);
+            argv.push("-i");
+            argv.push(&args.input);
+            ni += 1;
+        } else {
+            if let Some(f) = args.from {
+                argv.extend(["-ss".into(), f.to_string()]);
+            }
+            argv.push("-i");
+            argv.push(&args.input);
+            ni += 1;
+        }
+    }
+    let cover_idx = ni;
     if let Some(cover) = &args.cover {
         crate::paths::ensure_input(cover)?;
         argv.push("-i");
@@ -157,6 +193,14 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("remux --video: input has no video"));
         }
         argv.extend(["-map", "0:v", "-c:v", "copy"]);
+    } else if args.audio_delay.is_some() {
+        // sync fix: non-audio streams from input 0, audio from the
+        // itsoffset-shifted second read of the same file
+        argv.extend(["-map", "0", "-map", "-0:a"]);
+        if args.no_subs {
+            argv.extend(["-map", "-0:s", "-map", "-0:d"]);
+        }
+        argv.extend(["-map", "1:a", "-c", "copy"]);
     } else {
         if args.no_subs {
             // negative maps drop subtitle/data streams; attachments stay
@@ -184,7 +228,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     // video index 0 is the pic itself on audio-only rips, otherwise it
     // trails the content's own video.
     if args.cover.is_some() {
-        argv.extend(["-map", "1:v"]);
+        argv.extend(["-map".to_string(), format!("{cover_idx}:v")]);
         let pic_idx = if args.audio || (!probe.has_video && !args.video) {
             0u32
         } else {
@@ -299,7 +343,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     let mut c = c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay }),
     );
     if let Some((key, kid)) = enc_kv {
         c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));

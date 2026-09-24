@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.276.0] — 2026-09-24
+
+### Added
+- `dash --ladder 1080,720,480` — ABR packaging: one encode per rung → N video Representations at tiered bitrates (4500/2800/1400/800/500k) in a single AdaptationSet, audio in its own group; players switch rungs with bandwidth. 2..=6 heights, rejects `--copy`/`--audio-only`
+- `live --start T` — input-side seek before `-re` pacing begins: start the stream T seconds into the source (replay archives mid-way, skip a long event's dead head); rejected on `--list`/`--test`
+- `remux --audio-delay SEC` — shifts the audio track against the video without re-encoding (second `-itsoffset` read of the same file; positive delays audio, negative advances it). Lip-sync repair on a lossless repack; works with `--no-subs`/`--cover`/`--chapters`, rejects `--audio`/`--video`/`--lang` stream-picks
+- `scan` — HDR & wide-gamut QC straight from container colour tags (zero extra decode): `hdr` (PQ/HLG transfer), `wide_gamut` (BT.2020 primaries), plus raw `color_space`/`color_primaries`/`color_transfer` fields on the probe
+
 ## [0.275.0] — 2026-09-23
 
 ### Added

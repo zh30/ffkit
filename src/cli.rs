@@ -3797,6 +3797,11 @@ pub struct RemuxArgs {
     /// 32-hex key identifier for --encrypt (random when omitted)
     #[arg(long)]
     pub kid: Option<String>,
+    /// Shift the audio track by SEC seconds against the video — lip-sync
+    /// repair without re-encoding (positive delays audio, negative
+    /// advances it; requires the video stream to be kept)
+    #[arg(long, allow_negative_numbers = true)]
+    pub audio_delay: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4506,6 +4511,10 @@ pub struct LiveArgs {
     /// Loop the clip forever (24/7 music streams, premiere replays)
     #[arg(long = "loop")]
     pub loop_: bool,
+    /// Start streaming from T seconds into the source (skip a long event's
+    /// dead head — replay archives mid-way; input-side seek, fast)
+    #[arg(long)]
+    pub start: Option<f64>,
     /// Video bitrate for the live encode (default 2500k — ingest-safe)
     #[arg(long)]
     pub vbitrate: Option<String>,
@@ -4717,6 +4726,11 @@ pub struct DashArgs {
     /// Audio-only stream package (-vn; podcasts, voice-over DASH)
     #[arg(long)]
     pub audio_only: bool,
+    /// ABR ladder: comma list of heights (e.g. 1080,720,480) → N video
+    /// Representations at tiered bitrates in one manifest
+    /// (adaptive DASH — players switch rungs with bandwidth)
+    #[arg(long, value_delimiter = ',')]
+    pub ladder: Vec<u32>,
 }
 
 #[derive(clap::Args, Debug)]

@@ -31,6 +31,23 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
             )));
         }
     }
+    let mut hs = args.ladder.clone();
+    if !hs.is_empty() {
+        if args.copy {
+            return Err(Error::input("--ladder doesn't combine with --copy"));
+        }
+        if args.audio_only {
+            return Err(Error::input("--ladder doesn't combine with --audio-only"));
+        }
+        if !probe.has_video {
+            return Err(Error::input("--ladder needs a video stream"));
+        }
+        hs.sort_unstable_by(|a, b| b.cmp(a));
+        hs.dedup();
+        if hs.len() < 2 || hs.len() > 6 {
+            return Err(Error::input("--ladder needs 2..=6 heights"));
+        }
+    }
 
     // -o is the manifest name (or a directory → <dir>/manifest.mpd)
     let (dir, manifest): (PathBuf, PathBuf) = if args.output.extension().is_some() {
@@ -57,7 +74,7 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         if probe.has_audio {
             argv.extend(["-c:a".to_string(), "copy".to_string()]);
         }
-    } else {
+    } else if hs.is_empty() {
         if probe.has_video && !args.audio_only {
             argv.extend([
                 "-vf".to_string(),
@@ -105,6 +122,83 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         if args.audio_only {
             argv.extend(["-vn".to_string()]);
         }
+    } else {
+        // ABR ladder: one encode per rung → N Representations in one
+        // AdaptationSet; audio rides a second AdaptationSet
+        let n = hs.len();
+        let bitrate = |h: u32| -> u32 {
+            if h >= 1080 {
+                4500
+            } else if h >= 720 {
+                2800
+            } else if h >= 480 {
+                1400
+            } else if h >= 360 {
+                800
+            } else {
+                500
+            }
+        };
+        let mut fc = String::new();
+        fc.push_str(&format!(
+            "[0:v]split={n}{}",
+            (0..n).map(|i| format!("[sp{i}]")).collect::<String>()
+        ));
+        for (i, h) in hs.iter().enumerate() {
+            fc.push_str(&format!(";[sp{i}]scale=-2:{h}[lv{i}]"));
+        }
+        argv.extend(["-filter_complex".to_string(), fc]);
+        for (i, h) in hs.iter().enumerate() {
+            let r = bitrate(*h);
+            argv.extend([
+                "-map".to_string(),
+                format!("[lv{i}]"),
+                format!("-c:v:{i}"),
+                if args.webm {
+                    "libvpx-vp9".to_string()
+                } else {
+                    "libx264".to_string()
+                },
+                format!("-b:v:{i}"),
+                format!("{r}k"),
+                format!("-maxrate:v:{i}"),
+                format!("{r}k"),
+                format!("-bufsize:v:{i}"),
+                format!("{}k", r * 2),
+            ]);
+            if args.webm {
+                argv.extend([format!("-row-mt:v:{i}"), "1".to_string()]);
+            } else {
+                argv.extend([
+                    format!("-pix_fmt:v:{i}"),
+                    "yuv420p".to_string(),
+                    format!("-preset:v:{i}"),
+                    "veryfast".to_string(),
+                ]);
+            }
+        }
+        let n_streams = n;
+        if probe.has_audio {
+            argv.extend([
+                "-map".to_string(),
+                "0:a".to_string(),
+                "-c:a".to_string(),
+                if args.webm {
+                    "libopus".to_string()
+                } else {
+                    "aac".to_string()
+                },
+                "-b:a".to_string(),
+                "96k".to_string(),
+            ]);
+        }
+        let vids: Vec<String> = (0..n_streams).map(|i| i.to_string()).collect();
+        let adapt = if probe.has_audio {
+            format!("id=0,streams={} id=1,streams={n_streams}", vids.join(","))
+        } else {
+            format!("id=0,streams={}", vids.join(","))
+        };
+        argv.extend(["-adaptation_sets".to_string(), adapt]);
     }
     argv.extend([
         "-f".to_string(),
@@ -180,5 +274,10 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         "single": args.single,
         "webm": args.webm,
         "window": args.window.unwrap_or(0),
+        "ladder": hs
+            .iter()
+            .map(|h| format!("{h}p"))
+            .collect::<Vec<String>>()
+            .join(","),
     })))
 }

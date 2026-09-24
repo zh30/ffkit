@@ -31106,3 +31106,184 @@ fn r248_live_srt_hevc_subs_circle_test() {
         .expect("ffprobe");
     assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "1");
 }
+
+#[test]
+fn r249_dash_ladder_live_start_scan_hdr_remux_delay_test() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn ffmpeg(args: &[String]) -> std::process::Output {
+        Command::new("ffmpeg").args(args).output().expect("ffmpeg")
+    }
+
+    // dash --ladder: two Representations in one video AdaptationSet at
+    // tiered bandwidths (360p=800k, 240p=500k), audio in its own group
+    let out = d.join("dash");
+    let j = run_json(&[
+        "dash",
+        &f.to_string_lossy(),
+        "-o",
+        &out.to_string_lossy(),
+        "--ladder",
+        "360,240",
+        "--seg",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["ladder"], "360p,240p");
+    let mpd = std::fs::read_to_string(out.join("manifest.mpd")).unwrap();
+    assert!(
+        mpd.contains("AdaptationSet id=\"0\" contentType=\"video\""),
+        "{mpd}"
+    );
+    assert!(
+        mpd.contains("AdaptationSet id=\"1\" contentType=\"audio\""),
+        "{mpd}"
+    );
+    assert!(mpd.contains("height=\"360\""), "{mpd}");
+    assert!(mpd.contains("height=\"240\""), "{mpd}");
+    assert!(mpd.contains("bandwidth=\"800000\""), "{mpd}");
+    assert!(mpd.contains("bandwidth=\"500000\""), "{mpd}");
+    assert!(out.join("init-0.m4s").exists());
+    assert!(out.join("init-1.m4s").exists());
+    let j = run_json(&[
+        "dash",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("x").to_string_lossy(),
+        "--ladder",
+        "360,240",
+        "--copy",
+    ]);
+    assert_eq!(j["status"], "failed");
+    let j = run_json(&[
+        "dash",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("x").to_string_lossy(),
+        "--ladder",
+        "360",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // live --start: input-side seek before -re pacing (archive proves it ran)
+    let arch = d.join("lv.mp4");
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--start",
+        "1",
+        "--until",
+        "0.5",
+        "--record",
+        &arch.to_string_lossy(),
+        "--to",
+        "udp://127.0.0.1:49996",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["start"], 1.0);
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--test",
+        "--start",
+        "1",
+        "--to",
+        "tcp://127.0.0.1:1",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // remux --audio-delay: +0.4s shifts the audio track's start_time;
+    // -0.4s delays the video side instead (audio advances relatively)
+    let rd = d.join("rd.mp4");
+    let j = run_json(&[
+        "remux",
+        &f.to_string_lossy(),
+        "-o",
+        &rd.to_string_lossy(),
+        "--audio-delay",
+        "0.4",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream=start_time",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&rd)
+        .output()
+        .expect("ffprobe");
+    let st: f64 = String::from_utf8_lossy(&o.stdout).trim().parse().unwrap();
+    assert!((st - 0.4).abs() < 0.1, "audio start_time {st}");
+    let rd2 = d.join("rd2.mp4");
+    let j = run_json(&[
+        "remux",
+        &f.to_string_lossy(),
+        "-o",
+        &rd2.to_string_lossy(),
+        "--audio-delay",
+        "-0.4",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "stream=start_time",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&rd2)
+        .output()
+        .expect("ffprobe");
+    let st: f64 = String::from_utf8_lossy(&o.stdout).trim().parse().unwrap();
+    assert!((st - 0.4).abs() < 0.1, "video start_time {st}");
+
+    // scan: HDR / wide-gamut QC from container colour tags — the untagged
+    // fixture reports false; bt2020 primaries + smpte2084 transfer → true
+    let j = run_json(&["scan", &f.to_string_lossy()]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["hdr"], false);
+    assert_eq!(j["extra"]["wide_gamut"], false);
+    let hdr = d.join("hdr.mp4");
+    let o = ffmpeg(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-i"),
+        f.to_string_lossy().into_owned(),
+        s("-c:v"),
+        s("libx264"),
+        s("-t"),
+        s("0.5"),
+        s("-color_primaries"),
+        s("bt2020"),
+        s("-color_trc"),
+        s("smpte2084"),
+        s("-colorspace"),
+        s("bt2020nc"),
+        s("-an"),
+        hdr.to_string_lossy().into_owned(),
+    ]);
+    assert!(o.status.success());
+    let j = run_json(&["scan", &hdr.to_string_lossy()]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["hdr"], true);
+    assert_eq!(j["extra"]["wide_gamut"], true);
+    assert_eq!(j["extra"]["color_transfer"], "smpte2084");
+}

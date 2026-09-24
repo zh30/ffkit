@@ -25,6 +25,12 @@ pub struct Probe {
     pub sample_rate: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pix_fmt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color_space: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color_primaries: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color_transfer: Option<String>,
     pub has_video: bool,
     pub has_audio: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -96,6 +102,12 @@ struct FfprobeStream {
     avg_frame_rate: Option<String>,
     #[serde(default)]
     pix_fmt: Option<String>,
+    #[serde(default)]
+    color_space: Option<String>,
+    #[serde(default)]
+    color_primaries: Option<String>,
+    #[serde(default)]
+    color_transfer: Option<String>,
     channels: Option<u32>,
     #[serde(default)]
     sample_rate: Option<String>,
@@ -218,6 +230,9 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
             .and_then(parse_f64)
             .map(|n| n as u32),
         pix_fmt: video.and_then(|v| v.pix_fmt.clone()),
+        color_space: video.and_then(|v| v.color_space.clone()),
+        color_primaries: video.and_then(|v| v.color_primaries.clone()),
+        color_transfer: video.and_then(|v| v.color_transfer.clone()),
         has_video: video.is_some(),
         has_audio: audio.is_some(),
         size_bytes: parsed

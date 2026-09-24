@@ -549,3 +549,7 @@ an atempo'd whole-file render would shift the window.
 - **FLV can't carry HEVC on ffmpeg 4.x** — `live --codec hevc` must pair
   with an MPEG-TS transport (`srt://`/`udp://`); SRT URLs ride the same
   mpegts path (`?mode=listener` receiver side, caller is default).
+- **DASH `-adaptation_sets streams=` indexes OUTPUT stream order** — `id=0,streams=0,1 id=1,streams=2` groups output streams 0,1 (the two `-map [lvN]` video rungs) vs stream 2 (`-map 0:a` audio). The indexes are NOT input stream indexes; count them in `-map` emission order.
+- **`-itsoffset` shifts ONE input's timestamps pre-demux** — audio-delay on a lossless repack = read the file twice (`-i f -itsoffset D -i f`), take non-audio from the first read and audio from the shifted one (`-map 0 -map -0:a -map 1:a`). Negative delay just puts the offset on the video-side input instead. Combine with `-ss` by repeating it before EACH `-i`.
+- **hls subtitle groups / `iframe_playlist` / `byte_range` flags don't exist on ffmpeg 4.4** — `-var_stream_map "… s:0,sgroup:sub"` fails with "No streams to mux", and the two `-hls_flags` values are unknown constants (5.x+). `single_file` already emits `EXT-X-BYTERANGE` entries — a `--byterange` flag would be a dupe.
+- **ffprobe omits `color_*` fields on untagged video** — `color_space`/`color_primaries`/`color_transfer` only appear when the bitstream/container actually carries them; treat `None` as "unknown", not an error. Synth an HDR fixture with `-color_primaries bt2020 -color_trc smpte2084 -colorspace bt2020nc`.

@@ -28,6 +28,16 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             "live needs an input file (or --test for the built-in card)",
         ));
     }
+    if let Some(t) = args.start {
+        if !t.is_finite() || t <= 0.0 {
+            return Err(Error::input("live --start needs seconds > 0"));
+        }
+        if args.list || args.test {
+            return Err(Error::input(
+                "live --start seeks a file — not a --list manifest or --test card",
+            ));
+        }
+    }
     if args.list && args.input.is_none() {
         return Err(Error::input("live --list needs a manifest file"));
     }
@@ -190,6 +200,10 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-f", "concat", "-safe", "0", "-i"]);
         argv.push(args.input.as_deref().unwrap_or_else(|| Path::new("")));
     } else {
+        // input-side -ss: keyframe seek before -re pacing starts
+        if let Some(t) = args.start {
+            argv.extend(["-ss", &t.to_string()]);
+        }
         argv.push("-i");
         argv.push(args.input.as_deref().unwrap_or_else(|| Path::new("")));
     }
@@ -471,6 +485,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         "record": args.record,
         "until": args.until,
         "subs": args.subs.is_some(),
+        "start": args.start.unwrap_or(0.0),
         "list": args.list,
         "files": list_files.len(),
         "test": args.test,
