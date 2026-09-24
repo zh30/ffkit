@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.305.0] — 2026-09-24
+
+### Added
+- `subs --find needle` — keep only cues whose text contains the needle (case-insensitive; extras report `found` — locate every "um"/phrase spoken, then cut or caption around it; refuses to mix with the standalone passes `--convert`/`--shift`/`--burn`/…).
+- `chapter --rate R` — rescale every mark ×R (marks authored for a cut that was then retimed — applies before `--shift`, scale-then-offset).
+- `probe`/`scan` `chapter_count` — embedded-TOC count in the container report (rides the same ffprobe call; `chapter --list` shows the marks themselves).
+- `live --volume 0..4` — scale the pushed audio gain without re-rendering the source (quiet a loud BGM feed; refused with `--no-audio`).
+- `deliver --platform skillshare|thinkific|podia|learnworlds|gumroad|wistia|domestika` — course & commerce video hosts (16:9 1080p, −14 LUFS).
+
 ## [0.304.0] — 2026-09-24
 
 ### Added

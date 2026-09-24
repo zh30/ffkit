@@ -154,6 +154,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         for (flag, set) in [
             ("card", args.card.is_some()),
             ("abitrate", args.abitrate.is_some()),
+            ("volume", args.volume.is_some()),
         ] {
             if set {
                 return Err(Error::input(format!(
@@ -162,6 +163,14 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
         has_audio = false;
+    }
+    if let Some(v) = args.volume {
+        if !has_audio {
+            return Err(Error::input("live --volume: input has no audio"));
+        }
+        if !(0.0..=4.0).contains(&v) {
+            return Err(Error::input("live --volume wants 0..=4"));
+        }
     }
     if args.slate.is_some() && !has_video {
         return Err(Error::input(
@@ -451,6 +460,10 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
     );
     // subs burn applies to the content chain only, never the slate card
     let vchain_content = format!("{vchain}{}", subs_chain.as_deref().unwrap_or(""));
+    let vol_chain = args
+        .volume
+        .map(|v| format!(",volume={v}"))
+        .unwrap_or_default();
     let mut vout = String::new();
     let mut aout: Option<String> = None;
     if args.slate.is_some() {
@@ -463,7 +476,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         fc.push_str(&format!("[{ni}:v]{vchain_content}[vm];"));
         if has_audio {
             fc.push_str(&format!(
-                "[{ni}:a]aresample=48000,aformat=channel_layouts=stereo[am];[vs][as][vm][am]concat=n=2:v=1:a=1[vc][ac];"
+                "[{ni}:a]aresample=48000,aformat=channel_layouts=stereo{vol_chain}[am];[vs][as][vm][am]concat=n=2:v=1:a=1[vc][ac];"
             ));
             aout = Some("[ac]".to_string());
         } else {
@@ -501,9 +514,18 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         fc.push_str(&format!("{lg}[lg];{vout}[lg]overlay={x}:{y}[vo];"));
         vout = "[vo]".to_string();
     }
+    if aout.is_none() && has_audio {
+        if let Some(v) = args.volume {
+            fc.push_str(&format!("[{amap}]volume={v}[avol];"));
+            aout = Some("[avol]".to_string());
+        }
+    }
     if !fc.is_empty() {
         argv.extend(["-filter_complex", fc.trim_end_matches(';')]);
-        argv.extend(["-map", vout.as_str()]);
+        // audio-only graphs leave vout empty — fall back to the raw video map
+        if has_video {
+            argv.extend(["-map", if vout.is_empty() { vmap } else { vout.as_str() }]);
+        }
         if let Some(a) = &aout {
             argv.extend(["-map", a.as_str()]);
         } else if has_audio {

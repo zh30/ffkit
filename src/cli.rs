@@ -1436,6 +1436,20 @@ pub enum DeliverPlatform {
     Kajabi,
     /// Patreon post video 16:9 landscape (1920x1080, -14 LUFS)
     Patreon,
+    /// Skillshare course video 16:9 landscape (1920x1080, -14 LUFS)
+    Skillshare,
+    /// Thinkific course video 16:9 landscape (1920x1080, -14 LUFS)
+    Thinkific,
+    /// Podia course/digital-download video 16:9 landscape (1920x1080, -14 LUFS)
+    Podia,
+    /// LearnWorlds course video 16:9 landscape (1920x1080, -14 LUFS)
+    Learnworlds,
+    /// Gumroad digital-product video 16:9 landscape (1920x1080, -14 LUFS)
+    Gumroad,
+    /// Wistia business-host video 16:9 landscape (1920x1080, -14 LUFS)
+    Wistia,
+    /// Domestika course video 16:9 landscape (1920x1080, -14 LUFS)
+    Domestika,
     /// Spotify video podcast 16:9 landscape (1920x1080, -14 LUFS)
     Spotify,
     /// Apple Podcasts video episode 16:9 landscape (1920x1080, -14 LUFS)
@@ -2831,6 +2845,10 @@ pub struct SubsArgs {
     /// Merge another .srt into the input .srt (dual-language; cues sorted by start)
     #[arg(long)]
     pub merge: Option<PathBuf>,
+    /// Keep only cues whose text contains this string (case-insensitive) —
+    /// locate every "um"/phrase spoken, then cut or caption around them
+    #[arg(long)]
+    pub find: Option<String>,
     /// Extract EVERY subtitle stream to stem_0.srt, stem_1.srt … (batch)
     #[arg(long)]
     pub all: bool,
@@ -5030,6 +5048,10 @@ pub struct LiveArgs {
     /// Audio bitrate (default 128k)
     #[arg(long)]
     pub abitrate: Option<String>,
+    /// Scale pushed-audio gain 0..=4 (quiet a loud BGM source without
+    /// re-rendering it; refuses --no-audio)
+    #[arg(long)]
+    pub volume: Option<f64>,
     /// Downscale before streaming, WxH (push a 4K master to a 720p ingest)
     #[arg(long)]
     pub scale: Option<String>,
@@ -6303,6 +6325,10 @@ pub struct ChapterArgs {
     /// after adding/removing an intro)
     #[arg(long)]
     pub shift: Option<f64>,
+    /// Multiply every mark time by this factor — marks authored for a cut
+    /// that was then retimed (mirrors subs --rate)
+    #[arg(long)]
+    pub rate: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

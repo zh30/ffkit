@@ -522,6 +522,14 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         }
         marks.push((secs, title));
     }
+    if let Some(rate) = args.rate {
+        if rate <= 0.0 {
+            return Err(Error::input("chapter --rate must be positive"));
+        }
+        for m in &mut marks {
+            m.0 *= rate;
+        }
+    }
     if let Some(shift) = args.shift {
         if shift != 0.0 {
             for m in &mut marks {

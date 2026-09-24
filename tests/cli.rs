@@ -35902,3 +35902,99 @@ fn r277_no_audio_no_attach_min_gap_import_srt_podcasts() {
         assert_eq!(pr["probe"]["streams"][0]["width"], 1920, "{pr}");
     }
 }
+
+#[test]
+fn r278_find_rate_chapter_count_live_volume_course_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+    // subs --find filters the .srt to matching cues and reports the hits
+    let srt = d.path().join("f.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:00,400\num let me think\n\n2\n00:00:00,500 --> 00:00:00,900\nwelcome everyone\n\n3\n00:00:01,000 --> 00:00:01,400\num okay so\n",
+    )
+    .unwrap();
+    let o = d.path().join("o.srt");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--find",
+        "um",
+    ]);
+    assert_eq!(j["extra"]["found"], 2, "{j}");
+    assert_eq!(j["extra"]["cues"], 2, "{j}");
+    let kept = std::fs::read_to_string(&o).unwrap();
+    assert!(
+        kept.contains("um let me") && !kept.contains("welcome"),
+        "{kept}"
+    );
+    // --find conflicts with the standalone passes
+    let m = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        d.path().join("x.txt").to_str().unwrap(),
+        "--find",
+        "um",
+        "--convert",
+    ]);
+    assert_eq!(m["status"], "failed", "{m}");
+    // chapter --rate rescales imported marks (0.5s -> 0.25s at rate 0.5)
+    let imp = d.path().join("c.srt");
+    std::fs::write(
+        &imp,
+        "1\n00:00:00,000 --> 00:00:00,400\nIntro\n\n2\n00:00:00,500 --> 00:00:00,900\nMain\n",
+    )
+    .unwrap();
+    let emb = d.path().join("emb.mp4");
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "-o",
+        emb.to_str().unwrap(),
+        "--import",
+        imp.to_str().unwrap(),
+        "--rate",
+        "0.5",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let ch = run_json(&["probe", emb.to_str().unwrap()]);
+    assert_eq!(ch["probe"]["chapter_count"], 2, "{ch}");
+    let c0 = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(c0["probe"]["chapter_count"], 0, "{c0}");
+    // live --volume: refuses --no-audio and out-of-range gains
+    for extra in [vec!["--volume", "0.5", "--no-audio"], vec!["--volume", "5"]] {
+        let mut a = vec!["live", f.to_str().unwrap(), "--to", "tcp://127.0.0.1:1"];
+        a.extend_from_slice(&extra);
+        let m = run_json(&a);
+        assert_eq!(m["status"], "failed", "{m}");
+    }
+    // course/commerce platforms land on the 1920x1080 canvas
+    for plat in [
+        "skillshare",
+        "thinkific",
+        "podia",
+        "learnworlds",
+        "gumroad",
+        "wistia",
+        "domestika",
+    ] {
+        let o = d.path().join(format!("d_{plat}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            plat,
+        ]);
+        assert_eq!(j["status"], "ok", "{plat}: {j}");
+        let pr = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pr["probe"]["streams"][0]["width"], 1920, "{pr}");
+    }
+}

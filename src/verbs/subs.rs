@@ -28,6 +28,27 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.all {
         return extract_all(&args, g);
     }
+    if args.find.is_some() {
+        for (flag, set) in [
+            ("convert", args.convert),
+            ("append", args.append.is_some()),
+            ("split", args.split.is_some()),
+            ("resync", args.resync.is_some()),
+            ("shift", args.shift.is_some()),
+            ("merge", args.merge.is_some()),
+            ("rate", args.rate.is_some()),
+            ("burn", args.burn.is_some()),
+            ("burn-si", args.burn_si.is_some()),
+            ("mux", args.mux.is_some()),
+            ("all", args.all),
+        ] {
+            if set {
+                return Err(Error::input(format!(
+                    "subs --find composes with the tidy flags only — --{flag} runs on its own pass"
+                )));
+            }
+        }
+    }
     if args.convert {
         return convert(&args, g);
     }
@@ -59,6 +80,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.replace.is_some()
         || args.strip_speakers
         || args.wrap.is_some()
+        || args.find.is_some()
     {
         return tidy(&args, g);
     }
@@ -376,6 +398,19 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+    let mut found = 0usize;
+    if let Some(needle) = &args.find {
+        let n = needle.to_lowercase();
+        let before = cues.len();
+        cues.retain(|c| c.text.to_lowercase().contains(&n));
+        found = cues.len();
+        dropped += before - cues.len();
+        if found == 0 {
+            return Err(Error::input(format!(
+                "subs --find '{needle}': no cue contains that text"
+            )));
+        }
+    }
     if cues.is_empty() {
         return Err(Error::input("tidying removed every cue"));
     }
@@ -419,6 +454,8 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "replaced": replaced,
         "stripped": stripped,
         "rewrapped": rewrapped,
+        "find": args.find,
+        "found": found,
         "cues": cues.len(),
         "cps_limit": args.cps,
         "min_gap": args.min_gap,

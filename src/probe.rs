@@ -77,6 +77,10 @@ pub struct Probe {
     /// `meta --rotate` — None when the container carries no rotation.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rotation: Option<f64>,
+    /// Number of chapters embedded in the container (TOC QC on deliverables —
+    /// `chapter --list` shows the marks themselves)
+    #[serde(default)]
+    pub chapter_count: u32,
 }
 
 /// One line of the stream table — index matches `remux`/`extract`
@@ -143,6 +147,8 @@ struct FfprobeOut {
     streams: Vec<FfprobeStream>,
     #[serde(default)]
     format: Option<FfprobeFormat>,
+    #[serde(default)]
+    chapters: Vec<ChapterTime>,
 }
 
 #[derive(Deserialize, Default)]
@@ -212,6 +218,7 @@ pub fn probe(path: &Path, timeout: Duration) -> Result<Probe, Error> {
         "json",
         "-show_format",
         "-show_streams",
+        "-show_chapters",
         "-v",
         "error",
     ]);
@@ -424,6 +431,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                     .and_then(|sd| sd.rotation)
             })
         }),
+        chapter_count: parsed.chapters.len() as u32,
     })
 }
 
