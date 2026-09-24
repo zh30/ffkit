@@ -222,6 +222,18 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             ));
         }
     }
+    if let Some(t) = args.rw_timeout {
+        if !t.is_finite() || t <= 0.0 {
+            return Err(Error::input("live --timeout needs positive seconds"));
+        }
+        // -rw_timeout rides each destination's socket — the tee fan-out
+        // can't carry it, so multi-destination pushes refuse it
+        if args.record.is_some() || args.restream.is_some() {
+            return Err(Error::input(
+                "live --timeout applies to a single destination — drop --record/--restream",
+            ));
+        }
+    }
     let vbitrate = args.vbitrate.as_deref().unwrap_or("2500k");
     let abitrate = args.abitrate.as_deref().unwrap_or("128k");
     // FLV for RTMP/plain-TCP ingest; MPEG-TS for UDP + SRT contribution links
@@ -561,6 +573,12 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(t) = &args.title {
             argv.extend(["-metadata".into(), format!("title={t}")]);
         }
+        if let Some(t) = args.rw_timeout {
+            argv.extend([
+                "-rw_timeout".to_string(),
+                ((t * 1_000_000.0) as u64).to_string(),
+            ]);
+        }
         argv.extend(["-f".into(), fmt.into(), args.to.clone()]);
     }
 
@@ -580,6 +598,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         "codec": if hevc { "hevc" } else { "h264" },
         "gop": args.gop,
         "maxrate": args.maxrate,
+        "rw_timeout": args.rw_timeout,
         "bufsize": args.bufsize,
         "crf": args.crf,
         "vbitrate": vbitrate,

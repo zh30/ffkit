@@ -34482,3 +34482,345 @@ fn r267_xfade_full_set_slideshow_audio_fade_deliver_twitch_discord_live_crf_hls_
         "{pl}"
     );
 }
+
+#[test]
+fn r268_remux_keep_decrypt_copyts_meta_langs_live_rw_timeout() {
+    if !has_ffmpeg() {
+        eprintln!("skip: no ffmpeg");
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let base = fixture(d.path());
+    // multi-stream fixture: video + audio×3 (absolute indices 0..3)
+    let multi = d.path().join("multi.mkv");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:rate=30:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=1320:duration=1",
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map",
+            "2:a",
+            "-map",
+            "3:a",
+            "-c:v",
+            "libx264",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&multi)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    // remux --keep: keeps only listed absolute indices, in listed order
+    let keep = d.path().join("keep.mkv");
+    let j = run_json(&[
+        "remux",
+        multi.to_str().unwrap(),
+        "--keep",
+        "0,3",
+        "-o",
+        keep.to_str().unwrap(),
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["keep"], "0,3");
+    let pj = run_json(&["probe", keep.to_str().unwrap()])["probe"].clone();
+    let kinds: Vec<&str> = pj["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["kind"].as_str().unwrap())
+        .collect();
+    assert_eq!(kinds, ["video", "audio"], "{kinds:?}");
+    // reorder: 3,0 puts audio first
+    let keep2 = d.path().join("keep2.mkv");
+    let j = run_json(&[
+        "remux",
+        multi.to_str().unwrap(),
+        "--keep",
+        "3,0",
+        "-o",
+        keep2.to_str().unwrap(),
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", keep2.to_str().unwrap()])["probe"].clone();
+    let kinds: Vec<&str> = pj["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["kind"].as_str().unwrap())
+        .collect();
+    assert_eq!(kinds, ["audio", "video"], "{kinds:?}");
+    // refusals: out-of-range index, duplicate, selector conflicts
+    let j = run_json(&[
+        "remux",
+        multi.to_str().unwrap(),
+        "--keep",
+        "0,9",
+        "-o",
+        "x.mkv",
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("only has 4 stream"));
+    let j = run_json(&[
+        "remux",
+        multi.to_str().unwrap(),
+        "--keep",
+        "0,0",
+        "-o",
+        "x.mkv",
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    let j = run_json(&[
+        "remux",
+        multi.to_str().unwrap(),
+        "--keep",
+        "0",
+        "--audio",
+        "-o",
+        "x.mkv",
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    let j = run_json(&[
+        "remux",
+        multi.to_str().unwrap(),
+        "--keep",
+        "0",
+        "--lang",
+        "eng",
+        "-o",
+        "x.mkv",
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    // remux --decrypt: round-trips an --encrypt product (ClearKey)
+    let key = "00112233445566778899aabbccddeeff";
+    let enc = d.path().join("enc.mp4");
+    let j = run_json(&[
+        "remux",
+        multi.to_str().unwrap(),
+        "-o",
+        enc.to_str().unwrap(),
+        "--encrypt",
+        "--key",
+        key,
+        "--kid",
+        key,
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let dec = d.path().join("dec.mp4");
+    let j = run_json(&[
+        "remux",
+        enc.to_str().unwrap(),
+        "-o",
+        dec.to_str().unwrap(),
+        "--decrypt",
+        key,
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["decrypt"], true);
+    // the decrypted output decodes (encrypted source would fail decode)
+    let st = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_name",
+            "-of",
+            "csv",
+        ])
+        .arg(&dec)
+        .output()
+        .unwrap();
+    let so = String::from_utf8_lossy(&st.stdout);
+    assert!(so.contains("h264"), "{so}");
+    let j = run_json(&[
+        "remux",
+        enc.to_str().unwrap(),
+        "-o",
+        "x.mp4",
+        "--decrypt",
+        "zz",
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    assert!(j["error"]["message"].as_str().unwrap().contains("32-hex"));
+    // remux --copy-ts: preserves nonzero start_time verbatim
+    let off = d.path().join("off.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:rate=30:duration=1",
+            "-c:v",
+            "libx264",
+            "-output_ts_offset",
+            "5",
+        ])
+        .arg(&off)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let cts = d.path().join("cts.mp4");
+    let j = run_json(&[
+        "remux",
+        off.to_str().unwrap(),
+        "-o",
+        cts.to_str().unwrap(),
+        "--copy-ts",
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["copy_ts"], true);
+    let pj = run_json(&["probe", cts.to_str().unwrap()])["probe"].clone();
+    let st5 = pj["start_time"].as_f64().unwrap();
+    assert!((st5 - 5.0).abs() < 0.5, "copy-ts start_time {st5}");
+    let nts = d.path().join("nts.mp4");
+    let j = run_json(&[
+        "remux",
+        off.to_str().unwrap(),
+        "-o",
+        nts.to_str().unwrap(),
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", nts.to_str().unwrap()])["probe"].clone();
+    let st0 = pj["start_time"].as_f64().unwrap();
+    assert!(st0 < 0.5, "normal remux re-zeroes, got {st0}");
+    let j = run_json(&[
+        "remux",
+        off.to_str().unwrap(),
+        "-o",
+        "x.mp4",
+        "--copy-ts",
+        "--offset",
+        "1",
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    // meta --lang-audio/--lang-subs: per-track language tags
+    let lang = d.path().join("lang.mp4");
+    let j = run_json(&[
+        "meta",
+        multi.to_str().unwrap(),
+        "-o",
+        lang.to_str().unwrap(),
+        "--lang-audio",
+        "eng,,jpn",
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", lang.to_str().unwrap()])["probe"].clone();
+    let streams = pj["streams"].as_array().unwrap();
+    let langs: Vec<Option<&str>> = streams
+        .iter()
+        .filter(|s| s["kind"] == "audio")
+        .map(|s| s["language"].as_str())
+        .collect();
+    assert_eq!(langs[0], Some("eng"), "{langs:?}");
+    assert!(
+        langs[1].is_none() || langs[1] == Some("und"),
+        "blank slot leaves tag untouched: {langs:?}"
+    );
+    assert_eq!(langs[2], Some("jpn"), "{langs:?}");
+    let j = run_json(&[
+        "meta",
+        multi.to_str().unwrap(),
+        "-o",
+        "x.mkv",
+        "--lang-audio",
+        "en",
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    let j = run_json(&[
+        "meta",
+        multi.to_str().unwrap(),
+        "-o",
+        "x.mkv",
+        "--lang-audio",
+        "eng,fra,deu,spa",
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    // live --rw-timeout: -rw_timeout microseconds before the output URL
+    let j = run_json(&[
+        "live",
+        "--test",
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--rw-timeout",
+        "8",
+        "--until",
+        "0.1",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "dry_run", "{j}");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("-rw_timeout 8000000"), "{cmd}");
+    let j = run_json(&[
+        "live",
+        "--test",
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--rw-timeout",
+        "8",
+        "--record",
+        "r.mp4",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    let j = run_json(&[
+        "live",
+        "--test",
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--rw-timeout",
+        "0",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    let _ = base;
+}

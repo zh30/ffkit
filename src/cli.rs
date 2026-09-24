@@ -2874,6 +2874,15 @@ pub struct MetaArgs {
     /// Copy metadata + chapters from this file onto the output
     #[arg(long)]
     pub copy: Option<PathBuf>,
+    /// Language tag for audio tracks in order, comma list
+    /// (`--lang-audio eng,jpn` — players show language in the track
+    /// menu; ISO-639 codes)
+    #[arg(long)]
+    pub lang_audio: Option<String>,
+    /// Language tag for subtitle tracks in order, comma list
+    /// (`--lang-subs eng,fra` — audience captions labelled for the player)
+    #[arg(long)]
+    pub lang_subs: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4070,6 +4079,20 @@ pub struct RemuxArgs {
     /// releases; unlisted tracks are dropped
     #[arg(long)]
     pub sub_order: Option<String>,
+    /// Keep ONLY the listed absolute stream indices (comma list,
+    /// e.g. `0,3` keeps video 0 + audio 3 — the escape hatch when
+    /// --audio-order/--sub-order/--lang can't express the pick; unlisted
+    /// streams drop)
+    #[arg(long)]
+    pub keep: Option<String>,
+    /// Decrypt a CENC-encrypted input while repacking — 32-hex AES-CTR
+    /// key (ClearKey receipt files; pair with --encrypt to rotate keys)
+    #[arg(long)]
+    pub decrypt: Option<String>,
+    /// Copy input timestamps verbatim (-copyts — capture pipelines that
+    /// need wall-clock pts preserved instead of re-zeroed)
+    #[arg(long)]
+    pub copy_ts: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4905,6 +4928,11 @@ pub struct LiveArgs {
     /// the --record archive) — ingest dashboards and players display it
     #[arg(long)]
     pub title: Option<String>,
+    /// Abort the push if the ingest stalls longer than SEC seconds
+    /// (-rw_timeout — a wedged RTMP endpoint stops eating the program
+    /// feed; single-destination pushes only)
+    #[arg(long = "rw-timeout")]
+    pub rw_timeout: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]

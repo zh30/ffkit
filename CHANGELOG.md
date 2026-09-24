@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.295.0] — 2026-09-24
+
+### Added
+
+- `remux --keep 0,3` — keep ONLY the listed absolute stream indices on a repack (the escape hatch when `--audio-order`/`--sub-order`/`--lang` can't express the pick; unlisted streams drop, `probe.streams` lists indices — verified drop + reorder)
+- `remux --decrypt HEX` — read CENC-encrypted sources while repacking (`-decryption_key`, 32-hex key like `--key`; round-trips with `--encrypt` for key rotation — verified decrypt of an `ffkit --encrypt` product)
+- `remux --copy-ts` — `-copyts` preserves input timestamps verbatim (nonzero `start_time` survives the repack — capture pipelines that need wall-clock pts; conflicts with the ts mutators)
+- `meta --lang-audio`/`--lang-subs` — per-track language tags in track order (`--lang-audio eng,jpn`; blank slots skip — players show the track language in the menu)
+- `live --rw-timeout SEC` — abort the push when the ingest stalls (`-rw_timeout` socket watchdog; single-destination pushes only — the tee fan-out can't carry it)
+
 ## [0.294.0] — 2026-09-24
 
 ### Added

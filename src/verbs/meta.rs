@@ -6,7 +6,7 @@ use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 
 pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
-    let _probe = engine::probe_or_err(&args.input, g)?;
+    let probe = engine::probe_or_err(&args.input, g)?;
     // --lyrics: unsynced lyrics embedded from an .lrc/.txt file — every
     // leading [mm:ss.xx]/[key:value] bracket group is stripped so players
     // see plain lines (chapter --lrc exports feed straight in)
@@ -77,14 +77,43 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--rotate must be 0, 90, 180 or 270"));
         }
     }
-    if args.clear && (!tags.is_empty() || args.rotate.is_some() || args.copy.is_some()) {
-        return Err(Error::input(
-            "--clear strips everything; drop the tag flags and --copy",
-        ));
-    }
-    if tags.is_empty() && args.rotate.is_none() && !args.clear && args.copy.is_none() {
+    // --lang-audio/--lang-subs: per-track language tags in track order
+    // (a:0 is the first audio track, s:0 the first subtitle track — the
+    // comma list's position is the track index)
+    let lang_audio = parse_lang_list(
+        args.lang_audio.as_deref(),
+        probe.streams.iter().filter(|s| s.kind == "audio").count(),
+        "audio",
+    )?;
+    let lang_subs = parse_lang_list(
+        args.lang_subs.as_deref(),
+        probe
+            .streams
+            .iter()
+            .filter(|s| s.kind == "subtitle")
+            .count(),
+        "subs",
+    )?;
+    if tags.is_empty()
+        && lang_audio.is_empty()
+        && lang_subs.is_empty()
+        && args.rotate.is_none()
+        && !args.clear
+        && args.copy.is_none()
+    {
         return Err(Error::input(
             "meta needs at least one tag flag, --rotate, --clear or --copy",
+        ));
+    }
+    if args.clear
+        && (!tags.is_empty()
+            || !lang_audio.is_empty()
+            || !lang_subs.is_empty()
+            || args.rotate.is_some()
+            || args.copy.is_some())
+    {
+        return Err(Error::input(
+            "--clear strips everything; drop the tag flags and --copy",
         ));
     }
     // ffmpeg >= 7 dropped the rotate metadata tag in favour of the
@@ -112,6 +141,24 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
     for (k, v) in &tags {
         argv.extend(["-metadata", &format!("{k}={v}")]);
     }
+    for (i, l) in lang_audio.iter().enumerate() {
+        if l.is_empty() {
+            continue;
+        }
+        argv.extend([
+            "-metadata:s:a:".to_string() + &i.to_string(),
+            format!("language={l}"),
+        ]);
+    }
+    for (i, l) in lang_subs.iter().enumerate() {
+        if l.is_empty() {
+            continue;
+        }
+        argv.extend([
+            "-metadata:s:s:".to_string() + &i.to_string(),
+            format!("language={l}"),
+        ]);
+    }
     if let Some(r) = args.rotate {
         if !new_rotate {
             argv.extend(["-metadata:s:v:0", &format!("rotate={r}")]);
@@ -124,7 +171,39 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         "tags": tags.iter().map(|(k, _)| k).collect::<Vec<_>>(),
         "rotate": args.rotate,
         "copied_from": args.copy,
+        "lang_audio": lang_audio,
+        "lang_subs": lang_subs,
     })))
+}
+
+/// `--lang-{audio,subs}` comma list → per-track ISO codes. Position in
+/// the list is the track index; blank slots leave the tag untouched.
+fn parse_lang_list(raw: Option<&str>, n_tracks: usize, kind: &str) -> Result<Vec<String>, Error> {
+    let Some(raw) = raw else {
+        return Ok(Vec::new());
+    };
+    let langs: Vec<String> = raw
+        .split(',')
+        .map(str::trim)
+        .map(|s| s.to_lowercase())
+        .collect();
+    for l in &langs {
+        if l.is_empty() {
+            continue;
+        }
+        if l.len() != 3 || !l.chars().all(|c| c.is_ascii_lowercase()) {
+            return Err(Error::input(format!(
+                "meta --lang-{kind}: '{l}' — ISO-639-2 three-letter codes (eng, jpn, …)",
+            )));
+        }
+    }
+    if langs.iter().filter(|l| !l.is_empty()).count() > n_tracks {
+        return Err(Error::input(format!(
+            "meta --lang-{kind}: {} codes for {n_tracks} {kind} track(s)",
+            langs.iter().filter(|l| !l.is_empty()).count(),
+        )));
+    }
+    Ok(langs)
 }
 
 /// File mtime → ISO-8601 UTC (`YYYY-MM-DDTHH:MM:SSZ`).
