@@ -86,6 +86,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         DeliverPlatform::Xhs => (1080, 1440),
         DeliverPlatform::Wechat => (1080, 1260),
         DeliverPlatform::Pinterest => (1000, 1500),
+        DeliverPlatform::Circle => (640, 640),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -266,7 +267,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             apply.extend(["-af", &filter]);
         }
         apply.extend(["-c:a", "aac", "-ar", "48000", "-b:a", "192k"]);
-        if let Some(ch) = args.channels {
+        // Telegram circles ship mono voice; --channels still wins when given
+        let ch_n = args
+            .channels
+            .or(if args.platform == DeliverPlatform::Circle {
+                Some(1)
+            } else {
+                None
+            });
+        if let Some(ch) = ch_n {
             apply.extend(["-ac", &ch.to_string()]);
         }
         measure = Some(m);
@@ -385,6 +394,7 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Pinterest => "pinterest",
         DeliverPlatform::X => "x",
         DeliverPlatform::Linkedin => "linkedin",
+        DeliverPlatform::Circle => "circle",
     }
 }
 

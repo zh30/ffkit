@@ -10,9 +10,9 @@ use crate::spawn::Argv;
 
 pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
     let scheme = args.to.split("://").next().unwrap_or("").to_lowercase();
-    if !matches!(scheme.as_str(), "rtmp" | "rtmps" | "tcp" | "udp") {
+    if !matches!(scheme.as_str(), "rtmp" | "rtmps" | "tcp" | "udp" | "srt") {
         return Err(Error::input(
-            "live --to needs an rtmp://, rtmps://, tcp://, or udp:// URL",
+            "live --to needs an rtmp://, rtmps://, tcp://, udp://, or srt:// URL",
         ));
     }
     if args.test && args.list {
@@ -122,8 +122,18 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
 
     let vbitrate = args.vbitrate.as_deref().unwrap_or("2500k");
     let abitrate = args.abitrate.as_deref().unwrap_or("128k");
-    // FLV for RTMP/plain-TCP ingest; MPEG-TS is the container UDP expects
-    let fmt = if scheme == "udp" { "mpegts" } else { "flv" };
+    // FLV for RTMP/plain-TCP ingest; MPEG-TS for UDP + SRT contribution links
+    let fmt = if matches!(scheme.as_str(), "udp" | "srt") {
+        "mpegts"
+    } else {
+        "flv"
+    };
+    let hevc = matches!(args.codec, Some(crate::cli::LiveCodec::Hevc));
+    if hevc && fmt != "mpegts" {
+        return Err(Error::input(
+            "live --codec hevc needs an MPEG-TS transport (--to srt:// or udp://) — the FLV muxer can't carry it",
+        ));
+    }
 
     // canvas the stream renders at — slate card and content share it
     if args.vertical && args.scale.is_some() {
@@ -190,6 +200,22 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push(ov);
     }
     let use_fc = args.slate.is_some() || args.overlay.is_some();
+    let mut subs_chain: Option<String> = None;
+    if let Some(subs) = &args.subs {
+        if !has_video {
+            return Err(Error::input(
+                "live --subs needs a video path (--card for audio-only sources)",
+            ));
+        }
+        // The subtitles filter parses `:` `'` `,` in filenames — escape them.
+        let path = subs
+            .canonicalize()
+            .map_err(|e| Error::input(format!("{subs:?}: {e}")))?
+            .to_string_lossy()
+            .replace('\\', "\\\\")
+            .replace('\'', "\\'");
+        subs_chain = Some(format!(",subtitles=filename='{path}'"));
+    }
     let preset = match args.preset.unwrap_or_default() {
         crate::cli::X264Preset::Ultrafast => "ultrafast",
         crate::cli::X264Preset::Superfast => "superfast",
@@ -205,15 +231,23 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         // scale rides inside filter_complex when a graph is already in play;
         // --vertical always letterboxes onto the 1080x1920 canvas
         if !use_fc {
+            let mut vf = String::new();
             if args.vertical {
-                argv.extend(["-vf".into(), format!("scale={cw}:{ch}:force_original_aspect_ratio=decrease,pad={cw}:{ch}:(ow-iw)/2:(oh-ih)/2:black,setsar=1")]);
+                vf.push_str(&format!("scale={cw}:{ch}:force_original_aspect_ratio=decrease,pad={cw}:{ch}:(ow-iw)/2:(oh-ih)/2:black,setsar=1"));
             } else if args.scale.is_some() {
-                argv.extend(["-vf".into(), format!("scale={cw}:{ch}")]);
+                vf.push_str(&format!("scale={cw}:{ch}"));
+            }
+            if let Some(sc) = &subs_chain {
+                vf.push_str(sc);
+            }
+            let vf = vf.trim_start_matches(',').to_string();
+            if !vf.is_empty() {
+                argv.extend(["-vf".into(), vf]);
             }
         }
         argv.extend([
             "-c:v".into(),
-            "libx264".into(),
+            if hevc { "libx265" } else { "libx264" }.into(),
             "-preset".into(),
             preset.into(),
             "-tune".into(),
@@ -295,6 +329,8 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
     let vchain = format!(
         "scale={cw}:{ch}:force_original_aspect_ratio=decrease,pad={cw}:{ch}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps={fps},format=yuv420p"
     );
+    // subs burn applies to the content chain only, never the slate card
+    let vchain_content = format!("{vchain}{}", subs_chain.as_deref().unwrap_or(""));
     let mut vout = String::new();
     let mut aout: Option<String> = None;
     if args.slate.is_some() {
@@ -304,7 +340,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
                 "anullsrc=r=48000:cl=stereo,atrim=duration={slate_dur}[as];"
             ));
         }
-        fc.push_str(&format!("[{ni}:v]{vchain}[vm];"));
+        fc.push_str(&format!("[{ni}:v]{vchain_content}[vm];"));
         if has_audio {
             fc.push_str(&format!(
                 "[{ni}:a]aresample=48000,aformat=channel_layouts=stereo[am];[vs][as][vm][am]concat=n=2:v=1:a=1[vc][ac];"
@@ -321,8 +357,8 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         } else {
             ni
         };
-        if args.scale.is_some() || args.vertical {
-            fc.push_str(&format!("[{src}:v]{vchain}[vc];"));
+        if args.scale.is_some() || args.vertical || args.subs.is_some() {
+            fc.push_str(&format!("[{src}:v]{vchain_content}[vc];"));
             vout = "[vc]".to_string();
         } else {
             vout = format!("[{src}:v]");
@@ -360,12 +396,16 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         let mut dests = format!("[f={fmt}]{}", args.to);
         if let Some(u2) = &args.restream {
             let s2 = u2.split("://").next().unwrap_or("");
-            if !matches!(s2, "rtmp" | "rtmps" | "tcp" | "udp") {
+            if !matches!(s2, "rtmp" | "rtmps" | "tcp" | "udp" | "srt") {
                 return Err(Error::input(
-                    "live --restream wants an rtmp/rtmps/tcp/udp URL",
+                    "live --restream wants an rtmp/rtmps/tcp/udp/srt URL",
                 ));
             }
-            let fmt2 = if s2 == "udp" { "mpegts" } else { "flv" };
+            let fmt2 = if matches!(s2, "udp" | "srt") {
+                "mpegts"
+            } else {
+                "flv"
+            };
             dests.push_str(&format!("|[f={fmt2}]{u2}"));
         }
         if let Some(rec) = &args.record {
@@ -421,6 +461,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         "restream": args.restream,
         "vertical": args.vertical,
         "preset": preset,
+        "codec": if hevc { "hevc" } else { "h264" },
         "gop": args.gop,
         "maxrate": args.maxrate,
         "bufsize": args.bufsize,
@@ -429,6 +470,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         "format": fmt,
         "record": args.record,
         "until": args.until,
+        "subs": args.subs.is_some(),
         "list": args.list,
         "files": list_files.len(),
         "test": args.test,

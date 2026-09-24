@@ -305,7 +305,12 @@ an atempo'd whole-file render would shift the window.
   region sliders (auto-WB arrived later); `wb`/`grade --split` cover it.
 - **`find_rect` wants a GRAYSCALE object image** — a color PNG errors
   "object image is not a grayscale image"; run `format=gray` on the ref.
-  Its box lands in `lavfi.rect.{x,y,w,h}` frame metadata.
+  Its box lands in `lavfi.rect.{x,y,w,h}` frame metadata — in theory:
+  on BOTH ffmpeg 4.4 and 9.0.1 the filter emits NO `lavfi.rect.*` keys
+  at all (checked via metadata=print / showinfo / -show_frames with a
+  pixel-exact grayscale crop at thresholds 0.3-0.9), so detection is
+  dead on these builds and `delogo --find`/`--track` always errors
+  "not found"; don't build reporting on it.
 - **`readeia608`/`cropdetect` ride the scan pass cheaply** — keys are
   `lavfi.readeia608.*` (any = a CC line decoded) and
   `lavfi.cropdetect.{x1,x2,y1,y2}` (w = x2-x1+1, h = y2-y1+1).
@@ -339,8 +344,10 @@ an atempo'd whole-file render would shift the window.
 - **`ciescope` `size`/`s` is an INT (256-8192), not WxH** — it renders
   its own square scope ignoring input dims; clamp tile size to >=256.
 - **`cover_rect` reads `find_rect` metadata in-chain** —
-  `find_rect=object=x,cover_rect=mode=blur` tracks a moving mark live;
-  the object bitmap must be grayscale (color errors out).
+  `find_rect=object=x,cover_rect=mode=blur` tracks a moving mark live
+  (subject to the dead-detection caveat above). Its `cover=` bitmap
+  wants a YUV420 image for mode=cover ("cover image is not a YUV420
+  image"), while mode=blur accepts the grayscale find template.
 - **`replaygain` prints at EOF to stderr** — `track_gain = +N.NN dB` /
   `track_peak = 0.NNN`; chains after volumedetect in one pass.
 - **`ocr` finds tessdata by itself** (no datapath needed when tesseract
@@ -539,3 +546,6 @@ an atempo'd whole-file render would shift the window.
 - **ffmpeg 4.4's webp decoder can't read ANIMATED webp** — `ffprobe`/`ffmpeg -i` on a libwebp ANIM/ANMF file fails with "image data not found" even though the file is spec-valid (browsers, Discord, Telegram all play it). Verify structure instead: `RIFF`+`WEBP` magic, an `ANIM` chunk, and count `ANMF` frames (plus `ALPH` subchunks for alpha) — never assert pix_fmt/duration from ffprobe on .webp.
 - **A `-lavfi` graph can't end in a dangling `[label]`** — `fps,scale[x]` errors "unconnected output" when nothing consumes `[x]`; only label intermediate pads. Bare chains auto-connect input 0 → first filter → output.
 - **CENC on 4.4 = `-encryption_scheme cenc-aes-ctr -encryption_key <32hex> -encryption_kid <32hex>`**, ISOBMFF outputs only; ffprobe can't decode the essence afterward (profile-level ok but stream fails) — verify by grepping the file for `encv` + `senc` boxes instead.
+- **FLV can't carry HEVC on ffmpeg 4.x** — `live --codec hevc` must pair
+  with an MPEG-TS transport (`srt://`/`udp://`); SRT URLs ride the same
+  mpegts path (`?mode=listener` receiver side, caller is default).

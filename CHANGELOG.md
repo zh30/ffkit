@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.275.0] — 2026-09-23
+
+### Added
+- `live --to srt://…` — SRT ingest transport: SRT and UDP URLs both ride the MPEG-TS muxer (contribution-grade links)
+- `live --codec hevc` — HEVC stream encode via libx265 for contribution/spec ingest; gated to MPEG-TS transports (the FLV muxer can't carry HEVC on ffmpeg 4.x)
+- `live --subs file.srt` — burn an .srt/.ass/.vtt caption file into the live picture in one pass (live-captioned broadcasts without a captioning rig); rides the slate/overlay graph paths too
+- `deliver --platform circle` — Telegram video-note (кружок) pack: 640x640 1:1 canvas + mono audio
+
 ## [0.274.0] — 2026-09-23
 
 ### Added

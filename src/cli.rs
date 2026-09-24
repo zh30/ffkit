@@ -1236,7 +1236,7 @@ pub enum LogoPos {
     Br,
 }
 
-#[derive(Clone, Copy, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 pub enum DeliverPlatform {
     Social,
     Reels,
@@ -1262,6 +1262,8 @@ pub enum DeliverPlatform {
     X,
     /// LinkedIn feed video 16:9 landscape (1920x1080, -14 LUFS)
     Linkedin,
+    /// Telegram video-note circle (640x640 1:1, mono audio — кружок spec)
+    Circle,
     /// Audio-only podcast pack (m4a, AAC 128k/48k, -16 LUFS — feed spec)
     Podcast,
     /// Audiobook pack (m4b, AAC 96k/48k, -16 LUFS — Apple Books/Audible;
@@ -4575,10 +4577,29 @@ pub struct LiveArgs {
     /// faster for weak machines)
     #[arg(long, value_enum)]
     pub preset: Option<X264Preset>,
+    /// Video codec for the stream encode: h264 (default) or hevc —
+    /// HEVC needs an MPEG-TS transport (`--to srt://`/`udp://`, contribution
+    /// links), the FLV muxer rejects it
+    #[arg(long, value_enum)]
+    pub codec: Option<LiveCodec>,
+    /// Burn an .srt/.ass/.vtt caption file into the live picture —
+    /// live-captioned broadcasts without a captioning rig
+    #[arg(long, value_name = "FILE")]
+    pub subs: Option<PathBuf>,
     /// Vertical-stream preset: letterbox the feed onto a 1080x1920 canvas
     /// (TikTok/Reels/抖音 live — combines with --to any ingest)
     #[arg(long)]
     pub vertical: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum LiveCodec {
+    /// H.264 — every ingest accepts it (default)
+    #[default]
+    H264,
+    /// HEVC via libx265 — contribution links only; pair with `--to srt://`
+    /// or `udp://` (MPEG-TS), the FLV muxer can't carry it
+    Hevc,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]

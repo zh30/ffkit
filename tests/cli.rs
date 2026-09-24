@@ -30955,3 +30955,154 @@ fn probe_csv2(p: &std::path::Path) -> String {
         .expect("ffprobe");
     String::from_utf8_lossy(&o.stdout).into_owned()
 }
+
+#[test]
+fn r248_live_srt_hevc_subs_circle_test() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn ffmpeg(args: &[String]) -> std::process::Output {
+        Command::new("ffmpeg").args(args).output().expect("ffmpeg")
+    }
+
+    // live --to srt://: an ffmpeg SRT listener receives mpegts (0x47 sync)
+    let recv = d.join("recv.ts");
+    let port = {
+        let sock = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+        let p = sock.local_addr().unwrap().port();
+        drop(sock);
+        p
+    };
+    let mut listener = Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-i",
+            &format!("srt://127.0.0.1:{port}?mode=listener"),
+            "-c",
+            "copy",
+            "-f",
+            "mpegts",
+        ])
+        .arg(&recv)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .expect("ffmpeg srt listener");
+    std::thread::sleep(std::time::Duration::from_millis(1500));
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--to",
+        &format!("srt://127.0.0.1:{port}?mode=caller"),
+        "--until",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["format"], "mpegts");
+    assert_eq!(j["extra"]["codec"], "h264");
+    std::thread::sleep(std::time::Duration::from_millis(800));
+    let _ = listener.kill();
+    let _ = listener.wait();
+    let raw = std::fs::read(&recv).unwrap_or_default();
+    assert!(
+        raw.len() > 10000,
+        "expected mpegts bytes, got {}",
+        raw.len()
+    );
+    assert_eq!(raw[0], 0x47, "expected TS sync byte");
+
+    // live --codec hevc rides mpegts transports; the flv muxer is rejected
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--codec",
+        "hevc",
+        "--to",
+        "udp://127.0.0.1:49998",
+        "--until",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["codec"], "hevc");
+    assert_eq!(j["extra"]["format"], "mpegts");
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--codec",
+        "hevc",
+        "--to",
+        "tcp://127.0.0.1:1",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // live --subs: captions burn into the stream — diff-box lands bottom-center
+    let srt = d.join("cap.srt");
+    std::fs::write(&srt, "1\n00:00:00,100 --> 00:00:02,000\nLIVE CAPTION\n").unwrap();
+    let arch = d.join("arch.mp4");
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--subs",
+        &srt.to_string_lossy(),
+        "--to",
+        "udp://127.0.0.1:49997",
+        "--record",
+        &arch.to_string_lossy(),
+        "--until",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["subs"], true);
+    let bb = ffmpeg(&[
+        s("-v"),
+        s("error"),
+        s("-i"),
+        arch.to_string_lossy().into_owned(),
+        s("-i"),
+        f.to_string_lossy().into_owned(),
+        s("-filter_complex"),
+        s("[0][1]blend=all_mode=difference,bbox=min_val=30,metadata=print:file=-"),
+        s("-f"),
+        s("null"),
+        s("-"),
+    ]);
+    let meta = String::from_utf8_lossy(&bb.stdout).into_owned();
+    assert!(meta.contains("lavfi.bbox.x1="), "{meta}");
+
+    // deliver --platform circle: 640x640 Telegram video-note canvas + mono
+    let co = d.join("co.mp4");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &co.to_string_lossy(),
+        "--platform",
+        "circle",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["platform"], "circle");
+    let wh = probe_csv2(&co);
+    assert!(wh.trim().starts_with("640,640"), "{wh}");
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream=channels",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&co)
+        .output()
+        .expect("ffprobe");
+    assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "1");
+}
