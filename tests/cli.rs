@@ -32147,3 +32147,179 @@ fn r254_split_black_attach_tag_meta_geo() {
     assert!(s.contains("2026-09-22T10:00:00"), "{s}");
     assert!(s.contains("+31.2300+121.4700"), "{s}");
 }
+
+// RSI round 255: remux --timecode (tmcd/TIMECODE), remux --default-sub,
+// extract --audio --track, meta --creation-time auto (input mtime stamp).
+#[test]
+fn r255_timecode_default_sub_track_creation_auto() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    // remux --timecode writes a tmcd track + stream tag on mov
+    let tc = d.join("tc.mov");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        tc.to_str().unwrap(),
+        "--timecode",
+        "01:00:00:00",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_type:stream_tags=timecode",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&tc)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    assert!(s.contains("01:00:00:00"), "{s}");
+    // bad format refuses
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        d.join("b.mov").to_str().unwrap(),
+        "--timecode",
+        "abc",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // remux --default-sub: pick the default subtitle track
+    let en = d.join("en.srt");
+    let fr = d.join("fr.srt");
+    std::fs::write(&en, "1\n00:00:00,000 --> 00:00:00,500\nEN\n\n").unwrap();
+    std::fs::write(&fr, "1\n00:00:00,000 --> 00:00:00,500\nFR\n\n").unwrap();
+    let subs = d.join("subs.mkv");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&f)
+        .args(["-i"])
+        .arg(&en)
+        .args(["-i"])
+        .arg(&fr)
+        .args([
+            "-map", "0", "-map", "1", "-map", "2", "-c", "copy", "-c:s", "srt",
+        ])
+        .arg(&subs)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let ds = d.join("ds.mkv");
+    let j = run_json(&[
+        "remux",
+        subs.to_str().unwrap(),
+        "-o",
+        ds.to_str().unwrap(),
+        "--default-sub",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "s:1",
+            "-show_entries",
+            "stream_disposition=default",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&ds)
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "1");
+    // out-of-range refuses
+    let j = run_json(&[
+        "remux",
+        subs.to_str().unwrap(),
+        "-o",
+        d.join("ds2.mkv").to_str().unwrap(),
+        "--default-sub",
+        "9",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // extract --audio --track pulls the Nth audio track
+    let two = d.join("two.mkv");
+    let ok = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&f)
+        .args(["-f", "lavfi", "-i", "sine=f=220:d=1"])
+        .args(["-map", "0", "-map", "1:a", "-c", "copy", "-c:a", "aac"])
+        .arg(&two)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let tk = d.join("tk1.mka");
+    let j = run_json(&[
+        "extract",
+        two.to_str().unwrap(),
+        "--audio",
+        "--track",
+        "1",
+        "-o",
+        tk.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["track"].as_u64().unwrap(), 1);
+    // out-of-range fails; --track alone refuses
+    let j = run_json(&[
+        "extract",
+        two.to_str().unwrap(),
+        "--audio",
+        "--track",
+        "9",
+        "-o",
+        d.join("tk9.mka").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+    let j = run_json(&[
+        "extract",
+        two.to_str().unwrap(),
+        "--track",
+        "0",
+        "-o",
+        d.join("x.png").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // meta --creation-time auto stamps the input file's mtime
+    let stamped = d.join("stamped.mp4");
+    let j = run_json(&[
+        "meta",
+        f.to_str().unwrap(),
+        "-o",
+        stamped.to_str().unwrap(),
+        "--creation-time",
+        "auto",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let o = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format_tags=creation_time",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&stamped)
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&o.stdout);
+    assert!(s.contains("T"), "expected ISO timestamp, got {s}");
+}

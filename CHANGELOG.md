@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.282.0] — 2026-09-24
+
+### Added
+- `remux --timecode HH:MM:SS[:FF]` — write a start timecode into the repack: mov/mp4 get a real `tmcd` track plus the video-stream tag, mkv gets the `TIMECODE` format tag — dailies matching a camera slate
+- `remux --default-sub N` — pick the default subtitle track on multi-language sub deliverables (bounds-checked against the input's subtitle count)
+- `extract --audio --track N` — pull a specific audio track losslessly (commentary/stem out of a multi-track file; default first track unchanged)
+- `meta --creation-time auto` — stamp the input file's own mtime as ISO-8601 creation_time (shoot/download day without typing a date; civil-from-days conversion, no chrono dep)
+
 ## [0.281.0] — 2026-09-24
 
 ### Added

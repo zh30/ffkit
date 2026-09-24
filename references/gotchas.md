@@ -572,3 +572,6 @@ an atempo'd whole-file render would shift the window.
 - **movenc normalizes `location` to `+DD.DDDD+DDD.DDDD/`** and writes both `location` and `location-eng` — assert on the normalized value.
 - **`-tag:v hvc1` retags, it doesn't convert** — codec stays the same, only the container brand changes; h264 tagged hvc1 lies to the player. Restrict to mp4/mov outputs.
 - **`-ss` before `-i` + re-encode = frame-accurate split parts** — needed because black boundaries aren't keyframes (segment muxer would cut GOP-late).
+- **`-timecode` is an output option on 4.x too** — mov/mp4 write a `tmcd` data stream + `timecode` stream tag; mkv writes the `TIMECODE` format tag. It needs a video repack (audio-only repacks error).
+- **`meta --creation-time auto` uses UTC civil conversion** — `SystemTime` → ISO needs no chrono: Hinnant's civil-from-days algorithm; movenc re-normalizes to `…Z` form.
+- **`-disposition:s` modifier form mirrors audio** — `-disposition:s -default` clears all sub defaults, then `+default` on the chosen index (same pattern as `--default-audio`).

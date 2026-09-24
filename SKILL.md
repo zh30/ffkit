@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.281.0
+version: 0.282.0
 
 
 
@@ -281,7 +281,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | waveform band at the top | `audiogram` (`--position`) |
 | pull OUT of a shot (reveal) | `zoom` (`--out`, `--center X,Y` punch target) |
 | title with a soft shadow | `title` (`--shadow`) |
-| still at an exact width | `extract` (`--gif` clip, `--width`, `--at end` last frame), `--loop` gif repeats, `--alpha` pulls the alpha channel out as a grayscale PNG (matte QC/export — needs an alpha-capable input), `--gif --transparent` keeps alpha in the GIF (Discord/Telegram stickers — needs prores 4444/qtrle source), `--webp` animated WebP clip (smaller than GIF, alpha kept natively — `--lossless`, `--bounce` ok), `--audio` rips the audio track losslessly (stream copy — `-o` extension picks the container) |
+| still at an exact width | `extract` (`--gif` clip, `--width`, `--at end` last frame), `--loop` gif repeats, `--alpha` pulls the alpha channel out as a grayscale PNG (matte QC/export — needs an alpha-capable input), `--gif --transparent` keeps alpha in the GIF (Discord/Telegram stickers — needs prores 4444/qtrle source), `--webp` animated WebP clip (smaller than GIF, alpha kept natively — `--lossless`, `--bounce` ok), `--audio` rips the audio track losslessly (stream copy — `-o` extension picks the container; `--track N` picks which track) |
 | countdown with tick beeps | `countdown` (`--beep`, `--text` label during the count) |
 | one-word compressor curve | `leveler` (`--preset`, `--engine compand` single-band transfer curve — quieter than acompressor's knee) |
 | spectrogram in brand colors | `spectrogram` (`--color`) |

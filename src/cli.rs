@@ -631,6 +631,10 @@ pub struct ExtractArgs {
     /// dialog track without re-encoding; -o extension picks the container)
     #[arg(long)]
     pub audio: bool,
+    /// With --audio: which audio track to pull, 0-based (default first —
+    /// pick the commentary/stem out of a multi-track file)
+    #[arg(long)]
+    pub track: Option<u32>,
     /// Keep alpha in the GIF (needs --gif + an alpha-channel input like
     /// prores 4444/qtrle/webm — Discord/Telegram sticker exports)
     #[arg(long)]
@@ -2753,8 +2757,8 @@ pub struct MetaArgs {
     /// are stripped so players show plain lines
     #[arg(long)]
     pub lyrics: Option<PathBuf>,
-    /// Creation-time tag (ISO 8601 like 2026-09-24T10:00:00Z) — archive
-    /// dailies, shoot-day stamping
+    /// Creation-time tag (ISO 8601 like 2026-09-24T10:00:00Z, or `auto` to
+    /// stamp the input file's own mtime) — archive dailies, shoot-day stamping
     #[arg(long)]
     pub creation_time: Option<String>,
     /// Location tag (ISO 6709 like "+31.23+121.47/") — travel/daily vlog
@@ -3881,6 +3885,14 @@ pub struct RemuxArgs {
     /// only — subtitle fonts, licence PDFs); repeatable
     #[arg(long)]
     pub attach: Vec<PathBuf>,
+    /// Write a start timecode into the repack (HH:MM:SS[:FF]) — mov/mp4 get
+    /// a real tmcd track, mkv a TIMECODE tag; dailies matching a slate
+    #[arg(long)]
+    pub timecode: Option<String>,
+    /// Make subtitle track N the player default (multi-language sub
+    /// deliverables — same idea as --default-audio)
+    #[arg(long)]
+    pub default_sub: Option<usize>,
 }
 
 #[derive(clap::Args, Debug)]

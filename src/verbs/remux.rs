@@ -312,6 +312,47 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "+default".to_string(),
         ]);
     }
+    // --default-sub: pick the default subtitle track (multi-language subs)
+    if let Some(n) = args.default_sub {
+        if args.audio || args.video || args.no_subs {
+            return Err(Error::input(
+                "remux --default-sub needs a full repack with subtitle tracks",
+            ));
+        }
+        if probe.subtitle_streams == 0 {
+            return Err(Error::input("remux --default-sub: input has no subtitles"));
+        }
+        if n >= probe.subtitle_streams as usize {
+            return Err(Error::input(format!(
+                "remux --default-sub {n}: only {} subtitle track(s)",
+                probe.subtitle_streams
+            )));
+        }
+        argv.extend(["-disposition:s", "-default"]);
+        argv.extend([
+            "-disposition:s:".to_string() + &n.to_string(),
+            "+default".to_string(),
+        ]);
+    }
+    // --timecode HH:MM:SS[:FF]: mov/mp4 write a tmcd track + stream tag,
+    // mkv writes a TIMECODE format tag — dailies matching a camera slate
+    if let Some(tc) = &args.timecode {
+        if args.audio || !probe.has_video {
+            return Err(Error::input("remux --timecode needs a video repack"));
+        }
+        let ok = tc.len() >= 8
+            && tc.len() <= 11
+            && tc
+                .split([':', ';'])
+                .all(|f| !f.is_empty() && f.chars().all(|c| c.is_ascii_digit()))
+            && matches!(tc.matches([':', ';']).count(), 2 | 3);
+        if !ok {
+            return Err(Error::input(
+                "remux --timecode: expected HH:MM:SS[:FF] (e.g. 01:00:00:00)",
+            ));
+        }
+        argv.extend(["-timecode".to_string(), tc.clone()]);
+    }
     if let Some(t) = args.to {
         // output duration, not a timeline position — input -ss already
         // rewound the stream to ~0
@@ -412,7 +453,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     let mut c = c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len() }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub }),
     );
     if let Some((key, kid)) = enc_kv {
         c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));
