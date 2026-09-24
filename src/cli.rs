@@ -1117,6 +1117,8 @@ pub enum TranscodePreset {
     Dnxhd,
     /// AV1 (svt-av1 on ffmpeg ≥7, libaom on 4.x) — smallest web delivery
     Av1,
+    /// Edit proxy — 540p max, veryfast x264, aac 96k (scrub-friendly NLE dailies)
+    Proxy,
     /// Audio-only MP3 (podcast/voice delivery; -vn, libmp3lame)
     Mp3,
     /// Audio-only AAC in .m4a (Apple uploads, voice notes)
@@ -1266,6 +1268,9 @@ pub enum BarKind {
     /// mptestsrc encoder-torture pattern — cycling fine-detail/ringing
     /// torture zones; stress-test your codec preset before a master run
     Mptest,
+    /// testsrc2 all-in-one calibration card — moving elements, color chips,
+    /// circles, contrast ramps (the broadcast "please verify everything" card)
+    Testsrc,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -1945,9 +1950,14 @@ pub struct StackArgs {
     #[arg(long, default_value_t = 0.5)]
     pub percentile: f64,
     /// Combine mode: median (default, object removal), max (star/light
-    /// trails), min (noise floor / darkest composite)
+    /// trails), min (noise floor / darkest composite), mean (weighted
+    /// average — noise stacking / double exposure)
     #[arg(long, value_enum, default_value_t = StackMode::Median)]
     pub mode: StackMode,
+    /// Per-input weights for --mode mean (comma list, count must match
+    /// inputs; auto-normalized). Default: equal weights.
+    #[arg(long)]
+    pub weights: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -1956,6 +1966,7 @@ pub enum StackMode {
     Median,
     Max,
     Min,
+    Mean,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2285,7 +2296,7 @@ pub struct GenArgs {
     /// -o target (e.g. bg.mp4) — generative sources take no input file
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Pattern: mandelbrot | gradients | life (cellular automaton) | sierpinski | hald (identity LUT image — author your own `grade --lut` in an editor) | noise | tone | sweep (audio beds / speaker-test chirp)
+    /// Pattern: mandelbrot | gradients | life (cellular automaton) | sierpinski | hald (identity LUT image — author your own `grade --lut` in an editor) | noise | tone | sweep | silence (audio beds / speaker-test chirp / silent padding)
     #[arg(long, default_value = "gradients")]
     pub pattern: String,
     /// Frame size WxH
@@ -4360,8 +4371,11 @@ pub struct AlignArgs {
     pub reference: PathBuf,
     /// File to align (external recorder take, second camera)
     pub target: PathBuf,
-    #[arg(short, long)]
-    pub output: PathBuf,
+    #[arg(short, long, required_unless_present = "check")]
+    pub output: Option<PathBuf>,
+    /// Report the detected offset without rendering (sync QC)
+    #[arg(long)]
+    pub check: bool,
     /// Max shift to search, seconds either way (default 10)
     #[arg(long, default_value_t = 10.0)]
     pub max_lag: f64,
@@ -5207,6 +5221,9 @@ pub enum FxKind {
     /// contrast — acontrast dynamics tilt: strength >0.5 expands punch,
     /// <0.5 compresses toward level
     Contrast,
+    /// Auto-wah — asendcmd sweeps a resonant equalizer peak like a wah
+    /// pedal (strength speeds the sweep 0.7→3Hz)
+    Wah,
 }
 
 #[derive(clap::Args, Debug)]

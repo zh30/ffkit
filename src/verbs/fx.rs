@@ -76,6 +76,29 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
         FxKind::Fshift => format!("afreqshift=shift={:.0}:level=1", 50.0 + 1950.0 * s),
         // acontrast tilts dynamics: >33 expands punch, <33 compresses level
         FxKind::Contrast => format!("acontrast=contrast={:.0}", s * 100.0),
+        // auto-wah: asendcmd retunes an equalizer peak on a ~25ms step LFO —
+        // the resonant sweep of a wah pedal. sendcmd is video-only; the
+        // audio twin is asendcmd (its commands need ';' + single quotes).
+        FxKind::Wah => {
+            let rate = 0.7 + 2.3 * s;
+            let (lo, hi) = (350.0f64, 2700.0f64);
+            let dt = 1.0 / (rate * 16.0);
+            let dur = probe.duration.min(300.0);
+            let mut cmds = String::new();
+            let mut t = 0.0f64;
+            while t < dur {
+                if !cmds.is_empty() {
+                    cmds.push(';');
+                }
+                let ph = (t * rate * std::f64::consts::TAU).cos();
+                cmds.push_str(&format!(
+                    "{t:.2} equalizer frequency {:.0}",
+                    lo + (hi - lo) * (0.5 - 0.5 * ph)
+                ));
+                t += dt;
+            }
+            format!("asendcmd=commands='{cmds}',equalizer=f={lo:.0}:w=300:g=12")
+        }
     };
     // --at/--dur: duck the dry feed to 0 inside the window, add the FX in its place.
     // (on ffmpeg 4.4 none of these filters accept a timeline `enable` option)
@@ -137,10 +160,10 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c.with_extra(json!({
         "effect": format!("{:?}", args.kind).to_lowercase(),
         "strength": s,
-        "filter": if matches!(args.kind, FxKind::Ringmod) {
-            format!("amultiply+sine(carrier {:.0}Hz)", 25.0 + 475.0 * s)
-        } else {
-            af.clone()
+        "filter": match args.kind {
+            FxKind::Ringmod => format!("amultiply+sine(carrier {:.0}Hz)", 25.0 + 475.0 * s),
+            FxKind::Wah => format!("asendcmd+equalizer(wah {:.1}Hz)", 0.7 + 2.3 * s),
+            _ => af.clone(),
         },
     })))
 }

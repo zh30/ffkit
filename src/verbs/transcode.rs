@@ -85,7 +85,53 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Prores => prores(&args, g),
         TranscodePreset::Dnxhd => dnxhd(&args, g),
         TranscodePreset::Av1 => av1(&args, g),
+        TranscodePreset::Proxy => proxy(&args, g),
     }
+}
+
+/// Edit proxy: capped at 540p high, veryfast x264 — smooth NLE scrubbing on
+/// long takes / multicam dailies, never a delivery format.
+fn proxy(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("proxy preset: input has no video"));
+    }
+    let crf = args.crf.unwrap_or(28);
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend([
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        &crf.to_string(),
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+    ]);
+    let mut vf = String::from("scale=w='min(960,iw)':h=-2");
+    if let Some(fps) = args.fps {
+        vf.push_str(&format!(",fps={fps}"));
+    }
+    vf.push_str(range_tag(args));
+    vf.push_str(&interlace_tag(args));
+    vf.push_str(field_tag(args));
+    argv.extend(["-vf", &vf]);
+    if probe.has_audio {
+        if args.copy_audio {
+            argv.extend(["-c:a", "copy"]);
+        } else {
+            argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "96k")]);
+        }
+    }
+    cap_bitrate(&mut argv, &args.vbitrate);
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({"proxy": true}));
+    Ok(c)
 }
 
 fn range_tag(args: &TranscodeArgs) -> &'static str {

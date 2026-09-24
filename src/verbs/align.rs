@@ -190,6 +190,21 @@ pub fn run(args: AlignArgs, g: &Globals) -> Result<Contract, Error> {
         .ok_or_else(|| Error::input("no usable audio to align (too short)"))?;
     let ms = lag as f64 * 1000.0 / SAMPLE_RATE as f64;
 
+    // --check: QC only — report the offset, skip the render.
+    if args.check {
+        let mut c = Contract::dry_run("align", None, Some(pb.clone()));
+        c = c.with_extra(json!({
+            "offset_ms": (ms * 10.0).round() / 10.0,
+            "direction": if ms.abs() < 1.0 { "in_sync" } else if ms > 0.0 { "target_late" } else { "target_early" },
+            "window": window,
+        }));
+        return Ok(c);
+    }
+    let output = args
+        .output
+        .as_deref()
+        .ok_or_else(|| Error::input("align needs -o (or --check to probe only)"))?;
+
     // lag > 0: target starts later → trim its head. lag < 0: pad its start.
     let af = if ms > 0.0 {
         format!("atrim=start={:.3},asetpts=PTS-STARTPTS", ms / 1000.0)
@@ -214,10 +229,10 @@ pub fn run(args: AlignArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-af".to_string(), af]);
     }
     argv.extend(["-c:a".to_string(), "aac".to_string()]);
-    argv.push(args.output.display().to_string());
+    argv.push(output.display().to_string());
 
     let inputs: Vec<&Path> = vec![&args.reference, &args.target];
-    let mut c = engine::write_job("align", &inputs, &args.output, vec![argv], g)?;
+    let mut c = engine::write_job("align", &inputs, output, vec![argv], g)?;
     c = c.with_extra(json!({ "offset_ms": (ms * 10.0).round() / 10.0, "window": window }));
     Ok(c)
 }

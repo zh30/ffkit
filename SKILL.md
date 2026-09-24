@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.258.0
+version: 0.259.0
 
 
 
@@ -63,7 +63,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | blocky re-uploaded/screen-rec footage | `deblock` (`--strength` 0.05-0.95, `--at` window) |
 | colored halo on tape/capture | `chromashift` (`--x`/`--y` px, `--edge` wrap/smear) |
 | moving people/cars on a tripod shot, rain streaks | `tmedian` (temporal median; `--radius` frames of history, `--percentile`, `--at` window; drops 2*radius edge frames) |
-| tourists/noise across 3+ copies of the same locked shot | `stack` `in1 in2 in3 ...` (median across inputs — each takes the object in a different spot; `--percentile`) |
+| tourists/noise across 3+ copies of the same locked shot | `stack` `in1 in2 in3 ...` (median across inputs — each takes the object in a different spot; `--percentile`) — `--mode mean` exposure averaging (`--weights` per-input, comma list) |
 | waveform PNG of audio | `waveform` (`--size`, `--color`, `--scale`, `--bg` card, `--at/--dur`, comma `--at` = one PNG per window, `--vertical` = wave runs top→bottom) — podcast art, thumbnails |
 | audio spectrogram PNG | `spectrogram` (`--size`, `--color`, `--separate` per-channel, `--at/--dur`, comma `--at` = one PNG per window) — inspect hum/noise before cleanup |
 | watch loudness while it plays | `meter` (`--size`, `--meter 9|18`, `--at/--dur` — EBU R128 video; podcast/voice QC) |
@@ -99,7 +99,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill) |
 | light-leak / screen-blend overlay | `overlay --video leak.mp4 --mode screen` |
 | fix audio/video sync drift | `sync` (`--ms ±N` — pad or trim audio start) |
-| sync a second take to the camera master | `align` (`ref target -o out` — auto-detects offset by audio cross-correlation; multi-cam, external recorder; `--window` bounds long takes) |
+| sync a second take to the camera master | `align` (`ref target -o out` — auto-detects offset by audio cross-correlation; multi-cam, external recorder; `--window` bounds long takes; `--check` reports `offset_ms`/`direction` without rendering — sync QC) |
 | rolling end credits | `scroll` (`--text`/`--file`, `--at` comma list replays the roll at several marks / `end` with `--dur`, `--align`, `--wrap`, `--speed` px/s, `--opacity` ghost credits — text rolls bottom→top) |
 | splice a clip into the middle | `insert` (`--clip x.mp4 --at T`, comma list splices at several points, `end` appends — b-roll/ad read without manual split+concat; `--dur N` first N sec only), `--transition` xfade both joints, `--volume` clip audio |
 | two-camera angle switching | `multicam` (`A B --at t1,t2,...` (`end` ok) — run `align` first if the takes aren't synced; `--keep-audio` stays on cam A, `--transition` soft cuts) |
@@ -248,7 +248,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | glitched/dropped frames | `repair` (`--ref` another take, `--at`/`--dur` the bad stretch, `--ref-at` the clean frame to paste in — freezeframes) |
 | magnify subtle motion | `amplify` (`--amount` factor, `--radius` frames, `--threshold` diff cap, `--at` window) |
 | keep one color | `selective` (`--color C`/`--similarity`/`--blend` edge feather, `--engine chroma` chromahold for saturated hues, `--at` window) |
-| test card | `bars` (`--size`/`--dur`/`--hd`/`--tone` 1kHz, `--kind sd|pal100|pal75|rgb|yuv|allrgb|allyuv|mptest` other patterns — allrgb/allyuv = full color-cube QC sweeps, mptest = encoder-torture cycle) |
+| test card | `bars` (`--size`/`--dur`/`--hd`/`--tone` 1kHz, `--kind sd|pal100|pal75|rgb|yuv|allrgb|allyuv|mptest|testsrc` other patterns — allrgb/allyuv = full color-cube QC sweeps, mptest = encoder-torture cycle, testsrc = all-in-one animated calibration card) |
 | QC scope overlay | `scope` (`--mode vector|wave|hist|mvs|data|qp|pix|osc|drift|loud|cie|palette` — drift = luma-ramp curve, loud = loudness-over-time curve, cie = CIE-1931 gamut horseshoe, palette = color-swatch grid (GIF/8-bit QC), `--position` corner, `--at` window) |
 | anamorphic restore | `desqueeze` (`--factor` lens ratio, `--axis`) |
 | comic look | `cartoon` (`--levels` posterize, `--at` window) |
@@ -289,10 +289,11 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | short overlay clip repeats | `overlay` (`--loop` — covers the base) |
 | waveform showing quiet detail | `waveform` (`--scale log`) |
 | split on longer pauses | `split` (`--silence --min-silence`) |
-| wobble/sci-fi/echo/lofi/telephone voice | `fx` (`--kind` 21 effects, incl. `saturate` warmth, `excite` air, `crush` bitcrusher, `ringmod` true AM robot, `fshift` metallic alien, `contrast` dynamics tilt) |
+| wobble/sci-fi/echo/lofi/telephone voice | `fx` (`--kind` 22 effects, incl. `saturate` warmth, `excite` air, `crush` bitcrusher, `ringmod` true AM robot, `fshift` metallic alien, `contrast` dynamics tilt, `wah` auto-wah swept resonant peak) |
 | effect only in the drop | `fx` (`--at`/`--dur`) |
 | boomerang that loops 3x | `boomerang` (`--times`), `--at/--dur` window |
 | H.265 for Apple / smaller archive | `transcode` (`--preset hevc`) |
+| edit proxies for the NLE | `transcode` (`--preset proxy` — ≤960x540 veryfast x264 + aac 96k; smooth scrubbing on long takes / multicam dailies, never a delivery format) |
 | gate tuned for speech vs studio | `gate` (`--preset voice|podcast|studio`) |
 | echo/reverb only on the hook | `reverb` (`--at`/`--dur`) |
 | bass boost only on the drop | `eq` (`--at`/`--dur`) |
@@ -332,7 +333,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | gif tuning | `transcode --preset gif --fps --width`, `extract --gif --bounce` (palindrome loop), `extract --colors` palette size |
 | headphone fatigue on long audio | `fx --kind crossfeed` (`--strength` 0..1 ear bleed); `fx --kind sub` adds a synthesized low octave; `fx --kind autopan` sweeps L-R |
 | draw a freehand EQ curve | `eq --curve "80,0;3000,-6;8000,4"` (freq,gain dB points, interpolated) or `eq --graphic` 18-band classic EQ |
-| animated backdrop for a music/text card | `gen` `--pattern mandelbrot\|gradients\|life\|sierpinski\|hald` (no input file; `--size`/`--dur`/`--colors`/`--seed`) — `hald` writes an identity HALD LUT PNG (`--level`, default 8) to grade in an editor then feed `grade --lut`; audio patterns `noise` (`--color white/pink/brown/blue/violet/velvet`), `tone --freq`, `sweep` |
+| animated backdrop for a music/text card | `gen` `--pattern mandelbrot\|gradients\|life\|sierpinski\|hald` (no input file; `--size`/`--dur`/`--colors`/`--seed`) — `hald` writes an identity HALD LUT PNG (`--level`, default 8) to grade in an editor then feed `grade --lut`; audio patterns `noise` (`--color white/pink/brown/blue/violet/velvet`), `tone --freq`, `sweep`, `silence` (anullsrc digital-black bed for padding) |
 | italic-style slant / dynamic tilt | `shear` `--x`/`--y` (-2..2; `--fill` edge color, `--interp`) — `--at`/`--dur` windows |
 | fix a color cast / white balance | `wb` (auto per-channel normalization; `--strength`, `--independence 0` keeps grade, `--smooth` frames, `--engine greyedge` gentler cast fix) |
 | QC a clip for strobes before posting | `scan` — also reports `flash_frames`/`flash_max_badness` (photosensitive-epilepsy check) |

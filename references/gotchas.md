@@ -472,3 +472,9 @@ an atempo'd whole-file render would shift the window.
   fieldorder filter passthroughs on unflagged input (round 230), but
   setparams just WRITES the flag: `transcode --field-order tff|bff|prog`
   is the relabel repair. setparams=range works the same way (--range).
+- `interleave` (video) is broken on ffmpeg 4.x: emits ~1M fps output (900001 frames/0.9s), `settb=AVTB` does not fix it, and after `fps=N` only the second stream's frames survive — alternation lost. Do not ship it.
+- `sendcmd` is video-only; the audio twin is `asendcmd`. Multi-command syntax: `commands='0.0 filter_name option value;1.0 filter_name option value'` (semicolon-separated, single quotes REQUIRED or `;` splits the filter chain). `equalizer` accepts `frequency` and `gain` commands — this is the runtime-param automation class.
+- `mix` video filter at `scale=0` auto-normalizes by weight sum — `weights` just needs per-input numbers, no manual scale. Weights are SPACE-separated inside quotes.
+- `testsrc2` takes `size`/`rate`/`duration` params (fits the normal bars.rs branch); `mptestsrc` does NOT take `size=`.
+- `anullsrc=channel_layout=stereo:sample_rate=44100` produces true digital-black silence (−91dB) — the silence bed generator.
+- Equalizer `w` (width) is the full band width in Hz — `w=300` covers ±150 around center frequency.

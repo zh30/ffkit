@@ -72,17 +72,22 @@ pub fn run(args: GenArgs, g: &Globals) -> Result<Contract, Error> {
             }
             s
         }
-        "noise" | "tone" | "sweep" => String::new(),
+        "noise" | "tone" | "sweep" | "silence" => String::new(),
         _ => {
             return Err(Error::input(
-                "--pattern: mandelbrot | gradients | life | sierpinski | noise | tone | sweep",
+                "--pattern: mandelbrot | gradients | life | sierpinski | noise | tone | sweep | silence",
             ))
         }
     };
-    if matches!(args.pattern.as_str(), "noise" | "tone" | "sweep") {
+    if matches!(
+        args.pattern.as_str(),
+        "noise" | "tone" | "sweep" | "silence"
+    ) {
         // audio-only beds: pink noise (roomtone/dither bed), a sine tone,
-        // or a linear chirp sweeping 20Hz up to --freq (speaker/driver test)
+        // a linear chirp sweeping 20Hz up to --freq (speaker/driver test),
+        // or pure silence (anullsrc — padding for audio beds)
         let audio_src = match args.pattern.as_str() {
+            "silence" => String::from("anullsrc=channel_layout=stereo:sample_rate=44100"),
             "tone" => {
                 let f = args.freq.unwrap_or(440.0).clamp(20.0, 20000.0);
                 format!("sine=frequency={f}:sample_rate=44100")

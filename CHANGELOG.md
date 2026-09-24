@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.259.0] — 2026-09-23
+
+- `fx --kind wah` — auto-wah: asendcmd sweeps a resonant equalizer peak 350→2700Hz (`--strength` sets the LFO rate) — funk/EDU wobble without a pedal
+- `stack --mode mean` — exposure averaging across inputs (long-exposure water/cloud smoothing, HDR-look merges); `--weights` comma list per input, auto-normalized (`3,1` = 75%/25%)
+- `transcode --preset proxy` — NLE edit proxies: ≤960x540 veryfast x264 + aac 96k (smooth scrubbing on long takes / multicam dailies — never a delivery format)
+- `align --check` — reports `offset_ms`/`direction` without rendering (sync QC gate before a multicam assembly)
+- `bars --kind testsrc` — testsrc2 all-in-one animated calibration card
+- `gen --pattern silence` — anullsrc digital-black audio bed (silent padding)
+
 ## [0.258.0] — 2026-09-23
 
 - `eq --superpass FREQ[:Q]` / `eq --superstop FREQ` — order-10 razor band pass/stop (isolate or kill a whine/whistle/tone anywhere on the spectrum; ~50dB deeper notch than --notch)

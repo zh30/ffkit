@@ -11,10 +11,13 @@ use crate::error::Error;
 /// timelapse, per-file sensor noise (3+ copies = ~1/sqrt(N) noise).
 /// Audio is taken from the first input.
 pub fn run(args: StackArgs, g: &Globals) -> Result<Contract, Error> {
-    if args.inputs.len() < 3 {
-        return Err(Error::input(
-            "stack needs at least 3 inputs (median across files)",
-        ));
+    let min = if matches!(args.mode, crate::cli::StackMode::Median) {
+        3
+    } else {
+        2
+    };
+    if args.inputs.len() < min {
+        return Err(Error::input(format!("stack needs at least {min} inputs")));
     }
     let mut probes = Vec::with_capacity(args.inputs.len());
     for i in &args.inputs {
@@ -40,6 +43,26 @@ pub fn run(args: StackArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("--percentile must be 0..=1"));
     }
 
+    // --weights is a mean-blend control; it changes nothing on the
+    // percentile modes.
+    let weights: Option<Vec<f64>> = match &args.weights {
+        Some(raw) => {
+            if !matches!(args.mode, crate::cli::StackMode::Mean) {
+                return Err(Error::input("--weights only applies to --mode mean"));
+            }
+            let ws: Vec<f64> = raw
+                .split(',')
+                .map(|s| s.trim().parse::<f64>())
+                .collect::<Result<_, _>>()
+                .map_err(|_| Error::input("--weights wants comma numbers"))?;
+            if ws.len() != args.inputs.len() || ws.iter().any(|w| *w <= 0.0) {
+                return Err(Error::input("--weights: one positive number per input"));
+            }
+            Some(ws)
+        }
+        None => None,
+    };
+
     let n = args.inputs.len();
     let pads: String = (0..n).map(|i| format!("[{i}:v]")).collect();
     let fc = match args.mode {
@@ -51,6 +74,19 @@ pub fn run(args: StackArgs, g: &Globals) -> Result<Contract, Error> {
         }
         crate::cli::StackMode::Max => format!("{pads}maskedmax[v]"),
         crate::cli::StackMode::Min => format!("{pads}maskedmin[v]"),
+        // mix normalizes by the weight sum (scale=0), so weights read as
+        // exposure shares: "3,1" = 75%/25% double exposure
+        crate::cli::StackMode::Mean => {
+            let ws = weights
+                .map(|v| {
+                    v.iter()
+                        .map(|w| format!("{w:.4}"))
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                })
+                .unwrap_or_else(|| "1 ".repeat(n).trim_end().to_string());
+            format!("{pads}mix=inputs={n}:weights='{ws}':duration=first[v]")
+        }
     };
 
     let mut argv = ffmpeg_base(g.progress);
@@ -73,6 +109,7 @@ pub fn run(args: StackArgs, g: &Globals) -> Result<Contract, Error> {
         "inputs": n,
         "percentile": args.percentile,
         "mode": format!("{:?}", args.mode).to_lowercase(),
-        "filter": match args.mode { crate::cli::StackMode::Median => "xmedian", crate::cli::StackMode::Max => "maskedmax", crate::cli::StackMode::Min => "maskedmin" }
+        "weights": args.weights,
+        "filter": match args.mode { crate::cli::StackMode::Median => "xmedian", crate::cli::StackMode::Max => "maskedmax", crate::cli::StackMode::Min => "maskedmin", crate::cli::StackMode::Mean => "mix" }
     })))
 }

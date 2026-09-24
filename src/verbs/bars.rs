@@ -31,6 +31,8 @@ pub fn run(args: BarsArgs, g: &Globals) -> Result<Contract, Error> {
         Some(BarKind::Allyuv) => "allyuv",
         // encoder torture zones take test=/rate=/max_frames=, no size=
         Some(BarKind::Mptest) => "mptestsrc",
+        // testsrc2 takes size=/rate=/duration= — the animated everything-card
+        Some(BarKind::Testsrc) => "testsrc2",
         None => {
             if args.hd {
                 "smptehdbars"

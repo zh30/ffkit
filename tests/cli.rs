@@ -27227,3 +27227,267 @@ fn r231_superband_allpass_flash_hold_fieldorder() {
         "expected top-field-first order, got {fo_s}"
     );
 }
+
+// Round 232: fx wah (asendcmd swept resonant peak), stack --mode mean +
+// --weights, transcode --preset proxy, align --check, bars testsrc,
+// gen silence.
+#[test]
+fn r232_wah_stackmean_proxy_aligncheck_testsrc_silence() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    fn mean_of(p: &Path) -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-hide_banner", "-i"])
+            .arg(p)
+            .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .split("mean_volume: ")
+            .nth(1)
+            .and_then(|r| r.split(" dB").next().unwrap_or("").trim().parse().ok())
+            .unwrap_or(0.0)
+    }
+    fn max_of(p: &Path) -> f64 {
+        let o = Command::new("ffmpeg")
+            .args(["-hide_banner", "-i"])
+            .arg(p)
+            .args(["-af", "volumedetect", "-vn", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .split("max_volume: ")
+            .nth(1)
+            .and_then(|r| r.split(" dB").next().unwrap_or("").trim().parse().ok())
+            .unwrap_or(0.0)
+    }
+    fn yavg(p: &Path) -> f64 {
+        let o = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-y",
+                "-i",
+                &p.to_string_lossy(),
+                "-vf",
+                "signalstats,metadata=mode=print",
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&o.stderr)
+            .split("YAVG=")
+            .nth(1)
+            .and_then(|r| {
+                r.split(|c: char| !c.is_ascii_digit() && c != '.')
+                    .next()?
+                    .parse()
+                    .ok()
+            })
+            .unwrap_or(0.0)
+    }
+
+    // fx --kind wah — resonant peak swept by asendcmd; a sine parked in the
+    // sweep's dwell zone gains >3dB at the crossings.
+    let sine = dir.path().join("s.wav");
+    assert!(Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=2600:duration=2:sample_rate=48000",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&sine)
+        .status()
+        .unwrap()
+        .success());
+    let wah = dir.path().join("wah.wav");
+    let j = run_json(&[
+        "fx",
+        &sine.to_string_lossy(),
+        "-o",
+        &wah.to_string_lossy(),
+        "--kind",
+        "wah",
+        "--strength",
+        "1.0",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert!(
+        max_of(&wah) > max_of(&sine) + 3.0,
+        "wah should push peak past crossings: {} vs {}",
+        max_of(&wah),
+        max_of(&sine)
+    );
+
+    // stack --mode mean — black + white → mid grey; --weights 3,1 → 75/25.
+    let blk = dir.path().join("blk.mp4");
+    let wht = dir.path().join("wht.mp4");
+    for (p, c) in [(&blk, "black"), (&wht, "white")] {
+        assert!(Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!("color={c}:size=320x240:duration=1:rate=30"),
+                "-pix_fmt",
+                "yuv420p",
+                "-c:v",
+                "libx264",
+            ])
+            .arg(p)
+            .status()
+            .unwrap()
+            .success());
+    }
+    let mean = dir.path().join("mean.mp4");
+    let j = run_json(&[
+        "stack",
+        &blk.to_string_lossy(),
+        &wht.to_string_lossy(),
+        "-o",
+        &mean.to_string_lossy(),
+        "--mode",
+        "mean",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let y = yavg(&mean);
+    assert!((y - 125.0).abs() < 8.0, "mean of black+white ~125, got {y}");
+    let wmean = dir.path().join("wmean.mp4");
+    let j = run_json(&[
+        "stack",
+        &blk.to_string_lossy(),
+        &wht.to_string_lossy(),
+        "-o",
+        &wmean.to_string_lossy(),
+        "--mode",
+        "mean",
+        "--weights",
+        "3,1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let y = yavg(&wmean);
+    assert!(y > 55.0 && y < 85.0, "3:1 weighted mean ~70, got {y}");
+
+    // --weights is a mean-only control.
+    let bad = run_json(&[
+        "stack",
+        &blk.to_string_lossy(),
+        &wht.to_string_lossy(),
+        "-o",
+        &dir.path().join("bad.mp4").to_string_lossy(),
+        "--mode",
+        "max",
+        "--weights",
+        "3,1",
+    ]);
+    assert_eq!(bad["status"], "failed");
+
+    // transcode --preset proxy — 720p source capped to ≤960x540 h264.
+    let hd = dir.path().join("hd.mp4");
+    assert!(Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=1280x720:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:v",
+            "libx264",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&hd)
+        .status()
+        .unwrap()
+        .success());
+    let px = dir.path().join("px.mp4");
+    let j = run_json(&[
+        "transcode",
+        &hd.to_string_lossy(),
+        "--preset",
+        "proxy",
+        "-o",
+        &px.to_string_lossy(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert!(
+        j["probe"]["width"].as_i64().unwrap_or(0) <= 960
+            && j["probe"]["height"].as_i64().unwrap_or(0) <= 540,
+        "proxy caps at 540p: {}x{}",
+        j["probe"]["width"],
+        j["probe"]["height"]
+    );
+
+    // align --check — report the offset, no render (same file → ~0ms).
+    let j = run_json(&[
+        "align",
+        &f.to_string_lossy(),
+        &f.to_string_lossy(),
+        "--check",
+    ]);
+    assert_eq!(j["status"], "dry_run", "{}", j["error"]);
+    assert!(
+        j["extra"]["offset_ms"].as_f64().unwrap_or(999.0).abs() < 30.0,
+        "self-align ~0ms: {}",
+        j["extra"]["offset_ms"]
+    );
+
+    // bars --kind testsrc — animated everything-card.
+    let card = dir.path().join("card.mp4");
+    let j = run_json(&[
+        "bars",
+        "-o",
+        &card.to_string_lossy(),
+        "--kind",
+        "testsrc",
+        "--size",
+        "320x240",
+        "--dur",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+
+    // gen --pattern silence — anullsrc digital-black bed.
+    let sil = dir.path().join("sil.m4a");
+    let j = run_json(&[
+        "gen",
+        "-o",
+        &sil.to_string_lossy(),
+        "--pattern",
+        "silence",
+        "--dur",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert!(
+        mean_of(&sil) < -60.0,
+        "silence ~-91dB, got {}",
+        mean_of(&sil)
+    );
+}
