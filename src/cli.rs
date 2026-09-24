@@ -1380,6 +1380,18 @@ pub enum DeliverPlatform {
     Line,
     /// VK clip 16:9 landscape (1920x1080, -14 LUFS)
     Vk,
+    /// Dailymotion upload 16:9 landscape (1920x1080, -14 LUFS)
+    Dailymotion,
+    /// Odysee upload 16:9 landscape (1920x1080, -14 LUFS)
+    Odysee,
+    /// Trovo stream clip 16:9 landscape (1920x1080, -14 LUFS)
+    Trovo,
+    /// Substack video post 16:9 landscape (1920x1080, -14 LUFS)
+    Substack,
+    /// Triller video 9:16 vertical (1080x1920, -14 LUFS)
+    Triller,
+    /// Lemon8 post 3:4 portrait (1080x1440, -14 LUFS)
+    Lemon8,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2805,6 +2817,11 @@ pub struct SubsArgs {
     /// extras: rewrapped)
     #[arg(long)]
     pub wrap: Option<usize>,
+    /// Append another .srt file's cues, shifted to start where this
+    /// file's cues end — join subtitle files after `concat` joins the
+    /// matching clips (extras: appended, offset)
+    #[arg(long)]
+    pub append: Option<PathBuf>,
 }
 
 #[derive(clap::Args, Debug)]

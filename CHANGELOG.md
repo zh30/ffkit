@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.300.0] — 2026-09-24
+
+### Added
+
+- `subs --append FILE.srt` — join a second subtitle file shifted to start where the first file's cues end (`extras.appended`/`offset`/`cues`); the `concat` counterpart for transcripts
+- `subs --convert` to `.txt` — plain-text transcript export: cue line breaks collapse, cues join with a space (`extras.words`/`cues`) — shownotes/blog/LLM input
+- `deliver --platform dailymotion`/`odysee`/`trovo`/`substack` (16:9 1920x1080) + `triller` (9:16 1080x1920) + `lemon8` (3:4 1080x1440)
+
 ## [0.299.0] — 2026-09-24
 
 ### Added

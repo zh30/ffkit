@@ -630,3 +630,5 @@ an atempo'd whole-file render would shift the window.
 - **`subs --min-dur` caps at the next cue's start** — extending a flash cue past the next start would re-create the overlap `--fix-overlaps` just removed; the extension is `min(start+min_dur, next.start)`. A cue that can't reach the floor (adjacent cues) still reports in `extended` with a partial extension.
 
 - **Speaker labels need digits + underscore, not just caps** — transcript exports write `SPEAKER 1:`/`SPEAKER_1:`; an all-caps check that rejects digits misses the commonest label form. ffkit's strip requires ≥1 uppercase letter AND only [A-Z0-9_ .'-] before the colon, so `Note:`/`Monday:` survive.
+
+- **`subs --append` offsets by the first file's last CUE end, not the clip's duration** — if the A-side video runs past its last subtitle (credits, outro silence), the appended cues land early. Verify the first clip's length before joining, or shift the joined file afterwards with `--shift`.

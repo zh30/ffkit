@@ -95,20 +95,25 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Rumble
         | DeliverPlatform::Kick
         | DeliverPlatform::Vk
+        | DeliverPlatform::Dailymotion
+        | DeliverPlatform::Odysee
+        | DeliverPlatform::Trovo
+        | DeliverPlatform::Substack
         | DeliverPlatform::Twitch => (1920, 1080),
         DeliverPlatform::X | DeliverPlatform::Mastodon | DeliverPlatform::Discord => (1280, 720),
         DeliverPlatform::Threads | DeliverPlatform::Instagram | DeliverPlatform::Facebook => {
             (1080, 1350)
         }
         DeliverPlatform::Square | DeliverPlatform::Shopify | DeliverPlatform::Etsy => (1080, 1080),
-        DeliverPlatform::Xhs => (1080, 1440),
+        DeliverPlatform::Xhs | DeliverPlatform::Lemon8 => (1080, 1440),
         DeliverPlatform::Wechat => (1080, 1260),
         DeliverPlatform::Pinterest => (1000, 1500),
         DeliverPlatform::Circle => (640, 640),
         DeliverPlatform::Canvas
         | DeliverPlatform::Snapchat
         | DeliverPlatform::Whatsapp
-        | DeliverPlatform::Line => (1080, 1920),
+        | DeliverPlatform::Line
+        | DeliverPlatform::Triller => (1080, 1920),
         DeliverPlatform::Weibo => (1920, 1080),
         _ => (1080, 1920),
     };
@@ -437,6 +442,12 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Kick => "kick",
         DeliverPlatform::Line => "line",
         DeliverPlatform::Vk => "vk",
+        DeliverPlatform::Dailymotion => "dailymotion",
+        DeliverPlatform::Odysee => "odysee",
+        DeliverPlatform::Trovo => "trovo",
+        DeliverPlatform::Substack => "substack",
+        DeliverPlatform::Triller => "triller",
+        DeliverPlatform::Lemon8 => "lemon8",
     }
 }
 

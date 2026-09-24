@@ -35162,3 +35162,70 @@ fn r272_subs_text_transforms_deliver_kick_line_vk() {
     assert_eq!(s["height"], 1920);
     let _ = base;
 }
+
+#[test]
+fn r273_subs_append_txt_deliver_lemon8() {
+    if !has_ffmpeg() {
+        eprintln!("skip: no ffmpeg");
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let base = fixture(d.path());
+    // subs --append: b's cues shift to where a's last cue ends
+    let a = d.path().join("a.srt");
+    std::fs::write(
+        &a,
+        "1\n00:00:00,000 --> 00:00:02,000\nFirst part words here\n\n         2\n00:00:02,500 --> 00:00:05,000\nSecond sentence\n",
+    )
+    .unwrap();
+    let b = d.path().join("b.srt");
+    std::fs::write(&b, "1\n00:00:00,000 --> 00:00:01,500\nAppended line one\n").unwrap();
+    let ab = d.path().join("ab.srt");
+    let j = run_json(&[
+        "subs",
+        a.to_str().unwrap(),
+        "--append",
+        b.to_str().unwrap(),
+        "-o",
+        ab.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["appended"], 1, "{j}");
+    assert_eq!(j["extra"]["cues"], 3, "{j}");
+    assert_eq!(j["extra"]["offset"], 5.0, "{j}");
+    let text = std::fs::read_to_string(&ab).unwrap();
+    assert!(text.contains("00:00:05,000 --> 00:00:06,500"), "{text}");
+    // subs --convert to .txt: plain transcript for shownotes/LLM input
+    let txt = d.path().join("ab.txt");
+    let j = run_json(&[
+        "subs",
+        ab.to_str().unwrap(),
+        "-o",
+        txt.to_str().unwrap(),
+        "--convert",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["format"], "txt", "{j}");
+    assert_eq!(j["extra"]["words"], 9, "{j}");
+    let text = std::fs::read_to_string(&txt).unwrap();
+    assert_eq!(
+        text.trim(),
+        "First part words here Second sentence Appended line one"
+    );
+    // deliver --platform lemon8: 3:4 portrait canvas
+    let lemon = d.path().join("lemon.mp4");
+    let j = run_json(&[
+        "deliver",
+        base.to_str().unwrap(),
+        "-o",
+        lemon.to_str().unwrap(),
+        "--platform",
+        "lemon8",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", lemon.to_str().unwrap()]);
+    let s = pr["probe"]["streams"].as_array().unwrap()[0].clone();
+    assert_eq!(s["width"], 1080);
+    assert_eq!(s["height"], 1440);
+    let _ = base;
+}

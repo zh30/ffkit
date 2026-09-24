@@ -31,6 +31,9 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.convert {
         return convert(&args, g);
     }
+    if args.append.is_some() {
+        return append_sub(&args, g);
+    }
     if let Some(offset) = args.shift {
         return shift(&args, offset, g);
     }
@@ -721,12 +724,15 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             .unwrap_or_default()
     };
     let (in_ext, out_ext) = (ext(&args.input), ext(&args.output));
-    for e in [&in_ext, &out_ext] {
-        if e != "srt" && e != "vtt" {
-            return Err(Error::input(
-                "subs --convert takes .srt/.vtt input and output",
-            ));
-        }
+    if in_ext != "srt" && in_ext != "vtt" {
+        return Err(Error::input(
+            "subs --convert takes .srt/.vtt input and .srt/.vtt/.txt output",
+        ));
+    }
+    if out_ext != "srt" && out_ext != "vtt" && out_ext != "txt" {
+        return Err(Error::input(
+            "subs --convert takes .srt/.vtt input and .srt/.vtt/.txt output",
+        ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
     // vtt → srt-shaped blocks: drop WEBVTT/NOTE/STYLE blocks and cue settings.
@@ -760,7 +766,21 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(case) = args.case {
         apply_case(&mut cues, case);
     }
-    let out = if out_ext == "vtt" {
+    let words = cues
+        .iter()
+        .map(|c| c.text.split_whitespace().count())
+        .sum::<usize>();
+    let out = if out_ext == "txt" {
+        // plain-text transcript: flowing prose for shownotes/blogs/LLM
+        // input — cue line breaks collapse to spaces, cues join with a space
+        let mut s = cues
+            .iter()
+            .map(|c| c.text.split_whitespace().collect::<Vec<_>>().join(" "))
+            .collect::<Vec<_>>()
+            .join(" ");
+        s.push('\n');
+        s
+    } else if out_ext == "vtt" {
         let mut s = String::from("WEBVTT\n\n");
         for c in &cues {
             s.push_str(&format!(
@@ -784,7 +804,51 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
     std::fs::write(&args.output, out).map_err(|e| Error::output(e.to_string()))?;
     let mut c = Contract::ok("subs", Some(crate::paths::display(&args.output)), None);
     c.verified = Some(args.output.is_file());
-    Ok(c.with_extra(json!({ "cues": cues.len(), "format": out_ext })))
+    Ok(c.with_extra(json!({ "cues": cues.len(), "words": words, "format": out_ext })))
+}
+
+/// `subs a.srt --append b.srt -o ab.srt`: join two subtitle files — b's
+/// cues shift to start where a's last cue ends. The matching pattern is
+/// `concat` on the clips, then `--append` on their transcripts.
+fn append_sub(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
+    let second = args.append.as_ref().unwrap();
+    for p in [&args.input, second, &args.output] {
+        let is_srt = p
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.eq_ignore_ascii_case("srt"))
+            .unwrap_or(false);
+        if !is_srt {
+            return Err(Error::input("subs --append joins .srt files only"));
+        }
+    }
+    let a = crate::srt::parse_srt(&read_sub_file(&args.input, args.encoding.as_deref())?)?;
+    let b = crate::srt::parse_srt(&read_sub_file(second, args.encoding.as_deref())?)?;
+    // shift lands b right after a's last cue — if the joined clip runs
+    // past a's last cue the appended cues sit early (see gotchas)
+    let offset = a.iter().map(|c| c.end).fold(0.0, f64::max);
+    let mut joined = a;
+    joined.extend(b.iter().map(|c| crate::srt::Cue {
+        start: c.start + offset,
+        end: c.end + offset,
+        text: c.text.clone(),
+    }));
+    if g.dry_run {
+        return Ok(Contract::dry_run(
+            "subs",
+            Some(crate::paths::display(&args.output)),
+            None,
+        ));
+    }
+    std::fs::write(&args.output, crate::srt::to_srt(&joined))?;
+    let mut c = Contract::ok("subs", Some(crate::paths::display(&args.output)), None);
+    c.verified = Some(args.output.is_file());
+    Ok(c.with_extra(json!({
+        "mode": "append",
+        "offset": offset,
+        "appended": b.len(),
+        "cues": joined.len(),
+    })))
 }
 
 fn apply_case(cues: &mut [crate::srt::Cue], case: crate::cli::TextCase) {
