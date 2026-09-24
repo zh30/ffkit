@@ -94,9 +94,25 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
             .count(),
         "subs",
     )?;
+    let title_audio = parse_title_list(
+        args.title_audio.as_deref(),
+        probe.streams.iter().filter(|s| s.kind == "audio").count(),
+        "audio",
+    )?;
+    let title_subs = parse_title_list(
+        args.title_subs.as_deref(),
+        probe
+            .streams
+            .iter()
+            .filter(|s| s.kind == "subtitle")
+            .count(),
+        "subs",
+    )?;
     if tags.is_empty()
         && lang_audio.is_empty()
         && lang_subs.is_empty()
+        && title_audio.is_empty()
+        && title_subs.is_empty()
         && args.rotate.is_none()
         && !args.clear
         && args.copy.is_none()
@@ -109,6 +125,8 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         && (!tags.is_empty()
             || !lang_audio.is_empty()
             || !lang_subs.is_empty()
+            || !title_audio.is_empty()
+            || !title_subs.is_empty()
             || args.rotate.is_some()
             || args.copy.is_some())
     {
@@ -159,6 +177,24 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
             format!("language={l}"),
         ]);
     }
+    for (i, t) in title_audio.iter().enumerate() {
+        if t.is_empty() {
+            continue;
+        }
+        argv.extend([
+            "-metadata:s:a:".to_string() + &i.to_string(),
+            format!("title={t}"),
+        ]);
+    }
+    for (i, t) in title_subs.iter().enumerate() {
+        if t.is_empty() {
+            continue;
+        }
+        argv.extend([
+            "-metadata:s:s:".to_string() + &i.to_string(),
+            format!("title={t}"),
+        ]);
+    }
     if let Some(r) = args.rotate {
         if !new_rotate {
             argv.extend(["-metadata:s:v:0", &format!("rotate={r}")]);
@@ -173,7 +209,24 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         "copied_from": args.copy,
         "lang_audio": lang_audio,
         "lang_subs": lang_subs,
+        "title_audio": title_audio,
+        "title_subs": title_subs,
     })))
+}
+
+/// `--title-{audio,subs}` comma list → per-track display names. Position
+/// is the track index; blank slots leave the tag untouched.
+fn parse_title_list(raw: Option<&str>, n_tracks: usize, kind: &str) -> Result<Vec<String>, Error> {
+    let Some(raw) = raw else {
+        return Ok(Vec::new());
+    };
+    let titles: Vec<String> = raw.split(',').map(str::trim).map(String::from).collect();
+    if titles.iter().filter(|t| !t.is_empty()).count() > n_tracks {
+        return Err(Error::input(format!(
+            "meta --title-{kind}: input has {n_tracks} {kind} track(s), got more names"
+        )));
+    }
+    Ok(titles)
 }
 
 /// `--lang-{audio,subs}` comma list → per-track ISO codes. Position in

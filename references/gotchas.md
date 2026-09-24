@@ -620,3 +620,7 @@ an atempo'd whole-file render would shift the window.
 - **`-decryption_key` is a mov-demuxer option** — input-side only, binds to the next `-i` (like `-itsscale`/`-itsoffset`); put it before every encrypted input. It decrypts while demuxing so the repack still stream-copies out — `--encrypt`'s mirror for ClearKey receipts.
 - **`-copyts` keeps input timestamps verbatim** — a 5s-offset capture stays at start_time=5 instead of re-zeroing (that's the point). It fights every ts mutator (`-itsscale`, `-itsoffset`, `-output_ts_offset`, delay paths) — refuse the combination.
 - **`meta --lang-{audio,subs}` list position is the track index** — `eng,,jpn` tags a:0 and a:2, leaves a:1's `und` alone; ffprobe reports untouched tracks as `und`, not missing.
+
+- **`-global_sidx` is mp4-single-file only** — dash's global SIDX index lives at the tail of the `--single` byte-range file; it conflicts with `--streaming` (per-frame moof) and is meaningless in `--webm` (webm packages don't carry sidx). Guard all three in the verb, not in ffmpeg.
+- **`-hls_playlist_type vod` is already the default** — ffkit's `hls` writes `vod` on every non-`--live` manifest; a `--vod` flag would be a no-op. Check what the muxer flag already emits before wiring a flag for it.
+- **CSV `TIME,TITLE` splits on the FIRST comma** — `split_once(',')` keeps commas inside the title; quote-wrap titles containing `,`/`"` on export and unquote+unescape (`""` → `"`) on import. A header row ("Timecode,Name") is only a header when the time column fails to parse on line 1 — parse first, then skip.

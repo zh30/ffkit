@@ -34824,3 +34824,164 @@ fn r268_remux_keep_decrypt_copyts_meta_langs_live_rw_timeout() {
     assert_eq!(j["status"], "failed", "{j}");
     let _ = base;
 }
+
+#[test]
+fn r269_meta_titles_chapter_csv_dash_modes_deliver_ecommerce() {
+    if !has_ffmpeg() {
+        eprintln!("skip: no ffmpeg");
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let base = fixture(d.path());
+    // multi-stream fixture: video + audio×2
+    let multi = d.path().join("multi.mkv");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=160x120:rate=30:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map",
+            "2:a",
+            "-c:v",
+            "libx264",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&multi)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    // meta --title-audio: per-track display titles in order
+    let titled = d.path().join("titled.mkv");
+    let j = run_json(&[
+        "meta",
+        multi.to_str().unwrap(),
+        "-o",
+        titled.to_str().unwrap(),
+        "--title-audio",
+        "Program,Commentary",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", titled.to_str().unwrap()]);
+    let tags = pr["probe"]["tags"].clone();
+    assert_eq!(tags["stream:1"]["title"], "Program", "{tags}");
+    assert_eq!(tags["stream:2"]["title"], "Commentary", "{tags}");
+    // chapter --csv: H:MM:SS.mmm,Title lines, quoted commas; round-trip
+    let csv = d.path().join("marks.csv");
+    let j = run_json(&[
+        "chapter",
+        base.to_str().unwrap(),
+        "-o",
+        csv.to_str().unwrap(),
+        "--at",
+        "0:00|Intro",
+        "--at",
+        "0.5|Verse, Pt 1",
+        "--csv",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["exported"], "csv");
+    let text = std::fs::read_to_string(&csv).unwrap();
+    assert!(
+        text.lines().any(|l| l.starts_with("00:00:00.000,Intro")),
+        "{text}"
+    );
+    assert!(
+        text.lines().any(|l| l == "00:00:00.500,\"Verse, Pt 1\""),
+        "{text}"
+    );
+    let back = d.path().join("back.mkv");
+    let j = run_json(&[
+        "chapter",
+        base.to_str().unwrap(),
+        "-o",
+        back.to_str().unwrap(),
+        "--import",
+        csv.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&[
+        "chapter",
+        back.to_str().unwrap(),
+        "-o",
+        back.to_str().unwrap(),
+        "--list",
+    ]);
+    let chs = j["extra"]["chapters"].as_array().unwrap();
+    assert_eq!(chs.len(), 2, "{j}");
+    assert_eq!(chs[1]["title"], "Verse, Pt 1");
+    // dash --streaming: moof fragments land in segments
+    let ds = d.path().join("ds");
+    let j = run_json(&[
+        "dash",
+        base.to_str().unwrap(),
+        "-o",
+        ds.to_str().unwrap(),
+        "--streaming",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let seg = std::fs::read(ds.join("seg-0-00001.m4s")).unwrap();
+    let moofs = seg.windows(4).filter(|w| w == b"moof").count();
+    assert!(
+        moofs > 1,
+        "streaming writes per-frame moof fragments, got {moofs}"
+    );
+    // dash --sidx + --single: SIDX index in the byte-range file
+    let dsingle = d.path().join("dsingle");
+    let j = run_json(&[
+        "dash",
+        base.to_str().unwrap(),
+        "-o",
+        dsingle.to_str().unwrap(),
+        "--single",
+        "--sidx",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let stream = std::fs::read(dsingle.join("stream-0.m4s")).unwrap();
+    assert!(
+        stream.windows(4).any(|w| w == b"sidx"),
+        "sidx box missing from single-file package"
+    );
+    let j = run_json(&[
+        "dash",
+        base.to_str().unwrap(),
+        "-o",
+        d.path().join("bad").to_str().unwrap(),
+        "--sidx",
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    // deliver --platform shopify: 1:1 e-commerce canvas
+    let shop = d.path().join("shop.mp4");
+    let j = run_json(&[
+        "deliver",
+        base.to_str().unwrap(),
+        "-o",
+        shop.to_str().unwrap(),
+        "--platform",
+        "shopify",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pr = run_json(&["probe", shop.to_str().unwrap()]);
+    let s = pr["probe"]["streams"].as_array().unwrap()[0].clone();
+    assert_eq!(s["width"], 1080);
+    assert_eq!(s["height"], 1080);
+    let _ = base;
+}

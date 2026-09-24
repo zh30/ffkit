@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.296.0] — 2026-09-24
+
+### Added
+
+- `meta --title-audio`/`--title-subs` — per-track display titles in track order (`--title-audio "Program,Commentary"`; blank slots skip — players name the track instead of "Track N")
+- `chapter --csv` — export marks as `H:MM:SS.mmm,Title` lines (Resolve/Premiere marker import, spreadsheet edits; quoted titles ok) — and `--import` now auto-reads `.csv` back (header row tolerated)
+- `dash --streaming` — `-streaming` writes a moof fragment per frame (low-latency DASH prep — players append fragments without waiting for whole segments)
+- `dash --sidx` — `-global_sidx` writes a SIDX index box into the `--single` byte-range file (HTTP range seeking; mp4 only, exclusive with `--streaming`)
+- `deliver --platform shopify` (1:1 1080x1080 product-page) + `amazon` (16:9 1920x1080 listing) — e-commerce canvases on the same −14 LUFS pack
+
 ## [0.295.0] — 2026-09-24
 
 ### Added

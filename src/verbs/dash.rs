@@ -16,6 +16,19 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
     if !(0.5..=30.0).contains(&args.seg) {
         return Err(Error::input("--seg must be 0.5..=30 seconds"));
     }
+    if args.streaming && args.sidx {
+        return Err(Error::input(
+            "--streaming and --sidx are exclusive (fragments vs one-file index)",
+        ));
+    }
+    if args.sidx && !args.single {
+        return Err(Error::input(
+            "--sidx indexes the single byte-range file — pass --single too",
+        ));
+    }
+    if args.sidx && args.webm {
+        return Err(Error::input("--sidx needs the mp4 package (drop --webm)"));
+    }
     paths::ensure_input(&args.input)?;
     if args.webm && args.copy {
         let v = probe.vcodec.as_deref().unwrap_or("");
@@ -225,6 +238,12 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if args.webm {
         argv.extend(["-dash_segment_type".to_string(), "webm".to_string()]);
+    }
+    if args.streaming {
+        argv.extend(["-streaming".to_string(), "1".to_string()]);
+    }
+    if args.sidx {
+        argv.extend(["-global_sidx".to_string(), "1".to_string()]);
     }
     argv.push(manifest.display().to_string());
 

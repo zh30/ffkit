@@ -171,6 +171,45 @@ fn parse_lrc_list(text: &str, path: &std::path::Path) -> Result<Vec<(f64, String
     Ok(marks)
 }
 
+/// `chapter --csv` round-trip: `H:MM:SS.mmm,Title` per line; tolerates
+/// a `Time`/`Name`-style header and quoted titles (Resolve/sheets).
+fn parse_csv_list(text: &str, path: &std::path::Path) -> Result<Vec<(f64, String)>, Error> {
+    let mut marks = Vec::new();
+    for (ln, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let (t, title) = line.split_once(',').ok_or_else(|| {
+            Error::input(format!(
+                "--import {path:?} line {}: want TIME,TITLE",
+                ln + 1
+            ))
+        })?;
+        let secs = match crate::time::parse_time(t.trim()) {
+            Ok(s) => s,
+            Err(e) => {
+                if ln == 0 {
+                    continue; // header row (Timecode,Name)
+                }
+                return Err(e);
+            }
+        };
+        let mut title = title.trim().to_string();
+        if title.starts_with('"') && title.ends_with('"') && title.len() >= 2 {
+            title = title[1..title.len() - 1].replace("\"\"", "\"");
+        }
+        if title.is_empty() {
+            return Err(Error::input(format!(
+                "--import {path:?} line {}: empty title",
+                ln + 1
+            )));
+        }
+        marks.push((secs, title.to_string()));
+    }
+    Ok(marks)
+}
+
 fn parse_cue_list(text: &str, path: &std::path::Path) -> Result<Vec<(f64, String)>, Error> {
     // CUE sheet: TITLE "name" inside a TRACK, then INDEX 01 mm:ss:ff (75fps)
     let mut out: Vec<(f64, String)> = Vec::new();
@@ -399,6 +438,8 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             marks.extend(parse_lrc_list(&text, path)?);
         } else if kind == "vtt" {
             marks.extend(parse_vtt_list(&text, path)?);
+        } else if kind == "csv" {
+            marks.extend(parse_csv_list(&text, path)?);
         } else {
             for (ln, line) in text.lines().enumerate() {
                 let line = line.trim();
@@ -496,8 +537,30 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
     }
 
     let meta = ffmeta_table(&marks, probe.duration);
-    if args.export || args.yt || args.cue || args.podcast || args.lrc || args.vtt {
-        let text = if args.vtt {
+    if args.export || args.yt || args.cue || args.podcast || args.lrc || args.vtt || args.csv {
+        let text = if args.csv {
+            // Resolve/Premiere marker + spreadsheet exchange: H:MM:SS.mmm,Title
+            marks
+                .iter()
+                .map(|(t, ti)| {
+                    let ms = (*t * 1000.0).round() as u64;
+                    let title = if ti.contains(',') || ti.contains('"') {
+                        format!("\"{}\"", ti.replace('"', "\"\""))
+                    } else {
+                        ti.clone()
+                    };
+                    format!(
+                        "{:02}:{:02}:{:02}.{:03},{title}",
+                        ms / 3_600_000,
+                        (ms / 60_000) % 60,
+                        (ms / 1000) % 60,
+                        ms % 1000,
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+                + "\n"
+        } else if args.vtt {
             // WebVTT chapters file — <track kind="chapters"> on a web
             // <video> gives click-to-seek nav without an editor timeline
             let mut s = String::from("WEBVTT\n\n");
@@ -591,7 +654,7 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         })?;
         let mut c = Contract::ok("chapter", Some(args.output.display().to_string()), None);
         c = c.with_extra(json!({
-            "exported": if args.vtt { "vtt" } else if args.lrc { "lrc" } else if args.podcast { "podcast" } else if args.yt { "youtube" } else if args.cue { "cue" } else { "ffmetadata" },
+            "exported": if args.csv { "csv" } else if args.vtt { "vtt" } else if args.lrc { "lrc" } else if args.podcast { "podcast" } else if args.yt { "youtube" } else if args.cue { "cue" } else { "ffmetadata" },
             "chapters": marks
                 .iter()
                 .map(|(t, ti)| json!({"time": t, "title": ti}))

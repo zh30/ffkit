@@ -1359,6 +1359,11 @@ pub enum DeliverPlatform {
     /// Discord server video 16:9 landscape (1280x720, -14 LUFS — pair
     /// with `compress --size discord` for the 10MB upload cap)
     Discord,
+    /// Shopify product video 1:1 square (1080x1080, -14 LUFS — product
+    /// pages use square or 4:5)
+    Shopify,
+    /// Amazon listing video 16:9 landscape (1920x1080, -14 LUFS)
+    Amazon,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2883,6 +2888,15 @@ pub struct MetaArgs {
     /// (`--lang-subs eng,fra` — audience captions labelled for the player)
     #[arg(long)]
     pub lang_subs: Option<String>,
+    /// Display title for audio tracks in order, comma list
+    /// (`--title-audio "Program,Commentary"` — players show the name
+    /// instead of "Track 1"; blank slots skip)
+    #[arg(long)]
+    pub title_audio: Option<String>,
+    /// Display title for subtitle tracks in order, comma list
+    /// (`--title-subs "English,Français"` — label each caption track)
+    #[arg(long)]
+    pub title_subs: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5069,6 +5083,16 @@ pub struct DashArgs {
     /// (adaptive DASH — players switch rungs with bandwidth)
     #[arg(long, value_delimiter = ',')]
     pub ladder: Vec<u32>,
+    /// Streaming mode: every frame becomes its own moof fragment
+    /// (-streaming — low-latency DASH prep, players append fragments
+    /// without waiting for whole segments)
+    #[arg(long)]
+    pub streaming: bool,
+    /// Global SIDX index box for the --single byte-range file
+    /// (-global_sidx — HTTP range seeking in the packaged asset; mp4
+    /// single-file only, conflicts with --streaming)
+    #[arg(long)]
+    pub sidx: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6039,7 +6063,7 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "list", "remove", "spread", "scenes"])]
+    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "csv", "list", "remove", "spread", "scenes"])]
     pub at: Vec<String>,
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
@@ -6082,6 +6106,11 @@ pub struct ChapterArgs {
     /// navigation on self-hosted/Vimeo-style embeds
     #[arg(long)]
     pub vtt: bool,
+    /// Write marks as a CSV at -o (H:MM:SS.mmm,Title per line) —
+    /// Resolve/Premiere marker import and spreadsheet round-trips
+    /// (--import reads .csv back: header row + quoted titles ok)
+    #[arg(long)]
+    pub csv: bool,
     /// Import marks from a text file: lines "TIME|TITLE" or "TIME,TITLE"
     /// ('#' comments and blank lines skipped)
     #[arg(long)]
