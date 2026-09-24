@@ -21,6 +21,38 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
     let sw = (w * args.size) as u32 & !1;
     let sh = sw;
 
+    if matches!(args.mode, ScopeMode::Safe) {
+        // full-frame guide overlay, not a corner tile — drawbox/drawgrid all
+        // take timeline enable, so --at windows still work
+        let mut argv = ffmpeg_base(g.progress);
+        argv.push("-i");
+        argv.push(&args.input);
+        let en = match &args.at {
+            Some(a) => format!(":enable='{}'", enable_expr(a, args.dur, probe.duration)?),
+            None => {
+                if args.dur.is_some() {
+                    return Err(Error::input("--dur needs --at"));
+                }
+                String::new()
+            }
+        };
+        let vf = format!(
+            "drawbox=x='iw*0.05':y='ih*0.05':w='iw*0.9':h='ih*0.9':color=yellow:t=2{en},\
+             drawbox=x='iw*0.1':y='ih*0.1':w='iw*0.8':h='ih*0.8':color=red:t=2{en},\
+             drawgrid=w='iw/2':h='ih/2':color=white@0.4:t=1{en}",
+            en = en
+        );
+        argv.extend(["-vf", &vf, "-map", "0:v", "-map", "0:a?"]);
+        argv.extend([
+            "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+        ]);
+        if probe.has_audio {
+            argv.extend(["-c:a", "copy"]);
+        }
+        argv.push(&args.output);
+        let c2 = engine::write_job("scope", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c2.with_extra(json!({"mode": "safe"})));
+    }
     if matches!(args.mode, ScopeMode::Data) {
         let mut argv = ffmpeg_base(g.progress);
         argv.push("-i");
@@ -103,7 +135,7 @@ pub fn run(args: ScopeArgs, g: &Globals) -> Result<Contract, Error> {
             // pts) — encode-pipeline sanity viz; s scales the monitor card
             format!("graphmonitor=s={sw}x{sh}:o=1", sw = sw, sh = sh)
         }
-        ScopeMode::Mvs | ScopeMode::Data => unreachable!(),
+        ScopeMode::Mvs | ScopeMode::Data | ScopeMode::Safe => unreachable!(),
     };
     let (x, y) = match args.position.as_str() {
         "top-left" => ("8", "8"),

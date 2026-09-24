@@ -186,6 +186,8 @@ pub enum Cmd {
     Timer(TimerArgs),
     Mute(MuteArgs),
     Hls(HlsArgs),
+    /// Push the clip live to an RTMP/SRT-style endpoint (rtmp://, tcp://)
+    Live(LiveArgs),
     Qa(QaArgs),
     Conform(ConformArgs),
     Sync(SyncArgs),
@@ -608,6 +610,10 @@ pub struct ExtractArgs {
     /// prores 4444, transparent webm, chroma-keyed deliverables)
     #[arg(long)]
     pub alpha: bool,
+    /// Extract the audio track losslessly (stream copy — pull the music/
+    /// dialog track without re-encoding; -o extension picks the container)
+    #[arg(long)]
+    pub audio: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1314,6 +1320,9 @@ pub enum ScopeMode {
     /// graphmonitor — live filtergraph stats card (frames in/out, queue,
     /// pts) for encode-pipeline debugging
     Graph,
+    /// safe — broadcast safe-area guides drawn full-frame (90% action-safe
+    /// yellow, 80% title-safe red, center cross) — composition QC overlay
+    Safe,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4254,6 +4263,10 @@ pub struct TimerArgs {
     /// Readout starts at N seconds (up: counts from N; down: from N to 0)
     #[arg(long)]
     pub start: Option<f64>,
+    /// Burn a timecode readout HH:MM:SS:FF starting here (dailies/review
+    /// copies; `;` before FF marks drop-frame intent — display only)
+    #[arg(long)]
+    pub tc: Option<String>,
     /// Count DOWN to the window end instead of up from --at
     #[arg(long)]
     pub down: bool,
@@ -4282,6 +4295,24 @@ pub struct MuteArgs {
     /// Window length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+}
+
+#[derive(clap::Args, Debug)]
+pub struct LiveArgs {
+    pub input: PathBuf,
+    /// Stream destination — rtmp://host/app/key, rtmps://, tcp://host:port
+    /// (plain TCP streams raw FLV — handy for local ingest tests)
+    #[arg(long)]
+    pub to: String,
+    /// Loop the clip forever (24/7 music streams, premiere replays)
+    #[arg(long = "loop")]
+    pub loop_: bool,
+    /// Video bitrate for the live encode (default 2500k — ingest-safe)
+    #[arg(long)]
+    pub vbitrate: Option<String>,
+    /// Audio bitrate (default 128k)
+    #[arg(long)]
+    pub abitrate: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

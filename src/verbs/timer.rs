@@ -20,6 +20,29 @@ fn parse_hex(c: &str) -> Option<[u8; 3]> {
     ])
 }
 
+// "HH:MM:SS:FF" / "HH:MM:SS;FF" (the `;` drop-frame convention — display
+// intent only; frame numbering is straight-count) → start seconds
+fn parse_tc(raw: &str, fps: f64) -> Result<f64, Error> {
+    let norm = raw.replace(';', ":");
+    let v: Vec<&str> = norm.split(':').collect();
+    if v.len() != 4 {
+        return Err(Error::input("--tc needs HH:MM:SS:FF (e.g. 01:00:00:00)"));
+    }
+    let h: f64 = v[0]
+        .parse()
+        .map_err(|_| Error::input("--tc needs HH:MM:SS:FF"))?;
+    let m: f64 = v[1]
+        .parse()
+        .map_err(|_| Error::input("--tc needs HH:MM:SS:FF"))?;
+    let s: f64 = v[2]
+        .parse()
+        .map_err(|_| Error::input("--tc needs HH:MM:SS:FF"))?;
+    let f: f64 = v[3]
+        .parse()
+        .map_err(|_| Error::input("--tc needs HH:MM:SS:FF"))?;
+    Ok(h * 3600.0 + m * 60.0 + s + f / fps)
+}
+
 pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "timer")?;
@@ -28,15 +51,27 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
         None => 0.0,
     };
     let until = at + args.dur.unwrap_or(f64::MAX).min(86400.0);
+    let fps = probe.fps.unwrap_or(30.0).max(1.0);
+    if args.tc.is_some() && (args.down || args.start.is_some()) {
+        return Err(Error::input("--tc can't combine with --down/--start"));
+    }
+    if args.tc.is_some() && matches!(args.format, TimerFormat::Ms) {
+        return Err(Error::input("--tc shows frames instead of centiseconds"));
+    }
+    let tc_start = args
+        .tc
+        .as_deref()
+        .map(|raw| parse_tc(raw, fps))
+        .transpose()?;
     // --down: display the remaining time to the window end
-    // --start seeds the readout: up counts N+t-at, down counts N-(t-at).
+    // --start / --tc seed the readout: up counts N+t-at, down counts N-(t-at).
     let tv = if args.down {
         let start = args
             .start
             .unwrap_or_else(|| args.dur.unwrap_or(probe.duration - at));
         format!("max(0,{start:.3}-(t-{at:.3}))")
     } else {
-        let start = args.start.unwrap_or(0.0);
+        let start = tc_start.or(args.start).unwrap_or(0.0);
         format!("{start:.3}+(t-{at:.3})")
     };
     let font_path = crate::font::resolve(args.font.as_deref().map(Path::new))?;
@@ -55,7 +90,14 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     let mut cells: Vec<image::RgbaImage> = Vec::new();
     let (mut cw, mut ch) = (0u32, 0u32);
     let ms = matches!(args.format, TimerFormat::Ms);
-    let ncells: u32 = if ms { 100 } else { 60 };
+    // tc needs a cell per frame-per-second (25/30/60…); capped for sanity
+    let ncells: u32 = if ms {
+        100
+    } else if tc_start.is_some() {
+        fps.round().clamp(2.0, 240.0) as u32
+    } else {
+        60
+    };
     for i in 0..ncells {
         let img = crate::raster::render_title_styled(
             &format!("{i:02}"),
@@ -102,11 +144,11 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     dot.save(&dot_path)
         .map_err(|e| Error::output(format!("write dot: {e}")))?;
 
-    let hours = probe.duration > 3600.0 || at > 3600.0;
-    // Layout: [hh:]mm:ss — each digit field is one sprite cell wide.
+    let hours = probe.duration > 3600.0 || at > 3600.0 || tc_start.is_some();
+    // Layout: [hh:]mm:ss[;ff] — each digit field is one sprite cell wide.
     let fields = if hours { 3 } else { 2 };
-    let colons = fields - 1;
-    let mut total_w = fields * cw + colons * colw;
+    let colons = fields - 1 + u32::from(tc_start.is_some());
+    let mut total_w = (fields + u32::from(tc_start.is_some())) * cw + colons * colw;
     if ms {
         total_w += dotw + cw;
     }
@@ -136,8 +178,10 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
     if ms {
         xparts.push(("cs".into(), cw));
     }
+    if tc_start.is_some() {
+        xparts.push(("ff".into(), cw));
+    }
 
-    let fps = probe.fps.unwrap_or(30.0).max(1.0);
     let enable = format!("enable='between(t,{at:.3},{until:.3})'");
 
     // --box: a fixed card behind the whole readout
@@ -184,6 +228,7 @@ pub fn run(args: TimerArgs, g: &Globals) -> Result<Contract, Error> {
             "hh" => format!("min(99,floor(({tv})/3600))"),
             "mm" => format!("mod(floor(({tv})/60),60)"),
             "cs" => format!("mod(floor(({tv})*100),100)"),
+            "ff" => format!("mod(floor(({tv})*{fps:.5}),{ncells})"),
             _ => format!("mod(floor({tv}),60)"),
         };
         fc.push_str(&format!(

@@ -486,3 +486,8 @@ an atempo'd whole-file render would shift the window.
 - clap `Option<f64>` rejects `-35`-style leading-dash values ("unexpected argument") unless the arg declares `allow_negative_numbers = true` — needed on every dB-threshold flag like `scan --deadair`.
 - `siti`, `outlier`, `aspectralstats`, `ydiff`, `adiff`, `asubtract`, `grayworld` are NOT in ffmpeg 4.4 (all added in 5.x) — skipped as scan/diff legs.
 - CUE `FILE` media types only cover WAVE/MP3/AIFF/BINARY/MOTOROLA — a video input still writes a playable sheet but the tag falls back to `BINARY`.
+- `write_job`'s verification (exists → metadata → probe) is for FILE outputs — URL/stream outputs (`rtmp://`, `tcp://`, `udp://`) always fail it. For `live` do `ensure_input` + `ensure_output_allowed` + `run_argvs` + `Contract::ok(tool, Some(url), None)` manually.
+- `drawbox`/`drawgrid` take timeline `enable` — a full-frame guide overlay (safe areas, grid) can still honor `--at` windows; `drawgrid w=iw/2:h=ih/2` draws just a center cross.
+- clap derives the flag name from the field name — `pub loop_: bool` becomes `--loop_`. For reserved words use `#[arg(long = "loop")]`.
+- yuv420p halves chroma resolution — a 2px colored box line lands blended with the neighboring pixel's hue after x264 encode. Pixel-assert hue dominance (r > g+60), never exact channel values.
+- `timer` sprite TC: cells = `fps.round()` (NTSC 29.97 → 30-cell nominal numbering), frame field = `mod(floor(tv*fps),cells)` — use the REAL fps in the multiplier, not the rounded cell count (30 vs 29.97 drifts ~3.6s/hour).

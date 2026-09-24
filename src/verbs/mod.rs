@@ -78,6 +78,7 @@ pub mod legalize;
 pub mod lens;
 pub mod leveler;
 pub mod levels;
+pub mod live;
 pub mod r#loop;
 pub mod loudnorm;
 pub mod matrix;

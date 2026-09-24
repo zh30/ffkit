@@ -27825,3 +27825,197 @@ fn r234_deliver_platforms_deadair_tone_cue() {
     assert!(text.contains("TRACK 02 AUDIO"), "{text}");
     assert!(text.contains("INDEX 01 00:00:60"), "{text}");
 }
+
+// ---- RSI round 235 ----
+#[test]
+fn r235_live_safe_tc_extract_audio() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    fn sh(args: &[String]) -> String {
+        let o = Command::new("ffmpeg").args(args).output().expect("ffmpeg");
+        assert!(
+            o.status.success(),
+            "ffmpeg failed: {}",
+            String::from_utf8_lossy(&o.stderr)
+        );
+        String::from_utf8_lossy(&o.stdout).into_owned()
+    }
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    // md5 of a pixel crop of frame `n` — diffable without OCR
+    fn frame_md5(v: &Path, n: u32, crop: &str) -> String {
+        sh(&[
+            s("-v"),
+            s("error"),
+            s("-i"),
+            v.to_string_lossy().into_owned(),
+            s("-vf"),
+            format!("select='eq(n,{n})',crop={crop}"),
+            s("-vframes"),
+            s("1"),
+            s("-f"),
+            s("md5"),
+            s("-"),
+        ])
+    }
+    fn probe_val(v: &Path, what: &str) -> String {
+        let o = Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-select_streams",
+                what,
+                "-show_entries",
+                "stream=codec_name",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(v)
+            .output()
+            .expect("ffprobe");
+        String::from_utf8_lossy(&o.stdout).trim().to_string()
+    }
+
+    // live: push real FLV into a local TCP listener, assert the stream lands
+    let (tx_port, rx_port) = std::sync::mpsc::channel();
+    let (tx_head, rx_head) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tx_port.send(port).unwrap();
+        if let Ok((mut sock, _)) = listener.accept() {
+            use std::io::Read;
+            let mut buf = [0u8; 9];
+            let _ = sock.read_exact(&mut buf);
+            let _ = tx_head.send(buf.to_vec());
+            let mut sink = [0u8; 8192];
+            while sock.read(&mut sink).map(|n| n > 0).unwrap_or(false) {}
+        }
+    });
+    let port = rx_port.recv().unwrap();
+    let j = run_json(&[
+        "live",
+        &f.to_string_lossy(),
+        "--to",
+        &format!("tcp://127.0.0.1:{port}"),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["format"], "flv");
+    let head = rx_head
+        .recv_timeout(std::time::Duration::from_secs(20))
+        .unwrap();
+    assert_eq!(&head[..3], b"FLV", "expected FLV magic, got {head:?}");
+
+    // scope --mode safe: yellow action-safe box at 5% (x=16 on 320w)
+    let safe = d.join("safe.mp4");
+    let j = run_json(&[
+        "scope",
+        &f.to_string_lossy(),
+        "-o",
+        &safe.to_string_lossy(),
+        "--mode",
+        "safe",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let raw = sh(&[
+        s("-v"),
+        s("error"),
+        s("-i"),
+        safe.to_string_lossy().into_owned(),
+        s("-vframes"),
+        s("1"),
+        s("-f"),
+        s("rawvideo"),
+        s("-pix_fmt"),
+        s("rgb24"),
+        s("-"),
+    ]);
+    // rawvideo to stdout lands in sh's returned text — re-extract via file for bytes
+    let _ = raw;
+    let rgbo = d.join("safe.rgb");
+    sh(&[
+        s("-y"),
+        s("-v"),
+        s("error"),
+        s("-i"),
+        safe.to_string_lossy().into_owned(),
+        s("-vframes"),
+        s("1"),
+        s("-f"),
+        s("rawvideo"),
+        s("-pix_fmt"),
+        s("rgb24"),
+        rgbo.to_string_lossy().into_owned(),
+    ]);
+    let rgb = std::fs::read(&rgbo).unwrap();
+    let px = |x: usize, y: usize| {
+        let i = (y * 320 + x) * 3;
+        (rgb[i], rgb[i + 1], rgb[i + 2])
+    };
+    // 90% box top edge y=12 yellow; 80% box top edge y=24 red — horizontal
+    // edges are long pure runs; yuv420p halves chroma res so assert hue
+    let (r, g, b) = px(160, 12);
+    assert!(
+        r > 200 && g > 200 && (r as u16) > b as u16 + 40,
+        "action-safe yellow at y=12, got {r},{g},{b}"
+    );
+    let (r, g, b) = px(160, 24);
+    assert!(
+        r as u16 > g as u16 + 60 && r as u16 > b as u16 + 60,
+        "title-safe red at y=24, got {r},{g},{b}"
+    );
+
+    // timer --tc: ff field advances every frame (bottom-right crop differs)
+    let tc = d.join("tc.mp4");
+    let j = run_json(&[
+        "timer",
+        &f.to_string_lossy(),
+        "-o",
+        &tc.to_string_lossy(),
+        "--tc",
+        "01:02:03:10",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let m0 = frame_md5(&tc, 0, "40:26:iw-44:ih-30");
+    let m1 = frame_md5(&tc, 1, "40:26:iw-44:ih-30");
+    assert_ne!(m0, m1, "ff field should advance per frame");
+    // --tc conflicts
+    let j = run_json(&[
+        "timer",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("t2.mp4").to_string_lossy(),
+        "--tc",
+        "01:02:03:10",
+        "--down",
+    ]);
+    assert_eq!(j["status"], "failed");
+    let j = run_json(&[
+        "timer",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("t3.mp4").to_string_lossy(),
+        "--tc",
+        "bogus",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // extract --audio: lossless aac rip into .m4a
+    let m4a = d.join("rip.m4a");
+    let j = run_json(&[
+        "extract",
+        &f.to_string_lossy(),
+        "-o",
+        &m4a.to_string_lossy(),
+        "--audio",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["acodec"], "aac");
+    assert_eq!(probe_val(&m4a, "a"), "aac");
+}

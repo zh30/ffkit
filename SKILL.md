@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.261.0
+version: 0.262.0
 
 
 
@@ -92,8 +92,9 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | captions on top instead of bottom | `caption --position top` |
 | lift/crush mid-tones | `grade --gamma` |
 | drop the audio track entirely | `mute` (stream-copy video, no re-encode), `--at/--dur` window |
-| elapsed-time corner counter | `timer`/`countdown` (`--at` takes `end`) (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds), `--down` countdown, `--start` seed, `--opacity` ghost HUD |
+| elapsed-time corner counter | `timer`/`countdown` (`--at` takes `end`) (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds), `--down` countdown, `--start` seed, `--opacity` ghost HUD; `timer --tc 01:00:00:00` burns a running HH:MM:SS:FF timecode (dailies/review copies) |
 | web-embed HLS package | `hls` (`--seg` seconds, `--single` one-file, `--copy` repack, `--poster` writes poster.jpg, `--poster-at T` picks the frame, `--encrypt`/`--key HEX`/`--key-uri URI` AES-128 segments + key.bin/key.info) → dir/`index.m3u8` + `seg_*.ts`; `--ladder 1080,720,480` → ABR variant playlists + `master.m3u8`; `--audio-only` podcast HLS; `--fmp4` CMAF `.m4s` segments |
+| go live / push a stream | `live` (`--to rtmp://…` / `rtmps://` / `tcp://` / `udp://`, `--loop` forever, `--vbitrate`/`--abitrate`; real-time `-re` pacing + x264/aac ingest encode) |
 
 | check encode quality loss | `qa` `ref.mp4 test.mp4` → psnr/ssim/msad/vif numbers (`--metric`) |
 | normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill) |
@@ -249,7 +250,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | magnify subtle motion | `amplify` (`--amount` factor, `--radius` frames, `--threshold` diff cap, `--at` window) |
 | keep one color | `selective` (`--color C`/`--similarity`/`--blend` edge feather, `--engine chroma` chromahold for saturated hues, `--at` window) |
 | test card | `bars` (`--size`/`--dur`/`--hd`/`--tone` 1kHz, `--kind sd|pal100|pal75|rgb|yuv|allrgb|allyuv|mptest|testsrc` other patterns — allrgb/allyuv = full color-cube QC sweeps, mptest = encoder-torture cycle, testsrc = all-in-one animated calibration card) |
-| QC scope overlay | `scope` (`--mode vector|wave|hist|mvs|data|qp|pix|osc|drift|loud|cie|palette|graph` — drift = luma-ramp curve, loud = loudness-over-time curve, cie = CIE-1931 gamut horseshoe, palette = color-swatch grid (GIF/8-bit QC), graph = live filtergraph stats card (encode-pipeline debug), `--position` corner, `--at` window) |
+| QC scope overlay | `scope` (`--mode vector|wave|hist|mvs|data|qp|pix|osc|drift|loud|cie|palette|graph|safe` — drift = luma-ramp curve, loud = loudness-over-time curve, cie = CIE-1931 gamut horseshoe, palette = color-swatch grid (GIF/8-bit QC), graph = live filtergraph stats card (encode-pipeline debug), safe = full-frame broadcast safe-area guides (90% action / 80% title + center cross), `--position` corner, `--at` window) |
 | anamorphic restore | `desqueeze` (`--factor` lens ratio, `--axis`) |
 | comic look | `cartoon` (`--levels` posterize, `--at` window) |
 | thermal luma map | `heat` (`--preset` pseudocolor, `--at` window) |
@@ -277,7 +278,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | waveform band at the top | `audiogram` (`--position`) |
 | pull OUT of a shot (reveal) | `zoom` (`--out`, `--center X,Y` punch target) |
 | title with a soft shadow | `title` (`--shadow`) |
-| still at an exact width | `extract` (`--gif` clip, `--width`, `--at end` last frame), `--loop` gif repeats, `--alpha` pulls the alpha channel out as a grayscale PNG (matte QC/export — needs an alpha-capable input) |
+| still at an exact width | `extract` (`--gif` clip, `--width`, `--at end` last frame), `--loop` gif repeats, `--alpha` pulls the alpha channel out as a grayscale PNG (matte QC/export — needs an alpha-capable input), `--audio` rips the audio track losslessly (stream copy — `-o` extension picks the container) |
 | countdown with tick beeps | `countdown` (`--beep`, `--text` label during the count) |
 | one-word compressor curve | `leveler` (`--preset`, `--engine compand` single-band transfer curve — quieter than acompressor's knee) |
 | spectrogram in brand colors | `spectrogram` (`--color`) |

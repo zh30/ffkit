@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.262.0] — 2026-09-23
+
+- `live` — push the clip live to an ingest endpoint: `--to rtmp://…` / `rtmps://` / `tcp://` / `udp://` (real-time `-re` pacing, x264/aac encode; udp → mpegts automatically), `--loop` forever for 24/7 streams and premiere replays, `--vbitrate`/`--abitrate` caps
+- `scope --mode safe` — broadcast safe-area guides drawn full-frame: 90% action-safe yellow box, 80% title-safe red box, center cross (composition QC overlay, `--at` windows still work)
+- `timer --tc HH:MM:SS:FF` — burn a running timecode readout for dailies/review copies (`;` before FF = drop-frame display intent, counting stays straight)
+- `extract --audio` — rip the audio track losslessly (stream copy, no decode/re-encode; -o extension picks the container — pull a music/dialog track for editing)
+
 ## [0.261.0] — 2026-09-23
 
 - `deliver --platform xhs|wechat` — 小红书 3:4 (1080x1440) + 微信视频号 6:7 (1080x1260) one-shot packs, same −14 LUFS loudnorm pipeline as the other platforms

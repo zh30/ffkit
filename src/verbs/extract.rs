@@ -43,6 +43,24 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut argv = ffmpeg_base(g.progress);
 
+    // --audio: demux the first audio track untouched (music/dialog rip —
+    // no decode, no re-encode; -o extension picks the container)
+    if args.audio {
+        let probe = engine::probe_or_err(&args.input, g)?;
+        if !probe.has_audio {
+            return Err(Error::input("extract --audio: input has no audio"));
+        }
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend(["-map", "0:a:0", "-vn", "-c:a", "copy"]);
+        argv.push(&args.output);
+        let c = engine::write_job("extract", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(serde_json::json!({
+            "audio": true,
+            "acodec": probe.acodec,
+        })));
+    }
+
     // comma --at on a still output: one frame per timepoint → `<stem>_N.<ext>`
     if !args.gif {
         if let Some(raw) = &args.at {
