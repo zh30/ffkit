@@ -6,6 +6,7 @@ use crate::cli::{Globals, LiveArgs};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
+use crate::spawn::Argv;
 
 pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
     let scheme = args.to.split("://").next().unwrap_or("").to_lowercase();
@@ -58,26 +59,35 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.extend(["-f".into(), fmt.into(), args.to.clone()]);
 
-    // write_job's exists/probe verification is for files — a stream URL is
-    // verified by ffmpeg's exit status alone
-    crate::paths::ensure_input(&args.input)?;
-    crate::paths::ensure_output_allowed(Path::new(&args.to), &[&args.input], g.overwrite)?;
-    let argvs = vec![argv];
+    let contract = stream_out("live", &args.input, &args.to, vec![argv], g)?;
+    Ok(contract.with_extra(json!({
+        "to": args.to,
+        "loop": args.loop_,
+        "vbitrate": vbitrate,
+        "abitrate": abitrate,
+        "format": fmt,
+    })))
+}
+
+/// Stream-output shared path for verbs that push a URL instead of writing a
+/// file — write_job's exists/probe verification is file-only, so a stream is
+/// verified by ffmpeg's exit status alone. Honors --dry-run.
+pub(crate) fn stream_out(
+    tool: &str,
+    input: &Path,
+    to: &str,
+    argvs: Vec<Argv>,
+    g: &Globals,
+) -> Result<Contract, Error> {
+    crate::paths::ensure_input(input)?;
+    crate::paths::ensure_output_allowed(Path::new(to), &[input], g.overwrite)?;
     let commands = engine::commands_of(&argvs);
     if g.dry_run {
-        let p = crate::probe::probe(&args.input, std::time::Duration::from_secs(60)).ok();
-        return Ok(Contract::dry_run("live", Some(args.to.clone()), p).with_commands(commands));
+        let p = crate::probe::probe(input, std::time::Duration::from_secs(60)).ok();
+        return Ok(Contract::dry_run(tool, Some(to.to_string()), p).with_commands(commands));
     }
     if let Err(e) = engine::run_argvs(&argvs, g) {
-        return Ok(Contract::failed("live", &e).with_commands(commands));
+        return Ok(Contract::failed(tool, &e).with_commands(commands));
     }
-    Ok(Contract::ok("live", Some(args.to.clone()), None)
-        .with_commands(commands)
-        .with_extra(json!({
-            "to": args.to,
-            "loop": args.loop_,
-            "vbitrate": vbitrate,
-            "abitrate": abitrate,
-            "format": fmt,
-        })))
+    Ok(Contract::ok(tool, Some(to.to_string()), None).with_commands(commands))
 }

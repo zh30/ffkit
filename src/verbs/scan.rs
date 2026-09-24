@@ -11,7 +11,22 @@ use crate::spawn::{self, Argv};
 /// Report-only — writes no media, findings land in `extras`.
 pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
-    engine::need_video(&probe, "scan")?;
+    if !probe.has_video && !probe.has_audio {
+        return Err(Error::input("scan: input has no media streams"));
+    }
+    // audio-only inputs still get the audio QC legs (loud/deadair/levels);
+    // explicitly-requested video legs stay an error so a mistyped file
+    // doesn't silently pass QC
+    if !probe.has_video
+        && (args.scenes
+            || args.motion
+            || args.timecode
+            || args.bbox
+            || args.text
+            || args.dupe.is_some())
+    {
+        return Err(Error::input("scan: input has no video stream"));
+    }
     let freeze_min = args.freeze_min.unwrap_or(1.0);
     let black_min = args.black_min.unwrap_or(0.3);
     let thresh = args.thresh.unwrap_or(32.0).clamp(0.0, 255.0);
@@ -41,14 +56,23 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-vf", &vf, "-an", "-f", "null", "-"]);
-    let spawned = spawn::run(&argv, g.timeout, false)?;
-    let spawned = spawn::require_ok(&argv, spawned)?;
+    let spawned = if probe.has_video {
+        let sp = spawn::run(&argv, g.timeout, false)?;
+        Some(spawn::require_ok(&argv, sp)?)
+    } else {
+        None
+    };
     // detect logs land on stderr; metadata=print:file=- writes to stdout
-    let log = format!(
-        "{}\n{}",
-        spawn::stderr_str(&spawned),
-        spawn::stdout_str(&spawned).unwrap_or("")
-    );
+    let log = spawned
+        .as_ref()
+        .map(|s| {
+            format!(
+                "{}\n{}",
+                spawn::stderr_str(s),
+                spawn::stdout_str(s).unwrap_or("")
+            )
+        })
+        .unwrap_or_default();
 
     let mut black_ranges: Vec<serde_json::Value> = Vec::new();
     let mut freeze_starts: Vec<f64> = Vec::new();
@@ -358,6 +382,39 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+    // --loud: EBU R128 summary — I/LRA/true-peak in one pass; the platform
+    // loudness spec check (podcast −16, broadcast −23, social −14)
+    let (mut loud_i, mut loud_lra, mut loud_tp): (Option<f64>, Option<f64>, Option<f64>) =
+        (None, None, None);
+    if args.loud {
+        if !probe.has_audio {
+            return Err(Error::input("scan --loud needs an audio stream"));
+        }
+        let mut argv = Argv::ffmpeg();
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend(["-af", "ebur128=peak=true", "-f", "null", "-"]);
+        if let Ok(sp) = spawn::run(&argv, g.timeout, false) {
+            for line in String::from_utf8_lossy(&sp.stderr).lines() {
+                let t = line.trim();
+                if let Some(v) = t.strip_prefix("I:") {
+                    loud_i = v.trim().trim_end_matches(" LUFS").trim().parse().ok();
+                }
+                if let Some(v) = t.strip_prefix("LRA:") {
+                    loud_lra = v.trim().trim_end_matches(" LU").trim().parse().ok();
+                }
+                if let Some(v) = t.strip_prefix("Peak:") {
+                    // 4.x prints dBFS here, 5.x+ prints dBTP — same value
+                    let v = v
+                        .trim()
+                        .trim_end_matches(" dBFS")
+                        .trim_end_matches(" dBTP")
+                        .trim();
+                    loud_tp = v.parse().ok();
+                }
+            }
+        }
+    }
     // --deadair DB: dead-air map for podcast/talking-head QC — reuses the
     // silence detector so one `scan` reports pauses alongside video faults
     let mut deadair_ranges: Vec<serde_json::Value> = Vec::new();
@@ -621,6 +678,23 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     };
     extra["deadair_ranges"] = if args.deadair.is_some() {
         json!(deadair_ranges)
+    } else {
+        json!(null)
+    };
+    // --loud: integrated loudness (LUFS), loudness range (LU), true peak
+    // (dBTP) — publish gates: podcast ≈−16 I, broadcast ≈−23 I
+    extra["loud_i"] = if args.loud {
+        json!(loud_i)
+    } else {
+        json!(null)
+    };
+    extra["loud_lra"] = if args.loud {
+        json!(loud_lra)
+    } else {
+        json!(null)
+    };
+    extra["loud_tp"] = if args.loud {
+        json!(loud_tp)
     } else {
         json!(null)
     };

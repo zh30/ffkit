@@ -2,7 +2,7 @@
 name: ffkit
 description: Help a user finish a local video or audio job. Chat about the outcome, propose a short plan, then run that plan with ffkit (pipeline of verbs, graph, or ffmpeg). Use when they mention a media file (mp4, mov, mkv, webm, wav, m4a, mp3, gif), footage, clip, Reel/Short/TikTok/YouTube, captions (mux or burn without libass), overlay, transcode, ffmpeg, rough cut, assembly, or an edit, export, or effect on files they have on disk. Requires ffmpeg, ffprobe, and ffkit on PATH matching this skill's version field.
 
-version: 0.262.0
+version: 0.263.0
 
 
 
@@ -55,6 +55,8 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | news-ticker crawl | `scroll` (`--mode ticker`, `--bg` opaque bar, `--speed` px/s) |
 | AV1 delivery | `transcode` (`--preset av1`) |
 | podcast/voice → mp3/m4a/wav/flac/opus | `transcode` (`--preset mp3`/`aac`/`wav`/`flac`/`opus` — `-vn` audio-only) |
+| podcast feed pack (−16 LUFS spec) | `deliver --platform podcast` (m4a AAC 128k/48k, loudnorm to feed spec; works on audio-only sources) |
+| resample/force channels on export | `transcode --ar 48000 --channels 1|2` (broadcast 48k stereo, podcast mono — re-encode only, `--copy-audio` skips) |
 | audiogram of just the best bit(s) | `audiogram` (`--from/--to` one segment; `--at a,b --dur 30` = one clip per point → `stem_N.mp4`) |
 | cover still | `cover` (`--blur` ambient pad, `--size` canvas, comma `--at` = one cover per time) |
 
@@ -94,7 +96,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | drop the audio track entirely | `mute` (stream-copy video, no re-encode), `--at/--dur` window |
 | elapsed-time corner counter | `timer`/`countdown` (`--at` takes `end`) (`--box-color` card, `--position`, `--at`, `--dur`, `--size`, `--color`, `--format ms` centiseconds), `--down` countdown, `--start` seed, `--opacity` ghost HUD; `timer --tc 01:00:00:00` burns a running HH:MM:SS:FF timecode (dailies/review copies) |
 | web-embed HLS package | `hls` (`--seg` seconds, `--single` one-file, `--copy` repack, `--poster` writes poster.jpg, `--poster-at T` picks the frame, `--encrypt`/`--key HEX`/`--key-uri URI` AES-128 segments + key.bin/key.info) → dir/`index.m3u8` + `seg_*.ts`; `--ladder 1080,720,480` → ABR variant playlists + `master.m3u8`; `--audio-only` podcast HLS; `--fmp4` CMAF `.m4s` segments |
-| go live / push a stream | `live` (`--to rtmp://…` / `rtmps://` / `tcp://` / `udp://`, `--loop` forever, `--vbitrate`/`--abitrate`; real-time `-re` pacing + x264/aac ingest encode) |
+| go live / push a stream | `live` (`--to rtmp://…` / `rtmps://` / `tcp://` / `udp://`, `--loop` forever, `--vbitrate`/`--abitrate`; real-time `-re` pacing + x264/aac ingest encode); `deliver --to` streams the rendered platform pack to the same ingest URLs) |
 
 | check encode quality loss | `qa` `ref.mp4 test.mp4` → psnr/ssim/msad/vif numbers (`--metric`) |
 | normalize mixed footage for concat | `conform` (`--size WxH`, `--fps`, `--lufs`, `--pad` letterbox color + `--anchor`, `--blur` blurred fill) |
@@ -168,7 +170,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | drop duplicate frames | `dedup` (`--frac`, VFR out) |
 | audiogram CQT music spectrum | `audiogram --mode cqt` |
 | audiogram scrolling spectrogram | `audiogram --mode spectro` |
-| find black/frozen stretches (QC) | `scan` (JSON extras; no -o) — also `interlaced`/frames_* from idet, `has_cc`/`cc_lines` EIA-608 closed captions, `crop_hint`/`letterboxed` cropdetect letterbox QC, `vfr`/`vfr_ratio` variable-frame-rate QC, `--dupe REF` MPEG-7 duplicate/re-upload match, `--text` OCR burned text, `rg_gain_db`/`rg_peak` ReplayGain tags, `--motion` VMAF motion score (`motion_avg`/`motion_max` — bitrate-budget QC), `--timecode` VITC readout (`vitc`/`vitc_tc`/`vitc_frames` broadcast-master QC), `--bbox` content bounds (`content_detected`/`content_box`/`content_fill` — works on any uniform background, not just black) |
+| find black/frozen stretches (QC) | `scan` (JSON extras; no -o) — also `interlaced`/frames_* from idet, `has_cc`/`cc_lines` EIA-608 closed captions, `crop_hint`/`letterboxed` cropdetect letterbox QC, `vfr`/`vfr_ratio` variable-frame-rate QC, `--dupe REF` MPEG-7 duplicate/re-upload match, `--text` OCR burned text, `rg_gain_db`/`rg_peak` ReplayGain tags, `--motion` VMAF motion score (`motion_avg`/`motion_max` — bitrate-budget QC), `--timecode` VITC readout (`vitc`/`vitc_tc`/`vitc_frames` broadcast-master QC), `--bbox` content bounds (`content_detected`/`content_box`/`content_fill` — works on any uniform background, not just black), `--loud` EBU R128 loudness summary (`loud_i`/`loud_lra`/`loud_tp` — platform spec gate, audio-only files too) |
 | dust specks / hot pixels | `dedust` (`--size` 1-4, `--dark` for dark specks; morphology, not blur; `--engine temporal` tlut2 kills one-frame sparkles/VHS dropouts) |
 | inverse telecine | `deinterlace --engine fieldmatch` (film 29.97i → 23.976p) |
 | denoise without melting detail | `vdenoise --engine edge` (nlmeans masked to flat areas) |
@@ -194,6 +196,7 @@ Ask one question only when it changes the file and probe cannot answer it. Which
 | lifted web rip | `levels` --in-min 0.06 --in-max 0.92 (Photoshop levels; --out-min = matte fade) |
 | xerox / graphic B&W | `bw --cut 0.5` (hard luma threshold, not grayscale) |
 | audio peak & mean | `scan` extras `audio_max_db`/`audio_mean_db` (volumedetect: clip + cheap loudness) |
+| loudness spec gate | `scan --loud` extras `loud_i`/`loud_lra`/`loud_tp` (EBU R128: podcast ≈−16 I, broadcast ≈−23 I) |
 | heat ripple / liquid warp | `displace` --map clip.mp4 (warp by another clip's luma; `--edge` wrap/mirror/smear/blank, `--at` window) |
 | sharpen without halos | `sharpen --engine halo` (unsharp clamped to blurred base — strongest option, zero overshoot) |
 | EQ applied + curve shown | `eqviz` --bands "f=200 w=100 g=10 t=h" (EQ'd audio + its response curve as video — mix QC card) |

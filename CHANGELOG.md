@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.263.0] — 2026-09-23
+
+- `deliver --platform podcast` — audio-only feed pack: loudnorm to the podcast spec (−16 LUFS) → m4a AAC 128k/48k (accepts audio-only sources; measured I lands within ±1 LU)
+- `deliver --to rtmp://…`/`rtmps://`/`tcp://`/`udp://` — push the rendered platform pack straight to ingest (premiere/replay in one pass; FLV + zerolatency, loudnorm still measured+applied)
+- `transcode --ar HZ` / `--channels N` — resample + channel count on every re-encode path (broadcast 48k stereo, podcast mono; `--copy-audio` skips as there's no encoder)
+- `scan --loud` — EBU R128 summary in extras: `loud_i`/`loud_lra`/`loud_tp` (platform loudness-spec gate — podcast ≈−16 I, broadcast ≈−23 I); scan now also accepts audio-only inputs for the audio QC legs
+
 ## [0.262.0] — 2026-09-23
 
 - `live` — push the clip live to an ingest endpoint: `--to rtmp://…` / `rtmps://` / `tcp://` / `udp://` (real-time `-re` pacing, x264/aac encode; udp → mpegts automatically), `--loop` forever for 24/7 streams and premiere replays, `--vbitrate`/`--abitrate` caps

@@ -28019,3 +28019,131 @@ fn r235_live_safe_tc_extract_audio() {
     assert_eq!(j["extra"]["acodec"], "aac");
     assert_eq!(probe_val(&m4a, "a"), "aac");
 }
+
+#[test]
+fn r236_podcast_stream_ar_loud() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+    fn probe_csv(args: &[String]) -> String {
+        let o = Command::new("ffprobe")
+            .args(args)
+            .output()
+            .expect("ffprobe");
+        String::from_utf8_lossy(&o.stdout).into_owned()
+    }
+
+    // transcode --ar/--channels: 44100 Hz mono on re-encode
+    let tc = d.join("tc.mp4");
+    let j = run_json(&[
+        "transcode",
+        &f.to_string_lossy(),
+        "-o",
+        &tc.to_string_lossy(),
+        "--ar",
+        "44100",
+        "--channels",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let csv = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-select_streams"),
+        s("a:0"),
+        s("-show_entries"),
+        s("stream=sample_rate,channels"),
+        s("-of"),
+        s("csv=p=0"),
+        tc.to_string_lossy().into_owned(),
+    ]);
+    assert_eq!(csv.trim(), "44100,1", "expected 44.1kHz mono, got {csv}");
+
+    // deliver --platform podcast: audio-only m4a at the -16 LUFS feed spec
+    let pod = d.join("pod.m4a");
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &pod.to_string_lossy(),
+        "--platform",
+        "podcast",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["platform"], "podcast");
+    assert_eq!(j["extra"]["target_i"], -16.0);
+    assert!(j["extra"]["measured"].is_object());
+    let csv = probe_csv(&[
+        s("-v"),
+        s("error"),
+        s("-select_streams"),
+        s("a:0"),
+        s("-show_entries"),
+        s("stream=codec_name,sample_rate"),
+        s("-of"),
+        s("csv=p=0"),
+        pod.to_string_lossy().into_owned(),
+    ]);
+    assert!(csv.contains("aac"), "expected aac audio, got {csv}");
+    // scan --loud on the audio-only output: podcast spec lands within ±1 LU
+    let j = run_json(&["scan", &pod.to_string_lossy(), "--loud"]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let i = j["extra"]["loud_i"].as_f64().expect("loud_i");
+    assert!((i - -16.0).abs() < 1.0, "expected ≈-16 LUFS, got {i}");
+    assert!(j["extra"]["loud_lra"].is_number());
+    assert!(j["extra"]["loud_tp"].is_number());
+
+    // scan --loud on the a/v fixture too (video legs still populate)
+    let j = run_json(&["scan", &f.to_string_lossy(), "--loud"]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert!(j["extra"]["loud_i"].as_f64().unwrap() < -5.0);
+
+    // deliver --to: rendered pack pushed to a live ingest (FLV over TCP)
+    let (tx_port, rx_port) = std::sync::mpsc::channel::<u16>();
+    let (tx_head, rx_head) = std::sync::mpsc::channel::<Vec<u8>>();
+    std::thread::spawn(move || {
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        tx_port.send(l.local_addr().unwrap().port()).unwrap();
+        if let Ok((mut c, _)) = l.accept() {
+            use std::io::Read;
+            let mut head = vec![0u8; 9];
+            let _ = c.read_exact(&mut head);
+            let _ = tx_head.send(head);
+            let mut buf = vec![0u8; 8192];
+            while c.read(&mut buf).map(|n| n > 0).unwrap_or(false) {}
+        }
+    });
+    let port = rx_port
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("ignored.mp4").to_string_lossy(),
+        "--to",
+        &format!("tcp://127.0.0.1:{port}"),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let head = rx_head
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .unwrap();
+    assert_eq!(&head[..3], b"FLV", "expected FLV magic, got {head:?}");
+    // bad scheme still rejects
+    let j = run_json(&[
+        "deliver",
+        &f.to_string_lossy(),
+        "-o",
+        &d.join("x.mp4").to_string_lossy(),
+        "--to",
+        "http://127.0.0.1:9/x",
+    ]);
+    assert_eq!(j["status"], "failed");
+}

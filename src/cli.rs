@@ -1081,6 +1081,13 @@ pub struct TranscodeArgs {
     /// masters tagged with the wrong parity — a metadata-only repair)
     #[arg(long, value_enum)]
     pub field_order: Option<FieldOrder>,
+    /// Resample audio to this Hz on re-encode (48000 broadcast, 44100
+    /// podcast/CD)
+    #[arg(long)]
+    pub ar: Option<u32>,
+    /// Force channel count on re-encode (1 = mono podcast voice, 2 = stereo)
+    #[arg(long)]
+    pub channels: Option<u8>,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -1154,6 +1161,10 @@ pub struct DeliverArgs {
     /// Burn this .srt/.vtt onto the delivery canvas (captioned Reels in one pass)
     #[arg(long)]
     pub subs: Option<PathBuf>,
+    /// Push the rendered pack live instead of writing a file — rtmp://,
+    /// rtmps://, tcp://, udp:// (render-and-stream premieres in one pass)
+    #[arg(long)]
+    pub to: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1170,6 +1181,8 @@ pub enum DeliverPlatform {
     Xhs,
     /// 微信视频号 6:7 portrait feed (1080x1260, -14 LUFS)
     Wechat,
+    /// Audio-only podcast pack (m4a, AAC 128k/48k, -16 LUFS — feed spec)
+    Podcast,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4994,6 +5007,10 @@ pub struct ScanArgs {
     /// before publish (e.g. --deadair -35)
     #[arg(long, allow_negative_numbers = true)]
     pub deadair: Option<f64>,
+    /// EBU R128 loudness QC: `loud_i`/`loud_lra`/`loud_tp` (platform spec
+    /// checks — podcast −16, broadcast −23, social −14)
+    #[arg(long)]
+    pub loud: bool,
 }
 
 #[derive(clap::Args, Debug)]

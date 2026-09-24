@@ -491,3 +491,7 @@ an atempo'd whole-file render would shift the window.
 - clap derives the flag name from the field name — `pub loop_: bool` becomes `--loop_`. For reserved words use `#[arg(long = "loop")]`.
 - yuv420p halves chroma resolution — a 2px colored box line lands blended with the neighboring pixel's hue after x264 encode. Pixel-assert hue dominance (r > g+60), never exact channel values.
 - `timer` sprite TC: cells = `fps.round()` (NTSC 29.97 → 30-cell nominal numbering), frame field = `mod(floor(tv*fps),cells)` — use the REAL fps in the multiplier, not the rounded cell count (30 vs 29.97 drifts ~3.6s/hour).
+- `-movflags` is an MP4-muxer-only option — a `--to`/`live` FLV output must drop `+faststart` (moov doesn't exist in FLV) and add `-tune zerolatency` instead.
+- `&[m]` on an owned `Argv` MOVES it (array literal by value) — `engine::commands_of(&[m])` then `argvs.push(m)` is E0382. Borrow with `std::slice::from_ref(&m)` or clone.
+- ebur128's summary `Peak:` prints `dBFS` on ffmpeg 4.x (`dBTP` on 5.x+) — parse both suffixes; per-frame `M:`/`S:`/`I:` lines never match a `strip_prefix("I:")` on the trimmed line.
+- `scan` used to hard-require video — audio-only inputs (podcast m4a) now run the audio legs (`--loud`, `--deadair`, volumedetect) with video extras null; explicitly-requested video legs (`--scenes`/`--motion`/`--timecode`/`--bbox`/`--text`/`--dupe`) still error so a mistyped file can't silently pass QC.
