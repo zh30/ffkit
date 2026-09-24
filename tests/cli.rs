@@ -32323,3 +32323,71 @@ fn r255_timecode_default_sub_track_creation_auto() {
     let s = String::from_utf8_lossy(&o.stdout);
     assert!(s.contains("T"), "expected ISO timestamp, got {s}");
 }
+
+#[test]
+fn r256_media_type_gapless_scan_tc() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let f = fixture(d);
+
+    // meta --media-type → iTunes stik value, --gapless → pgap atom (m4a)
+    let out = d.join("m.m4a");
+    let j = run_json(&[
+        "meta",
+        f.to_str().unwrap(),
+        "--media-type",
+        "audiobook",
+        "--gapless",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let tags = std::process::Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format_tags",
+            out.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    let t = String::from_utf8_lossy(&tags.stdout);
+    assert!(t.contains("media_type=10"), "stik value: {t}");
+    assert!(t.contains("gapless_playback=1"), "pgap: {t}");
+    let j = run_json(&[
+        "meta",
+        f.to_str().unwrap(),
+        "--media-type",
+        "bogus",
+        "-o",
+        d.join("x.m4a").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // scan/probe `timecode`: mkv TIMECODE format tag + mov tmcd stream tag
+    let mkv = d.join("tc.mkv");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-i",
+            f.to_str().unwrap(),
+            "-timecode",
+            "02:03:04:05",
+            "-c",
+            "copy",
+            mkv.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&["scan", mkv.to_str().unwrap()]);
+    assert_eq!(j["extra"]["timecode"], "02:03:04:05");
+    let j = run_json(&["scan", f.to_str().unwrap()]);
+    assert!(j["extra"].get("timecode").is_none());
+}

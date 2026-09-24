@@ -869,5 +869,10 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(ms) = probe.av_desync_ms {
         extra["av_desync_ms"] = json!(ms);
     }
+    // Container timecode QC (mov tmcd stream tag / mkv TIMECODE format tag):
+    // masters expected to carry a slate-matching TC, zero decode.
+    if let Some(tc) = &probe.timecode {
+        extra["timecode"] = json!(tc);
+    }
     Ok(Contract::ok("scan", None, Some(probe)).with_extra(extra))
 }

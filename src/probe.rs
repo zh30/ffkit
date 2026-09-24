@@ -49,6 +49,11 @@ pub struct Probe {
     /// streams don't carry start_time.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub av_desync_ms: Option<f64>,
+    /// Container timecode (mov tmcd → video-stream `timecode` tag, mkv
+    /// `TIMECODE` format tag): QC for masters expected to carry a
+    /// slate-matching TC; zero decode. None when absent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timecode: Option<String>,
 }
 
 fn is_zero(v: &u32) -> bool {
@@ -120,6 +125,8 @@ struct FfprobeStream {
     duration: Option<String>,
     #[serde(default)]
     start_time: Option<String>,
+    #[serde(default)]
+    tags: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Deserialize, Default)]
@@ -130,6 +137,8 @@ struct FfprobeFormat {
     size: Option<String>,
     #[serde(default)]
     format_name: Option<String>,
+    #[serde(default)]
+    tags: Option<std::collections::HashMap<String, String>>,
 }
 
 pub fn probe(path: &Path, timeout: Duration) -> Result<Probe, Error> {
@@ -224,6 +233,16 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
         .or_else(|| audio.and_then(|v| v.duration.as_deref().and_then(parse_f64)))
         .unwrap_or(0.0);
 
+    let timecode = video
+        .and_then(|v| v.tags.as_ref().and_then(|t| t.get("timecode").cloned()))
+        .or_else(|| {
+            parsed.format.as_ref().and_then(|f| {
+                f.tags
+                    .as_ref()
+                    .and_then(|t| t.get("TIMECODE").or_else(|| t.get("timecode")).cloned())
+            })
+        });
+
     Ok(Probe {
         duration,
         width: video.and_then(|v| v.width),
@@ -277,6 +296,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
             (Some(v), Some(a)) => Some(((v - a).abs() * 1000.0).round()),
             _ => None,
         },
+        timecode,
     })
 }
 

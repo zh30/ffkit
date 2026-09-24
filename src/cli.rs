@@ -2783,6 +2783,14 @@ pub struct MetaArgs {
     /// Network / broadcaster tag
     #[arg(long)]
     pub network: Option<String>,
+    /// iTunes media kind (music|musicvideo|tvshow|movie|audiobook → stik
+    /// atom value) — podcast/music app library sorting
+    #[arg(long)]
+    pub media_type: Option<String>,
+    /// Gapless-playback flag (pgap atom) — continuous albums, live splits,
+    /// DJ mixes shouldn't gap between tracks
+    #[arg(long)]
+    pub gapless: bool,
     /// Fix the display rotation flag (0/90/180/270) without re-encoding
     #[arg(long)]
     pub rotate: Option<u32>,

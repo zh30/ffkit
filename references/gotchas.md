@@ -575,3 +575,6 @@ an atempo'd whole-file render would shift the window.
 - **`-timecode` is an output option on 4.x too** — mov/mp4 write a `tmcd` data stream + `timecode` stream tag; mkv writes the `TIMECODE` format tag. It needs a video repack (audio-only repacks error).
 - **`meta --creation-time auto` uses UTC civil conversion** — `SystemTime` → ISO needs no chrono: Hinnant's civil-from-days algorithm; movenc re-normalizes to `…Z` form.
 - **`-disposition:s` modifier form mirrors audio** — `-disposition:s -default` clears all sub defaults, then `+default` on the chosen index (same pattern as `--default-audio`).
+
+- **`media_type` lands on mp4/m4a as the stik-relevant tag; sort_* tags are dropped.** movenc's whitelist keeps `media_type`/`gapless_playback` but silently drops `sort_artist`/`sort_name` — don't ship iTunes sort tags via ffmpeg 4.4.
+- **mkv TIMECODE lives in format tags, mov tmcd in the video-stream `timecode` tag.** `probe`/`scan` check both (`timecode` key) — format tag is uppercased `TIMECODE`, stream tag lowercased.

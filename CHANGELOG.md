@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.283.0] — 2026-09-24
+
+### Added
+- `meta --media-type music|musicvideo|tvshow|movie|audiobook` — iTunes `stik` atom (movenc `media_type` tag, verified on ffmpeg 4.4 m4a: `media_type=10`); podcast/music app library sorting
+- `meta --gapless` — iTunes `pgap` atom (`gapless_playback=1`): continuous albums, live-split tracks and DJ mixes shouldn't gap between tracks
+- `scan`/`probe` now report `timecode` — container timecode QC: mov tmcd → video-stream `timecode` tag, mkv `TIMECODE` format tag; zero decode, key absent when the master carries none (verify a slate-matched TC on deliverables; pairs with `remux --timecode`)
+
 ## [0.282.0] — 2026-09-24
 
 ### Added

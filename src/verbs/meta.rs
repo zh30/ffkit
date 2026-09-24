@@ -26,6 +26,22 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         Some("auto") => Some(file_mtime_iso(&args.input)?),
         other => other.map(str::to_string),
     };
+    // iTunes stik atom values: 0 music, 1 music video, 2 tv show,
+    // 9 movie, 10 audiobook (movenc writes media_type verbatim)
+    let media_text = match args.media_type.as_deref() {
+        None => None,
+        Some("music") => Some("0"),
+        Some("musicvideo") | Some("music-video") => Some("1"),
+        Some("tvshow") | Some("tv-show") => Some("2"),
+        Some("movie") => Some("9"),
+        Some("audiobook") => Some("10"),
+        Some(other) => {
+            return Err(Error::input(format!(
+                "--media-type: '{other}' — pick music|musicvideo|tvshow|movie|audiobook"
+            )))
+        }
+    };
+    let gapless_text = if args.gapless { Some("1") } else { None };
     let tags: Vec<(&str, &str)> = [
         ("title", args.title.as_deref()),
         ("artist", args.artist.as_deref()),
@@ -45,6 +61,8 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         ("network", args.network.as_deref()),
         ("creation_time", creation_text.as_deref()),
         ("location", args.location.as_deref()),
+        ("media_type", media_text),
+        ("gapless_playback", gapless_text),
         ("comment", args.comment.as_deref()),
     ]
     .into_iter()
