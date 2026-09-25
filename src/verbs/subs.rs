@@ -1002,9 +1002,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "txt"
         && out_ext != "ass"
         && out_ext != "lrc"
+        && out_ext != "ttml"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass input and .srt/.vtt/.txt/.ass/.lrc output",
+            "subs --convert takes .srt/.vtt/.ass input and .srt/.vtt/.txt/.ass/.lrc/.ttml output",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -1048,7 +1049,36 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         .iter()
         .map(|c| c.text.split_whitespace().count())
         .sum::<usize>();
-    let out = if out_ext == "lrc" {
+    let ttml_clock = |t: f64| {
+        let h = (t / 3600.0).floor() as u64;
+        let m = ((t - h as f64 * 3600.0) / 60.0).floor() as u64;
+        let s = t - h as f64 * 3600.0 - m as f64 * 60.0;
+        format!("{h:02}:{m:02}:{s:06.3}")
+    };
+    let ttml_esc = |txt: &str| {
+        txt.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('\n', "<br/>")
+    };
+    let out = if out_ext == "ttml" {
+        // minimal TTML/DFXP (broadcast + Netflix subtitle exchange) —
+        // one <p> per cue, HH:MM:SS.mmm clock times, <br/> line breaks
+        let mut s = String::from(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+             <tt xmlns=\"http://www.w3.org/ns/ttml\">\n <body>\n  <div>\n",
+        );
+        for c in &cues {
+            s.push_str(&format!(
+                "   <p begin=\"{}\" end=\"{}\">{}</p>\n",
+                ttml_clock(c.start),
+                ttml_clock(c.end),
+                ttml_esc(&c.text)
+            ));
+        }
+        s.push_str("  </div>\n </body>\n</tt>\n");
+        s
+    } else if out_ext == "lrc" {
         // synced-lyrics: [mm:ss.xx]line per cue — music-player lyrics
         // files from a transcript (multi-line cues join with a space)
         let mut s = String::from(

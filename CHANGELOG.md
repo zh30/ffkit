@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.323.0] — 2026-09-24
+
+### Added
+
+- `remux --original N` — flag audio track N as the original-language track (the flip side of `--dub` on multi-language files; mkv/webm only)
+- `probe`/`scan` `streams[].original` — per-track original-language disposition QC
+- `hls --iframes` — tag EXT-X-I-FRAMES-ONLY on the playlist (the trick-play rendition players read for scrub previews; pair with `--independent` so segment boundaries really are keyframes)
+- `subs --convert` output `.ttml` — minimal TTML/DFXP export (broadcast/Netflix subtitle exchange — one `<p>` per cue, XML-escaped text, `<br/>` line breaks)
+- `deliver --platform` +7: `tf1`/`francetv`/`mediaset`/`channel4`/`tenplay`/`nowtv`/`srf` — European/Australian broadcasters (16:9 1920x1080, -14 LUFS pipeline)
+
 ## [0.322.0] — 2026-09-24
 
 ### Added

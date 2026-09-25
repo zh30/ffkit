@@ -38039,3 +38039,117 @@ fn r295_audio_desc_dub_dispositions_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r296_original_hls_iframes_subs_ttml_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+    let run_ff = |args: &[&str]| {
+        assert!(std::process::Command::new("ffmpeg")
+            .args(args)
+            .status()
+            .unwrap()
+            .success());
+    };
+
+    // remux --original: flag the original-language audio track — flip side
+    // of --dub on multi-language delivery files (mkv/webm only)
+    let two_a = d.path().join("two_a.mkv");
+    run_ff(&[
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-i",
+        f.to_str().unwrap(),
+        "-map",
+        "0",
+        "-map",
+        "0:a",
+        "-c",
+        "copy",
+        two_a.to_str().unwrap(),
+    ]);
+    let out = d.path().join("flagged.mkv");
+    let j = run_json(&[
+        "remux",
+        two_a.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--original",
+        "0",
+        "--dub",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let auds: Vec<_> = j["probe"]["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|s| s["kind"] == "audio")
+        .collect();
+    assert_eq!(auds[0]["original"], true, "{}", auds[0]);
+    assert_eq!(auds[1]["dub"], true, "{}", auds[1]);
+
+    // hls --iframes: EXT-X-I-FRAMES-ONLY on the playlist — trick-play
+    // scrub renditions (players read the tag for scrub previews)
+    let hdir = d.path().join("hls_out");
+    std::fs::create_dir(&hdir).unwrap();
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        hdir.to_str().unwrap(),
+        "--iframes",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let pl = std::fs::read_to_string(hdir.join("index.m3u8")).unwrap();
+    assert!(pl.contains("#EXT-X-I-FRAMES-ONLY"), "{pl}");
+
+    // subs --convert .ttml: TTML/DFXP export (broadcast/Netflix subtitle
+    // exchange) — one <p> per cue, XML-escaped text, <br/> line breaks
+    let srt = d.path().join("t.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:01,500 --> 00:00:02,500\nA & B now\nsecond line\n",
+    )
+    .unwrap();
+    let ttml = d.path().join("t.ttml");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--convert",
+        "-o",
+        ttml.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let x = std::fs::read_to_string(&ttml).unwrap();
+    assert!(x.contains("xmlns=\"http://www.w3.org/ns/ttml\""), "{x}");
+    assert!(
+        x.contains(
+            "<p begin=\"00:00:01.500\" end=\"00:00:02.500\">A &amp; B now<br/>second line</p>"
+        ),
+        "{x}"
+    );
+
+    // deliver --platform: EU broadcasters
+    for name in [
+        "tf1", "francetv", "mediaset", "channel4", "tenplay", "nowtv", "srf",
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

@@ -1695,6 +1695,20 @@ pub enum DeliverPlatform {
     Cbc,
     /// SBS Australian public broadcaster 16:9 landscape (1920x1080, -14 LUFS)
     Sbs,
+    /// TF1 French broadcaster 16:9 landscape (1920x1080, -14 LUFS)
+    Tf1,
+    /// France.tv French public broadcaster 16:9 landscape (1920x1080, -14 LUFS)
+    Francetv,
+    /// Mediaset Italian broadcaster 16:9 landscape (1920x1080, -14 LUFS)
+    Mediaset,
+    /// Channel 4 UK broadcaster 16:9 landscape (1920x1080, -14 LUFS)
+    Channel4,
+    /// 10 Play Australian broadcaster 16:9 landscape (1920x1080, -14 LUFS)
+    Tenplay,
+    /// NOW TV UK streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Nowtv,
+    /// SRF Swiss public broadcaster 16:9 landscape (1920x1080, -14 LUFS)
+    Srf,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -4599,6 +4613,10 @@ pub struct RemuxArgs {
     /// multi-language files — mkv/webm only)
     #[arg(long)]
     pub dub: Option<usize>,
+    /// Flag audio track N as the ORIGINAL-language track (the flip side
+    /// of --dub — media servers pick original vs dub by it; mkv/webm only)
+    #[arg(long)]
+    pub original: Option<usize>,
     /// Keep ONLY the listed absolute stream indices (comma list,
     /// e.g. `0,3` keeps video 0 + audio 3 — the escape hatch when
     /// --audio-order/--sub-order/--lang can't express the pick; unlisted
@@ -5587,6 +5605,11 @@ pub struct HlsArgs {
     /// boundary (seek/trick-play VOD; conflicts with --copy and --ladder)
     #[arg(long)]
     pub independent: bool,
+    /// Tag EXT-X-I-FRAMES-ONLY on the playlist (-hls_flags iframes_only —
+    /// players read it for trick-play scrub previews; pair with
+    /// --independent so every segment boundary really is a keyframe)
+    #[arg(long)]
+    pub iframes: bool,
     /// URL prefix for every playlist segment entry (-hls_base_url — serve
     /// segments from a CDN or different host than the manifest)
     #[arg(long)]

@@ -633,6 +633,7 @@ an atempo'd whole-file render would shift the window.
 
 - **`subs --append` offsets by the first file's last CUE end, not the clip's duration** — if the A-side video runs past its last subtitle (credits, outro silence), the appended cues land early. Verify the first clip's length before joining, or shift the joined file afterwards with `--shift`.
 
+- **ffprobe 的 disposition 键表 ≠ ffmpeg 4.4 能写的键**：`karaoke`/`lyrics`/`clean_effects` 设上 mkv 静默丢（写不出），`timed_thumbnails` 连选项解析都过不了（Undefined constant）；4.4 实际可写的只有 default/dub/original/comment/hearing_impaired/visual_impaired/forced/attached_pic。
 - **A repeated `-disposition:a:N` / `-disposition:s:N` option REPLACES, not merges** — `+flag` only accumulates within one option: `-disposition:a:0 +visual_impaired -disposition:a:0 +dub` lands dub only. ffkit concatenates every flag for the same track into a single `+visual_impaired+dub` option.
 - **mp4/mov can't express the FORCED subtitle flag** — `-disposition:s:0 forced` is accepted silently and writes `forced:0` on tx3g/mov_text; only matroska-family containers carry the flag. `remux --forced-sub` refuses mp4/mov/m4a outright rather than ship a silent no-op — verify the flag with `ffprobe -show_entries stream_disposition=forced`, not by exit code.
 - **Track-order indices are PER-TYPE, not absolute** — `--video-order 1,0` indexes the video-track list (`0:v:N`), matching `--audio-order`/`--sub-order`; absolute stream indices are `--keep`'s job. Mixing both errors out (a video index means nothing in the audio list).

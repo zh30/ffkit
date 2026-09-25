@@ -198,6 +198,9 @@ pub struct ProbeStream {
     /// Dub track (dubbed-language track — QC `remux --dub`)
     #[serde(default, skip_serializing_if = "is_false")]
     pub dub: bool,
+    /// Original-language track — QC `remux --original`
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub original: bool,
     /// Attached-picture track (muxed cover art — QC that `remux --cover`
     /// landed and which stream index carries it)
     #[serde(default, skip_serializing_if = "is_false")]
@@ -601,6 +604,12 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                     .disposition
                     .as_ref()
                     .and_then(|d| d.get("dub").copied())
+                    .unwrap_or(0)
+                    == 1,
+                original: s
+                    .disposition
+                    .as_ref()
+                    .and_then(|d| d.get("original").copied())
                     .unwrap_or(0)
                     == 1,
                 attached_pic: s

@@ -343,6 +343,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.independent {
         flags.push("independent_segments");
     }
+    if args.iframes {
+        flags.push("iframes_only");
+    }
     if !flags.is_empty() {
         argv.extend(["-hls_flags".to_string(), flags.join("+")]);
     }
@@ -449,6 +452,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "discontinuity": args.discontinuity,
         "time_names": args.time_names,
         "independent": args.independent,
+        "iframes": args.iframes,
         "base_url": args.base_url,
         "live_window": if args.live { args.live_window.unwrap_or(6) } else { 0 },
     }));
