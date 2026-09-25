@@ -34190,37 +34190,53 @@ fn r266_extract_lang_window_countdown_utc_live_url_remux_sub_order() {
         .spawn()
         .expect("udp source");
     let recv = d.path().join("relay.flv");
-    let mut listener = Command::new("ffmpeg")
-        .args([
-            "-v",
-            "error",
-            "-listen",
-            "1",
-            "-i",
+    // the listener accepts a single connection and needs a moment to bind —
+    // on a loaded runner the first push can hit Connection refused, so retry
+    // with a fresh listener (a refused connect never consumes the -listen 1 slot)
+    let mut j = serde_json::Value::Null;
+    for _ in 0..6 {
+        let mut listener = Command::new("ffmpeg")
+            .args([
+                "-v",
+                "error",
+                "-listen",
+                "1",
+                "-i",
+                &format!("tcp://127.0.0.1:{dst_port}"),
+                "-c",
+                "copy",
+                "-f",
+                "flv",
+            ])
+            .arg(&recv)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("tcp listener");
+        std::thread::sleep(std::time::Duration::from_millis(800));
+        j = run_json(&[
+            "live",
+            url.as_str(),
+            "--to",
             &format!("tcp://127.0.0.1:{dst_port}"),
-            "-c",
-            "copy",
-            "-f",
-            "flv",
-        ])
-        .arg(&recv)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .expect("tcp listener");
-    std::thread::sleep(std::time::Duration::from_millis(1500));
-    let j = run_json(&[
-        "live",
-        url.as_str(),
-        "--to",
-        &format!("tcp://127.0.0.1:{dst_port}"),
-        "--until",
-        "1",
-    ]);
+            "--until",
+            "1",
+        ]);
+        let _ = listener.kill();
+        let _ = listener.wait();
+        if j["status"] == "ok" {
+            break;
+        }
+        let refused = j["error"]["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Connection refused");
+        if !refused {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
     assert_eq!(j["status"], "ok", "{}", j["error"]);
-    std::thread::sleep(std::time::Duration::from_millis(500));
-    let _ = listener.kill();
-    let _ = listener.wait();
     let _ = source.kill();
     let _ = source.wait();
     let raw = std::fs::read(&recv).unwrap_or_default();
