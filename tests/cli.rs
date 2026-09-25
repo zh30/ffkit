@@ -37806,3 +37806,119 @@ fn r293_coded_dims_fcpxml_import_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r294_sdh_commentary_dispositions_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+    let run_ff = |args: &[&str]| {
+        assert!(std::process::Command::new("ffmpeg")
+            .args(args)
+            .status()
+            .unwrap()
+            .success());
+    };
+
+    // remux --sdh/--commentary: accessibility + commentary dispositions —
+    // players label SDH captions and director's commentary (mkv/webm only)
+    let srt = d.path().join("t.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:01,000\nhi\n").unwrap();
+    let multi = d.path().join("multi.mkv");
+    run_ff(&[
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-i",
+        f.to_str().unwrap(),
+        "-i",
+        srt.to_str().unwrap(),
+        "-map",
+        "0",
+        "-map",
+        "1",
+        "-c",
+        "copy",
+        multi.to_str().unwrap(),
+    ]);
+    let out = d.path().join("flagged.mkv");
+    let j = run_json(&[
+        "remux",
+        multi.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--sdh",
+        "0",
+        "--commentary",
+        "0",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let sub = streams.iter().find(|s| s["kind"] == "subtitle").unwrap();
+    assert_eq!(sub["hearing_impaired"], true, "{}", sub);
+    let aud = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+    assert_eq!(aud["comment"], true, "{}", aud);
+
+    // mp4 silently drops both flags — refuse rather than no-op
+    let mp4 = d.path().join("flagged.mp4");
+    let j = run_json(&[
+        "remux",
+        multi.to_str().unwrap(),
+        "-o",
+        mp4.to_str().unwrap(),
+        "--sdh",
+        "0",
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("hearing-impaired"));
+    let j = run_json(&[
+        "remux",
+        multi.to_str().unwrap(),
+        "-o",
+        mp4.to_str().unwrap(),
+        "--commentary",
+        "0",
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(j["error"]["message"].as_str().unwrap().contains("comment"));
+    // out-of-range / no-subtitle inputs fail cleanly
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--sdh",
+        "0",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // deliver --platform: anime hosts
+    for name in [
+        "wakanim",
+        "adn",
+        "laftel",
+        "aniplus",
+        "hidive",
+        "retrocrush",
+        "bstation",
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

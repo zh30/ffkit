@@ -185,6 +185,13 @@ pub struct ProbeStream {
     /// (film-style captions players auto-show for the audience's language)
     #[serde(default, skip_serializing_if = "is_false")]
     pub forced: bool,
+    /// Hearing-impaired/SDH track (accessibility — QC that `remux --sdh`
+    /// landed; players label the track "SDH")
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub hearing_impaired: bool,
+    /// Commentary track (director's commentary — QC `remux --commentary`)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub comment: bool,
     /// Attached-picture track (muxed cover art — QC that `remux --cover`
     /// landed and which stream index carries it)
     #[serde(default, skip_serializing_if = "is_false")]
@@ -564,6 +571,18 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                     .disposition
                     .as_ref()
                     .and_then(|d| d.get("forced").copied())
+                    .unwrap_or(0)
+                    == 1,
+                hearing_impaired: s
+                    .disposition
+                    .as_ref()
+                    .and_then(|d| d.get("hearing_impaired").copied())
+                    .unwrap_or(0)
+                    == 1,
+                comment: s
+                    .disposition
+                    .as_ref()
+                    .and_then(|d| d.get("comment").copied())
                     .unwrap_or(0)
                     == 1,
                 attached_pic: s

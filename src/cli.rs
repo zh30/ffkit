@@ -1667,6 +1667,20 @@ pub enum DeliverPlatform {
     Tvp,
     /// Voyo CZ/SK streaming 16:9 landscape (1920x1080, -14 LUFS)
     Voyo,
+    /// Wakanim EU anime streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Wakanim,
+    /// ADN FR anime streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Adn,
+    /// Laftel KR anime streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Laftel,
+    /// Aniplus ASIA anime streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Aniplus,
+    /// HIDIVE anime streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Hidive,
+    /// RetroCrush classic anime streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Retrocrush,
+    /// Bstation SEA anime streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Bstation,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -4554,6 +4568,14 @@ pub struct RemuxArgs {
     /// manual pick; pairs with --default-sub)
     #[arg(long)]
     pub forced_sub: Option<usize>,
+    /// Flag subtitle track N as SDH/hearing-impaired (accessibility spec —
+    /// players label it "SDH"; mkv/webm only, mp4 drops the flag silently)
+    #[arg(long)]
+    pub sdh: Option<usize>,
+    /// Flag audio track N as a commentary track (director's commentary —
+    /// mkv/webm only, mp4 drops the flag silently)
+    #[arg(long)]
+    pub commentary: Option<usize>,
     /// Keep ONLY the listed absolute stream indices (comma list,
     /// e.g. `0,3` keeps video 0 + audio 3 — the escape hatch when
     /// --audio-order/--sub-order/--lang can't express the pick; unlisted

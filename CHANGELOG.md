@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.321.0] — 2026-09-24
+
+### Added
+
+- `remux --sdh N` — flag subtitle track N as SDH/hearing-impaired in the repack (accessibility spec — players label it "SDH"; mkv/webm only, mp4/mov drops the flag so it's refused rather than a no-op)
+- `remux --commentary N` — flag audio track N as a commentary track (director's commentary for players/media servers; mkv/webm only)
+- `probe`/`scan` `streams[].hearing_impaired`/`comment` — per-track accessibility/commentary disposition QC (the write→verify loop for both flags)
+- `deliver --platform` +7: `wakanim`/`adn`/`laftel`/`aniplus`/`hidive`/`retrocrush`/`bstation` — anime streaming hosts (16:9 1920x1080, -14 LUFS pipeline)
+
 ## [0.320.0] — 2026-09-24
 
 ### Added

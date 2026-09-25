@@ -898,6 +898,57 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "+forced".to_string(),
         ]);
     }
+    // --sdh N: flag subtitle track N as SDH/hearing-impaired — platform
+    // accessibility specs (players label it "SDH"; adds to existing flags)
+    if let Some(n) = args.sdh {
+        if matches!(ext.as_str(), "mp4" | "mov" | "m4a") {
+            return Err(Error::input(
+                "remux --sdh: mp4/mov drops the hearing-impaired flag — use an mkv output",
+            ));
+        }
+        if args.audio || args.video || args.no_subs {
+            return Err(Error::input(
+                "remux --sdh needs a full repack with subtitle tracks",
+            ));
+        }
+        if probe.subtitle_streams == 0 {
+            return Err(Error::input("remux --sdh: input has no subtitles"));
+        }
+        if n >= probe.subtitle_streams as usize {
+            return Err(Error::input(format!(
+                "remux --sdh {n}: only {} subtitle track(s)",
+                probe.subtitle_streams
+            )));
+        }
+        argv.extend([
+            "-disposition:s:".to_string() + &n.to_string(),
+            "+hearing_impaired".to_string(),
+        ]);
+    }
+    // --commentary N: flag audio track N as a commentary track — director's
+    // commentary flagged for players/media servers to label (mkv/webm only)
+    if let Some(n) = args.commentary {
+        if matches!(ext.as_str(), "mp4" | "mov" | "m4a") {
+            return Err(Error::input(
+                "remux --commentary: mp4/mov drops the comment flag — use an mkv output",
+            ));
+        }
+        if args.video || args.no_audio {
+            return Err(Error::input(
+                "remux --commentary needs audio kept — drop --video/--no-audio",
+            ));
+        }
+        let n_a = probe.streams.iter().filter(|s| s.kind == "audio").count();
+        if n >= n_a {
+            return Err(Error::input(format!(
+                "remux --commentary {n}: only {n_a} audio track(s)"
+            )));
+        }
+        argv.extend([
+            "-disposition:a:".to_string() + &n.to_string(),
+            "+comment".to_string(),
+        ]);
+    }
     // --default-video N: multi-angle files pick the hero angle players
     // start on (per-type index — mirrors --default-audio)
     if let Some(n) = args.default_video {
@@ -1046,7 +1097,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     let mut c = c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "no_video": args.no_video, "no_audio": args.no_audio, "no_attachments": args.no_attachments, "keep": args.keep, "drop": args.drop, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts, "no_chapters": args.no_chapters }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "no_video": args.no_video, "no_audio": args.no_audio, "no_attachments": args.no_attachments, "keep": args.keep, "drop": args.drop, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts, "no_chapters": args.no_chapters, "sdh": args.sdh, "commentary": args.commentary }),
     );
     if let Some((key, kid)) = enc_kv {
         c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));
