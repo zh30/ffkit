@@ -182,17 +182,79 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Ffvhuff => lossless(&args, g, "ffvhuff", &["mkv"], None),
         TranscodePreset::V410 => lossless(&args, g, "v410", &["mov"], Some("yuv444p10le")),
         TranscodePreset::Ayuv => lossless(&args, g, "ayuv", &["mov"], Some("yuva444p")),
-        TranscodePreset::Cinepak => qt_era(&args, g, "cinepak", &["mov", "avi"], None, true),
-        TranscodePreset::Svq1 => qt_era(&args, g, "svq1", &["mov"], None, true),
-        TranscodePreset::Zmbv => qt_era(&args, g, "zmbv", &["avi"], Some("rgb24"), true),
-        TranscodePreset::Rv10 => qt_era(&args, g, "rv10", &["rm"], None, false),
-        TranscodePreset::Rv20 => qt_era(&args, g, "rv20", &["rm"], None, false),
+        TranscodePreset::Cinepak => qt_era(
+            &args,
+            g,
+            "cinepak",
+            &["mov", "avi"],
+            None,
+            Some("pcm_s16le"),
+        ),
+        TranscodePreset::Svq1 => qt_era(&args, g, "svq1", &["mov"], None, Some("pcm_s16le")),
+        TranscodePreset::Zmbv => {
+            qt_era(&args, g, "zmbv", &["avi"], Some("rgb24"), Some("pcm_s16le"))
+        }
+        TranscodePreset::Rv10 => qt_era(&args, g, "rv10", &["rm"], None, None),
+        TranscodePreset::Rv20 => qt_era(&args, g, "rv20", &["rm"], None, None),
         TranscodePreset::R210 => lossless(&args, g, "r210", &["mov"], Some("gbrp10le")),
         TranscodePreset::V308 => lossless(&args, g, "v308", &["mov"], Some("yuv444p")),
-        TranscodePreset::Rpza => qt_era(&args, g, "rpza", &["mov"], Some("rgb555le"), true),
-        TranscodePreset::Speedhq => {
-            qt_era(&args, g, "speedhq", &["mov", "avi"], Some("yuv422p"), true)
-        }
+        TranscodePreset::Rpza => qt_era(
+            &args,
+            g,
+            "rpza",
+            &["mov"],
+            Some("rgb555le"),
+            Some("pcm_s16le"),
+        ),
+        TranscodePreset::Speedhq => qt_era(
+            &args,
+            g,
+            "speedhq",
+            &["mov", "avi"],
+            Some("yuv422p"),
+            Some("pcm_s16le"),
+        ),
+        TranscodePreset::Roq => roq(&args, g),
+        TranscodePreset::Snow => qt_era(
+            &args,
+            g,
+            "snow",
+            &["mkv"],
+            Some("yuv420p"),
+            Some("pcm_s16le"),
+        ),
+        TranscodePreset::Flashsv => qt_era(
+            &args,
+            g,
+            "flashsv",
+            &["flv"],
+            Some("bgr24"),
+            Some("libmp3lame"),
+        ),
+        TranscodePreset::Flashsv2 => qt_era(
+            &args,
+            g,
+            "flashsv2",
+            &["flv"],
+            Some("bgr24"),
+            Some("libmp3lame"),
+        ),
+        TranscodePreset::Msvideo1 => qt_era(
+            &args,
+            g,
+            "msvideo1",
+            &["avi"],
+            Some("rgb555le"),
+            Some("libmp3lame"),
+        ),
+        TranscodePreset::Cljr => qt_era(
+            &args,
+            g,
+            "cljr",
+            &["mov"],
+            Some("yuv411p"),
+            Some("pcm_s16le"),
+        ),
     }
 }
 
@@ -1524,7 +1586,7 @@ fn qt_era(
     codec: &str,
     exts: &[&str],
     pix_fmt: Option<&str>,
-    audio: bool,
+    acodec: Option<&str>,
 ) -> Result<Contract, Error> {
     let ext = args
         .output
@@ -1541,7 +1603,7 @@ fn qt_era(
                 .join("/")
         )));
     }
-    if args.crf.is_some() || args.abitrate.is_some() {
+    if args.crf.is_some() || (args.abitrate.is_some() && acodec != Some("libmp3lame")) {
         return Err(Error::input(format!(
             "transcode --preset {codec} has no crf/abitrate knobs — use --vbitrate"
         )));
@@ -1554,7 +1616,7 @@ fn qt_era(
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
-    if probe.has_audio && audio {
+    if probe.has_audio && acodec.is_some() {
         argv.extend(["-map", "0:a?"]);
     }
     argv.extend(["-c:v", codec]);
@@ -1567,13 +1629,18 @@ fn qt_era(
     if let Some(n) = args.gop {
         argv.extend(["-g", &n.to_string()]);
     }
-    if probe.has_audio && audio {
-        argv.extend(["-c:a", "pcm_s16le"]);
-        if let Some(r) = args.ar {
-            argv.extend(["-ar", &r.to_string()]);
-        }
-        if let Some(ch) = args.channels {
-            argv.extend(["-ac", &ch.to_string()]);
+    if probe.has_audio {
+        if let Some(ac) = acodec {
+            argv.extend(["-c:a", ac]);
+            if ac == "libmp3lame" {
+                argv.extend(["-b:a", abitrate(args, "192k")]);
+            }
+            if let Some(r) = args.ar {
+                argv.extend(["-ar", &r.to_string()]);
+            }
+            if let Some(ch) = args.channels {
+                argv.extend(["-ac", &ch.to_string()]);
+            }
         }
     }
     if let Some(fps) = args.fps {
@@ -1582,5 +1649,73 @@ fn qt_era(
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": codec }));
+    Ok(c)
+}
+
+/// id RoQ + RoQ DPCM in .roq — Quake III-era game video. RoQ needs
+/// power-of-two picture dims (Quake refuses anything else) and its audio
+/// is roq_dpcm pinned at 22050Hz, so the preset snaps each dimension to
+/// the nearest power of two letterboxed and refuses every flag that would
+/// break the spec (like dv/amv's fixed-spec snap).
+fn roq(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != "roq" {
+        return Err(Error::input(format!(
+            "transcode --preset roq needs a .roq target, not .{ext}"
+        )));
+    }
+    if args.gop.is_some()
+        || args.range.is_some()
+        || args.field_order.is_some()
+        || args.interlace_mode.is_some()
+        || args.interlaced
+        || args.ar.is_some()
+        || args.channels.is_some()
+        || args.vbitrate.is_some()
+        || args.abitrate.is_some()
+        || args.crf.is_some()
+        || args.width.is_some()
+        || args.colors.is_some()
+    {
+        return Err(Error::input(
+            "transcode --preset roq is a fixed spec (power-of-two dims yuvj444p + RoQ DPCM 22050Hz) — tuning flags don't apply",
+        ));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("roq preset: input has no video"));
+    }
+    let pow2 = |n: u32| -> u32 {
+        let n = n.max(1) as f64;
+        (2f64.powf(n.log2().round()) as u32).clamp(16, 2048)
+    };
+    let w = pow2(probe.width.unwrap_or(256));
+    let h = pow2(probe.height.unwrap_or(256));
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend([
+        "-vf",
+        &format!("scale=w={w}:h={h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2"),
+    ]);
+    argv.extend(["-c:v", "roqvideo", "-pix_fmt", "yuvj444p"]);
+    if probe.has_audio {
+        argv.extend(["-c:a", "roq_dpcm", "-ar", "22050"]);
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "roq" }));
     Ok(c)
 }

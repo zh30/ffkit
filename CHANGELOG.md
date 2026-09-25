@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.352.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset roq` — id RoQ + RoQ DPCM in .roq (Quake III-era game FMV: dims snap to powers of two letterboxed, audio pinned 22050Hz — the two container mandates the spec can't relax); `transcode --preset snow` — Snow wavelet + PCM in .mkv (ffmpeg's native experimental codec — lossless-quality archival); `transcode --preset flashsv`/`flashsv2` — Flash Screen Video + MP3 in .flv (screen-recording era); `transcode --preset msvideo1` — Microsoft Video 1 + MP3 in .avi (the oldest Windows codec, palettized); `transcode --preset cljr` — Cirrus Logic AccuPak + PCM in .mov (early-90s QuickTime). `qt_era()` audio param is now an acodec spec (`Some("pcm_s16le")`/`Some("libmp3lame")`/`None`) so container-pinned audio (mp3 in .flv/.avi, pcm in .mov/.mkv, none in .rm) travels one path
+- `deliver --platform` +7: rightmove, zoopla, realtor, redfin, domain, immoscout, idealista (real-estate listing videos 16:9 1920x1080)
+
 ## [0.351.0] — 2026-09-25
 
 ### Added

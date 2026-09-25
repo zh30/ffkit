@@ -899,3 +899,5 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - `transcode --preset ayuv` always carries alpha (yuva444p) — `--alpha` stays out of its gate because there's no opaque variant; the alpha-channel flag still belongs to webm/prores/qtrle.
 - `r210`/`v308`/`rpza`/`speedhq` pix_fmts are encoder-mandated (gbrp10le/yuv444p/rgb555le/yuv422p) — they're pinned via the shared `pix_fmt` param, not user flags; probe output shows them verbatim.
 - EdTech course-upload platforms (udemy/coursera/…) already existed in `DeliverPlatform` — dedupe against the enum list itself, not the CHANGELOG, when picking platform batches.
+- RoQ needs **power-of-two** width AND height (Quake refuses anything else) — `--preset roq` snaps each dim to the nearest pow2 letterboxed, and its audio is roq_dpcm pinned at 22050Hz (not optional).
+- `.flv` containers can't hold `pcm_s16le` — the Flash Screen presets ride `qt_era(acodec = Some("libmp3lame"))`, which is also why `--abitrate` is refused everywhere except when audio is mp3.

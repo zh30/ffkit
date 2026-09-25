@@ -41975,3 +41975,83 @@ fn r324_uncompressed_rgb_stock_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{p}: {j}");
     }
 }
+
+#[test]
+fn r325_legacy_codecs_realestate_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    for (preset, ext, expect_v, expect_pf, expect_a) in [
+        ("snow", "mkv", "snow", "yuv420p", "pcm_s16le"),
+        ("flashsv", "flv", "flashsv", "bgr24", "mp3"),
+        ("flashsv2", "flv", "flashsv2", "bgr24", "mp3"),
+        ("msvideo1", "avi", "msvideo1", "rgb555le", "mp3"),
+        ("cljr", "mov", "cljr", "yuv411p", "pcm_s16le"),
+    ] {
+        let o = dir.path().join(format!("r325-{preset}.{ext}"));
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            preset,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{preset}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["vcodec"], expect_v, "{preset}: {j}");
+        assert_eq!(j["probe"]["pix_fmt"], expect_pf, "{preset}: {j}");
+        assert_eq!(j["probe"]["acodec"], expect_a, "{preset}: {j}");
+    }
+    // roq snaps dims to powers of two and pins audio to roq_dpcm 22050Hz
+    let o = dir.path().join("r325.roq");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "roq",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "roq: {j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["vcodec"], "roq", "{j}");
+    let w = j["probe"]["width"].as_u64().unwrap();
+    let h = j["probe"]["height"].as_u64().unwrap();
+    assert!(w.is_power_of_two() && h.is_power_of_two(), "roq dims: {j}");
+    assert_eq!(j["probe"]["acodec"], "roq_dpcm", "{j}");
+    // fixed-spec refusal
+    let bad = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "roq",
+        "--vbitrate",
+        "1M",
+        "-o",
+        dir.path().join("r325-bad.roq").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "roq --vbitrate: {bad}");
+    for p in [
+        "rightmove",
+        "zoopla",
+        "realtor",
+        "redfin",
+        "domain",
+        "immoscout",
+        "idealista",
+    ] {
+        let o = dir.path().join(format!("r325-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{p}: {j}");
+    }
+}

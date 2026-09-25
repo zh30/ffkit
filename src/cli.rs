@@ -1398,6 +1398,25 @@ pub enum TranscodePreset {
     /// NewTek SpeedHQ + PCM in .mov/.avi (NDI-era NLE intermediate —
     /// TriCaster/NDI capture masters)
     Speedhq,
+    /// id RoQ + RoQ DPCM in .roq (Quake III-era game video — picture
+    /// dims snap to powers of two, audio forced to 22050Hz)
+    Roq,
+    /// Snow wavelet + PCM in .mkv (ffmpeg's native experimental codec —
+    /// mathematically lossless-quality archival)
+    Snow,
+    /// Flash Screen Video + MP3 in .flv (screen-recording era codec)
+    #[value(name = "flashsv")]
+    Flashsv,
+    /// Flash Screen Video 2 + MP3 in .flv (the later screen codec)
+    #[value(name = "flashsv2")]
+    Flashsv2,
+    /// Microsoft Video 1 + MP3 in .avi (the oldest Windows video codec,
+    /// 8-bit palettized)
+    #[value(name = "msvideo1")]
+    Msvideo1,
+    /// Cirrus Logic AccuPak + PCM in .mov (early-90s QuickTime codec)
+    #[value(name = "cljr")]
+    Cljr,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2314,6 +2333,20 @@ pub enum DeliverPlatform {
     Motionarray,
     /// Dissolve contributor stock-footage upload
     Dissolve,
+    /// Rightmove property-listing video (UK)
+    Rightmove,
+    /// Zoopla property-listing video (UK)
+    Zoopla,
+    /// Realtor.com property-listing video (US)
+    Realtor,
+    /// Redfin property-listing video (US)
+    Redfin,
+    /// Domain property-listing video (AU)
+    Domain,
+    /// ImmoScout24 property-listing video (DE)
+    Immoscout,
+    /// Idealista property-listing video (ES/IT/PT)
+    Idealista,
 }
 
 #[derive(clap::Args, Debug)]

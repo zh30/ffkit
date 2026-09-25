@@ -524,7 +524,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Storyblocks
         | DeliverPlatform::Videvo
         | DeliverPlatform::Motionarray
-        | DeliverPlatform::Dissolve => (1920, 1080),
+        | DeliverPlatform::Dissolve
+        | DeliverPlatform::Rightmove
+        | DeliverPlatform::Zoopla
+        | DeliverPlatform::Realtor
+        | DeliverPlatform::Redfin
+        | DeliverPlatform::Domain
+        | DeliverPlatform::Immoscout
+        | DeliverPlatform::Idealista => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1279,6 +1286,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Videvo => "videvo",
         DeliverPlatform::Motionarray => "motionarray",
         DeliverPlatform::Dissolve => "dissolve",
+        DeliverPlatform::Rightmove => "rightmove",
+        DeliverPlatform::Zoopla => "zoopla",
+        DeliverPlatform::Realtor => "realtor",
+        DeliverPlatform::Redfin => "redfin",
+        DeliverPlatform::Domain => "domain",
+        DeliverPlatform::Immoscout => "immoscout",
+        DeliverPlatform::Idealista => "idealista",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",
