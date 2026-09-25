@@ -85,6 +85,11 @@ pub struct Probe {
     /// `chapter --list` shows the marks themselves)
     #[serde(default)]
     pub chapter_count: u32,
+    /// Programs multiplexed into the container (format.nb_programs —
+    /// multi-service mpegts/spts deliverables: >1 means a mux carries
+    /// several programs, pick before repack or you get all of them)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub program_count: Option<u32>,
 }
 
 /// One line of the stream table — index matches `remux`/`extract`
@@ -240,6 +245,11 @@ pub struct ProbeStream {
     /// spec QC on chroma phase alignment)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chroma_location: Option<String>,
+    /// Source bit depth per sample (video/audio — the container's own
+    /// 8/10/12-bit declaration; catches a 10-bit master even when the
+    /// pix_fmt name is ambiguous)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bits_per_raw_sample: Option<u32>,
 }
 
 fn is_false(v: &bool) -> bool {
@@ -313,6 +323,8 @@ struct FfprobeStream {
     #[serde(default)]
     chroma_location: Option<String>,
     #[serde(default)]
+    bits_per_raw_sample: Option<String>,
+    #[serde(default)]
     r_frame_rate: Option<String>,
     #[serde(default)]
     avg_frame_rate: Option<String>,
@@ -375,6 +387,8 @@ struct FfprobeFormat {
     format_name: Option<String>,
     #[serde(default)]
     bit_rate: Option<String>,
+    #[serde(default)]
+    nb_programs: Option<u32>,
     #[serde(default)]
     tags: Option<std::collections::HashMap<String, String>>,
 }
@@ -474,6 +488,14 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
         .or_else(|| video.and_then(|v| v.duration.as_deref().and_then(parse_f64)))
         .or_else(|| audio.and_then(|v| v.duration.as_deref().and_then(parse_f64)))
         .unwrap_or(0.0);
+
+    // program-less containers (mp4/mov/mkv) report nb_programs 0 —
+    // only meaningful on multiplexed ts/spts, so 0 reads as absent
+    let program_count = parsed
+        .format
+        .as_ref()
+        .and_then(|f| f.nb_programs)
+        .filter(|n| *n > 0);
 
     let timecode = video
         .and_then(|v| v.tags.as_ref().and_then(|t| t.get("timecode").cloned()))
@@ -631,6 +653,10 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 is_avc: s.is_avc.as_deref().map(|v| v == "true"),
                 nal_length_size: s.nal_length_size.as_deref().and_then(|v| v.parse().ok()),
                 chroma_location: s.chroma_location.clone(),
+                bits_per_raw_sample: s
+                    .bits_per_raw_sample
+                    .as_deref()
+                    .and_then(|v| v.parse().ok()),
                 forced: s
                     .disposition
                     .as_ref()
@@ -688,6 +714,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
             })
         }),
         chapter_count: parsed.chapters.len() as u32,
+        program_count,
     })
 }
 

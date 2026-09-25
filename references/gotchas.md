@@ -741,3 +741,11 @@ h264_mp4toannexb automatically on remux.
 Excel render them as in-cell line breaks, and `parse_csv_subs` only
 treats a row as a cue when the first two fields both parse as times
 (the header row and malformed lines drop quietly).
+
+## nb_programs 0 vs "no programs"
+Program-less containers (mp4/mov/mkv/webm) report `nb_programs: 0` in
+ffprobe — only multiplexed ts/spts carry a real count. `program_count`
+filters the 0 to absent rather than claiming a file "has no programs"
+(it never had the concept). `dash --name PFX` prefixes segment AND
+init AND single-file names — the written-segment check counts against
+the same prefix, so a custom name can't fake "no segments written".

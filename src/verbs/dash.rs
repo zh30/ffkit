@@ -31,6 +31,17 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--frag must be 0.1..=30 seconds"));
         }
     }
+    if let Some(n) = args.name.as_deref() {
+        // prefix feeds dashenc's name patterns — letters/digits/-/_
+        // only ($ and % are pattern syntax, / escapes the package dir)
+        if n.is_empty()
+            || !n
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(Error::input("--name takes letters, digits, - and _ only"));
+        }
+    }
     if args.sidx && !args.single {
         return Err(Error::input(
             "--sidx indexes the single byte-range file — pass --single too",
@@ -91,6 +102,11 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         .map_err(|e| Error::output(format!("create {}: {e}", paths::display(&dir))))?;
     let seg_ext = if args.webm { "webm" } else { "m4s" };
 
+    let name_pfx = args
+        .name
+        .as_deref()
+        .map(|n| format!("{n}-"))
+        .unwrap_or_default();
     let mut argv = engine::ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
     if args.video_only {
@@ -243,16 +259,19 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         // segment names are resolved against the manifest's dir by the
         // muxer — bare filenames, no path prefix
         "-init_seg_name".to_string(),
-        format!("init-$RepresentationID$.{seg_ext}"),
+        format!("{p}init-$RepresentationID$.{seg_ext}", p = name_pfx),
         "-media_seg_name".to_string(),
-        format!("seg-$RepresentationID$-$Number%05d$.{seg_ext}"),
+        format!(
+            "{p}seg-$RepresentationID$-$Number%05d$.{seg_ext}",
+            p = name_pfx
+        ),
     ]);
     if args.single {
         argv.extend([
             "-single_file".to_string(),
             "1".to_string(),
             "-single_file_name".to_string(),
-            format!("stream-$RepresentationID$.{seg_ext}"),
+            format!("{p}stream-$RepresentationID$.{seg_ext}", p = name_pfx),
         ]);
     }
     if let Some(n) = args.window {
@@ -293,7 +312,8 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
             rd.filter_map(|e| e.ok())
                 .filter(|e| {
                     let n = e.file_name().to_string_lossy().into_owned();
-                    (n.starts_with("seg-") || n.starts_with("stream-"))
+                    (n.starts_with(&format!("{name_pfx}seg-"))
+                        || n.starts_with(&format!("{name_pfx}stream-")))
                         && e.path()
                             .extension()
                             .is_some_and(|x| x == "m4s" || x == "webm" || x == "mp4")

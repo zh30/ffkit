@@ -1751,6 +1751,20 @@ pub enum DeliverPlatform {
     Whatnot,
     /// Kanopy library streamer 16:9 landscape (1920x1080, -14 LUFS)
     Kanopy,
+    /// MUBI arthouse streamer 16:9 landscape (1920x1080, -14 LUFS)
+    Mubi,
+    /// Criterion Channel streamer 16:9 landscape (1920x1080, -14 LUFS)
+    Criterion,
+    /// CuriosityStream doc streamer 16:9 landscape (1920x1080, -14 LUFS)
+    Curiositystream,
+    /// MagellanTV doc streamer 16:9 landscape (1920x1080, -14 LUFS)
+    Magellantv,
+    /// Tinder video profile 9:16 vertical (1080x1920, -14 LUFS)
+    Tinder,
+    /// Bumble video profile 9:16 vertical (1080x1920, -14 LUFS)
+    Bumble,
+    /// Hinge video prompt 9:16 vertical (1080x1920, -14 LUFS)
+    Hinge,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -5710,6 +5724,10 @@ pub struct DashArgs {
     /// single-file only, conflicts with --streaming)
     #[arg(long)]
     pub sidx: bool,
+    /// Segment filename prefix (letters/digits/-/_) — `v-init-…`/`v-seg-…`
+    /// name-schemes a pack so several representation packs share one dir
+    #[arg(long, value_name = "PREFIX")]
+    pub name: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

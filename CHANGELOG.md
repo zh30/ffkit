@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.327.0] — 2026-09-24
+
+### Added
+
+- `probe`/`scan` `streams[].bits_per_raw_sample` — source bit depth per track (8/10/12-bit master QC even when the pix_fmt name is ambiguous)
+- `probe`/`scan` `program_count` — multiplexed programs in the container (multi-service mpegts/spts QC; absent on program-less mp4/mov/mkv)
+- `dash --name PREFIX` — segment filename prefix (`v-init-…`/`v-seg-…`) so several representation packs share one directory; pattern chars and path separators rejected up front
+- `deliver --platform` +7: `mubi`/`criterion`/`curiositystream`/`magellantv` (film/doc SVOD 16:9 1920x1080), `tinder`/`bumble`/`hinge` (9:16 1080x1920 dating-profile video)
+
 ## [0.326.0] — 2026-09-24
 
 ### Added

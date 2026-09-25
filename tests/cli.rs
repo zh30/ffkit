@@ -38504,3 +38504,95 @@ fn r299_stream_ids_csv_platforms() {
         assert_eq!(j["probe"]["height"], h, "{name}");
     }
 }
+
+#[test]
+fn r300_bitdepth_programs_dash_name_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // streams[].bits_per_raw_sample: 8-bit fixture reads 8; a 10-bit
+    // encode reads 10 even before pix_fmt naming is checked
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(j["probe"]["streams"][0]["bits_per_raw_sample"], 8);
+    let ten = d.path().join("ten.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=0.5:size=320x240:rate=30",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p10le",
+            ten.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&["probe", ten.to_str().unwrap()]);
+    assert_eq!(j["probe"]["streams"][0]["bits_per_raw_sample"], 10);
+
+    // program_count: ts mux reports its programs; mp4 has none → absent
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert!(j["probe"].get("program_count").is_none());
+    let ts = d.path().join("t.ts");
+    let j = run_json(&["remux", f.to_str().unwrap(), "-o", ts.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", ts.to_str().unwrap()]);
+    assert_eq!(j["probe"]["program_count"], 1);
+
+    // dash --name PREFIX: prefixed init/segment names in the pack;
+    // pattern chars and path separators are rejected up front
+    let ddir = d.path().join("dv");
+    let j = run_json(&[
+        "dash",
+        f.to_str().unwrap(),
+        "-o",
+        ddir.to_str().unwrap(),
+        "--name",
+        "v",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(ddir.join("v-init-0.m4s").is_file());
+    assert!(ddir.join("v-seg-0-00001.m4s").is_file());
+    let j = run_json(&[
+        "dash",
+        f.to_str().unwrap(),
+        "-o",
+        d.path().join("dbad").to_str().unwrap(),
+        "--name",
+        "bad/name",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // +7 deliver platforms: film/doc SVOD 16:9 + dating-profile 9:16
+    for (name, w, h) in [
+        ("mubi", 1920, 1080),
+        ("criterion", 1920, 1080),
+        ("curiositystream", 1920, 1080),
+        ("magellantv", 1920, 1080),
+        ("tinder", 1080, 1920),
+        ("bumble", 1080, 1920),
+        ("hinge", 1080, 1920),
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}: {j}");
+        assert_eq!(j["probe"]["width"], w, "{name}");
+        assert_eq!(j["probe"]["height"], h, "{name}");
+    }
+}

@@ -265,6 +265,10 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Ebay
         | DeliverPlatform::Walmart
         | DeliverPlatform::Kanopy
+        | DeliverPlatform::Mubi
+        | DeliverPlatform::Criterion
+        | DeliverPlatform::Curiositystream
+        | DeliverPlatform::Magellantv
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
         | DeliverPlatform::Parler
@@ -296,7 +300,10 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Weverse
         | DeliverPlatform::Kwai
         | DeliverPlatform::Snackvideo
-        | DeliverPlatform::Whatnot => (1080, 1920),
+        | DeliverPlatform::Whatnot
+        | DeliverPlatform::Tinder
+        | DeliverPlatform::Bumble
+        | DeliverPlatform::Hinge => (1080, 1920),
         DeliverPlatform::Weibo => (1920, 1080),
         _ => (1080, 1920),
     };
@@ -805,6 +812,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Poshmark => "poshmark",
         DeliverPlatform::Whatnot => "whatnot",
         DeliverPlatform::Kanopy => "kanopy",
+        DeliverPlatform::Mubi => "mubi",
+        DeliverPlatform::Criterion => "criterion",
+        DeliverPlatform::Curiositystream => "curiositystream",
+        DeliverPlatform::Magellantv => "magellantv",
+        DeliverPlatform::Tinder => "tinder",
+        DeliverPlatform::Bumble => "bumble",
+        DeliverPlatform::Hinge => "hinge",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",
