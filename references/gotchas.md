@@ -786,3 +786,11 @@ ffprobe 4.4 never reports CENC encryption — `remux --encrypt` output still sho
 ## `concat --repeat` expands the input list before validation
 
 `--repeat 3` multiplies `inputs` before the two-input minimum runs, so a single file loops cleanly (`concat a.mp4 --repeat 4` → 4 plays). Transitions/fades/gaps all see the expanded list — every repeat seam gets the joint treatment, which is what loop-intended assemblies want.
+
+## `subs --mux` takes the video as INPUT, the .srt as the flag value
+
+`subs VIDEO --mux subs.srt -o out.mkv`. Swapping them (`subs subs.srt --mux video.mp4`) does NOT error: ffmpeg demuxes the mp4 as the "subtitle" input, `-map 1` then just picks its streams, and you get a clean lossless repack with zero subtitles — it even probes ok. Only `probe.has_subs` tells you the mux actually landed.
+
+## `-muxrate` pads, it does not throttle
+
+`remux --muxrate` on a .ts target inserts null packets to reach the constant mux rate — the file gets LARGER than the sum of its streams. It's for broadcast ingest specs that require a fixed-rate transport stream; it won't shave a bitrate-heavy file down.

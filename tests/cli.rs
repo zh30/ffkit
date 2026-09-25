@@ -39679,3 +39679,140 @@ fn r306_concat_repeat_transcode_gop_remux_nodata_probe_encrypted() {
         assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
     }
 }
+
+#[test]
+fn r307_transcode_profile_remux_muxrate_probe_has_subs() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // transcode --profile: x264 encode profile lands on the stream
+    let p = d.path().join("p.mp4");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--profile",
+        "baseline",
+        "-o",
+        p.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", p.to_str().unwrap()]);
+    let prof = j["probe"]["streams"][0]["profile"].as_str().unwrap_or("");
+    assert!(
+        prof.to_lowercase().contains("baseline"),
+        "baseline stream: {prof}"
+    );
+    let p2 = d.path().join("p2.mp4");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--profile",
+        "main",
+        "-o",
+        p2.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", p2.to_str().unwrap()]);
+    assert_eq!(j["probe"]["streams"][0]["profile"], "Main", "{j}");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--profile",
+        "baseline",
+        "--copy-video",
+        "-o",
+        d.path().join("bad.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--profile",
+        "baseline",
+        "--preset",
+        "mp3",
+        "-o",
+        d.path().join("bad.mp3").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--profile",
+        "baseline",
+        "--preset",
+        "hevc",
+        "-o",
+        d.path().join("bad2.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+
+    // remux --muxrate: transport-stream CBR mux — .ts only
+    let m = d.path().join("m.ts");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "--muxrate",
+        "2M",
+        "-o",
+        m.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", m.to_str().unwrap()]);
+    assert!(j["probe"]["duration"].as_f64().unwrap() > 0.5, "{j}");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "--muxrate",
+        "2M",
+        "-o",
+        d.path().join("bad3.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+
+    // probe has_subs: muxed subtitle stream reads true, plain reads false
+    let srt = d.path().join("s.srt");
+    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,900\nhi there\n").unwrap();
+    let subbed = d.path().join("subbed.mkv");
+    let j = run_json(&[
+        "subs",
+        f.to_str().unwrap(),
+        "--mux",
+        srt.to_str().unwrap(),
+        "-o",
+        subbed.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", subbed.to_str().unwrap()]);
+    assert_eq!(j["probe"]["has_subs"], true, "{j}");
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(j["probe"]["has_subs"], false, "{j}");
+
+    // +7 Chinese video platforms
+    for name in [
+        "pearvideo",
+        "haokan",
+        "miaopai",
+        "acfun",
+        "toutiao",
+        "baijiahao",
+        "ifeng",
+    ] {
+        let o = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
+    }
+}

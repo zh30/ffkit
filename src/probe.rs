@@ -40,6 +40,9 @@ pub struct Probe {
     /// embedded payloads) — gate for `extract --attachment` / `remux
     /// --no-attachments`
     pub has_attachment: bool,
+    /// A subtitle stream is muxed in (srt/ass/mov_text — gate extract
+    /// --subs / remux --no-subs / deliver --subs)
+    pub has_subs: bool,
     pub encrypted: bool,
     /// Container-wide bitrate (format.bit_rate) — overall-budget QC for
     /// platform ingest caps
@@ -639,6 +642,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
         has_video: video.is_some(),
         has_audio: audio.is_some(),
         has_data: parsed.streams.iter().any(|s| s.codec_type == "data"),
+        has_subs: parsed.streams.iter().any(|s| s.codec_type == "subtitle"),
         has_attachment: parsed.streams.iter().any(|s| s.codec_type == "attachment"),
         encrypted: false,
         bit_rate: parsed

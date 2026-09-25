@@ -37,6 +37,16 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         _ => TranscodePreset::H264,
     });
 
+    if args.profile.is_some() && args.copy_video {
+        return Err(Error::input(
+            "transcode --profile needs a re-encode — drop --copy-video",
+        ));
+    }
+    if args.profile.is_some() && !matches!(preset, TranscodePreset::H264 | TranscodePreset::Proxy) {
+        return Err(Error::input(
+            "transcode --profile is an x264 encode flag — h264/proxy presets only",
+        ));
+    }
     if args.alpha && !matches!(preset, TranscodePreset::Webm | TranscodePreset::Prores) {
         return Err(Error::input(
             "--alpha needs a webm or prores output (h264/hevc/av1 can't carry alpha)",
@@ -162,6 +172,7 @@ fn proxy(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "-movflags",
             "+faststart",
         ]);
+        profile_push(&mut argv, args);
         let mut vf = String::from("scale=w='min(960,iw)':h=-2");
         if let Some(fps) = args.fps {
             vf.push_str(&format!(",fps={fps}"));
@@ -248,6 +259,7 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 "-movflags",
                 "+faststart",
             ]);
+            profile_push(&mut argv, args);
             let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
             if let Some(fps) = args.fps {
                 vf.push_str(&format!(",fps={fps}"));
@@ -623,6 +635,20 @@ fn ar_ac(argv: &mut Argv, args: &TranscodeArgs) {
     }
     if let Some(ch) = args.channels {
         argv.extend(["-ac", &ch.to_string()]);
+    }
+}
+
+fn profile_push(argv: &mut Argv, args: &TranscodeArgs) {
+    if let Some(p) = args.profile {
+        argv.extend(["-profile:v", transcode_profile_name(p)]);
+    }
+}
+
+fn transcode_profile_name(p: crate::cli::TranscodeProfile) -> &'static str {
+    match p {
+        crate::cli::TranscodeProfile::Baseline => "baseline",
+        crate::cli::TranscodeProfile::Main => "main",
+        crate::cli::TranscodeProfile::High => "high",
     }
 }
 

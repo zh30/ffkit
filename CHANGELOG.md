@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.334.0] — 2026-09-25
+
+### Added
+
+- `transcode --profile baseline|main|high` — x264 encode profile on the h264/proxy paths (`-profile:v`; device-compat ingest specs — baseline for old phones, car units, kiosk players; conflicts with `--copy-video` and every non-x264 preset).
+- `remux --muxrate R` — constant transport-stream mux rate (`-muxrate`; broadcast ingest spec pads the mux to a fixed bitrate — .ts/.m2ts targets only).
+- `probe`/`scan` `has_subs` — a subtitle stream is muxed in (gate `extract --subs`/`remux --no-subs`/`deliver --subs`).
+- `deliver --platform` +7 Chinese video canvases: `pearvideo`, `haokan`, `miaopai`, `acfun`, `toutiao`, `baijiahao`, `ifeng` (16:9 1920x1080).
+
 ## [0.333.0] — 2026-09-25
 
 ### Added

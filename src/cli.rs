@@ -1189,6 +1189,11 @@ pub struct TranscodeArgs {
     /// --copy-video and the audio presets)
     #[arg(long)]
     pub gop: Option<u32>,
+    /// x264 encode profile — device-compat ingest specs (baseline for old
+    /// phones/car/kiosk players; h264/proxy encodes only, conflicts with
+    /// --copy-video and every non-x264 preset)
+    #[arg(long)]
+    pub profile: Option<TranscodeProfile>,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -1216,6 +1221,16 @@ pub enum TranscodeRange {
     Limited,
     /// pc / JPEG range 0-255 — computer playback
     Full,
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+pub enum TranscodeProfile {
+    /// Baseline — old phones, car units, kiosk players (no B-frames/CABAC-trellis)
+    Baseline,
+    /// Main — mid-range device compat
+    Main,
+    /// High — default x264 profile, best compression
+    High,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1871,6 +1886,20 @@ pub enum DeliverPlatform {
     Irokotv,
     /// STARZPLAY (MENA) episode upload 16:9 landscape (1920x1080, -14 LUFS)
     Starzplay,
+    /// Pear Video 梨视频 — Chinese short-form news video 16:9
+    Pearvideo,
+    /// Haokan 好看视频 — Baidu short video 16:9
+    Haokan,
+    /// Miaopai 秒拍 — Chinese short video 16:9
+    Miaopai,
+    /// AcFun — Chinese anime/video community 16:9
+    Acfun,
+    /// Toutiao 头条视频 — news-feed video 16:9
+    Toutiao,
+    /// Baijiahao 百家号 — Baidu content-platform video 16:9
+    Baijiahao,
+    /// Ifeng 凤凰视频 — Phoenix TV video portal 16:9
+    Ifeng,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -4642,6 +4671,11 @@ pub struct RemuxArgs {
     /// something to strip; conflicts with --keep/--drop/--program)
     #[arg(long)]
     pub no_data: bool,
+    /// Constant mux rate on .ts/.m2ts targets (-muxrate R) — broadcast
+    /// transport-stream spec pads the mux to a fixed bitrate (10M style
+    /// values ok); mpegts outputs only
+    #[arg(long)]
+    pub muxrate: Option<String>,
     /// Strip embedded container chapters in the repack — clean audio
     /// deliverable/clip for players that show a broken TOC
     #[arg(long)]

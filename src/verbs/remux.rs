@@ -349,6 +349,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             ));
         }
     }
+    if args.muxrate.is_some() && !matches!(ext.as_str(), "ts" | "m2ts" | "mts") {
+        return Err(Error::input(
+            "remux --muxrate is a transport-stream option — .ts/.m2ts targets only",
+        ));
+    }
     if args.no_data {
         if !keep.is_empty() || !drop.is_empty() {
             return Err(Error::input(
@@ -1223,6 +1228,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(o) = args.offset {
         argv.extend(["-output_ts_offset".into(), o.to_string()]);
     }
+    if let Some(r) = &args.muxrate {
+        argv.extend(["-muxrate", r]);
+    }
     if args.no_chapters {
         argv.extend(["-map_chapters", "-1"]);
     }
@@ -1234,7 +1242,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let c = run?;
     let mut c = c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "no_video": args.no_video, "no_audio": args.no_audio, "no_attachments": args.no_attachments, "keep": args.keep, "drop": args.drop, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts, "no_chapters": args.no_chapters, "sdh": args.sdh, "commentary": args.commentary, "audio_desc": args.audio_desc, "dub": args.dub, "original": args.original }),
+        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "no_video": args.no_video, "no_audio": args.no_audio, "no_attachments": args.no_attachments, "keep": args.keep, "drop": args.drop, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts, "no_chapters": args.no_chapters, "muxrate": args.muxrate, "sdh": args.sdh, "commentary": args.commentary, "audio_desc": args.audio_desc, "dub": args.dub, "original": args.original }),
     );
     if let Some((key, kid)) = enc_kv {
         c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));

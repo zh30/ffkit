@@ -355,6 +355,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Vix
         | DeliverPlatform::Irokotv
         | DeliverPlatform::Starzplay
+        | DeliverPlatform::Pearvideo
+        | DeliverPlatform::Haokan
+        | DeliverPlatform::Miaopai
+        | DeliverPlatform::Acfun
+        | DeliverPlatform::Toutiao
+        | DeliverPlatform::Baijiahao
+        | DeliverPlatform::Ifeng
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
         | DeliverPlatform::Parler
@@ -976,6 +983,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Vix => "vix",
         DeliverPlatform::Irokotv => "irokotv",
         DeliverPlatform::Starzplay => "starzplay",
+        DeliverPlatform::Pearvideo => "pearvideo",
+        DeliverPlatform::Haokan => "haokan",
+        DeliverPlatform::Miaopai => "miaopai",
+        DeliverPlatform::Acfun => "acfun",
+        DeliverPlatform::Toutiao => "toutiao",
+        DeliverPlatform::Baijiahao => "baijiahao",
+        DeliverPlatform::Ifeng => "ifeng",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",
