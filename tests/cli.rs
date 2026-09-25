@@ -37618,3 +37618,109 @@ fn r291_stream_qc_number_list_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r292_stream_frames_level_pic_fcpxml_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+    let run_ff = |args: &[&str]| {
+        assert!(std::process::Command::new("ffmpeg")
+            .args(args)
+            .status()
+            .unwrap()
+            .success());
+    };
+
+    // streams[].nb_frames/level: per-track frame budget + codec level QC
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    assert_eq!(v["nb_frames"], 30, "{}", v);
+    assert!(v["level"].as_u64().unwrap() > 0, "{}", v);
+
+    // streams[].attached_pic: embedded-cover QC — which stream carries art
+    let logo = d.path().join("logo.png");
+    run_ff(&[
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=red:size=64x64",
+        "-frames:v",
+        "1",
+        logo.to_str().unwrap(),
+    ]);
+    let cov = d.path().join("cov.m4a");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        cov.to_str().unwrap(),
+        "--cover",
+        logo.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let j = run_json(&["probe", cov.to_str().unwrap()]);
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let art = streams
+        .iter()
+        .find(|s| s["attached_pic"] == true)
+        .unwrap_or_else(|| panic!("no attached_pic stream: {streams:?}"));
+    assert_eq!(art["codec"], "mjpeg", "{}", art);
+    assert_eq!(
+        j["probe"]["attached_pic_indices"].as_array().unwrap().len(),
+        1
+    );
+
+    // chapter --fcpxml: FCP/Resolve marker exchange — the editor-native TOC
+    // format (well-formed XML, one <marker> per chapter mark)
+    let fcp = d.path().join("toc.fcpxml");
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "--at",
+        "0.3|Act One",
+        "--at",
+        "0.7|Act Two",
+        "--fcpxml",
+        "-o",
+        fcp.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert_eq!(j["extra"]["exported"], "fcpxml");
+    let text = std::fs::read_to_string(&fcp).unwrap();
+    assert!(text.contains("<fcpxml version=\"1.8\">"), "{text}");
+    assert_eq!(text.matches("<marker ").count(), 2, "{text}");
+    assert!(text.contains("value=\"Act One\""), "{text}");
+    assert!(text.contains("value=\"Act Two\""), "{text}");
+
+    // deliver --platform: regional SVOD canvases
+    for name in [
+        "stan",
+        "mycanal",
+        "skygo",
+        "movistar",
+        "viu",
+        "voot",
+        "clarovideo",
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

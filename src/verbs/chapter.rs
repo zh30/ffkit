@@ -566,6 +566,7 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         || args.csv
         || args.srt
         || args.edl
+        || args.fcpxml
     {
         let text = if args.csv {
             // Resolve/Premiere marker + spreadsheet exchange: H:MM:SS.mmm,Title
@@ -659,6 +660,40 @@ FCM: NON-DROP FRAME
                 s.push_str(&format!("{} --> {}\n{}\n\n", vtt_ts(*t), vtt_ts(end), ti));
             }
             s
+        } else if args.fcpxml {
+            // Final Cut Pro XML — FCP/Resolve import each <marker> as a
+            // timeline marker; chapter TOC exchange that survives the
+            // editor round-trip (unlike ffmetadata which is ffmpeg-only)
+            let esc = |v: &str| -> String {
+                v.replace('&', "&amp;")
+                    .replace('<', "&lt;")
+                    .replace('>', "&gt;")
+                    .replace('"', "&quot;")
+            };
+            let fps = probe.fps.unwrap_or(25.0).max(1.0).round() as u64;
+            let stem = args
+                .input
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("clip");
+            let mut s = format!(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE fcpxml>\n<fcpxml version=\"1.8\">\n<resources>\n<format id=\"r1\"/>\n<asset id=\"r2\" name=\"{stem}\" src=\"file://{}\" start=\"0s\" duration=\"{}s\" hasVideo=\"1\" format=\"r1\"/>\n</resources>\n<library>\n<event name=\"ffkit chapters\">\n<project name=\"{stem}\">\n<sequence format=\"r1\" duration=\"{}s\">\n<spine>\n<asset-clip name=\"{stem}\" ref=\"r2\" offset=\"0s\" duration=\"{}s\">\n",
+                esc(&args.input.display().to_string()),
+                probe.duration,
+                probe.duration,
+                probe.duration,
+            );
+            for (t, ti) in &marks {
+                s.push_str(&format!(
+                    "<marker start=\"{}s\" duration=\"1/{fps}s\" value=\"{}\"/>\n",
+                    t,
+                    esc(ti)
+                ));
+            }
+            s.push_str(
+                "</asset-clip>\n</spine>\n</sequence>\n</project>\n</event>\n</library>\n</fcpxml>\n",
+            );
+            s
         } else if args.lrc {
             // LRC synced-lyrics format: one [mm:ss.xx]mark per line — music
             // players (and lyric tools) show them as seekable verse/track cues
@@ -740,7 +775,7 @@ FCM: NON-DROP FRAME
         })?;
         let mut c = Contract::ok("chapter", Some(args.output.display().to_string()), None);
         c = c.with_extra(json!({
-            "exported": if args.csv { "csv" } else if args.vtt { "vtt" } else if args.lrc { "lrc" } else if args.podcast { "podcast" } else if args.yt { "youtube" } else if args.cue { "cue" } else if args.srt { "srt" } else if args.edl { "edl" } else { "ffmetadata" },
+            "exported": if args.csv { "csv" } else if args.vtt { "vtt" } else if args.lrc { "lrc" } else if args.podcast { "podcast" } else if args.yt { "youtube" } else if args.cue { "cue" } else if args.srt { "srt" } else if args.edl { "edl" } else if args.fcpxml { "fcpxml" } else { "ffmetadata" },
             "chapters": marks
                 .iter()
                 .map(|(t, ti)| json!({"time": t, "title": ti}))

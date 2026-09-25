@@ -169,6 +169,14 @@ pub struct ProbeStream {
     /// `av_desync_ms`)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub start_time: Option<f64>,
+    /// Total frame count (video — exact frame budget for split math /
+    /// verifying -frames:N caps landed; absent on raw/nut streams)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nb_frames: Option<u64>,
+    /// Codec level (video — e.g. 40 = H.264 Level 4.0; device spec QC —
+    /// pairs with `profile` for "High@L4.0")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub level: Option<u32>,
     /// Player-default track (disposition.default) — QC which track a
     /// player picks before `remux --default-audio`/`--default-sub`.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -177,6 +185,10 @@ pub struct ProbeStream {
     /// (film-style captions players auto-show for the audience's language)
     #[serde(default, skip_serializing_if = "is_false")]
     pub forced: bool,
+    /// Attached-picture track (muxed cover art — QC that `remux --cover`
+    /// landed and which stream index carries it)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub attached_pic: bool,
 }
 
 fn is_false(v: &bool) -> bool {
@@ -262,6 +274,10 @@ struct FfprobeStream {
     sample_fmt: Option<String>,
     #[serde(default)]
     sample_rate: Option<String>,
+    #[serde(default)]
+    nb_frames: Option<String>,
+    #[serde(default)]
+    level: Option<i64>,
     #[serde(default)]
     profile: Option<String>,
     #[serde(default)]
@@ -530,10 +546,18 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                     .and_then(|d| d.get("default").copied())
                     .unwrap_or(0)
                     == 1,
+                nb_frames: s.nb_frames.as_deref().and_then(|v| v.parse().ok()),
+                level: s.level.and_then(|l| u32::try_from(l).ok()),
                 forced: s
                     .disposition
                     .as_ref()
                     .and_then(|d| d.get("forced").copied())
+                    .unwrap_or(0)
+                    == 1,
+                attached_pic: s
+                    .disposition
+                    .as_ref()
+                    .and_then(|d| d.get("attached_pic").copied())
                     .unwrap_or(0)
                     == 1,
             })

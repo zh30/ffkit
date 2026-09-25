@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.319.0] — 2026-09-24
+
+### Added
+
+- `probe`/`scan` `streams[]` per-track QC: `nb_frames` (total frame count — frame-budget math and verifying `-frames:N` caps landed), `level` (codec level — H.264 `High@L4.0`-style device specs, pairs with `profile`), `attached_pic` (the muxed cover-art track — verify `remux --cover` landed and which stream index carries it)
+- `chapter --fcpxml` — export marks as Final Cut Pro XML (`<marker>` elements FCP/Resolve import as timeline markers — the editor-native TOC exchange format)
+- `deliver --platform` +7: `stan`/`mycanal`/`skygo`/`movistar`/`viu`/`voot`/`clarovideo` — regional SVOD hosts (16:9 1920x1080, −14 LUFS pipeline)
+
 ## [0.318.0] — 2026-09-24
 
 ### Added

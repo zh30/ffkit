@@ -1639,6 +1639,20 @@ pub enum DeliverPlatform {
     Itvx,
     /// Crave CA streaming 16:9 landscape (1920x1080, -14 LUFS)
     Crave,
+    /// Stan AU streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Stan,
+    /// myCANAL FR streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Mycanal,
+    /// Sky Go DE/UK/IT streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Skygo,
+    /// Movistar+ ES streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Movistar,
+    /// Viu pan-Asia streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Viu,
+    /// Voot IN streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Voot,
+    /// Claro Video LatAm streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Clarovideo,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -6531,7 +6545,7 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "csv", "srt", "edl", "list", "remove", "spread", "scenes"])]
+    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "csv", "srt", "edl", "fcpxml", "list", "remove", "spread", "scenes"])]
     pub at: Vec<String>,
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
@@ -6589,6 +6603,10 @@ pub struct ChapterArgs {
     /// the clip's frame rate
     #[arg(long)]
     pub edl: bool,
+    /// Export marks as Final Cut Pro XML — FCP/Resolve import each mark
+    /// as a timeline marker (the editor-native TOC exchange format)
+    #[arg(long)]
+    pub fcpxml: bool,
     /// Import marks from a text file: lines "TIME|TITLE" or "TIME,TITLE"
     /// ('#' comments and blank lines skipped)
     #[arg(long)]

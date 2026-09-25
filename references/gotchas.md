@@ -710,3 +710,11 @@ two-pass normalization stays the `loudnorm` verb's job.
 `-itsoffset 0.4` lands ~0.377s on the stream's start_time — timescale
 rounding (the demuxer quantizes to the codec's tbn). Assert per-stream
 start_time with a window (>0.2), never an exact equality.
+
+## ffprobe sentinels and movenc drops
+Codec `level` reads `-99` for untagged streams (ffprobe's "no level") —
+`streams[].level` filters it out rather than reporting a nonsense value.
+`-metadata itunes_advisory=1` is silently dropped by the mp4/mov muxer:
+the iTunes explicit/clean tag can't be written via ffmpeg 4.4.
+`chapter --at 0.3` anchors the FIRST mark at t=0 (container chapters
+start at 0) — later marks keep their times.
