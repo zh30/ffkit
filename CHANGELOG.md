@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.328.0] — 2026-09-24
+
+### Added
+
+- `probe`/`scan` `probe_score` — container detection confidence 0-100 (<100 = mis-detected or damaged container; catch it before a silent bad repack)
+- `hls --name PREFIX` — segment filename prefix (`v-seg_…`/`v-seg.ts`) on every naming scheme (numbered, `--time-names`, `--single`, `--ladder`) so several packs share one dir; pattern chars and path separators rejected up front
+- `deliver --platform` +7: `brightcove`/`jwplayer`/`kaltura`/`sproutvideo`/`vidyard`/`uscreen`/`vdocipher` (B2B video hosting 16:9 1920x1080)
+
 ## [0.327.0] — 2026-09-24
 
 ### Added

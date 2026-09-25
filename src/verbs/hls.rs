@@ -53,13 +53,30 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("hls --base-url needs a URL prefix"));
         }
     }
+    if let Some(n) = &args.name {
+        let n = n.trim();
+        if n.is_empty()
+            || !n
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(Error::input(
+                "hls --name takes letters/digits/-/_ only (no pattern chars or path separators)",
+            ));
+        }
+    }
+    let name_pfx = args
+        .name
+        .as_deref()
+        .map(|n| format!("{n}-"))
+        .unwrap_or_default();
     let seg_ext = if args.fmp4 { "m4s" } else { "ts" };
     let seg_tpl = if args.single {
-        dir.join(format!("seg.{seg_ext}"))
+        dir.join(format!("{name_pfx}seg.{seg_ext}"))
     } else if args.time_names {
-        dir.join(format!("seg_%Y%m%d-%H%M%S.{seg_ext}"))
+        dir.join(format!("{name_pfx}seg_%Y%m%d-%H%M%S.{seg_ext}"))
     } else {
-        dir.join(format!("seg_%03d.{seg_ext}"))
+        dir.join(format!("{name_pfx}seg_%03d.{seg_ext}"))
     };
 
     // --encrypt/--key: AES-128 segment encryption via -hls_key_info_file.
@@ -234,7 +251,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "-hls_playlist_type".to_string(),
             "vod".to_string(),
             "-hls_segment_filename".to_string(),
-            dir.join(format!("seg_%v_%03d.{seg_ext}"))
+            dir.join(format!("{name_pfx}seg_%v_%03d.{seg_ext}"))
                 .display()
                 .to_string(),
             "-master_pl_name".to_string(),
@@ -433,7 +450,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             rd.filter_map(|e| e.ok())
                 .filter(|e| {
                     let n = e.file_name().to_string_lossy().into_owned();
-                    (n.starts_with("seg_") || n == "seg.ts" || n == "seg.m4s")
+                    (n.starts_with(&format!("{name_pfx}seg_"))
+                        || n == format!("{name_pfx}seg.ts")
+                        || n == format!("{name_pfx}seg.m4s"))
                         && e.path()
                             .extension()
                             .is_some_and(|x| x == "ts" || x == "m4s")

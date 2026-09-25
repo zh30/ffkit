@@ -38596,3 +38596,81 @@ fn r300_bitdepth_programs_dash_name_platforms() {
         assert_eq!(j["probe"]["height"], h, "{name}");
     }
 }
+
+#[test]
+fn r301_probe_score_hls_name_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // probe_score: a well-formed container reads full confidence
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(j["probe"]["probe_score"], 100);
+
+    // hls --name PREFIX: every naming scheme writes prefix-named
+    // segments; bad names are rejected up front
+    let hdir = d.path().join("hv");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        hdir.to_str().unwrap(),
+        "--seg",
+        "0.5",
+        "--name",
+        "v",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(hdir.join("v-seg_000.ts").is_file());
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        d.path().join("hbad").to_str().unwrap(),
+        "--seg",
+        "0.5",
+        "--name",
+        "bad/name",
+    ]);
+    assert_eq!(j["status"], "failed");
+    let sdir = d.path().join("hs");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        sdir.to_str().unwrap(),
+        "--seg",
+        "0.5",
+        "--single",
+        "--name",
+        "v",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(sdir.join("v-seg.ts").is_file());
+
+    // +7 deliver platforms: B2B video hosting 16:9
+    for (name, w, h) in [
+        ("brightcove", 1920, 1080),
+        ("jwplayer", 1920, 1080),
+        ("kaltura", 1920, 1080),
+        ("sproutvideo", 1920, 1080),
+        ("vidyard", 1920, 1080),
+        ("uscreen", 1920, 1080),
+        ("vdocipher", 1920, 1080),
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}: {j}");
+        assert_eq!(j["probe"]["width"], w, "{name}");
+        assert_eq!(j["probe"]["height"], h, "{name}");
+    }
+}

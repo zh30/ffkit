@@ -90,6 +90,11 @@ pub struct Probe {
     /// several programs, pick before repack or you get all of them)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub program_count: Option<u32>,
+    /// Container detection confidence 0-100 (format.probe_score — a
+    /// <100 score means the probe was unsure: mis-detected or damaged
+    /// container; catch it before a silent bad repack)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub probe_score: Option<u32>,
 }
 
 /// One line of the stream table — index matches `remux`/`extract`
@@ -390,6 +395,8 @@ struct FfprobeFormat {
     #[serde(default)]
     nb_programs: Option<u32>,
     #[serde(default)]
+    probe_score: Option<u32>,
+    #[serde(default)]
     tags: Option<std::collections::HashMap<String, String>>,
 }
 
@@ -496,6 +503,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
         .as_ref()
         .and_then(|f| f.nb_programs)
         .filter(|n| *n > 0);
+    let probe_score = parsed.format.as_ref().and_then(|f| f.probe_score);
 
     let timecode = video
         .and_then(|v| v.tags.as_ref().and_then(|t| t.get("timecode").cloned()))
@@ -715,6 +723,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
         }),
         chapter_count: parsed.chapters.len() as u32,
         program_count,
+        probe_score,
     })
 }
 

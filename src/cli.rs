@@ -1765,6 +1765,20 @@ pub enum DeliverPlatform {
     Bumble,
     /// Hinge video prompt 9:16 vertical (1080x1920, -14 LUFS)
     Hinge,
+    /// Brightcove B2B video hosting 16:9 landscape (1920x1080, -14 LUFS)
+    Brightcove,
+    /// JW Player embed player video 16:9 landscape (1920x1080, -14 LUFS)
+    Jwplayer,
+    /// Kaltura enterprise video platform 16:9 landscape (1920x1080, -14 LUFS)
+    Kaltura,
+    /// SproutVideo business hosting 16:9 landscape (1920x1080, -14 LUFS)
+    Sproutvideo,
+    /// Vidyard sales/marketing video hosting 16:9 landscape (1920x1080, -14 LUFS)
+    Vidyard,
+    /// Uscreen OTT app builder 16:9 landscape (1920x1080, -14 LUFS)
+    Uscreen,
+    /// VdoCipher DRM hosting 16:9 landscape (1920x1080, -14 LUFS)
+    Vdocipher,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -5673,6 +5687,11 @@ pub struct HlsArgs {
     /// segments from a CDN or different host than the manifest)
     #[arg(long)]
     pub base_url: Option<String>,
+    /// Segment filename prefix (letters/digits/-/_) — `v-seg_…`-style
+    /// name-schemes so several packs share one directory; applies to every
+    /// naming scheme (numbered, --time-names, --single, --ladder)
+    #[arg(long)]
+    pub name: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
