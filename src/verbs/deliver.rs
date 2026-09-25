@@ -169,6 +169,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Twitcasting
         | DeliverPlatform::Showroom
         | DeliverPlatform::Fc2
+        | DeliverPlatform::Tving
+        | DeliverPlatform::Wavve
+        | DeliverPlatform::Watcha
+        | DeliverPlatform::Vidio
+        | DeliverPlatform::Mewatch
+        | DeliverPlatform::Tver
+        | DeliverPlatform::Abema
         | DeliverPlatform::Spotify
         | DeliverPlatform::Apple
         | DeliverPlatform::Amazonmusic
@@ -607,6 +614,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Twitcasting => "twitcasting",
         DeliverPlatform::Showroom => "showroom",
         DeliverPlatform::Fc2 => "fc2",
+        DeliverPlatform::Tving => "tving",
+        DeliverPlatform::Wavve => "wavve",
+        DeliverPlatform::Watcha => "watcha",
+        DeliverPlatform::Vidio => "vidio",
+        DeliverPlatform::Mewatch => "mewatch",
+        DeliverPlatform::Tver => "tver",
+        DeliverPlatform::Abema => "abema",
         DeliverPlatform::Spotify => "spotify",
         DeliverPlatform::Apple => "apple",
         DeliverPlatform::Amazonmusic => "amazonmusic",

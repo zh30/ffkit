@@ -669,3 +669,6 @@ an atempo'd whole-file render would shift the window.
 - **`subs --join` joins text with a space, not a newline** — merged fragments read as one sentence; run `--wrap` after if portrait captions need re-breaking.
 - **`extract --cover` writes the embedded codec's bytes verbatim** — a mjpeg cover named `.png` still contains JPEG bytes (extension should match; the stream's codec is in the same probe's `streams[]`).
 - **Multiple attached pics: `--cover` takes the first** — `probe.attached_pic_indices` lists them all; pull a later one with `ffmpeg -map 0:<idx> -c:v copy` when needed.
+
+- **`streams[].color_space` is absent when untagged** — most encodes never write the tag (ffprobe reports nothing, not "unknown"); verify color metadata presence first, don't read absent as bt709.
+- **`subs --drop` can't split one cue's text** — a cue spanning the whole cut keeps only its head (text covers both sides, so the surviving head carries it all); clips landing inside the window drop entirely.

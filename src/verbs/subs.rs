@@ -83,6 +83,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.strip_tags
         || args.strip_sdh
         || args.clip.is_some()
+        || args.drop.is_some()
         || args.wrap.is_some()
         || args.find.is_some()
     {
@@ -262,7 +263,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         != Some("srt")
     {
         return Err(Error::input(
-            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--cps/--min-dur/--min-gap/--join/--max-lines/--replace/--strip-speakers/--strip-sdh/--clip/--wrap) take an .srt input",
+            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--cps/--min-dur/--min-gap/--join/--max-lines/--replace/--strip-speakers/--strip-sdh/--clip/--drop/--wrap) take an .srt input",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -296,6 +297,48 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             c.start = (c.start - f).max(0.0);
             c.end = (c.end - f).min(t - f);
             clipped += 1;
+        }
+    }
+    let mut excised = 0usize;
+    if let Some(raw) = &args.drop {
+        let (f_raw, t_raw) = raw
+            .split_once(',')
+            .ok_or_else(|| Error::input("subs --drop needs F,T (e.g. 1.5,end)"))?;
+        let f = crate::time::parse_time(f_raw)?;
+        let t = if t_raw.trim().eq_ignore_ascii_case("end") {
+            cues.iter().map(|c| c.end).fold(0.0, f64::max)
+        } else {
+            crate::time::parse_time(t_raw)?
+        };
+        if t <= f {
+            return Err(Error::input("subs --drop: window end must be after start"));
+        }
+        for c in &mut cues {
+            if c.end <= f || c.start >= t {
+                continue;
+            }
+            if c.start < f && c.end > t {
+                c.end = f; // spans the whole cut — keep the head
+            } else if c.end > t {
+                c.start = t; // tail piece — the shift pass lands it at f
+            } else if c.end > f {
+                c.end = f; // head piece
+            }
+        }
+        let before = cues.len();
+        cues.retain(|c| !(c.start >= f && c.end <= t));
+        excised += before - cues.len();
+        if cues.is_empty() {
+            return Err(Error::input(format!(
+                "subs --drop {f:.3},{t:.3}: window excises every cue"
+            )));
+        }
+        let shift = t - f;
+        for c in &mut cues {
+            if c.start >= t {
+                c.start -= shift;
+                c.end -= shift;
+            }
         }
     }
     let sorted = args.sort && {
@@ -528,6 +571,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "tags_stripped": tags_stripped,
         "sdh_stripped": sdh_stripped,
         "clipped": clipped,
+        "excised": excised,
         "rewrapped": rewrapped,
         "find": args.find,
         "found": found,

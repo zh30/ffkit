@@ -36911,3 +36911,103 @@ fn r285_pixfmt_join_cover_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r286_colorspace_drop_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // streams[].color_space — per-track color-space QC
+    let tagged = d.path().join("bt709.mp4");
+    assert!(Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=s=320x240:d=1:r=30",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-colorspace",
+            "bt709",
+            "-color_primaries",
+            "bt709",
+            "-color_trc",
+            "bt709",
+        ])
+        .arg(&tagged)
+        .status()
+        .unwrap()
+        .success());
+    let j = run_json(&["probe", tagged.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    assert_eq!(v["color_space"], "bt709");
+
+    // subs --drop — excise cues in a window, rebase the tail (cut --drop
+    // counterpart for transcripts)
+    let t = d.path().join("t.srt");
+    std::fs::write(
+        &t,
+        "1\n00:00:00,000 --> 00:00:00,800\nkeep me\n\n\
+         2\n00:00:01,000 --> 00:00:01,800\ninside window\n\n\
+         3\n00:00:02,000 --> 00:00:02,800\nshift me\n",
+    )
+    .unwrap();
+    let out = d.path().join("out.srt");
+    let j = run_json(&[
+        "subs",
+        t.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--drop",
+        "0.9,1.9",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["excised"], 1);
+    assert_eq!(j["extra"]["cues"], 2);
+    let txt = std::fs::read_to_string(&out).unwrap();
+    assert!(txt.contains("00:00:00,000 --> 00:00:00,800"));
+    assert!(txt.contains("00:00:01,000 --> 00:00:01,800"));
+    assert!(!txt.contains("inside window"));
+    // excising every cue errors
+    let j = run_json(&[
+        "subs",
+        t.to_str().unwrap(),
+        "-o",
+        d.path().join("all.srt").to_str().unwrap(),
+        "--drop",
+        "0,end",
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("every cue"));
+
+    // deliver --platform +7: KR/SEA/JP streaming canvases
+    for name in [
+        "tving", "wavve", "watcha", "vidio", "mewatch", "tver", "abema",
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

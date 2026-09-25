@@ -1554,6 +1554,20 @@ pub enum DeliverPlatform {
     Showroom,
     /// FC2 video host 16:9 landscape (1920x1080, -14 LUFS)
     Fc2,
+    /// TVING KR streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Tving,
+    /// Wavve KR streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Wavve,
+    /// Watcha KR streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Watcha,
+    /// Vidio ID streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Vidio,
+    /// meWATCH SG streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Mewatch,
+    /// TVer JP catch-up TV 16:9 landscape (1920x1080, -14 LUFS)
+    Tver,
+    /// ABEMA JP streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Abema,
     /// Spotify video podcast 16:9 landscape (1920x1080, -14 LUFS)
     Spotify,
     /// Apple Podcasts video episode 16:9 landscape (1920x1080, -14 LUFS)
@@ -3020,6 +3034,12 @@ pub struct SubsArgs {
     /// for a cut segment; extras: clipped)
     #[arg(long)]
     pub clip: Option<String>,
+    /// Drop cues overlapping window `F,T` and re-time the tail left by
+    /// (T-F) — the `cut --drop` counterpart for transcripts (excise a
+    /// segment AND its subtitles in one pass; `end` ok for T; a cue
+    /// spanning the whole cut keeps its head; extras: excised)
+    #[arg(long)]
+    pub drop: Option<String>,
     /// Rewrap cue text at N chars per line (portrait-phone captions;
     /// extras: rewrapped)
     #[arg(long)]

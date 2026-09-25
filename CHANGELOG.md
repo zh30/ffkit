@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.313.0] — 2026-09-24
+
+### Added
+- `probe`/`scan` `streams[].color_space` — per-track color-space tag (a bt2020 track hiding among bt709s in a multi-angle file; HDR/SDR deliverable QC per track)
+- `subs --drop F,T` — excise the window's cues and re-time the tail left by (T-F) (the `cut --drop` counterpart for transcripts — remove a segment AND its subtitles in one pass; `end` ok; a cue spanning the whole cut keeps its head)
+- `deliver --platform` +7: `tving`/`wavve`/`watcha`/`vidio`/`mewatch`/`tver`/`abema` — KR/SEA/JP streaming hosts (16:9 1080p, −14 LUFS pipeline)
+
 ## [0.312.0] — 2026-09-24
 
 ### Added

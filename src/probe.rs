@@ -128,6 +128,10 @@ pub struct ProbeStream {
     /// platforms needing yuv420p; QC every track of mixed-depth files)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pix_fmt: Option<String>,
+    /// Color space tag (video — a bt2020 track hiding among bt709s in a
+    /// multi-angle file; HDR/SDR deliverable QC per track)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color_space: Option<String>,
     /// Player-default track (disposition.default) — QC which track a
     /// player picks before `remux --default-audio`/`--default-sub`.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -455,6 +459,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 duration: s.duration.as_deref().and_then(parse_f64),
                 bit_rate: s.bit_rate.as_deref().and_then(|v| v.parse().ok()),
                 pix_fmt: s.pix_fmt.clone(),
+                color_space: s.color_space.clone(),
                 default: s
                     .disposition
                     .as_ref()
