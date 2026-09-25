@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.314.0] — 2026-09-24
+
+### Added
+- `probe`/`scan` `streams[].channel_layout` — per-track channel layout (a 5.1 master hiding among stereo deliverables trips platform spec QC; mono/stereo/surround per track)
+- `subs --convert` `.lrc` output — synced-lyrics file from a transcript (karaoke/music-player lyrics; one timestamped line per cue, the next line's timestamp acts as each line's end)
+- `live --audio-delay SEC` — adelay on the pushed aac chain (capture cards whose audio leads the picture; rides the filter_complex audio chain after --volume, refuses --no-audio)
+- `deliver --platform` +7: `hotstar`/`jiotv`/`sonyliv`/`mxplayer`/`zee5`/`showmax`/`shahid` — IN/ZA/MENA streaming hosts (16:9 1080p, −14 LUFS pipeline)
+
 ## [0.313.0] — 2026-09-24
 
 ### Added

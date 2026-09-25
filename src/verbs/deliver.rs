@@ -183,6 +183,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Pandora
         | DeliverPlatform::Castbox
         | DeliverPlatform::Podbean
+        | DeliverPlatform::Hotstar
+        | DeliverPlatform::Jiotv
+        | DeliverPlatform::Sonyliv
+        | DeliverPlatform::Mxplayer
+        | DeliverPlatform::Zee5
+        | DeliverPlatform::Showmax
+        | DeliverPlatform::Shahid
         | DeliverPlatform::Twitch => (1920, 1080),
         DeliverPlatform::X | DeliverPlatform::Mastodon | DeliverPlatform::Discord => (1280, 720),
         DeliverPlatform::Threads | DeliverPlatform::Instagram | DeliverPlatform::Facebook => {
@@ -628,6 +635,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Pandora => "pandora",
         DeliverPlatform::Castbox => "castbox",
         DeliverPlatform::Podbean => "podbean",
+        DeliverPlatform::Hotstar => "hotstar",
+        DeliverPlatform::Jiotv => "jiotv",
+        DeliverPlatform::Sonyliv => "sonyliv",
+        DeliverPlatform::Mxplayer => "mxplayer",
+        DeliverPlatform::Zee5 => "zee5",
+        DeliverPlatform::Showmax => "showmax",
+        DeliverPlatform::Shahid => "shahid",
     }
 }
 

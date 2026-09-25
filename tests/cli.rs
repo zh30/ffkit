@@ -37011,3 +37011,92 @@ fn r286_colorspace_drop_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r287_chlayout_lrc_audiodelay_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // streams[].channel_layout — per-track channel-layout QC
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let a = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+    assert_eq!(a["channel_layout"], "mono");
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    assert!(v.get("channel_layout").is_none() || v["channel_layout"].is_null());
+
+    // subs --convert .lrc — transcript → synced-lyrics file
+    let srt = d.path().join("l.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:00,500\nsing along now\n\n\
+         2\n00:01:02,500 --> 00:01:03,000\nsecond verse\n",
+    )
+    .unwrap();
+    let lrc = d.path().join("out.lrc");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        lrc.to_str().unwrap(),
+        "--convert",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let txt = std::fs::read_to_string(&lrc).unwrap();
+    assert!(txt.contains("[00:00.00]sing along now"));
+    assert!(txt.contains("[01:02.50]second verse"));
+
+    // live --audio-delay — adelay on the pushed aac chain
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--audio-delay",
+        "0.4",
+        "--volume",
+        "1.5",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "dry_run");
+    let cmds = j["commands"].to_string();
+    assert!(cmds.contains("adelay=400"), "{cmds}");
+    assert!(cmds.contains("volume=1.5"), "{cmds}");
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--audio-delay",
+        "0.4",
+        "--no-audio",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("--no-audio"));
+
+    // deliver --platform +7: international OTT canvases
+    for name in [
+        "hotstar", "jiotv", "sonyliv", "mxplayer", "zee5", "showmax", "shahid",
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

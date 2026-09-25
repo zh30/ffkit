@@ -1582,6 +1582,20 @@ pub enum DeliverPlatform {
     Castbox,
     /// Podbean video podcast 16:9 landscape (1920x1080, -14 LUFS)
     Podbean,
+    /// Hotstar IN streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Hotstar,
+    /// JioTV IN streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Jiotv,
+    /// SonyLIV IN streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Sonyliv,
+    /// MX Player IN streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Mxplayer,
+    /// ZEE5 IN streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Zee5,
+    /// Showmax ZA streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Showmax,
+    /// SHAHID MENA streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Shahid,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5219,6 +5233,10 @@ pub struct LiveArgs {
     /// Audio bitrate (default 128k)
     #[arg(long)]
     pub abitrate: Option<String>,
+    /// Delay pushed audio by SEC (adelay — capture cards whose audio
+    /// leads the picture; the video side stays untouched)
+    #[arg(long)]
+    pub audio_delay: Option<f64>,
     /// Push audio channel count — 1 mono for speech/radio ingest specs
     /// that reject stereo (refuses --no-audio)
     #[arg(long)]

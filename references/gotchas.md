@@ -672,3 +672,13 @@ an atempo'd whole-file render would shift the window.
 
 - **`streams[].color_space` is absent when untagged** — most encodes never write the tag (ffprobe reports nothing, not "unknown"); verify color metadata presence first, don't read absent as bt709.
 - **`subs --drop` can't split one cue's text** — a cue spanning the whole cut keeps only its head (text covers both sides, so the surviving head carries it all); clips landing inside the window drop entirely.
+## live --audio-delay rides the audio filter chain
+adelay must run inside `-filter_complex` (it pads with silence — `-itsoffset`
+can't pad inside one graph). It chains after `volume` on `[amap]` and inside the
+slate arm's aformat chain. `--no-audio`/no-audio input rejects upfront — a bare
+adelay flag needs the pushed aac path.
+
+## .lrc has no per-line end time
+LRC lines carry only a start `[mm:ss.xx]`; each line's end is the next line's
+timestamp (cue end data is dropped on export — re-importing an .lrc won't
+rebuild cue durations). Multi-line cues join with a space, one line per cue.

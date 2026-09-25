@@ -155,6 +155,8 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             ("card", args.card.is_some()),
             ("abitrate", args.abitrate.is_some()),
             ("volume", args.volume.is_some()),
+            ("channels", args.channels.is_some()),
+            ("audio-delay", args.audio_delay.is_some()),
         ] {
             if set {
                 return Err(Error::input(format!(
@@ -181,6 +183,19 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         }
         if ch == 0 || ch > 2 {
             return Err(Error::input("live --channels wants 1 (mono) or 2 (stereo)"));
+        }
+    }
+    if let Some(d) = args.audio_delay {
+        if args.no_audio {
+            return Err(Error::input("live --audio-delay conflicts with --no-audio"));
+        }
+        if !has_audio {
+            return Err(Error::input("live --audio-delay: input has no audio"));
+        }
+        if !d.is_finite() || d <= 0.0 || d > 300.0 {
+            return Err(Error::input(
+                "live --audio-delay wants a positive delay in seconds",
+            ));
         }
     }
     if args.slate.is_some() && !has_video {
@@ -474,10 +489,16 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
     );
     // subs burn applies to the content chain only, never the slate card
     let vchain_content = format!("{vchain}{}", subs_chain.as_deref().unwrap_or(""));
-    let vol_chain = args
-        .volume
-        .map(|v| format!(",volume={v}"))
-        .unwrap_or_default();
+    let vol_chain = {
+        let mut s = args
+            .volume
+            .map(|v| format!(",volume={v}"))
+            .unwrap_or_default();
+        if let Some(d) = args.audio_delay {
+            s.push_str(&format!(",adelay={}", (d * 1000.0).round() as u64));
+        }
+        s
+    };
     let mut vout = String::new();
     let mut aout: Option<String> = None;
     if args.slate.is_some() {
@@ -529,8 +550,18 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         vout = "[vo]".to_string();
     }
     if aout.is_none() && has_audio {
+        let mut achain = String::new();
         if let Some(v) = args.volume {
-            fc.push_str(&format!("[{amap}]volume={v}[avol];"));
+            achain.push_str(&format!("volume={v}"));
+        }
+        if let Some(d) = args.audio_delay {
+            if !achain.is_empty() {
+                achain.push(',');
+            }
+            achain.push_str(&format!("adelay={}", (d * 1000.0).round() as u64));
+        }
+        if !achain.is_empty() {
+            fc.push_str(&format!("[{amap}]{achain}[avol];"));
             aout = Some("[avol]".to_string());
         }
     }

@@ -128,6 +128,10 @@ pub struct ProbeStream {
     /// platforms needing yuv420p; QC every track of mixed-depth files)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pix_fmt: Option<String>,
+    /// Channel layout (audio — "stereo"/"mono"/"5.1"; a 5.1 master
+    /// hiding among stereo deliverables trips platform spec QC)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub channel_layout: Option<String>,
     /// Color space tag (video — a bt2020 track hiding among bt709s in a
     /// multi-angle file; HDR/SDR deliverable QC per track)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -211,6 +215,8 @@ struct FfprobeStream {
     #[serde(default)]
     color_transfer: Option<String>,
     channels: Option<u32>,
+    #[serde(default)]
+    channel_layout: Option<String>,
     #[serde(default)]
     sample_rate: Option<String>,
     #[serde(default)]
@@ -452,6 +458,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 width: s.width,
                 height: s.height,
                 channels: s.channels,
+                channel_layout: s.channel_layout.clone(),
                 sample_rate: s.sample_rate.as_deref().and_then(|v| v.parse().ok()),
                 profile: s.profile.clone(),
                 fps: parse_rate(s.avg_frame_rate.as_deref())

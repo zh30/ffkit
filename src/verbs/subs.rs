@@ -972,9 +972,14 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             "subs --convert takes .srt/.vtt/.ass input and .srt/.vtt/.txt/.ass output",
         ));
     }
-    if out_ext != "srt" && out_ext != "vtt" && out_ext != "txt" && out_ext != "ass" {
+    if out_ext != "srt"
+        && out_ext != "vtt"
+        && out_ext != "txt"
+        && out_ext != "ass"
+        && out_ext != "lrc"
+    {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass input and .srt/.vtt/.txt/.ass output",
+            "subs --convert takes .srt/.vtt/.ass input and .srt/.vtt/.txt/.ass/.lrc output",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -1018,7 +1023,27 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         .iter()
         .map(|c| c.text.split_whitespace().count())
         .sum::<usize>();
-    let out = if out_ext == "txt" {
+    let out = if out_ext == "lrc" {
+        // synced-lyrics: [mm:ss.xx]line per cue — music-player lyrics
+        // files from a transcript (multi-line cues join with a space)
+        let mut s = String::from(
+            "[re:ffkit]
+[ve:1.00]
+
+",
+        );
+        for c in &cues {
+            let m = (c.start / 60.0).floor() as u64;
+            let sec = c.start - m as f64 * 60.0;
+            s.push_str(&format!(
+                "[{:02}:{:05.2}]{}\n",
+                m,
+                sec,
+                c.text.split_whitespace().collect::<Vec<_>>().join(" ")
+            ));
+        }
+        s
+    } else if out_ext == "txt" {
         // plain-text transcript: flowing prose for shownotes/blogs/LLM
         // input — cue line breaks collapse to spaces, cues join with a space
         let mut s = cues
