@@ -38784,3 +38784,160 @@ fn r302_programs_bframes_platforms() {
         assert_eq!(j["probe"]["height"], h, "{name}");
     }
 }
+
+#[test]
+fn r303_hls_dash_program_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // two-service transport stream: one is 320-wide, two is 160-wide
+    let mp = d.path().join("mp.ts");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=160x120:rate=15",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map",
+            "2:v",
+            "-map",
+            "3:a",
+            "-c:v",
+            "mpeg2video",
+            "-c:a",
+            "mp2",
+            "-program",
+            "title=one:st=0:st=1",
+            "-program",
+            "title=two:st=2:st=3",
+            mp.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+
+    // hls --program 2: segments carry only service two (160-wide)
+    let h = d.path().join("h");
+    let j = run_json(&[
+        "hls",
+        mp.to_str().unwrap(),
+        "-o",
+        h.to_str().unwrap(),
+        "--program",
+        "2",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", h.join("seg_000.ts").to_str().unwrap()]);
+    assert_eq!(j["probe"]["width"], 160, "{j}");
+
+    // dash --program 2: init segment carries only service two's video
+    let dd = d.path().join("dd");
+    let j = run_json(&[
+        "dash",
+        mp.to_str().unwrap(),
+        "-o",
+        dd.to_str().unwrap(),
+        "--program",
+        "2",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", dd.join("init-0.m4s").to_str().unwrap()]);
+    assert_eq!(j["probe"]["width"], 160, "{j}");
+
+    // ladders map the service's member streams (its video, its audio)
+    let hl = d.path().join("hl");
+    let j = run_json(&[
+        "hls",
+        mp.to_str().unwrap(),
+        "-o",
+        hl.to_str().unwrap(),
+        "--program",
+        "2",
+        "--ladder",
+        "240,120",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(hl.join("master.m3u8").exists());
+    let j = run_json(&["probe", hl.join("seg_1_000.ts").to_str().unwrap()]);
+    assert_eq!(j["probe"]["width"], 160, "{j}");
+    let dl = d.path().join("dl");
+    let j = run_json(&[
+        "dash",
+        mp.to_str().unwrap(),
+        "-o",
+        dl.to_str().unwrap(),
+        "--program",
+        "2",
+        "--ladder",
+        "240,120",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", dl.join("init-1.m4s").to_str().unwrap()]);
+    assert_eq!(j["probe"]["width"], 160, "{j}");
+
+    // validation: program numbers are 1-based, must exist in the mux
+    let bad = d.path().join("bad");
+    let bad2 = d.path().join("bad2");
+    for args in [&["--program", "0"][..], &["--program", "9"][..]] {
+        let mut a: Vec<&str> = vec!["hls", mp.to_str().unwrap(), "-o", bad.to_str().unwrap()];
+        a.extend_from_slice(args);
+        let j = run_json(&a);
+        assert_eq!(j["status"], "failed", "{args:?}: {j}");
+    }
+    // a program-less input can't pick a program at all
+    let j = run_json(&[
+        "dash",
+        f.to_str().unwrap(),
+        "-o",
+        bad2.to_str().unwrap(),
+        "--program",
+        "1",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // +7 deliver platforms: creator-economy vertical + member posts
+    for (name, w, h) in [
+        ("onlyfans", 1080, 1920),
+        ("fansly", 1080, 1920),
+        ("fanbox", 1080, 1920),
+        ("cameo", 1080, 1920),
+        ("subscribestar", 1080, 1920),
+        ("kofi", 1920, 1080),
+        ("buymeacoffee", 1920, 1080),
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}: {j}");
+        assert_eq!(j["probe"]["width"], w, "{name}");
+        assert_eq!(j["probe"]["height"], h, "{name}");
+    }
+}

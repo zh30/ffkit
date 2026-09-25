@@ -1793,6 +1793,21 @@ pub enum DeliverPlatform {
     Jellyfin,
     /// Emby media-server video 16:9 landscape (1920x1080, -14 LUFS)
     Emby,
+    /// OnlyFans creator post video 9:16 vertical (1080x1920, -14 LUFS)
+    Onlyfans,
+    /// Fansly creator post video 9:16 vertical (1080x1920, -14 LUFS)
+    Fansly,
+    /// pixiv FANBOX creator post video 9:16 vertical (1080x1920, -14 LUFS)
+    Fanbox,
+    /// Cameo fan-request video 9:16 vertical (1080x1920, -14 LUFS)
+    Cameo,
+    /// SubscribeStar member post video 9:16 vertical (1080x1920, -14 LUFS)
+    Subscribestar,
+    /// Ko-fi creator post video 16:9 landscape (1920x1080, -14 LUFS)
+    #[value(name = "kofi")]
+    Kofi,
+    /// Buy Me a Coffee post video 16:9 landscape (1920x1080, -14 LUFS)
+    Buymeacoffee,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -5711,6 +5726,11 @@ pub struct HlsArgs {
     /// naming scheme (numbered, --time-names, --single, --ladder)
     #[arg(long)]
     pub name: Option<String>,
+    /// Package only program N from a multi-service transport stream
+    /// (program number from `probe.programs[]` — broadcast pickup
+    /// ingest: one channel of a captured mux, incl. --ladder ABR)
+    #[arg(long)]
+    pub program: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5766,6 +5786,11 @@ pub struct DashArgs {
     /// name-schemes a pack so several representation packs share one dir
     #[arg(long, value_name = "PREFIX")]
     pub name: Option<String>,
+    /// Package only program N from a multi-service transport stream
+    /// (program number from `probe.programs[]` — broadcast pickup
+    /// ingest: one channel of a captured mux, incl. --ladder ABR)
+    #[arg(long)]
+    pub program: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]

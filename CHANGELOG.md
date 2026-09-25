@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.330.0] — 2026-09-25
+
+### Added
+
+- `hls --program N` / `dash --program N` — package one service out of a multi-program transport stream (`-map 0:p:N` on the plain path; `--ladder` maps the program's own member streams by absolute index — a program map can't compose with a media-type specifier). Stream presence is scoped to the picked service (`probe.programs[]` lists services; radio/silent services report correctly). 1-based validation + "not in input (programs: …)" errors
+- `deliver --platform` +7: `onlyfans`/`fansly`/`fanbox`/`cameo`/`subscribestar` (creator-economy posts 9:16 1080x1920), `kofi`/`buymeacoffee` (member posts 16:9 1920x1080)
+
 ## [0.329.0] — 2026-09-25
 
 ### Added
@@ -10,6 +17,10 @@
 - `remux --program N` — keep one whole service from a multi-service transport stream (`-map 0:p:N` broadcast demux; conflicts with the stream-pick flags, 1-based program numbers)
 - `probe`/`scan` `streams[].has_b_frames` — B-frames in use (0 = baseline/realtime-safe encode; >0 = decoder lookahead, low-latency/mobile spec QC)
 - `deliver --platform` +7: `mercari`/`vinted`/`depop`/`carousell`/`olx` (resale listings 9:16 1080x1920), `jellyfin`/`emby` (self-hosted media servers 16:9 1920x1080)
+
+### Fixed
+
+- `programs[]` Vec contract field carries `#[serde(default)]` alongside `skip_serializing_if` — without it, pipeline re-deserializing each step's contract hit "missing field programs" and every `expect` check reported "no probe"
 
 ## [0.328.0] — 2026-09-24
 

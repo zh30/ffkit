@@ -299,6 +299,31 @@ impl Probe {
         }
         parts.join(" ")
     }
+
+    /// Member stream indices of multiplexed program `num` split by kind —
+    /// `(video, audio, other)`. `hls`/`dash --program` map the members
+    /// they need (a `0:p:N` program map can't compose with a media-type
+    /// specifier, so ladders select by absolute index). `None` when
+    /// `programs[]` carries no such `num`.
+    pub fn program_members(&self, num: u32) -> Option<(Vec<u32>, Vec<u32>, Vec<u32>)> {
+        let p = self.programs.iter().find(|p| p.num == num)?;
+        let mut video = Vec::new();
+        let mut audio = Vec::new();
+        let mut other = Vec::new();
+        for idx in &p.streams {
+            match self
+                .streams
+                .iter()
+                .find(|s| s.index == *idx)
+                .map(|s| s.kind.as_str())
+            {
+                Some("video") => video.push(*idx),
+                Some("audio") => audio.push(*idx),
+                _ => other.push(*idx),
+            }
+        }
+        Some((video, audio, other))
+    }
 }
 
 #[derive(Deserialize)]

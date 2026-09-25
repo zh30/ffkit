@@ -759,3 +759,12 @@ Probe `Vec` contract fields must carry `#[serde(default)]` alongside
 `skip_serializing_if = "Vec::is_empty"` — an empty vec serializes without
 the key, and pipeline re-deserializes each step's contract: a missing key
 fails the whole parse ("no probe" on every expect check).
+
+## A program map can't compose with a media-type specifier
+`ffmpeg -map 0:p:2` takes the WHOLE program — `0:p:2:a` or `0:p:2:v`
+aren't valid stream specifiers. `hls`/`dash --program` therefore map
+differently per path: the plain path emits one `0:p:N` map, but
+`--ladder` resolves `probe.programs[]` member indices and maps them by
+absolute index (`[0:IDX]` for the ladder's video input, `0:IDX` for the
+service's first audio member). Member streams carry no program_num in
+ffprobe 4.4 — attribution is only reachable through programs[].streams.

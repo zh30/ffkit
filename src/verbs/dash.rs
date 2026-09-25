@@ -13,6 +13,44 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video && !probe.has_audio {
         return Err(Error::input("input has no media streams"));
     }
+    // --program N: package one service out of a multi-program transport
+    // stream. Members come from probe.programs[] — stream presence is
+    // then scoped to the service, not the file (a radio service has no
+    // video members even when the mux carries others).
+    let prog_members = if let Some(n) = args.program {
+        if n == 0 {
+            return Err(Error::input(
+                "dash --program: program numbers are 1-based (see probe.programs[])",
+            ));
+        }
+        if probe.programs.is_empty() {
+            return Err(Error::input(
+                "dash --program: input carries no programs (see probe.programs[])",
+            ));
+        }
+        let m = probe.program_members(n).ok_or_else(|| {
+            let avail = probe
+                .programs
+                .iter()
+                .map(|p| p.num.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            Error::input(format!(
+                "dash --program {n} not in input (programs: {avail})"
+            ))
+        })?;
+        Some(m)
+    } else {
+        None
+    };
+    let sel_has_video = match &prog_members {
+        Some((v, _, _)) => !v.is_empty(),
+        None => probe.has_video,
+    };
+    let sel_has_audio = match &prog_members {
+        Some((_, a, _)) => !a.is_empty(),
+        None => probe.has_audio,
+    };
     if !(0.5..=30.0).contains(&args.seg) {
         return Err(Error::input("--seg must be 0.5..=30 seconds"));
     }
@@ -76,7 +114,7 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         if args.video_only {
             return Err(Error::input("--ladder doesn't combine with --video-only"));
         }
-        if !probe.has_video {
+        if !sel_has_video {
             return Err(Error::input("--ladder needs a video stream"));
         }
         hs.sort_unstable_by(|a, b| b.cmp(a));
@@ -109,24 +147,29 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         .unwrap_or_default();
     let mut argv = engine::ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
+    if let Some(n) = args.program {
+        if hs.is_empty() {
+            argv.extend(["-map".to_string(), format!("0:p:{n}")]);
+        }
+    }
     if args.video_only {
         if args.audio_only {
             return Err(Error::input("--video-only conflicts with --audio-only"));
         }
-        if !probe.has_video {
+        if !sel_has_video {
             return Err(Error::input("--video-only needs a video stream"));
         }
         argv.extend(["-an".to_string()]);
     }
     if args.copy {
-        if probe.has_video && !args.audio_only {
+        if sel_has_video && !args.audio_only {
             argv.extend(["-c:v".to_string(), "copy".to_string()]);
         }
-        if probe.has_audio && !args.video_only {
+        if sel_has_audio && !args.video_only {
             argv.extend(["-c:a".to_string(), "copy".to_string()]);
         }
     } else if hs.is_empty() {
-        if probe.has_video && !args.audio_only {
+        if sel_has_video && !args.audio_only {
             argv.extend([
                 "-vf".to_string(),
                 "scale=trunc(iw/2)*2:trunc(ih/2)*2".to_string(),
@@ -153,7 +196,7 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
                 ]);
             }
         }
-        if probe.has_audio && !args.video_only {
+        if sel_has_audio && !args.video_only {
             if args.webm {
                 argv.extend([
                     "-c:a".to_string(),
@@ -191,8 +234,14 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
             }
         };
         let mut fc = String::new();
+        let vsrc = match &prog_members {
+            // feed the ladder from the service's own video member, not
+            // the file's default program
+            Some((v, _, _)) => format!("0:{}", v[0]),
+            None => "0:v".to_string(),
+        };
         fc.push_str(&format!(
-            "[0:v]split={n}{}",
+            "[{vsrc}]split={n}{}",
             (0..n).map(|i| format!("[sp{i}]")).collect::<String>()
         ));
         for (i, h) in hs.iter().enumerate() {
@@ -229,10 +278,15 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
         let n_streams = n;
-        if probe.has_audio && !args.video_only {
+        if sel_has_audio && !args.video_only {
+            let asrc = match &prog_members {
+                // the service's first audio member (main program audio)
+                Some((_, a, _)) => format!("0:{}", a[0]),
+                None => "0:a".to_string(),
+            };
             argv.extend([
                 "-map".to_string(),
-                "0:a".to_string(),
+                asrc,
                 "-c:a".to_string(),
                 if args.webm {
                     "libopus".to_string()
@@ -244,7 +298,7 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
             ]);
         }
         let vids: Vec<String> = (0..n_streams).map(|i| i.to_string()).collect();
-        let adapt = if probe.has_audio && !args.video_only {
+        let adapt = if sel_has_audio && !args.video_only {
             format!("id=0,streams={} id=1,streams={n_streams}", vids.join(","))
         } else {
             format!("id=0,streams={}", vids.join(","))

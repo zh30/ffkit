@@ -278,6 +278,8 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Vdocipher
         | DeliverPlatform::Jellyfin
         | DeliverPlatform::Emby
+        | DeliverPlatform::Kofi
+        | DeliverPlatform::Buymeacoffee
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
         | DeliverPlatform::Parler
@@ -317,7 +319,12 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Vinted
         | DeliverPlatform::Depop
         | DeliverPlatform::Carousell
-        | DeliverPlatform::Olx => (1080, 1920),
+        | DeliverPlatform::Olx
+        | DeliverPlatform::Onlyfans
+        | DeliverPlatform::Fansly
+        | DeliverPlatform::Fanbox
+        | DeliverPlatform::Cameo
+        | DeliverPlatform::Subscribestar => (1080, 1920),
         DeliverPlatform::Weibo => (1920, 1080),
         _ => (1080, 1920),
     };
@@ -847,6 +854,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Olx => "olx",
         DeliverPlatform::Jellyfin => "jellyfin",
         DeliverPlatform::Emby => "emby",
+        DeliverPlatform::Onlyfans => "onlyfans",
+        DeliverPlatform::Fansly => "fansly",
+        DeliverPlatform::Fanbox => "fanbox",
+        DeliverPlatform::Cameo => "cameo",
+        DeliverPlatform::Subscribestar => "subscribestar",
+        DeliverPlatform::Kofi => "kofi",
+        DeliverPlatform::Buymeacoffee => "buymeacoffee",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

@@ -141,13 +141,56 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
+    // --program N: package one service out of a multi-program transport
+    // stream. Members come from probe.programs[] — stream presence is
+    // then scoped to the service, not the file (a radio service has no
+    // video members even when the mux carries others).
+    let prog_members = if let Some(n) = args.program {
+        if n == 0 {
+            return Err(Error::input(
+                "hls --program: program numbers are 1-based (see probe.programs[])",
+            ));
+        }
+        if probe.programs.is_empty() {
+            return Err(Error::input(
+                "hls --program: input carries no programs (see probe.programs[])",
+            ));
+        }
+        let m = probe.program_members(n).ok_or_else(|| {
+            let avail = probe
+                .programs
+                .iter()
+                .map(|p| p.num.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            Error::input(format!(
+                "hls --program {n} not in input (programs: {avail})"
+            ))
+        })?;
+        Some(m)
+    } else {
+        None
+    };
+    let sel_has_video = match &prog_members {
+        Some((v, _, _)) => !v.is_empty(),
+        None => probe.has_video,
+    };
+    let sel_has_audio = match &prog_members {
+        Some((_, a, _)) => !a.is_empty(),
+        None => probe.has_audio,
+    };
+    if let Some(n) = args.program {
+        if args.ladder.is_empty() {
+            argv.extend(["-map".to_string(), format!("0:p:{n}")]);
+        }
+    }
     if args.audio_only {
         if args.copy || !args.ladder.is_empty() {
             return Err(Error::input(
                 "--audio-only doesn't combine with --copy/--ladder",
             ));
         }
-        if !probe.has_audio {
+        if !sel_has_audio {
             return Err(Error::input("--audio-only needs an audio stream"));
         }
     }
@@ -155,7 +198,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         if args.audio_only {
             return Err(Error::input("--video-only conflicts with --audio-only"));
         }
-        if !probe.has_video {
+        if !sel_has_video {
             return Err(Error::input("--video-only needs a video stream"));
         }
     }
@@ -166,7 +209,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
                 "--ladder doesn't combine with --copy/--single",
             ));
         }
-        if !probe.has_video {
+        if !sel_has_video {
             return Err(Error::input("--ladder needs a video stream"));
         }
         if args.output.extension().is_some() {
@@ -191,8 +234,14 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             }
         };
         let mut fc = String::new();
+        let vsrc = match &prog_members {
+            // feed the ladder from the service's own video member, not
+            // the file's default program
+            Some((v, _, _)) => format!("0:{}", v[0]),
+            None => "0:v".to_string(),
+        };
         fc.push_str(&format!(
-            "[0:v]split={n}{}",
+            "[{vsrc}]split={n}{}",
             (0..n).map(|i| format!("[sp{i}]")).collect::<String>()
         ));
         for (i, h) in hs.iter().enumerate() {
@@ -218,13 +267,18 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
                 "yuv420p".to_string(),
             ]);
         }
-        if probe.has_audio && !args.video_only {
+        if sel_has_audio && !args.video_only {
             // ffmpeg <7 hls: an elementary stream may appear in only one
             // variant group — so each variant gets its own aac encode.
+            let asrc = match &prog_members {
+                // the service's first audio member (main program audio)
+                Some((_, a, _)) => format!("0:{}", a[0]),
+                None => "0:a".to_string(),
+            };
             for i in 0..n {
                 argv.extend([
                     "-map".to_string(),
-                    "0:a".to_string(),
+                    asrc.clone(),
                     format!("-c:a:{i}"),
                     "aac".to_string(),
                     format!("-b:a:{i}"),
@@ -232,7 +286,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
                 ]);
             }
         }
-        let varmap = if probe.has_audio && !args.video_only {
+        let varmap = if sel_has_audio && !args.video_only {
             (0..n)
                 .map(|i| format!("v:{i},a:{i}"))
                 .collect::<Vec<_>>()
@@ -308,11 +362,11 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "-bsf:v".to_string(),
             "h264_mp4toannexb".to_string(),
         ]);
-        if probe.has_audio && !args.video_only {
+        if sel_has_audio && !args.video_only {
             argv.extend(["-c:a".to_string(), "copy".to_string()]);
         }
     } else {
-        if probe.has_video && !args.audio_only {
+        if sel_has_video && !args.audio_only {
             argv.extend([
                 "-vf".to_string(),
                 "scale=trunc(iw/2)*2:trunc(ih/2)*2".to_string(),
@@ -326,7 +380,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
                 "yuv420p".to_string(),
             ]);
         }
-        if probe.has_audio && !args.video_only {
+        if sel_has_audio && !args.video_only {
             argv.extend([
                 "-c:a".to_string(),
                 "aac".to_string(),
