@@ -41757,3 +41757,87 @@ fn r321_lossless_presets_speakers_cloud_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
     }
 }
+
+#[test]
+fn r322_qt_era_presets_stats_async_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    for (preset, ext, expect_v) in [
+        ("cinepak", "mov", "cinepak"),
+        ("svq1", "mov", "svq1"),
+        ("zmbv", "avi", "zmbv"),
+    ] {
+        let o = dir.path().join(format!("{preset}.{ext}"));
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            preset,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{preset}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["vcodec"], expect_v, "{preset}: {j}");
+        assert_eq!(j["probe"]["acodec"], "pcm_s16le", "{preset}: {j}");
+    }
+    // wrong-container rejection
+    let o = dir.path().join("svq1.mp4");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "svq1",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+
+    // subs --stats: cue/word/char counts, span, median duration
+    let srt = dir.path().join("s.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:02,000\nhello world\n\n\
+         2\n00:00:03,000 --> 00:00:04,000\n[ALICE] second cue\n\n\
+         3\n00:00:05,000 --> 00:00:09,000\nBOB: a third longer cue here\n",
+    )
+    .unwrap();
+    let out = dir.path().join("o.srt");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--stats",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["cues"], 3);
+    assert_eq!(j["extra"]["words"], 11);
+    assert_eq!(j["extra"]["span_secs"], 9.0);
+    assert_eq!(j["extra"]["median_dur_secs"], 2.0);
+
+    // async-video platforms → 16:9 1080p
+    for name in [
+        "loom",
+        "tella",
+        "screenpal",
+        "vidcast",
+        "msstream",
+        "panopto",
+        "sharepoint",
+    ] {
+        let o = dir.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
+    }
+}

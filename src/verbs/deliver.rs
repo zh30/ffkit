@@ -503,7 +503,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Gdrive
         | DeliverPlatform::Mega
         | DeliverPlatform::Wetransfer
-        | DeliverPlatform::Sendanywhere => (1920, 1080),
+        | DeliverPlatform::Sendanywhere
+        | DeliverPlatform::Loom
+        | DeliverPlatform::Tella
+        | DeliverPlatform::Screenpal
+        | DeliverPlatform::Vidcast
+        | DeliverPlatform::Msstream
+        | DeliverPlatform::Panopto
+        | DeliverPlatform::Sharepoint => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1237,6 +1244,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Mega => "mega",
         DeliverPlatform::Wetransfer => "wetransfer",
         DeliverPlatform::Sendanywhere => "sendanywhere",
+        DeliverPlatform::Loom => "loom",
+        DeliverPlatform::Tella => "tella",
+        DeliverPlatform::Screenpal => "screenpal",
+        DeliverPlatform::Vidcast => "vidcast",
+        DeliverPlatform::Msstream => "msstream",
+        DeliverPlatform::Panopto => "panopto",
+        DeliverPlatform::Sharepoint => "sharepoint",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

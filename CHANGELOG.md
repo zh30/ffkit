@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.349.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset cinepak` — Cinepak + PCM in .mov/.avi (CD-ROM-era codec: mid-90s QuickTime/Windows video, Myst-era game archives); `transcode --preset svq1` — Sorenson Video 1 + PCM in .mov (QuickTime 2-4 era web video — the pre-Flash internet standard); `transcode --preset zmbv` — Zip Motion Blocks Video + PCM in .avi (DOSBox-era screencast recordings — game-capture archives, rgb24). Shared `qt_era()` path: pcm_s16le audio, `--vbitrate`/`--gop`/`--fps`/`--ar`/`--channels` honoured, crf/abitrate refused
+- `subs --stats` — transcript stats report: extras `cues`, `words`, `chars`, `span_secs` (first cue start → last cue end), `median_dur_secs` (script-length / read-pacing QC)
+- `deliver --platform` +7: loom, tella, screenpal, vidcast, msstream, panopto, sharepoint (async-video & enterprise video hosts 16:9 1920x1080)
+
 ## [0.348.0] — 2026-09-25
 
 ### Added

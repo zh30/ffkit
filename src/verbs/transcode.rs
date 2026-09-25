@@ -180,6 +180,9 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Huffyuv => lossless(&args, g, "huffyuv", &["avi", "mkv"]),
         TranscodePreset::Utvideo => lossless(&args, g, "utvideo", &["avi"]),
         TranscodePreset::Ffvhuff => lossless(&args, g, "ffvhuff", &["mkv"]),
+        TranscodePreset::Cinepak => qt_era(&args, g, "cinepak", &["mov", "avi"], None),
+        TranscodePreset::Svq1 => qt_era(&args, g, "svq1", &["mov"], None),
+        TranscodePreset::Zmbv => qt_era(&args, g, "zmbv", &["avi"], Some("rgb24")),
     }
 }
 
@@ -1477,6 +1480,75 @@ fn lossless(
         argv.extend(["-map", "0:a?"]);
     }
     argv.extend(["-c:v", codec]);
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "pcm_s16le"]);
+        if let Some(r) = args.ar {
+            argv.extend(["-ar", &r.to_string()]);
+        }
+        if let Some(ch) = args.channels {
+            argv.extend(["-ac", &ch.to_string()]);
+        }
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": codec }));
+    Ok(c)
+}
+
+/// Shared pre-Flash web-era codec path — cinepak (CD-ROM/Myst-era
+/// archives) and svq1 (QuickTime 2-4 web video) both ride PCM audio and
+/// accept rate flags; bitrate is meaningful here (unlike lossless).
+fn qt_era(
+    args: &TranscodeArgs,
+    g: &Globals,
+    codec: &str,
+    exts: &[&str],
+    pix_fmt: Option<&str>,
+) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if !exts.contains(&ext.as_str()) {
+        return Err(Error::input(format!(
+            "transcode --preset {codec} needs a {} target, not .{ext}",
+            exts.iter()
+                .map(|e| format!(".{e}"))
+                .collect::<Vec<_>>()
+                .join("/")
+        )));
+    }
+    if args.crf.is_some() || args.abitrate.is_some() {
+        return Err(Error::input(format!(
+            "transcode --preset {codec} has no crf/abitrate knobs — use --vbitrate"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input(format!("{codec} preset: input has no video")));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend(["-c:v", codec]);
+    if let Some(p) = pix_fmt {
+        argv.extend(["-pix_fmt", p]);
+    }
+    if let Some(b) = &args.vbitrate {
+        argv.extend(["-b:v", b]);
+    }
     if let Some(n) = args.gop {
         argv.extend(["-g", &n.to_string()]);
     }

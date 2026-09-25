@@ -893,3 +893,5 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 ## ffmpeg decode-verify runs at -v warning, not -v error
 
 `scan --verify`'s damage report is the stderr line count of a full `ffmpeg -f null -` decode — but "corrupt decoded frame" logs at WARNING level: `-v error` prints nothing even on a damaged file and reports a false clean bill. The pass runs at `-v warning` so warnings AND errors count, and the exit code is never trusted (ffmpeg exits 0 with recoverable corruption either way).
+- `chapter --import` on a plain `.txt` needs no format flag — unrecognized extensions fall back to the generic `TIME|TITLE`/`TIME,TITLE`/`0:00 Title` parser, which already handles YouTube-description `M:SS Title` and `H:MM:SS Title` lines. Don't add a dedicated branch for it.
+- `transcode --preset zmbv` forces `-pix_fmt rgb24` yet the encoder still negotiates `bgr0` — zmbv's supported pix fmts are fixed internally; the probe reporting bgr0 is correct, not a sign the flag was ignored.

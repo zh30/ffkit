@@ -85,6 +85,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.replace.is_some()
         || args.strip_speakers
         || args.speakers
+        || args.stats
         || args.strip_tags
         || args.strip_sdh
         || args.strip_emotes
@@ -627,6 +628,29 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             None,
         ));
     }
+    let mut stat_extra = serde_json::Map::new();
+    if args.stats {
+        let words: usize = cues.iter().flat_map(|c| c.text.split_whitespace()).count();
+        let chars: usize = cues.iter().map(|c| c.text.chars().count()).sum();
+        let span = if cues.is_empty() {
+            0.0
+        } else {
+            cues.iter().map(|c| c.end).fold(0.0f64, f64::max)
+                - cues.iter().map(|c| c.start).fold(f64::MAX, f64::min)
+        };
+        let mut durs: Vec<f64> = cues.iter().map(|c| c.end - c.start).collect();
+        durs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let median = if durs.is_empty() {
+            0.0
+        } else {
+            durs[durs.len() / 2]
+        };
+        stat_extra.insert("cues".to_string(), json!(cues.len()));
+        stat_extra.insert("words".to_string(), json!(words));
+        stat_extra.insert("chars".to_string(), json!(chars));
+        stat_extra.insert("span_secs".to_string(), json!(span));
+        stat_extra.insert("median_dur_secs".to_string(), json!(median));
+    }
     let mut speakers: Vec<String> = Vec::new();
     if args.speakers {
         for c in &cues {
@@ -709,7 +733,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
-    Ok(c.with_extra(json!({
+    let mut extra = json!({
         "mode": "tidy",
         "sorted": sorted,
         "clamped": clamped,
@@ -740,7 +764,11 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "worst_cps": (worst_cps * 100.0).round() / 100.0,
         "over_lines": over_lines,
         "worst_lines": worst_lines,
-    })))
+    });
+    if let serde_json::Value::Object(m) = &mut extra {
+        m.extend(stat_extra);
+    }
+    Ok(c.with_extra(extra))
 }
 
 /// Mux an .srt/.vtt/.ass into the container as a selectable subtitle stream

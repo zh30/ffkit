@@ -1362,6 +1362,15 @@ pub enum TranscodePreset {
     /// FFVHuff lossless intermediate + PCM in .mkv — FFmpeg's own
     /// Huffyuv variant, the matroska-native lossless sibling
     Ffvhuff,
+    /// Cinepak + PCM in .mov/.avi — the CD-ROM-era codec (mid-90s
+    /// QuickTime/Windows video, Myst-era game archives)
+    Cinepak,
+    /// Sorenson Video 1 + PCM in .mov — QuickTime 2-4 era web video
+    /// (the pre-Flash internet standard)
+    Svq1,
+    /// Zip Motion Blocks Video + PCM in .avi — DOSBox-era screencast
+    /// recordings (game-capture archives, rgb24)
+    Zmbv,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2236,6 +2245,20 @@ pub enum DeliverPlatform {
     Wetransfer,
     /// SendAnywhere video link 16:9 landscape (1920x1080, -14 LUFS)
     Sendanywhere,
+    /// Loom async video message link 16:9 landscape (1920x1080, -14 LUFS)
+    Loom,
+    /// Tella screen-recording share link 16:9 landscape (1920x1080, -14 LUFS)
+    Tella,
+    /// ScreenPal hosted video link 16:9 landscape (1920x1080, -14 LUFS)
+    Screenpal,
+    /// Cisco Vidcast share link 16:9 landscape (1920x1080, -14 LUFS)
+    Vidcast,
+    /// Microsoft Stream video link 16:9 landscape (1920x1080, -14 LUFS)
+    Msstream,
+    /// Panopto enterprise video link 16:9 landscape (1920x1080, -14 LUFS)
+    Panopto,
+    /// SharePoint video preview link 16:9 landscape (1920x1080, -14 LUFS)
+    Sharepoint,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3666,6 +3689,10 @@ pub struct SubsArgs {
     /// --strip-speakers which removes them
     #[arg(long)]
     pub speakers: bool,
+    /// Transcript stats report (extras: cues/words/chars/span_secs/
+    /// median_dur_secs — readability & density QC without burning)
+    #[arg(long)]
+    pub stats: bool,
     /// Readability gate: report cues faster than N chars/sec
     /// (Netflix-style caption-speed spec; extras: over_limit/worst_cps)
     #[arg(long)]
