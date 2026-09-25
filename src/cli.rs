@@ -1737,6 +1737,20 @@ pub enum DeliverPlatform {
     Showtime,
     /// Starz US premium streamer 16:9 landscape (1920x1080, -14 LUFS)
     Starz,
+    /// Reddit video post 16:9 landscape (1920x1080, -14 LUFS)
+    Reddit,
+    /// Zillow listing tour 16:9 landscape (1920x1080, -14 LUFS — real-estate video)
+    Zillow,
+    /// eBay listing video 16:9 landscape (1920x1080, -14 LUFS)
+    Ebay,
+    /// Walmart marketplace video 16:9 landscape (1920x1080, -14 LUFS)
+    Walmart,
+    /// Poshmark listing video 1:1 square (1080x1080, -14 LUFS)
+    Poshmark,
+    /// Whatnot live-shopping 9:16 vertical (1080x1920, -14 LUFS)
+    Whatnot,
+    /// Kanopy library streamer 16:9 landscape (1920x1080, -14 LUFS)
+    Kanopy,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)

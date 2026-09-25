@@ -260,6 +260,11 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Shudder
         | DeliverPlatform::Showtime
         | DeliverPlatform::Starz
+        | DeliverPlatform::Reddit
+        | DeliverPlatform::Zillow
+        | DeliverPlatform::Ebay
+        | DeliverPlatform::Walmart
+        | DeliverPlatform::Kanopy
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
         | DeliverPlatform::Parler
@@ -272,7 +277,10 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         DeliverPlatform::Threads | DeliverPlatform::Instagram | DeliverPlatform::Facebook => {
             (1080, 1350)
         }
-        DeliverPlatform::Square | DeliverPlatform::Shopify | DeliverPlatform::Etsy => (1080, 1080),
+        DeliverPlatform::Square
+        | DeliverPlatform::Shopify
+        | DeliverPlatform::Etsy
+        | DeliverPlatform::Poshmark => (1080, 1080),
         DeliverPlatform::Xhs | DeliverPlatform::Lemon8 => (1080, 1440),
         DeliverPlatform::Wechat => (1080, 1260),
         DeliverPlatform::Pinterest => (1000, 1500),
@@ -287,7 +295,8 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Josh
         | DeliverPlatform::Weverse
         | DeliverPlatform::Kwai
-        | DeliverPlatform::Snackvideo => (1080, 1920),
+        | DeliverPlatform::Snackvideo
+        | DeliverPlatform::Whatnot => (1080, 1920),
         DeliverPlatform::Weibo => (1920, 1080),
         _ => (1080, 1920),
     };
@@ -789,6 +798,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Shudder => "shudder",
         DeliverPlatform::Showtime => "showtime",
         DeliverPlatform::Starz => "starz",
+        DeliverPlatform::Reddit => "reddit",
+        DeliverPlatform::Zillow => "zillow",
+        DeliverPlatform::Ebay => "ebay",
+        DeliverPlatform::Walmart => "walmart",
+        DeliverPlatform::Poshmark => "poshmark",
+        DeliverPlatform::Whatnot => "whatnot",
+        DeliverPlatform::Kanopy => "kanopy",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

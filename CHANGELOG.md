@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.326.0] — 2026-09-24
+
+### Added
+
+- `probe`/`scan` `streams[]` +4 fields: `stream_id` (container stream id — mpegts PID QC), `is_avc` + `nal_length_size` (avcc vs annex-b payloads — QC before HLS/fMP4 muxing), `chroma_location` (4:2:0 chroma siting — broadcast spec QC)
+- `subs --convert` `.csv` input + output — `start,end,"text"` spreadsheet rows; quoted cells keep commas/quotes/line breaks so cues round-trip through Sheets/Excel editing
+- `deliver --platform` +7: `reddit`/`zillow`/`ebay`/`walmart`/`kanopy` (16:9 1920x1080), `poshmark` (1:1 1080x1080), `whatnot` (9:16 1080x1920 live shopping)
+
 ## [0.325.0] — 2026-09-24
 
 ### Added

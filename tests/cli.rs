@@ -38419,3 +38419,88 @@ fn r298_codec_tag_sbv_dash_frag_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r299_stream_ids_csv_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // streams[] avcc/annex-b + chroma siting + container stream id:
+    // mp4 stores length-prefixed avcc; remux to .ts goes annex-b with PIDs
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    let st = j["probe"]["streams"].as_array().unwrap();
+    assert_eq!(st[0]["is_avc"], true);
+    assert_eq!(st[0]["nal_length_size"], 4);
+    assert_eq!(st[0]["chroma_location"], "left");
+    let ts = d.path().join("t.ts");
+    let j = run_json(&["remux", f.to_str().unwrap(), "-o", ts.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", ts.to_str().unwrap()]);
+    let st = j["probe"]["streams"].as_array().unwrap();
+    assert_eq!(st[0]["is_avc"], false);
+    assert_eq!(st[0]["stream_id"], "0x100");
+
+    // subs --convert .csv: quoted cells keep commas, doubled quotes and
+    // real line breaks; the header row and non-time rows are skipped
+    let srt = d.path().join("t.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:01,500 --> 00:00:02,500\nHello, \"quoted\" world\nline two\n\n2\n00:00:03,000 --> 00:00:04,000\nplain\n",
+    )
+    .unwrap();
+    let csv = d.path().join("t.csv");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        csv.to_str().unwrap(),
+        "--convert",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let s = std::fs::read_to_string(&csv).unwrap();
+    assert!(s.starts_with("start,end,text\n"), "{s}");
+    assert!(
+        s.contains("\"Hello, \"\"quoted\"\" world\nline two\""),
+        "{s}"
+    );
+    let back = d.path().join("back.srt");
+    let j = run_json(&[
+        "subs",
+        csv.to_str().unwrap(),
+        "-o",
+        back.to_str().unwrap(),
+        "--convert",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let s = std::fs::read_to_string(&back).unwrap();
+    assert!(s.contains("00:00:01,500 --> 00:00:02,500"), "{s}");
+    assert!(s.contains("Hello, \"quoted\" world\nline two"), "{s}");
+    assert!(s.contains("00:00:03,000 --> 00:00:04,000"), "{s}");
+
+    // +7 deliver platforms: social/marketplace canvases
+    for (name, w, h) in [
+        ("reddit", 1920, 1080),
+        ("zillow", 1920, 1080),
+        ("ebay", 1920, 1080),
+        ("walmart", 1920, 1080),
+        ("kanopy", 1920, 1080),
+        ("poshmark", 1080, 1080),
+        ("whatnot", 1080, 1920),
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}: {j}");
+        assert_eq!(j["probe"]["width"], w, "{name}");
+        assert_eq!(j["probe"]["height"], h, "{name}");
+    }
+}

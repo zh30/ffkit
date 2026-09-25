@@ -224,6 +224,22 @@ pub struct ProbeStream {
     pub coded_width: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub coded_height: Option<u32>,
+    /// Container stream id (video/audio — "0x100"-style PID on mpegts,
+    /// track id elsewhere; multi-program transport-stream QC)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream_id: Option<String>,
+    /// avcc length-prefixed h264 (video — mp4/mov "true", mpegts/raw
+    /// annex-b "false"; QC before muxing into HLS/fMP4 which need avcc)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_avc: Option<bool>,
+    /// avcc length prefix bytes (video — 4 on normal mp4s; pairs with
+    /// is_avc for the annex-b → avcc conversion decision)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nal_length_size: Option<u32>,
+    /// 4:2:0 chroma siting (video — "left"/"center"/"topleft"; broadcast
+    /// spec QC on chroma phase alignment)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chroma_location: Option<String>,
 }
 
 fn is_false(v: &bool) -> bool {
@@ -288,6 +304,14 @@ struct FfprobeStream {
     coded_width: Option<u32>,
     #[serde(default)]
     coded_height: Option<u32>,
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(default)]
+    is_avc: Option<String>,
+    #[serde(default)]
+    nal_length_size: Option<String>,
+    #[serde(default)]
+    chroma_location: Option<String>,
     #[serde(default)]
     r_frame_rate: Option<String>,
     #[serde(default)]
@@ -603,6 +627,10 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 level: s.level.and_then(|l| u32::try_from(l).ok()),
                 coded_width: s.coded_width,
                 coded_height: s.coded_height,
+                stream_id: s.id.clone(),
+                is_avc: s.is_avc.as_deref().map(|v| v == "true"),
+                nal_length_size: s.nal_length_size.as_deref().and_then(|v| v.parse().ok()),
+                chroma_location: s.chroma_location.clone(),
                 forced: s
                     .disposition
                     .as_ref()

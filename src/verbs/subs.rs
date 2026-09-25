@@ -998,9 +998,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && in_ext != "ttml"
         && in_ext != "dfxp"
         && in_ext != "sbv"
+        && in_ext != "csv"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv input",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv input",
         ));
     }
     if out_ext != "srt"
@@ -1011,9 +1012,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "ttml"
         && out_ext != "dfxp"
         && out_ext != "sbv"
+        && out_ext != "csv"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv output",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -1023,6 +1025,8 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         parse_ttml(&raw)?
     } else if in_ext == "sbv" {
         parse_sbv(&raw)?
+    } else if in_ext == "csv" {
+        parse_csv_subs(&raw)?
     } else {
         // vtt → srt-shaped blocks: drop WEBVTT/NOTE/STYLE blocks and cue
         // settings.
@@ -1143,6 +1147,25 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
                 "Dialogue: 0,{},{},Default,,0,0,0,,{}\n",
                 ass_ts(c.start),
                 ass_ts(c.end),
+                text
+            ));
+        }
+        s
+    } else if out_ext == "csv" {
+        // spreadsheet round-trip: `start,end,"text"` rows — edit cue
+        // text/times in Sheets/Excel then convert back; text keeps its
+        // line breaks inside a quoted cell
+        let mut s = String::from("start,end,text\n");
+        for c in &cues {
+            let text = if c.text.contains(',') || c.text.contains('"') || c.text.contains('\n') {
+                format!("\"{}\"", c.text.replace('"', "\"\""))
+            } else {
+                c.text.clone()
+            };
+            s.push_str(&format!(
+                "{},{},{}\n",
+                ttml_clock(c.start),
+                ttml_clock(c.end),
                 text
             ));
         }
@@ -1494,6 +1517,59 @@ fn parse_sbv(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
             .join("\n\n")
     };
     crate::srt::parse_srt(&norm(raw))
+}
+
+/// .csv input for --convert: `start,end,"text"` rows (the format the
+/// .csv serializer writes, and what Sheets/Excel exports) — quoted
+/// cells keep commas, quotes and line breaks; a header row and any
+/// malformed row are skipped.
+fn parse_csv_subs(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
+    let mut rows: Vec<Vec<String>> = Vec::new();
+    let mut row: Vec<String> = Vec::new();
+    let mut field = String::new();
+    let mut in_q = false;
+    let mut chars = raw.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if in_q {
+            if ch == '"' {
+                if chars.peek() == Some(&'"') {
+                    field.push('"');
+                    chars.next();
+                } else {
+                    in_q = false;
+                }
+            } else {
+                field.push(ch);
+            }
+        } else {
+            match ch {
+                '"' => in_q = true,
+                ',' => row.push(std::mem::take(&mut field)),
+                '\n' => {
+                    row.push(std::mem::take(&mut field));
+                    rows.push(std::mem::take(&mut row));
+                }
+                '\r' => {}
+                _ => field.push(ch),
+            }
+        }
+    }
+    if !field.is_empty() || !row.is_empty() {
+        row.push(field);
+        rows.push(row);
+    }
+    let mut blocks = String::new();
+    for r in rows {
+        if r.len() < 3 {
+            continue;
+        }
+        let (a, b) = (r[0].trim(), r[1].trim());
+        if crate::time::parse_time(a).is_err() || crate::time::parse_time(b).is_err() {
+            continue;
+        }
+        blocks.push_str(&format!("{a} --> {b}\n{}\n\n", r[2..].join(",")));
+    }
+    crate::srt::parse_srt(&blocks)
 }
 
 fn append_sub(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {

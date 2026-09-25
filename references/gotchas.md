@@ -728,3 +728,16 @@ The parser reads begin/end attributes (H:MM:SS.mmm or HH:MM:SS:FF) and
 `<br>` line breaks; styling, regions, and `<div>` markup are ignored.
 `r_frame_rate` is the codec's declared base rate — on CFR files
 `r_fps == fps`; a mismatch per track means VFR footage, not a bug.
+
+## x264's SPS num_ref_frames is always 1
+ffprobe `refs` reads the SPS field, and libx264 writes 1 there no
+matter what `-refs`/`-x264-params refs=N` you pass — it can't QC the
+encoder's reference-frame setting (probe the encode log, not the file).
+`is_avc`/`nal_length_size` are the reliable payload-shape check instead:
+mp4/mov h264 is length-prefixed avcc (`is_avc` true, `nal_length_size`
+4), mpegts/raw is annex-b (`is_avc` false, size 0) — mpegtsenc inserts
+h264_mp4toannexb automatically on remux.
+`.csv` subtitle rows keep real newlines inside a quoted cell — Sheets/
+Excel render them as in-cell line breaks, and `parse_csv_subs` only
+treats a row as a cue when the first two fields both parse as times
+(the header row and malformed lines drop quietly).
