@@ -11,7 +11,7 @@ Destination implied by the user (Reels, Shorts, TikTok, YouTube, GIF) picks fram
 | Podcast clip → social | 1080x1920 waveform | `ffkit audiogram IN --image cover.png -o OUT` | audio kept | H.264+AAC |
 | GIF preview | short, ≤480px wide | — | no audio | `transcode --preset gif` |
 
-| Size-capped upload (Discord 10MB / WhatsApp 16MB / email ~25MB) | source frame kept | `ffkit compress IN --size 10MB -o OUT` | − | two-pass H.264+AAC |
+| Size-capped upload (Discord 10MB / WhatsApp 16MB / email ~25MB — `--size` also takes named caps: discord/nitro/whatsapp/gmail/messenger/wechat) | source frame kept | `ffkit compress IN --size 10MB -o OUT` | − | two-pass H.264+AAC |
 | Photo montage (anniversary / listing / event recap) | `--size 1920x1080` or `720x1280` | `ffkit slideshow a.jpg b.jpg c.jpg --audio bed.mp3 -o OUT` | bed faded at end | H.264+AAC |
 | Synced lav-mic audio onto camera footage | source frame kept | `ffkit replace cam.mp4 --audio lav.wav -o OUT` | trimmed/padded to video | H.264+AAC |
 | Story/Status serial chunks (WhatsApp 30s, Stories 60s) | source aspect kept | `ffkit split vlog.mp4 --every 30 -o part.mp4` | `part_00..` files, exact on-boundary cuts | H.264+AAC |

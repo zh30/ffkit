@@ -945,7 +945,9 @@ pub struct CompressArgs {
     pub input: PathBuf,
     #[arg(short, long)]
     pub output: PathBuf,
-    /// Target size, e.g. 10MB (Discord), 16MB (WhatsApp), 25MB (email); KB/MB/GB
+    /// Target size — number + KB/MB/GB, or a named app cap:
+    /// discord 8MB, nitro 500MB, whatsapp 16MB, gmail/email 25MB,
+    /// messenger 25MB, wechat 100MB
     #[arg(long, required_unless_present_any = ["target", "crf"])]
     pub size: Option<String>,
     /// Size preset by platform: discord(8MB) whatsapp(16MB) gmail(25MB)
@@ -1303,6 +1305,12 @@ pub enum TranscodePreset {
     /// MPEG-2 video + MP2 audio — DVD/broadcast legacy master (.mpg/.vob;
     /// set-top players, TV ingest, archival interop)
     Mpeg2,
+    /// MPEG-1 video + MP2 audio — VCD-era legacy master (.mpg; the oldest
+    /// digital video format still in playback circulation)
+    Mpeg1,
+    /// Xvid/MPEG-4 part 2 in .avi — the legacy-rip master (2000s DivX-era
+    /// players, projectors, and set-top boxes that only read .avi)
+    Xvid,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2012,6 +2020,20 @@ pub enum DeliverPlatform {
     Bulbul,
     /// Fanvue — creator-economy posts 9:16
     Fanvue,
+    /// Temu — e-commerce product video 9:16
+    Temu,
+    /// Shein — fashion e-commerce product video 9:16
+    Shein,
+    /// AliExpress — e-commerce product video 9:16
+    Aliexpress,
+    /// Flipkart — IN e-commerce product video 9:16
+    Flipkart,
+    /// Zalando — EU fashion e-commerce product video 9:16
+    Zalando,
+    /// Coupang — KR e-commerce product video 9:16
+    Coupang,
+    /// MercadoLibre — LatAm e-commerce product video 9:16
+    Mercadolibre,
 
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,

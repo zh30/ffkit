@@ -414,6 +414,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Meesho
         | DeliverPlatform::Bulbul
         | DeliverPlatform::Fanvue
+        | DeliverPlatform::Temu
+        | DeliverPlatform::Shein
+        | DeliverPlatform::Aliexpress
+        | DeliverPlatform::Flipkart
+        | DeliverPlatform::Zalando
+        | DeliverPlatform::Coupang
+        | DeliverPlatform::Mercadolibre
         | DeliverPlatform::Vmate
         | DeliverPlatform::Josh
         | DeliverPlatform::Weverse
@@ -1085,6 +1092,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Meesho => "meesho",
         DeliverPlatform::Bulbul => "bulbul",
         DeliverPlatform::Fanvue => "fanvue",
+        DeliverPlatform::Temu => "temu",
+        DeliverPlatform::Shein => "shein",
+        DeliverPlatform::Aliexpress => "aliexpress",
+        DeliverPlatform::Flipkart => "flipkart",
+        DeliverPlatform::Zalando => "zalando",
+        DeliverPlatform::Coupang => "coupang",
+        DeliverPlatform::Mercadolibre => "mercadolibre",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

@@ -823,3 +823,15 @@ A cue's text runs from its `<SYNC Start=ms>` tag until the following SYNC's star
 ## `-map_chapters N` needs the ffmeta input index, not a stream map
 
 Container chapters come from a `-f ffmetadata` INPUT; `-map_chapters` takes that input's number (1-based by input order). In multi-input verbs (intro/outro/logo) the chapters input is appended last — count inputs, don't hardcode the index.
+
+## SAMI `.smi` has no end tag — written cues end at the next SYNC
+
+Our writer emits one `<SYNC Start=ms><P Class=ENCC>` per cue; the format stores no duration, so readers (ours included) hold each cue until the following SYNC and give the last cue a fixed hold. Squeeze two cues tight and the first displays shorter than its .srt duration — that's the format, not a bug.
+
+## `libxvid` needs `-vtag xvid` for fourcc-checking players
+
+DivX-era players and projectors reject `.avi` files whose video fourcc isn't `xvid` even when the codec is bit-identical MPEG-4 — always pass the tag with the encoder.
+
+## `compress --size` named caps are aliases, not live lookups
+
+`--size whatsapp` maps to a fixed 16MB table entry — app limits change server-side without notice, so an explicit `--size NMB` always wins when the platform publishes a different cap.

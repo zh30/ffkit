@@ -181,7 +181,17 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
 
 /// "10MB", "800KB", "1.5GB" (decimal SI); a bare number is MB.
 pub(crate) fn parse_size(s: &str) -> Result<u64, Error> {
-    let t = s.trim();
+    // named app caps — the upload limits creators actually hit
+    let named = match s.trim().to_lowercase().as_str() {
+        "discord" => Some("8MB"),
+        "nitro" | "discord-nitro" => Some("500MB"),
+        "whatsapp" => Some("16MB"),
+        "gmail" | "email" => Some("25MB"),
+        "messenger" => Some("25MB"),
+        "wechat" => Some("100MB"),
+        _ => None,
+    };
+    let t = named.unwrap_or_else(|| s.trim());
     let (num, mult) = if let Some(n) = t.strip_suffix(['B', 'b']) {
         match n.strip_suffix(['K', 'k', 'M', 'G']) {
             Some(m) => (m, unit(n)),

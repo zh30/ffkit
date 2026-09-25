@@ -1075,9 +1075,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "sbv"
         && out_ext != "csv"
         && out_ext != "mpl"
+        && out_ext != "smi"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi output",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -1237,6 +1238,23 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
                 text
             ));
         }
+        s
+    } else if out_ext == "smi" {
+        // SAMI — Windows Media-era captions: <SYNC Start=ms><P Class=CC>
+        // blocks; each cue holds until the next SYNC (our parser reads
+        // this format back). Times in ms, newlines kept as real breaks
+        let mut s = String::from("<SAMI>\n<BODY>\n");
+        for c in &cues {
+            s.push_str(&format!(
+                "<SYNC Start={}><P Class=ENCC>{}\n",
+                (c.start * 1000.0).round() as i64,
+                c.text
+                    .replace('&', "&amp;")
+                    .replace('<', "&lt;")
+                    .replace('>', "&gt;")
+            ));
+        }
+        s.push_str("</BODY>\n</SAMI>\n");
         s
     } else if out_ext == "mpl" {
         // MPL2 — Polish legacy player format: [start][end]text in

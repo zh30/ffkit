@@ -40154,6 +40154,136 @@ fn r309_transcode_tune_ffv1_apng_deliver_maxrate_platforms() {
 }
 
 #[test]
+fn r312_subs_smi_out_mpeg1_xvid_named_size_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // subs --convert srt -> .smi SAMI, then .smi -> srt round-trip
+    let srt = d.path().join("cap.srt");
+    std::fs::write(&srt, "1\n00:00:00,500 --> 00:00:01,000\nA & B\n").unwrap();
+    let smi = d.path().join("cap.smi");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--convert",
+        "-o",
+        smi.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let txt = std::fs::read_to_string(&smi).unwrap();
+    assert!(
+        txt.contains("<SYNC Start=500><P Class=ENCC>A &amp; B"),
+        "txt={txt}"
+    );
+    let back = d.path().join("back.srt");
+    let j = run_json(&[
+        "subs",
+        smi.to_str().unwrap(),
+        "--convert",
+        "-o",
+        back.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let rt = std::fs::read_to_string(&back).unwrap();
+    assert!(rt.contains("00:00:00,500 --> 00:00:04,500"), "rt={rt}");
+    assert!(rt.contains("A & B"), "rt={rt}");
+
+    // transcode --preset mpeg1 -> mpeg1video + mp2 in .mpg
+    let mpg = d.path().join("vcd.mpg");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        mpg.to_str().unwrap(),
+        "--preset",
+        "mpeg1",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", mpg.to_str().unwrap()]);
+    let streams = p["probe"]["streams"].as_array().unwrap();
+    assert_eq!(streams[0]["codec"], "mpeg1video");
+    assert_eq!(streams[1]["codec"], "mp2");
+    let bad = d.path().join("vcd.mp4");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        bad.to_str().unwrap(),
+        "--preset",
+        "mpeg1",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // transcode --preset xvid -> mpeg4 video + mp3 audio in .avi
+    let avi = d.path().join("rip.avi");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        avi.to_str().unwrap(),
+        "--preset",
+        "xvid",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", avi.to_str().unwrap()]);
+    let streams = p["probe"]["streams"].as_array().unwrap();
+    assert_eq!(streams[0]["codec"], "mpeg4");
+    assert_eq!(streams[1]["codec"], "mp3");
+
+    // compress --size accepts named app caps
+    let cw = d.path().join("cw.mp4");
+    let j = run_json(&[
+        "compress",
+        f.to_str().unwrap(),
+        "-o",
+        cw.to_str().unwrap(),
+        "--size",
+        "whatsapp",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["target_bytes"], 16000000);
+    let cb = d.path().join("cb.mp4");
+    let j = run_json(&[
+        "compress",
+        f.to_str().unwrap(),
+        "-o",
+        cb.to_str().unwrap(),
+        "--size",
+        "bogus",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // deliver --platform e-commerce destinations
+    for (p, (fw, fh)) in [
+        ("temu", (1080, 1920)),
+        ("shein", (1080, 1920)),
+        ("aliexpress", (1080, 1920)),
+        ("flipkart", (1080, 1920)),
+        ("zalando", (1080, 1920)),
+        ("coupang", (1080, 1920)),
+        ("mercadolibre", (1080, 1920)),
+    ] {
+        let o = d.path().join(format!("{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+            "--overwrite",
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pr = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pr["probe"]["width"], fw, "{p}");
+        assert_eq!(pr["probe"]["height"], fh, "{p}");
+    }
+}
+
+#[test]
 fn r311_subs_mpl_smi_transcode_mpeg2_deliver_chapters_platforms() {
     if !has_ffmpeg() {
         return;
