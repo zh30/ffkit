@@ -2,11 +2,19 @@
 
 ## [Unreleased]
 
+## [0.332.0] — 2026-09-25
+
 ## [0.331.0] — 2026-09-25
 
 ## [0.330.0] — 2026-09-25
 
 ### Added
+
+- `concat --copy` — force the lossless stream-copy join or fail when inputs differ in codec/size/rate (the auto-pick silently re-encodes mismatched inputs — `--copy` turns "is this assembly lossless" into a gate; conflicts with the re-encode flags).
+- `chapter --snap` — re-seat each mark on the nearest keyframe (players seek to keyframes, so an unsnapped chapter point lands late; extras report `snapped`).
+- `subs --fix-cps N` — stretch each over-CPS cue until it reads at N chars/sec (auto-fix for the `--cps` gate; extension caps at the next cue's start; extras report `stretched`).
+- `probe`/`scan` `has_data` + `has_attachment` — container kind flags: a `data` stream (telemetry/timed metadata — strip candidate) or an `attachment` stream (subtitle fonts, payloads) is muxed in (gates `remux --no-attachments`/`extract --attachment`).
+- `deliver --platform` +7 music-distribution canvases: `bandlab`, `distrokid`, `tunecore`, `amuse`, `cdbaby`, `symphonic`, `landr` (16:9 1920x1080).
 
 - `deliver --program N` — pack one service out of a multi-program transport stream (broadcast pickup ingest): the pack takes the service's first video/audio member across the plain/logo/wrap/podcast paths (`probe.programs[]` lists services; pairs with `hls`/`dash`/`remux --program`).
 - `chapter --min-gap SEC` — drop marks closer than SEC to the previous kept mark (tidy a dense auto-TOC when `--scenes` over-fires on rapid cuts; first mark always kept, extras report `min_gap_dropped`).

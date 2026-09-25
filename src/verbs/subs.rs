@@ -74,6 +74,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.fix_overlaps
         || args.dedupe
         || args.dedupe_text
+        || args.fix_cps.is_some()
         || args.cps.is_some()
         || args.min_dur.is_some()
         || args.min_gap.is_some()
@@ -265,7 +266,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         != Some("srt")
     {
         return Err(Error::input(
-            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--dedupe-text/--cps/--min-dur/--min-gap/--join/--max-lines/--replace/--strip-speakers/--strip-sdh/--clip/--drop/--wrap) take an .srt input",
+            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--dedupe-text/--fix-cps/--cps/--min-dur/--min-gap/--join/--max-lines/--replace/--strip-speakers/--strip-sdh/--clip/--drop/--wrap) take an .srt input",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -582,6 +583,24 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             None,
         ));
     }
+    let mut stretched = 0usize;
+    if let Some(cps) = args.fix_cps {
+        if !cps.is_finite() || cps <= 0.0 {
+            return Err(Error::input(
+                "subs --fix-cps needs a positive chars/sec rate",
+            ));
+        }
+        for i in 0..cues.len() {
+            let dur = (cues[i].end - cues[i].start).max(0.001);
+            let need = cues[i].text.chars().count() as f64 / cps;
+            if need > dur {
+                let cap = cues.get(i + 1).map(|n| n.start).unwrap_or(f64::INFINITY);
+                cues[i].end = (cues[i].start + need).min(cap).max(cues[i].start);
+                stretched += 1;
+            }
+        }
+    }
+
     std::fs::write(&args.output, crate::srt::to_srt(&cues))
         .map_err(|e| Error::output(e.to_string()))?;
     let mut c = Contract::ok("subs", Some(crate::paths::display(&args.output)), None);
@@ -625,6 +644,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "found": found,
         "cues": cues.len(),
         "cps_limit": args.cps,
+        "stretched": stretched,
         "min_gap": args.min_gap,
         "over_limit": over_limit,
         "worst_cps": (worst_cps * 100.0).round() / 100.0,

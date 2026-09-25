@@ -33,6 +33,13 @@ pub struct Probe {
     pub color_transfer: Option<String>,
     pub has_video: bool,
     pub has_audio: bool,
+    /// A `data` codec_type stream is muxed in (GoPro telemetry, timed
+    /// metadata) — strip candidates before delivery
+    pub has_data: bool,
+    /// An `attachment` codec_type stream is muxed in (subtitle fonts,
+    /// embedded payloads) — gate for `extract --attachment` / `remux
+    /// --no-attachments`
+    pub has_attachment: bool,
     /// Container-wide bitrate (format.bit_rate) — overall-budget QC for
     /// platform ingest caps
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -626,6 +633,8 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
         color_transfer: video.and_then(|v| v.color_transfer.clone()),
         has_video: video.is_some(),
         has_audio: audio.is_some(),
+        has_data: parsed.streams.iter().any(|s| s.codec_type == "data"),
+        has_attachment: parsed.streams.iter().any(|s| s.codec_type == "attachment"),
         bit_rate: parsed
             .format
             .as_ref()
@@ -837,4 +846,35 @@ fn parse_rate(s: Option<&str>) -> Option<f64> {
 
 fn parse_f64(s: &str) -> Option<f64> {
     s.parse().ok()
+}
+
+/// Keyframe packet map of the first video stream: (total packet count,
+/// [(packet index, dts_time)]). No decode — packet flags only, cheap even
+/// on long masters. Empty on audio-only inputs or when ffprobe fails.
+pub fn keyframe_packets(path: &Path, timeout: Duration) -> (usize, Vec<(usize, f64)>) {
+    let mut argv = crate::spawn::Argv::ffprobe();
+    argv.extend([
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "packet=flags,dts_time",
+        "-of",
+        "csv=p=0",
+    ]);
+    argv.push(path);
+    let mut packet_count = 0usize;
+    let mut keys: Vec<(usize, f64)> = Vec::new();
+    if let Ok(sp) = crate::spawn::run(&argv, timeout, false) {
+        for (i, line) in String::from_utf8_lossy(&sp.stdout).lines().enumerate() {
+            packet_count += 1;
+            let mut f = line.trim().split(',');
+            let dts: f64 = f.next().and_then(|v| v.parse().ok()).unwrap_or(0.0);
+            if f.next().is_some_and(|fl| fl.contains('K')) {
+                keys.push((i, dts));
+            }
+        }
+    }
+    (packet_count, keys)
 }

@@ -597,6 +597,36 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         }
         marks = kept;
     }
+
+    let mut snapped = 0usize;
+    if args.snap {
+        let (_count, keys) = crate::probe::keyframe_packets(&args.input, g.timeout);
+        if keys.is_empty() {
+            return Err(Error::input(
+                "chapter --snap: no keyframes found (needs a video stream)",
+            ));
+        }
+        let times: Vec<f64> = keys.iter().map(|(_, t)| *t).collect();
+        for m in &mut marks {
+            let nearest = times
+                .iter()
+                .min_by(|a, b| {
+                    (*a - m.0)
+                        .abs()
+                        .partial_cmp(&(*b - m.0).abs())
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .copied();
+            if let Some(t) = nearest {
+                if (t - m.0).abs() > 1e-9 {
+                    m.0 = t;
+                    snapped += 1;
+                }
+            }
+        }
+        marks.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        marks.dedup_by(|a, b| (a.0 - b.0).abs() < 0.05);
+    }
     if marks.is_empty() {
         return Err(Error::input(
             "chapter needs --at TIME|TITLE, or the detector (--auto/--scenes) found no marks",
@@ -839,6 +869,7 @@ FCM: NON-DROP FRAME
                 .map(|(t, ti)| json!({"time": t, "title": ti}))
                 .collect::<Vec<_>>(),
             "min_gap_dropped": min_gap_dropped,
+        "snapped": snapped,
         }));
         return Ok(c);
     }
@@ -875,6 +906,7 @@ FCM: NON-DROP FRAME
             .map(|(t, ti)| json!({"time": t, "title": ti}))
             .collect::<Vec<_>>(),
         "min_gap_dropped": min_gap_dropped,
+        "snapped": snapped,
     });
     if matches!(c.status, Status::Ok) {
         if let Ok(p) = engine::probe_or_err(&args.output, g) {

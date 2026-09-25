@@ -492,6 +492,11 @@ pub struct ConcatArgs {
     /// audiobook/podcast multi-file → chaptered single deliverable
     #[arg(long)]
     pub chapters: bool,
+    /// Force the lossless stream-copy join — fail when inputs differ in
+    /// codec/size/rate instead of silently re-encoding (verify an assembly
+    /// stayed lossless; conflicts with --transition/--level/--gap/--audio-fade)
+    #[arg(long)]
+    pub copy: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1828,6 +1833,20 @@ pub enum DeliverPlatform {
     Acast,
     /// Spreaker video episode 16:9 landscape (1920x1080, -14 LUFS)
     Spreaker,
+    /// BandLab video/visualizer upload 16:9 landscape (1920x1080, -14 LUFS)
+    Bandlab,
+    /// DistroKid music-video upload 16:9 landscape (1920x1080, -14 LUFS)
+    Distrokid,
+    /// TuneCore music-video upload 16:9 landscape (1920x1080, -14 LUFS)
+    Tunecore,
+    /// Amuse music-video upload 16:9 landscape (1920x1080, -14 LUFS)
+    Amuse,
+    /// CD Baby music-video upload 16:9 landscape (1920x1080, -14 LUFS)
+    Cdbaby,
+    /// Symphonic music-video upload 16:9 landscape (1920x1080, -14 LUFS)
+    Symphonic,
+    /// LANDR music-video upload 16:9 landscape (1920x1080, -14 LUFS)
+    Landr,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -3253,6 +3272,11 @@ pub struct SubsArgs {
     /// different timings; text compared case/space-insensitive; extras: dropped)
     #[arg(long)]
     pub dedupe_text: bool,
+    /// Stretch each over-CPS cue until it reads at N chars/sec (auto-fix for
+    /// the --cps gate — extends the cue's end, capped at the next cue's
+    /// start; extras: stretched)
+    #[arg(long, value_name = "CPS")]
+    pub fix_cps: Option<f64>,
     /// Readability gate: report cues faster than N chars/sec
     /// (Netflix-style caption-speed spec; extras: over_limit/worst_cps)
     #[arg(long)]
@@ -6871,6 +6895,11 @@ pub struct ChapterArgs {
     /// extras: min_gap_dropped)
     #[arg(long)]
     pub min_gap: Option<f64>,
+    /// Snap each mark to the nearest keyframe — chapter points that land on
+    /// seekable frames (HLS/DASH players seek to keyframes anyway; without
+    /// snapping a seek lands late). extras: snapped
+    #[arg(long)]
+    pub snap: bool,
 }
 
 #[derive(clap::Args, Debug)]

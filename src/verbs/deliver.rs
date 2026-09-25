@@ -344,6 +344,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Sounder
         | DeliverPlatform::Acast
         | DeliverPlatform::Spreaker
+        | DeliverPlatform::Bandlab
+        | DeliverPlatform::Distrokid
+        | DeliverPlatform::Tunecore
+        | DeliverPlatform::Amuse
+        | DeliverPlatform::Cdbaby
+        | DeliverPlatform::Symphonic
+        | DeliverPlatform::Landr
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
         | DeliverPlatform::Parler
@@ -948,6 +955,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Sounder => "sounder",
         DeliverPlatform::Acast => "acast",
         DeliverPlatform::Spreaker => "spreaker",
+        DeliverPlatform::Bandlab => "bandlab",
+        DeliverPlatform::Distrokid => "distrokid",
+        DeliverPlatform::Tunecore => "tunecore",
+        DeliverPlatform::Amuse => "amuse",
+        DeliverPlatform::Cdbaby => "cdbaby",
+        DeliverPlatform::Symphonic => "symphonic",
+        DeliverPlatform::Landr => "landr",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

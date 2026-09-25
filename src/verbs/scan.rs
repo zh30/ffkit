@@ -428,28 +428,11 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     let mut key_idx: Vec<usize> = Vec::new();
     let mut packet_count = 0usize;
     if args.gop {
-        let mut argv = Argv::ffprobe();
-        argv.extend([
-            "-v",
-            "error",
-            "-select_streams",
-            "v:0",
-            "-show_entries",
-            "packet=flags,dts_time",
-            "-of",
-            "csv=p=0",
-        ]);
-        argv.push(&args.input);
-        if let Ok(sp) = spawn::run(&argv, g.timeout, false) {
-            for (i, line) in String::from_utf8_lossy(&sp.stdout).lines().enumerate() {
-                packet_count += 1;
-                let mut f = line.trim().split(',');
-                let dts: f64 = f.next().and_then(|v| v.parse().ok()).unwrap_or(0.0);
-                if f.next().is_some_and(|fl| fl.contains('K')) {
-                    key_pts.push(dts);
-                    key_idx.push(i);
-                }
-            }
+        let (count, keys) = crate::probe::keyframe_packets(&args.input, g.timeout);
+        packet_count = count;
+        for (i, dts) in keys {
+            key_idx.push(i);
+            key_pts.push(dts);
         }
     }
     // --hash: decoded-frame checksums of every stream → <input>.framemd5

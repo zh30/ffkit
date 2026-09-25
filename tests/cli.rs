@@ -39177,3 +39177,281 @@ fn r304_deliver_program_chapter_min_gap_subs_dedupe_text() {
         assert_eq!(j["probe"]["height"], h, "{name}: {j}");
     }
 }
+
+#[test]
+fn r305_concat_copy_chapter_snap_subs_fixcps_probe_kinds() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // two same-spec clips → concat --copy stays a lossless copy
+    let a = d.path().join("a.mp4");
+    let b = d.path().join("b.mp4");
+    for p in [&a, &b] {
+        let st = std::process::Command::new("ffmpeg")
+            .args([
+                "-y",
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=duration=1:size=320x240:rate=30",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=1",
+                "-c:v",
+                "libx264",
+                "-g",
+                "30",
+                "-c:a",
+                "aac",
+                p.to_str().unwrap(),
+            ])
+            .status()
+            .unwrap();
+        assert!(st.success());
+    }
+    let cc = d.path().join("cc.mp4");
+    let j = run_json(&[
+        "concat",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "--copy",
+        "-o",
+        cc.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", cc.to_str().unwrap()]);
+    assert_eq!(j["probe"]["vcodec"], "h264", "{j}");
+    assert!(
+        (j["probe"]["duration"].as_f64().unwrap() - 2.0).abs() < 0.2,
+        "{j}"
+    );
+
+    // --copy refuses mismatched specs instead of silently re-encoding
+    let c = d.path().join("c.mkv");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=160x120:rate=15",
+            "-c:v",
+            "mpeg2video",
+            c.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&[
+        "concat",
+        a.to_str().unwrap(),
+        c.to_str().unwrap(),
+        "--copy",
+        "-o",
+        d.path().join("bad.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    // and conflicts with the re-encode flags
+    let j = run_json(&[
+        "concat",
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+        "--copy",
+        "--gap",
+        "1",
+        "-o",
+        d.path().join("bad2.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+
+    // chapter --snap lands each mark on the nearest keyframe (keys every 1s)
+    let snapf = d.path().join("snap.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=4:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=4",
+            "-c:v",
+            "libx264",
+            "-g",
+            "30",
+            "-c:a",
+            "aac",
+            snapf.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let marks = d.path().join("marks.txt");
+    let j = run_json(&[
+        "chapter",
+        snapf.to_str().unwrap(),
+        "--at",
+        "0.4|Near zero",
+        "--at",
+        "0.7|Near one",
+        "--snap",
+        "--yt",
+        "-o",
+        marks.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["snapped"], 2, "{j}");
+    let text = std::fs::read_to_string(&marks).unwrap();
+    assert!(text.contains("0:00 Near zero"), "{text}");
+    assert!(text.contains("0:01 Near one"), "{text}");
+    // audio-only input can't snap — no keyframes
+    let wav = d.path().join("a.wav");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            wav.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&[
+        "chapter",
+        wav.to_str().unwrap(),
+        "--at",
+        "0.4|A",
+        "--snap",
+        "-o",
+        d.path().join("chap.wav").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+
+    // subs --fix-cps stretches over-CPS cues (capped at the next start)
+    let srt = d.path().join("t.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:00,400\nA very long sentence crammed into a tiny window here\n\n\
+         2\n00:00:00,800 --> 00:00:01,200\nshort\n",
+    )
+    .unwrap();
+    let out_srt = d.path().join("o.srt");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--fix-cps",
+        "30",
+        "-o",
+        out_srt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["stretched"], 1, "{j}");
+    let text = std::fs::read_to_string(&out_srt).unwrap();
+    assert!(text.contains("00:00:00,000 --> 00:00:00,800"), "{text}");
+
+    // probe has_attachment / has_data container-kind flags
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(j["probe"]["has_attachment"], false, "{j}");
+    assert_eq!(j["probe"]["has_data"], false, "{j}");
+    let bin = d.path().join("font.bin");
+    std::fs::write(&bin, "payload").unwrap();
+    let att = d.path().join("att.mkv");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-i",
+            f.to_str().unwrap(),
+            "-attach",
+            bin.to_str().unwrap(),
+            "-metadata:s:t",
+            "mimetype=application/octet-stream",
+            "-c",
+            "copy",
+            att.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&["probe", att.to_str().unwrap()]);
+    assert_eq!(j["probe"]["has_attachment"], true, "{j}");
+    let dts = d.path().join("d.ts");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=160x120:rate=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "data",
+            "-i",
+            bin.to_str().unwrap(),
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map",
+            "2",
+            "-c:v",
+            "mpeg2video",
+            "-c:a",
+            "mp2",
+            "-c:d",
+            "copy",
+            dts.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&["probe", dts.to_str().unwrap()]);
+    assert_eq!(j["probe"]["has_data"], true, "{j}");
+
+    // +7 music-distribution platforms render to the 16:9 1080p canvas
+    for name in [
+        "bandlab",
+        "distrokid",
+        "tunecore",
+        "amuse",
+        "cdbaby",
+        "symphonic",
+        "landr",
+    ] {
+        let o = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
+    }
+}

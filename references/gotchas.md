@@ -772,3 +772,9 @@ ffprobe 4.4 — attribution is only reachable through programs[].streams.
 ## `--dedupe` needs identical timing AND text; `--dedupe-text` drops same-text neighbours
 
 `subs --dedupe` removes a cue only when the previous cue's start AND text match exactly (broken exporters that double-emit a cue). Whisper-style transcripts print the same sentence at *different* times — `--dedupe` misses those; `--dedupe-text` compares normalized text (case/space-insensitive) against the previous KEPT cue and drops repeats regardless of timing. Both count into extras `dropped`. `chapter --min-gap` is the chapter-side analogue: it filters marks by spacing after the dedup/sort passes, so the first mark is always kept.
+
+## `concat` silently re-encodes when input specs differ
+
+`concat` picks the stream-copy path whenever the inputs match codec/size/rate — and quietly falls back to a full filter re-encode when they don't. There's no warning: a "lossless join" on mismatched inputs isn't. `concat --copy` turns the auto-pick into a gate — it refuses mismatched inputs (and the re-encode flags `--transition`/`--level`/`--gap`/`--audio-fade`) instead of silently losing the copy.
+
+`chapter --snap` re-seats marks on the nearest keyframe: two marks can snap onto the SAME keyframe, so a second dedup pass runs after snapping (the `snapped` extra counts moves before dedup).

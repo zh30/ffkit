@@ -105,6 +105,19 @@ pub fn run(args: ConcatArgs, g: &Globals) -> Result<Contract, Error> {
         return transition_chain(&args, g, &input_refs, &probes, &kinds);
     }
 
+    if args.copy {
+        if args.level.is_some() || args.gap.is_some() || args.audio_fade.is_some() {
+            return Err(Error::input(
+                "concat --copy conflicts with --level/--gap/--audio-fade (they re-encode)",
+            ));
+        }
+        if !can_copy(&probes) {
+            return Err(Error::input(
+                "concat --copy: inputs differ in codec/size/rate — normalize with remux/transcode or drop --copy",
+            ));
+        }
+    }
+
     if let Some(gap) = args.gap {
         if !(0.05..=60.0).contains(&gap) {
             return Err(Error::input("concat: --gap must be 0.05..60 seconds"));
@@ -112,7 +125,7 @@ pub fn run(args: ConcatArgs, g: &Globals) -> Result<Contract, Error> {
         return gap_concat(&args, g, &input_refs, &probes, gap);
     }
 
-    let mut c = if args.audio_fade.is_none() && can_copy(&probes) {
+    let mut c = if args.copy || (args.audio_fade.is_none() && can_copy(&probes)) {
         copy_concat(&args, g, &input_refs, chap_file.as_deref())?
     } else {
         filter_concat(&args, g, &input_refs, &probes, chap_file.as_deref())?
