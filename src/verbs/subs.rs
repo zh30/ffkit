@@ -1057,9 +1057,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && in_ext != "dfxp"
         && in_ext != "sbv"
         && in_ext != "csv"
+        && in_ext != "sub"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv input",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub input",
         ));
     }
     if out_ext != "srt"
@@ -1073,7 +1074,7 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "csv"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv output",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -1083,6 +1084,8 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         parse_ttml(&raw)?
     } else if in_ext == "sbv" {
         parse_sbv(&raw)?
+    } else if in_ext == "sub" {
+        parse_microdvd(&raw, args.fps)?
     } else if in_ext == "csv" {
         parse_csv_subs(&raw)?
     } else {
@@ -1581,6 +1584,75 @@ fn parse_sbv(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
 /// .csv serializer writes, and what Sheets/Excel exports) — quoted
 /// cells keep commas, quotes and line breaks; a header row and any
 /// malformed row are skipped.
+/// MicroDVD .sub: `{start_frame}{end_frame}line1|line2` — times are frame
+/// counts, so a rate is required: the `{1}{1}<fps>` declaration line wins
+/// when present, else --fps.
+fn parse_microdvd(raw: &str, fps_arg: Option<f64>) -> Result<Vec<crate::srt::Cue>, Error> {
+    let mut fps = fps_arg;
+    let mut cues = Vec::new();
+    for (ln, line) in raw.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Some(c1) = line.strip_prefix('{').and_then(|r| {
+            r.find('}')
+                .map(|i| (r[..i].parse::<f64>().ok(), &r[i + 1..]))
+        }) else {
+            return Err(Error::input(format!(
+                "sub line {ln}: want {{start}}{{end}}text, got '{line}'"
+            )));
+        };
+        let (Some(start_f), rest) = c1 else {
+            return Err(Error::input(format!(
+                "sub line {ln}: bad start frame in '{line}'"
+            )));
+        };
+        let Some(end_f) = rest.strip_prefix('{').and_then(|r| {
+            r.find('}')
+                .map(|i| (r[..i].parse::<f64>().ok(), &r[i + 1..]))
+        }) else {
+            return Err(Error::input(format!(
+                "sub line {ln}: bad end frame in '{line}'"
+            )));
+        };
+        let (Some(end_f), text) = end_f else {
+            return Err(Error::input(format!(
+                "sub line {ln}: bad end frame in '{line}'"
+            )));
+        };
+        if start_f == 1.0 && end_f == 1.0 {
+            // {1}{1}<fps> declaration line
+            if let Ok(f) = text.trim().parse::<f64>() {
+                if f > 0.0 {
+                    fps = Some(f);
+                    continue;
+                }
+            }
+        }
+        let f = fps.ok_or_else(|| {
+            Error::input("MicroDVD .sub times are frames — pass --fps (or a {1}{1}fps header line)")
+        })?;
+        if end_f <= start_f {
+            return Err(Error::input(format!(
+                "sub line {ln}: end frame {end_f} ≤ start {start_f}"
+            )));
+        }
+        cues.push(crate::srt::Cue {
+            start: start_f / f,
+            end: end_f / f,
+            text: text.replace(
+                '|', "
+",
+            ),
+        });
+    }
+    if cues.is_empty() {
+        return Err(Error::input("sub: no cues found"));
+    }
+    Ok(cues)
+}
+
 fn parse_csv_subs(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
     let mut rows: Vec<Vec<String>> = Vec::new();
     let mut row: Vec<String> = Vec::new();

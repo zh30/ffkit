@@ -40152,3 +40152,167 @@ fn r309_transcode_tune_ffv1_apng_deliver_maxrate_platforms() {
         assert_eq!(j["probe"]["height"], 1920, "{name}: {j}");
     }
 }
+
+#[test]
+fn r310_conform_maxrate_chapter_ffmeta_subs_sub_dash_utc_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // conform --maxrate pairs --bufsize (2x default) as :v codec options
+    let o = d.path().join("cap.mp4");
+    let j = run_json(&[
+        "conform",
+        f.to_str().unwrap(),
+        "--maxrate",
+        "4500k",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let flat: Vec<String> = j["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter().map(|a| a.to_string()))
+        .collect();
+    assert!(flat.iter().any(|a| a == r#""-maxrate:v""#), "{flat:?}");
+    assert!(flat.iter().any(|a| a == r#""-bufsize:v""#), "{flat:?}");
+    assert!(flat.iter().any(|a| a == r#""9000k""#), "{flat:?}");
+
+    // --bufsize alone rejected
+    let j = run_json(&[
+        "conform",
+        f.to_str().unwrap(),
+        "--bufsize",
+        "9M",
+        "-o",
+        d.path().join("x.mp4").to_str().unwrap(),
+    ]);
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("--bufsize"));
+
+    // chapter --import .ffmeta — FFMETADATA [CHAPTER] blocks (START×TIMEBASE)
+    let ffmeta = d.path().join("marks.ffmeta");
+    std::fs::write(
+        &ffmeta,
+        ";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=400\ntitle=Intro\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=400\nEND=900\ntitle=Body\n",
+    )
+    .unwrap();
+    let marks = d.path().join("marks.txt");
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "--import",
+        ffmeta.to_str().unwrap(),
+        "--yt",
+        "-o",
+        marks.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let text = std::fs::read_to_string(&marks).unwrap();
+    assert!(text.contains("Intro"), "{text}");
+    assert!(text.contains("Body"), "{text}");
+    assert_eq!(text.lines().count(), 2, "{text}");
+
+    // subs --convert .sub — MicroDVD {f}{f}text, {1}{1}fps header wins
+    let sub = d.path().join("in.sub");
+    std::fs::write(
+        &sub,
+        "{1}{1}25.0\n{25}{75}first line|second\n{100}{150}last\n",
+    )
+    .unwrap();
+    let srt = d.path().join("out.srt");
+    let j = run_json(&[
+        "subs",
+        sub.to_str().unwrap(),
+        "--convert",
+        "-o",
+        srt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let text = std::fs::read_to_string(&srt).unwrap();
+    assert!(text.contains("00:00:01,000 --> 00:00:03,000"), "{text}");
+    assert!(text.contains("first line\nsecond"), "{text}");
+    assert!(text.contains("00:00:04,000 --> 00:00:06,000"), "{text}");
+
+    // .sub without a declared rate needs --fps
+    let sub2 = d.path().join("nh.sub");
+    std::fs::write(&sub2, "{25}{75}no header\n").unwrap();
+    let j = run_json(&[
+        "subs",
+        sub2.to_str().unwrap(),
+        "--convert",
+        "-o",
+        d.path().join("nh.srt").to_str().unwrap(),
+    ]);
+    assert!(j["error"]["message"].as_str().unwrap().contains("--fps"));
+    let j = run_json(&[
+        "subs",
+        sub2.to_str().unwrap(),
+        "--convert",
+        "--fps",
+        "25",
+        "-o",
+        d.path().join("nh.srt").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+
+    // dash --utc — UTCTiming element in the manifest
+    let mpd = d.path().join("m.mpd");
+    let j = run_json(&[
+        "dash",
+        f.to_str().unwrap(),
+        "--seg",
+        "1",
+        "--utc",
+        "https://time.example.com/iso",
+        "-o",
+        mpd.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let flat: Vec<String> = j["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter().map(|a| a.to_string()))
+        .collect();
+    assert!(flat.iter().any(|a| a == r#""-utc_timing_url""#), "{flat:?}");
+    let mpd_text = std::fs::read_to_string(&mpd).unwrap();
+    assert!(mpd_text.contains("UTCTiming"), "{mpd_text}");
+
+    for name in ["17live", "pococha", "mirrativ", "mxtakatak", "roposo"] {
+        let o = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1080, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1920, "{name}: {j}");
+    }
+    for name in ["boomplay", "sohu"] {
+        let o = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
+    }
+}

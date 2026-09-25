@@ -368,6 +368,8 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Rakuentv
         | DeliverPlatform::Iwanttfc
         | DeliverPlatform::Hoichoi
+        | DeliverPlatform::Boomplay
+        | DeliverPlatform::Sohu
         | DeliverPlatform::Ifeng
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
@@ -405,6 +407,11 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Pdd
         | DeliverPlatform::Jd
         | DeliverPlatform::Vip
+        | DeliverPlatform::Live17
+        | DeliverPlatform::Pococha
+        | DeliverPlatform::Mirrativ
+        | DeliverPlatform::Mxtakatak
+        | DeliverPlatform::Roposo
         | DeliverPlatform::Vmate
         | DeliverPlatform::Josh
         | DeliverPlatform::Weverse
@@ -1027,6 +1034,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Rakuentv => "rakuentv",
         DeliverPlatform::Iwanttfc => "iwanttfc",
         DeliverPlatform::Hoichoi => "hoichoi",
+        DeliverPlatform::Live17 => "17live",
+        DeliverPlatform::Pococha => "pococha",
+        DeliverPlatform::Mirrativ => "mirrativ",
+        DeliverPlatform::Mxtakatak => "mxtakatak",
+        DeliverPlatform::Roposo => "roposo",
+        DeliverPlatform::Boomplay => "boomplay",
+        DeliverPlatform::Sohu => "sohu",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",
@@ -1041,7 +1055,7 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
 /// comment land on every platform's output.
 /// CBR pairing: `--bufsize` defaults to 2x `--maxrate` — parse "4500k"/
 /// "6M"/"2000000" and double the numeric part, preserving the suffix.
-fn double_rate(rate: &str) -> String {
+pub(crate) fn double_rate(rate: &str) -> String {
     let (num, suffix) = match rate.strip_suffix(|c| matches!(c, 'k' | 'K' | 'M')) {
         Some(n) => (n, &rate[rate.len() - 1..]),
         None => (rate, ""),

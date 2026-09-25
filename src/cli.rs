@@ -1979,6 +1979,21 @@ pub enum DeliverPlatform {
     Iwanttfc,
     /// Hoichoi — Bengali OTT 16:9
     Hoichoi,
+    /// 17LIVE — JP/TW mobile live app 9:16
+    #[value(name = "17live")]
+    Live17,
+    /// Pococha — JP mobile live streaming 9:16
+    Pococha,
+    /// Mirrativ — JP mobile game streaming 9:16
+    Mirrativ,
+    /// MX TakaTak — Indian short video 9:16
+    Mxtakatak,
+    /// Roposo — Indian short video 9:16
+    Roposo,
+    /// Boomplay — African music streaming 16:9
+    Boomplay,
+    /// Sohu 搜狐视频 — CN video portal 16:9
+    Sohu,
 
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
@@ -3385,6 +3400,10 @@ pub struct SubsArgs {
     /// Rescale every cue time by this factor — 25→23.976 fps drift ≈ 0.959
     #[arg(long)]
     pub rate: Option<f64>,
+    /// Frame rate for frame-based subtitle formats (.sub MicroDVD input
+    /// declares times in frames — a {1}{1}fps header line wins, else this)
+    #[arg(long)]
+    pub fps: Option<f64>,
     /// Convert between subtitle formats (.srt ↔ .vtt) — input is the cue file
     #[arg(long)]
     pub convert: bool,
@@ -5994,6 +6013,10 @@ pub struct DashArgs {
     /// ingest: one channel of a captured mux, incl. --ladder ABR)
     #[arg(long)]
     pub program: Option<u32>,
+    /// UTCTiming clock URL for live manifests (-utc_timing_url —
+    /// players sync wall-clock to compute the live edge; pair --window)
+    #[arg(long)]
+    pub utc: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6024,6 +6047,13 @@ pub struct ConformArgs {
     /// x264 quality for the video transcode (0..=51, default 18)
     #[arg(long)]
     pub crf: Option<u32>,
+    /// Peak video bitrate the conform encode may burst to (4500k/6M —
+    /// spec envelopes that cap rate, e.g. Twitch ≤6000k); pairs --bufsize
+    #[arg(long)]
+    pub maxrate: Option<String>,
+    /// Rate-control buffer (defaults to 2x --maxrate — standard CBR pair)
+    #[arg(long)]
+    pub bufsize: Option<String>,
     /// Pad color for the letterbox: name or RRGGBB/0xRRGGBB (needs --size)
     #[arg(long)]
     pub pad: Option<String>,

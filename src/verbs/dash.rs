@@ -331,6 +331,9 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(n) = args.window {
         argv.extend(["-window_size".to_string(), n.to_string()]);
     }
+    if let Some(u) = &args.utc {
+        argv.extend(["-utc_timing_url".to_string(), u.clone()]);
+    }
     if args.webm {
         argv.extend(["-dash_segment_type".to_string(), "webm".to_string()]);
     }
@@ -395,6 +398,7 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         "segments": nseg,
         "segment_seconds": args.seg,
         "single": args.single,
+        "utc": args.utc,
         "webm": args.webm,
         "window": args.window.unwrap_or(0),
         "ladder": hs

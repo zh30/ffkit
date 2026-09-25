@@ -799,3 +799,15 @@ ffprobe 4.4 never reports CENC encryption — `remux --encrypt` output still sho
 
 x264's `-level:v` constrains the encode budget (macroblock rate, buffer size) — it can only tighten what the profile allows, and it reports as a NUMBER on probe (`3.1` → `level: 31`, `4.1` → `41`). Pair it with `--profile`: `--level` alone on a High encode still leaves High features in.
 - **`-maxrate`/`-bufsize` unqualified hits the audio codec too** — ffmpeg's codec-option matching applies them per-stream, and aac rejects a bufsize it can't parse. Always emit `-maxrate:v`/`-bufsize:v` (deliver does). Related: deriving bufsize as `format!("{m}x2")` is a literal string, not arithmetic — parse the number and double it, preserving the k/M suffix.
+
+## `.sub` MicroDVD times are FRAME numbers, not seconds
+
+`{100}{150}line` means frames 100→150 — seconds = frame/fps. A `{1}{1}fps` declaration line inside the file wins over `--fps`; without either the convert refuses rather than guessing 25.
+
+## `conform --maxrate` alone counts as a conform op
+
+The "nothing to conform" gate lists every transform flag — forgetting `--maxrate`/`--bufsize` there makes a rate-cap-only run report "nothing to conform" even though it would re-encode.
+
+## Digit-leading platform names need `#[value(name = …)]`
+
+clap derives value names from the Rust variant (`Live17` → `live17`), so `--platform 17live` is rejected unless the variant carries `#[value(name = "17live")]` — same trick as `NineGag` → `9gag`.

@@ -18,9 +18,11 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         && !args.even
         && args.ar.is_none()
         && args.channels.is_none()
+        && args.maxrate.is_none()
+        && args.bufsize.is_none()
     {
         return Err(Error::input(
-            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N",
+            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R",
         ));
     }
     if let Some(r) = args.ar {
@@ -135,6 +137,18 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
             "-crf".to_string(),
             args.crf.unwrap_or(18).to_string(),
         ]);
+        if let Some(m) = &args.maxrate {
+            argv.extend(["-maxrate:v".to_string(), m.clone()]);
+            let buf = args
+                .bufsize
+                .clone()
+                .unwrap_or_else(|| crate::verbs::deliver::double_rate(m));
+            argv.extend(["-bufsize:v".to_string(), buf]);
+        } else if args.bufsize.is_some() {
+            return Err(Error::input(
+                "conform --bufsize pairs with --maxrate (a buffer alone isn't a rate cap)",
+            ));
+        }
     }
     if let Some(c) = args.crf {
         if c > 51 {

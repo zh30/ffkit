@@ -212,6 +212,66 @@ fn parse_lrc_list(text: &str, path: &std::path::Path) -> Result<Vec<(f64, String
 
 /// `chapter --csv` round-trip: `H:MM:SS.mmm,Title` per line; tolerates
 /// a `Time`/`Name`-style header and quoted titles (Resolve/sheets).
+/// FFMETADATA chapter blocks: `[CHAPTER] TIMEBASE=1/1000 START=0 END=…`
+/// `title=…` — the FFmpeg-native chapter exchange `ffmpeg -i in -f
+/// ffmetadata` exports; `remux --chapters` accepts the same mark list.
+fn parse_ffmeta_list(text: &str, path: &std::path::Path) -> Result<Vec<(f64, String)>, Error> {
+    let mut out: Vec<(f64, String)> = Vec::new();
+    let mut start: Option<f64> = None;
+    let mut timebase: Option<f64> = None;
+    let mut title: Option<String> = None;
+    let mut in_chapter = false;
+    for (ln, line) in text.lines().enumerate() {
+        let line = line.trim();
+        if line.eq_ignore_ascii_case("[chapter]") {
+            if let (Some(st), Some(tl)) = (start.take(), title.take()) {
+                if let Some(tb) = timebase {
+                    out.push((st * tb, tl));
+                }
+            }
+            in_chapter = true;
+            start = None;
+            timebase = None;
+            title = None;
+            continue;
+        }
+        if line.starts_with('[') {
+            in_chapter = false;
+        }
+        if !in_chapter {
+            continue;
+        }
+        if let Some(v) = line.strip_prefix("TIMEBASE=") {
+            if let Some((n, d)) = v.trim().split_once('/') {
+                if let (Ok(n), Ok(d)) = (n.parse::<f64>(), d.parse::<f64>()) {
+                    if d > 0.0 {
+                        timebase = Some(n / d);
+                    }
+                }
+            }
+        } else if let Some(v) = line.strip_prefix("START=") {
+            if let Ok(v) = v.trim().parse::<f64>() {
+                start = Some(v);
+            }
+        } else if let Some(v) = line.strip_prefix("title=") {
+            title = Some(v.trim().to_string());
+        }
+        let _ = ln;
+    }
+    if let (Some(st), Some(tl)) = (start, title) {
+        if let Some(tb) = timebase {
+            out.push((st * tb, tl));
+        }
+    }
+    if out.is_empty() {
+        return Err(Error::input(format!(
+            "--import {}: no [CHAPTER] blocks with START/title",
+            path.display()
+        )));
+    }
+    Ok(out)
+}
+
 fn parse_csv_list(text: &str, path: &std::path::Path) -> Result<Vec<(f64, String)>, Error> {
     let mut marks = Vec::new();
     for (ln, raw) in text.lines().enumerate() {
@@ -481,6 +541,8 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             marks.extend(parse_csv_list(&text, path)?);
         } else if kind == "fcpxml" || kind == "xml" {
             marks.extend(parse_fcpxml(&text, path)?);
+        } else if kind == "ffmeta" || kind == "ffmetadata" {
+            marks.extend(parse_ffmeta_list(&text, path)?);
         } else if kind == "srt" {
             // transcript → chapters: every cue start becomes a mark titled
             // by the cue's first line (auto-chapter a subtitle track for

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.337.0] — 2026-09-25
+
+### Added
+
+- `conform --maxrate R --bufsize R` — CBR rate-cap pair on the spec-conform encode (ingest envelopes like Twitch ≤6000k; same `:v`-qualified options as `deliver`, --bufsize defaults to 2x --maxrate; counts as a conform op so `conform --maxrate 4500k` alone is a valid run)
+- `chapter --import` eats `.ffmeta`/`.ffmetadata` — FFmpeg-native `[CHAPTER]` exchange (remux `-map_chapters` file → marks; START×TIMEBASE → seconds, title= per block)
+- `subs --convert` reads `.sub` MicroDVD — `{start}{end}text` frame-based cues (`|` = newline; a `{1}{1}fps` declaration line wins, else `--fps` sets the rate — old anime/TV archive subs)
+- `dash --utc URL` — UTCTiming element in the manifest (players sync wall-clock to compute the live edge; pair `--window` for sliding live)
+- `deliver --platform` +7: `17live`/`pococha`/`mirrativ`/`mxtakatak`/`roposo` mobile-live & IN short-video 9:16 1080x1920, `boomplay`/`sohu` 16:9 1920x1080 (293 destinations)
+
 ## [0.336.0] — 2026-09-25
 
 ### Added
