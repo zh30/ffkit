@@ -1194,6 +1194,17 @@ pub struct TranscodeArgs {
     /// --copy-video and every non-x264 preset)
     #[arg(long)]
     pub profile: Option<TranscodeProfile>,
+    /// x264 encode level (e.g. 4.1, 3.1, 4) — device-compat ingest specs
+    /// cap level on top of profile (older decoders refuse High@L5+);
+    /// h264/proxy presets only, conflicts with --copy-video and every
+    /// non-x264 preset
+    #[arg(long)]
+    pub level: Option<String>,
+    /// Max B-frames on the x264 encode (-bf N) — mobile/baseline ingest
+    /// specs cap reorder delay (0 = decode-order = display-order);
+    /// h264/proxy presets only
+    #[arg(long)]
+    pub bf: Option<u32>,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -1900,6 +1911,21 @@ pub enum DeliverPlatform {
     Baijiahao,
     /// Ifeng 凤凰视频 — Phoenix TV video portal 16:9
     Ifeng,
+    /// Weishi 微视 — Tencent short video 9:16
+    Weishi,
+    /// Huoshan 火山小视频 — ByteDance short video 9:16
+    Huoshan,
+    /// Quanmin 全民小视频 — Baidu short video 9:16
+    Quanmin,
+    /// Meipai 美拍 — women's lifestyle short video 9:16
+    Meipai,
+    /// Migu 咪咕视频 — China Mobile streaming (sports/content) 16:9
+    Migu,
+    /// PPTV — sports/video streaming 16:9
+    Pptv,
+    /// LeTV 乐视视频 — OTT video portal 16:9
+    Letv,
+
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -3370,6 +3396,12 @@ pub struct SubsArgs {
     /// extras: sdh_stripped, empty cues drop)
     #[arg(long)]
     pub strip_sdh: bool,
+    /// Strip emoji/pictograph characters from cue text — broadcast caption
+    /// paths (608/708) and station ingest reject them, consumer decoders
+    /// render tofu; burnable broadcast-safe transcript (extras:
+    /// emotes_stripped, empty cues drop)
+    #[arg(long)]
+    pub strip_emotes: bool,
     /// Keep only cues overlapping window `F,T` (`end` ok for T), clip the
     /// edges, and re-time the result to start at 0 — the `extract --audio
     /// --from/--to` counterpart for transcripts (grab the subtitle chunk
@@ -4676,6 +4708,11 @@ pub struct RemuxArgs {
     /// values ok); mpegts outputs only
     #[arg(long)]
     pub muxrate: Option<String>,
+    /// Override the major_brand atom on .mp4/.mov targets (-brand, e.g.
+    /// mp42) — device ingest that rejects the default isom brand (Smart
+    /// TVs, car units); mp4/mov muxers only
+    #[arg(long)]
+    pub brand: Option<String>,
     /// Strip embedded container chapters in the repack — clean audio
     /// deliverable/clip for players that show a broken TOC
     #[arg(long)]

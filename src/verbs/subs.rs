@@ -84,6 +84,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.strip_speakers
         || args.strip_tags
         || args.strip_sdh
+        || args.strip_emotes
         || args.clip.is_some()
         || args.drop.is_some()
         || args.wrap.is_some()
@@ -266,7 +267,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         != Some("srt")
     {
         return Err(Error::input(
-            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--dedupe-text/--fix-cps/--cps/--min-dur/--min-gap/--join/--max-lines/--replace/--strip-speakers/--strip-sdh/--clip/--drop/--wrap) take an .srt input",
+            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--dedupe-text/--fix-cps/--cps/--min-dur/--min-gap/--join/--max-lines/--replace/--strip-speakers/--strip-sdh/--strip-emotes/--clip/--drop/--wrap) take an .srt input",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -550,6 +551,19 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         cues.retain(|c| !c.text.trim().is_empty());
         dropped += before - cues.len();
     }
+    let mut emotes_stripped = 0usize;
+    if args.strip_emotes {
+        for c in &mut cues {
+            let out = crate::srt::strip_emotes(&c.text);
+            if out != c.text {
+                c.text = out;
+                emotes_stripped += 1;
+            }
+        }
+        let before = cues.len();
+        cues.retain(|c| !c.text.trim().is_empty());
+        dropped += before - cues.len();
+    }
     let mut tags_stripped = 0usize;
     if args.strip_tags {
         for c in &mut cues {
@@ -636,6 +650,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "stripped": stripped,
         "tags_stripped": tags_stripped,
         "sdh_stripped": sdh_stripped,
+        "emotes_stripped": emotes_stripped,
         "clipped": clipped,
         "excised": excised,
         "moved": moved,

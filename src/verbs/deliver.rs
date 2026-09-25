@@ -361,6 +361,9 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Acfun
         | DeliverPlatform::Toutiao
         | DeliverPlatform::Baijiahao
+        | DeliverPlatform::Migu
+        | DeliverPlatform::Pptv
+        | DeliverPlatform::Letv
         | DeliverPlatform::Ifeng
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
@@ -391,6 +394,10 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Moj
         | DeliverPlatform::Sharechat
         | DeliverPlatform::Chingari
+        | DeliverPlatform::Weishi
+        | DeliverPlatform::Huoshan
+        | DeliverPlatform::Quanmin
+        | DeliverPlatform::Meipai
         | DeliverPlatform::Vmate
         | DeliverPlatform::Josh
         | DeliverPlatform::Weverse
@@ -990,6 +997,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Toutiao => "toutiao",
         DeliverPlatform::Baijiahao => "baijiahao",
         DeliverPlatform::Ifeng => "ifeng",
+        DeliverPlatform::Weishi => "weishi",
+        DeliverPlatform::Huoshan => "huoshan",
+        DeliverPlatform::Quanmin => "quanmin",
+        DeliverPlatform::Meipai => "meipai",
+        DeliverPlatform::Migu => "migu",
+        DeliverPlatform::Pptv => "pptv",
+        DeliverPlatform::Letv => "letv",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

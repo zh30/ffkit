@@ -39816,3 +39816,166 @@ fn r307_transcode_profile_remux_muxrate_probe_has_subs() {
         assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
     }
 }
+
+#[test]
+fn r308_transcode_level_bf_remux_brand_subs_strip_emotes() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // transcode --level: device-compat level cap lands on the stream
+    let l = d.path().join("l.mp4");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--level",
+        "3.1",
+        "-o",
+        l.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", l.to_str().unwrap()]);
+    assert_eq!(j["probe"]["streams"][0]["level"], 31, "{j}");
+
+    // transcode --bf: B-frame cap; combined with profile/level
+    let b = d.path().join("b.mp4");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--profile",
+        "baseline",
+        "--level",
+        "3.0",
+        "--bf",
+        "0",
+        "-o",
+        b.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", b.to_str().unwrap()]);
+    let s = &j["probe"]["streams"][0];
+    assert_eq!(s["level"], 30, "{j}");
+    assert_eq!(s["has_b_frames"], 0, "{j}");
+    assert!(
+        s["profile"]
+            .as_str()
+            .unwrap_or("")
+            .to_lowercase()
+            .contains("baseline"),
+        "{j}"
+    );
+    for (flag, val) in [("--level", "4"), ("--bf", "0")] {
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            flag,
+            val,
+            "--copy-video",
+            "-o",
+            d.path().join("bad.mp4").to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "failed", "{flag}: {j}");
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            flag,
+            val,
+            "--preset",
+            "mp3",
+            "-o",
+            d.path().join("bad.mp3").to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "failed", "{flag}: {j}");
+    }
+
+    // remux --brand: major_brand atom override — mp4/mov targets only
+    let br = d.path().join("br.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "--brand",
+        "mp42",
+        "-o",
+        br.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let out = std::process::Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format_tags=major_brand",
+            "-of",
+            "csv=p=0",
+            br.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "mp42");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "--brand",
+        "mp42",
+        "-o",
+        d.path().join("bad.ts").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+
+    // subs --strip-emotes: emoji + symbols out, empty cues drop
+    let srt = d.path().join("e.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:00,900\nhello \u{266a} world \u{1f60a}\u{1f44d}\n\n2\n00:00:01,000 --> 00:00:01,500\n\u{1f3b5}\n",
+    )
+    .unwrap();
+    let out_srt = d.path().join("e2.srt");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--strip-emotes",
+        "-o",
+        out_srt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["emotes_stripped"], 2, "{j}");
+    let text = std::fs::read_to_string(&out_srt).unwrap();
+    assert!(text.contains("hello  world"), "{text}");
+    assert!(!text.contains('\u{266a}'), "{text}");
+    assert!(!text.contains('\u{1f60a}'), "{text}");
+    assert!(!text.contains("00:00:01"), "{text}"); // emoji-only cue dropped
+
+    // +7 Chinese platforms: 4 vertical + 3 OTT landscape
+    for name in ["weishi", "huoshan", "quanmin", "meipai"] {
+        let o = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1080, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1920, "{name}: {j}");
+    }
+    for name in ["migu", "pptv", "letv"] {
+        let o = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
+    }
+}

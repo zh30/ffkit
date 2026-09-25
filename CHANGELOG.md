@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.335.0] — 2026-09-25
+
+### Added
+
+- `transcode --level L` — x264 encode level on the h264/proxy paths (`-level:v`; device-compat ingest caps level on top of `--profile` — older decoders refuse High@L5+).
+- `transcode --bf N` — max B-frames on the x264 encode (`-bf`; mobile/baseline ingest caps reorder delay — 0 = decode-order equals display-order).
+- `remux --brand X` — override the major_brand atom on .mp4/.mov targets (`-brand mp42`; device ingest that rejects the default isom — Smart TVs, car units).
+- `subs --strip-emotes` — strip emoji/pictograph characters from cue text (broadcast caption paths 608/708 and station ingest reject them; extras report `emotes_stripped`, empty cues drop).
+- `deliver --platform` +7 Chinese platforms: `weishi`, `huoshan`, `quanmin`, `meipai` (9:16 1080x1920) and `migu`, `pptv`, `letv` (16:9 1920x1080).
+
 ## [0.334.0] — 2026-09-25
 
 ### Added

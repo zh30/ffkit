@@ -37,14 +37,15 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         _ => TranscodePreset::H264,
     });
 
-    if args.profile.is_some() && args.copy_video {
+    let x264spec = args.profile.is_some() || args.level.is_some() || args.bf.is_some();
+    if x264spec && args.copy_video {
         return Err(Error::input(
-            "transcode --profile needs a re-encode — drop --copy-video",
+            "transcode --profile/--level/--bf need a re-encode — drop --copy-video",
         ));
     }
-    if args.profile.is_some() && !matches!(preset, TranscodePreset::H264 | TranscodePreset::Proxy) {
+    if x264spec && !matches!(preset, TranscodePreset::H264 | TranscodePreset::Proxy) {
         return Err(Error::input(
-            "transcode --profile is an x264 encode flag — h264/proxy presets only",
+            "transcode --profile/--level/--bf are x264 encode flags — h264/proxy presets only",
         ));
     }
     if args.alpha && !matches!(preset, TranscodePreset::Webm | TranscodePreset::Prores) {
@@ -172,7 +173,7 @@ fn proxy(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "-movflags",
             "+faststart",
         ]);
-        profile_push(&mut argv, args);
+        x264spec_push(&mut argv, args);
         let mut vf = String::from("scale=w='min(960,iw)':h=-2");
         if let Some(fps) = args.fps {
             vf.push_str(&format!(",fps={fps}"));
@@ -259,7 +260,7 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 "-movflags",
                 "+faststart",
             ]);
-            profile_push(&mut argv, args);
+            x264spec_push(&mut argv, args);
             let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
             if let Some(fps) = args.fps {
                 vf.push_str(&format!(",fps={fps}"));
@@ -638,9 +639,15 @@ fn ar_ac(argv: &mut Argv, args: &TranscodeArgs) {
     }
 }
 
-fn profile_push(argv: &mut Argv, args: &TranscodeArgs) {
+fn x264spec_push(argv: &mut Argv, args: &TranscodeArgs) {
     if let Some(p) = args.profile {
         argv.extend(["-profile:v", transcode_profile_name(p)]);
+    }
+    if let Some(l) = &args.level {
+        argv.extend(["-level:v", l]);
+    }
+    if let Some(n) = args.bf {
+        argv.extend(["-bf", &n.to_string()]);
     }
 }
 

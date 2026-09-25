@@ -137,6 +137,33 @@ pub fn strip_sdh(text: &str) -> String {
     lines.join("\n")
 }
 
+/// Remove emoji/pictograph characters broadcast caption paths can't carry:
+/// SMPTE/CEA-608 and most station ingest specs reject them outright, and
+/// consumer decoders render them as tofu. Covers the emoji blocks
+/// (U+1F300-U+1FAFF), misc symbols & dingbats (U+2600-U+27BF), the FE0F
+/// emoji variation selector, and the ZWJ that glues emoji sequences.
+/// Lines left empty are dropped.
+pub fn strip_emotes(text: &str) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    for line in text.split('\n') {
+        let out: String = line
+            .chars()
+            .filter(|c| {
+                let u = *c as u32;
+                !(u == 0xFE0F
+                    || u == 0x200D
+                    || (0x2600..=0x27BF).contains(&u)
+                    || (0x1F000..=0x1FAFF).contains(&u))
+            })
+            .collect();
+        let out = out.trim().to_string();
+        if !out.is_empty() {
+            lines.push(out);
+        }
+    }
+    lines.join("\n")
+}
+
 fn strip_tags(s: &str) -> String {
     let mut out = String::new();
     let mut in_tag = false;

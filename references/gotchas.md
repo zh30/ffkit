@@ -794,3 +794,7 @@ ffprobe 4.4 never reports CENC encryption — `remux --encrypt` output still sho
 ## `-muxrate` pads, it does not throttle
 
 `remux --muxrate` on a .ts target inserts null packets to reach the constant mux rate — the file gets LARGER than the sum of its streams. It's for broadcast ingest specs that require a fixed-rate transport stream; it won't shave a bitrate-heavy file down.
+
+## `-level:v` is profile-shaped, not a free cap
+
+x264's `-level:v` constrains the encode budget (macroblock rate, buffer size) — it can only tighten what the profile allows, and it reports as a NUMBER on probe (`3.1` → `level: 31`, `4.1` → `41`). Pair it with `--profile`: `--level` alone on a High encode still leaves High features in.
