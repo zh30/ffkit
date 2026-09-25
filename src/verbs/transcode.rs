@@ -187,6 +187,12 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Zmbv => qt_era(&args, g, "zmbv", &["avi"], Some("rgb24"), true),
         TranscodePreset::Rv10 => qt_era(&args, g, "rv10", &["rm"], None, false),
         TranscodePreset::Rv20 => qt_era(&args, g, "rv20", &["rm"], None, false),
+        TranscodePreset::R210 => lossless(&args, g, "r210", &["mov"], Some("gbrp10le")),
+        TranscodePreset::V308 => lossless(&args, g, "v308", &["mov"], Some("yuv444p")),
+        TranscodePreset::Rpza => qt_era(&args, g, "rpza", &["mov"], Some("rgb555le"), true),
+        TranscodePreset::Speedhq => {
+            qt_era(&args, g, "speedhq", &["mov", "avi"], Some("yuv422p"), true)
+        }
     }
 }
 

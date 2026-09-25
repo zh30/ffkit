@@ -1386,6 +1386,18 @@ pub enum TranscodePreset {
     /// RealVideo 2.0 video-only in .rm — the second-gen dial-up
     /// streaming codec
     Rv20,
+    /// Uncompressed 10-bit RGB 4:4:4 + PCM in .mov (r210 gbrp10le —
+    /// the RGB member of the uncompressed finishing-suite trio)
+    R210,
+    /// Uncompressed 8-bit 4:4:4 + PCM in .mov (v308 yuv444p — the
+    /// 8-bit sibling of v410)
+    V308,
+    /// Apple Video "Road Pizza" + PCM in .mov (rpza — QuickTime 1.x
+    /// codec, the oldest QuickTime video)
+    Rpza,
+    /// NewTek SpeedHQ + PCM in .mov/.avi (NDI-era NLE intermediate —
+    /// TriCaster/NDI capture masters)
+    Speedhq,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2288,6 +2300,20 @@ pub enum DeliverPlatform {
     Hopin,
     /// Airmeet virtual-event session recordings
     Airmeet,
+    /// Shutterstock contributor stock-footage upload
+    Shutterstock,
+    /// Pond5 contributor stock-footage upload
+    Pond5,
+    /// Artgrid contributor stock-footage upload
+    Artgrid,
+    /// Storyblocks contributor stock-footage upload
+    Storyblocks,
+    /// Videvo contributor stock-footage upload
+    Videvo,
+    /// Motion Array contributor upload
+    Motionarray,
+    /// Dissolve contributor stock-footage upload
+    Dissolve,
 }
 
 #[derive(clap::Args, Debug)]

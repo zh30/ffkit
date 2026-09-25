@@ -897,3 +897,5 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - `transcode --preset zmbv` forces `-pix_fmt rgb24` yet the encoder still negotiates `bgr0` — zmbv's supported pix fmts are fixed internally; the probe reporting bgr0 is correct, not a sign the flag was ignored.
 - `.rm` RealVideo containers have no usable audio encoder on 4.4 (the era's RealAudio codecs are decode-only) — `rv10`/`rv20` presets are picture-only on purpose, not a mapping bug.
 - `transcode --preset ayuv` always carries alpha (yuva444p) — `--alpha` stays out of its gate because there's no opaque variant; the alpha-channel flag still belongs to webm/prores/qtrle.
+- `r210`/`v308`/`rpza`/`speedhq` pix_fmts are encoder-mandated (gbrp10le/yuv444p/rgb555le/yuv422p) — they're pinned via the shared `pix_fmt` param, not user flags; probe output shows them verbatim.
+- EdTech course-upload platforms (udemy/coursera/…) already existed in `DeliverPlatform` — dedupe against the enum list itself, not the CHANGELOG, when picking platform batches.

@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.351.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset r210` — uncompressed 10-bit RGB + PCM in .mov (gbrp10le — the RGB member of the finishing-suite uncompressed trio); `transcode --preset v308` — uncompressed 8-bit 4:4:4 + PCM in .mov (yuv444p — the 8-bit sibling of v410); `transcode --preset rpza` — Apple Video + PCM in .mov (rgb555le — the original QuickTime 1.x codec); `transcode --preset speedhq` — NewTek SpeedHQ + PCM in .mov/.avi (yuv422p — NDI-era NLE intermediate, TriCaster captures)
+- `deliver --platform` +7: shutterstock, pond5, artgrid, storyblocks, videvo, motionarray, dissolve (stock-footage contributor uploads 16:9 1920x1080)
+
 ## [0.350.0] — 2026-09-25
 
 ### Added
