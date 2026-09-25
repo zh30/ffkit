@@ -351,6 +351,10 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Cdbaby
         | DeliverPlatform::Symphonic
         | DeliverPlatform::Landr
+        | DeliverPlatform::Blim
+        | DeliverPlatform::Vix
+        | DeliverPlatform::Irokotv
+        | DeliverPlatform::Starzplay
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
         | DeliverPlatform::Parler
@@ -378,6 +382,9 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Triller
         | DeliverPlatform::Likee
         | DeliverPlatform::Moj
+        | DeliverPlatform::Sharechat
+        | DeliverPlatform::Chingari
+        | DeliverPlatform::Vmate
         | DeliverPlatform::Josh
         | DeliverPlatform::Weverse
         | DeliverPlatform::Kwai
@@ -962,6 +969,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Cdbaby => "cdbaby",
         DeliverPlatform::Symphonic => "symphonic",
         DeliverPlatform::Landr => "landr",
+        DeliverPlatform::Sharechat => "sharechat",
+        DeliverPlatform::Chingari => "chingari",
+        DeliverPlatform::Vmate => "vmate",
+        DeliverPlatform::Blim => "blim",
+        DeliverPlatform::Vix => "vix",
+        DeliverPlatform::Irokotv => "irokotv",
+        DeliverPlatform::Starzplay => "starzplay",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

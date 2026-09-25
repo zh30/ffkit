@@ -497,6 +497,11 @@ pub struct ConcatArgs {
     /// stayed lossless; conflicts with --transition/--level/--gap/--audio-fade)
     #[arg(long)]
     pub copy: bool,
+    /// Repeat the joined sequence N times — loop-intended assemblies
+    /// (the whole A+B+C chain repeats N times, transitions included;
+    /// extras: repeated)
+    #[arg(long)]
+    pub repeat: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1179,6 +1184,11 @@ pub struct TranscodeArgs {
     /// Force channel count on re-encode (1 = mono podcast voice, 2 = stereo)
     #[arg(long)]
     pub channels: Option<u8>,
+    /// Keyframe interval in frames (-g N) — ingest specs cap GOP size
+    /// (YouTube wants <= 2s), shorter GOPs seek faster (conflicts with
+    /// --copy-video and the audio presets)
+    #[arg(long)]
+    pub gop: Option<u32>,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -1847,6 +1857,20 @@ pub enum DeliverPlatform {
     Symphonic,
     /// LANDR music-video upload 16:9 landscape (1920x1080, -14 LUFS)
     Landr,
+    /// ShareChat short video 9:16 vertical (1080x1920, -14 LUFS)
+    Sharechat,
+    /// Chingari short video 9:16 vertical (1080x1920, -14 LUFS)
+    Chingari,
+    /// VMate short video 9:16 vertical (1080x1920, -14 LUFS)
+    Vmate,
+    /// Blim (Televisa) episode upload 16:9 landscape (1920x1080, -14 LUFS)
+    Blim,
+    /// Vix (TelevisaUnivision) episode upload 16:9 landscape (1920x1080, -14 LUFS)
+    Vix,
+    /// iROKOtv Nollywood upload 16:9 landscape (1920x1080, -14 LUFS)
+    Irokotv,
+    /// STARZPLAY (MENA) episode upload 16:9 landscape (1920x1080, -14 LUFS)
+    Starzplay,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -4613,6 +4637,11 @@ pub struct RemuxArgs {
     /// cover art, this removes the rest)
     #[arg(long)]
     pub no_attachments: bool,
+    /// Drop data streams in the repack — telemetry/timed-metadata tracks
+    /// (GoPro gpmd, camera private data; `probe.has_data` tells you there's
+    /// something to strip; conflicts with --keep/--drop/--program)
+    #[arg(long)]
+    pub no_data: bool,
     /// Strip embedded container chapters in the repack — clean audio
     /// deliverable/clip for players that show a broken TOC
     #[arg(long)]

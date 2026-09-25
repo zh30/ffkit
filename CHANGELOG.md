@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.333.0] — 2026-09-25
+
+### Added
+
+- `concat --repeat N` — repeat the whole joined sequence N times (loop-intended assemblies: intro+loop+outro patterns — transitions land on every repeat seam; a single input loops N times; extras report `repeated`).
+- `transcode --gop N` — force a keyframe every N frames (`-g`) on every video encode path (ingest-spec GOP caps — YouTube wants <=2s, short GOPs scrub/seek faster; conflicts with `--copy-video` and the audio presets).
+- `remux --no-data` — strip telemetry/timed-metadata data streams in the repack (GoPro gpmd, camera private data — `probe.has_data` shows there is something to strip; the mpegts data codec only survives in .ts targets, so streams carrying it stay stream-copy; conflicts with `--keep`/`--drop`/`--program`).
+- `probe`/`scan` `encrypted` — CENC/DRM container detection (ffprobe 4.4 never surfaces encryption — codec_tag stays avc1/mp4a — so we byte-scan sinf/encv/enca/schi atoms over the file's head+tail).
+- `deliver --platform` +7: `sharechat`, `chingari`, `vmate` (Indian short-video 9:16 1080x1920), `blim`, `vix`, `irokotv`, `starzplay` (LatAm/African/MENA OTT 16:9 1920x1080).
+
 ## [0.332.0] — 2026-09-25
 
 ## [0.331.0] — 2026-09-25

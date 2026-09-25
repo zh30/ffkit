@@ -778,3 +778,11 @@ ffprobe 4.4 — attribution is only reachable through programs[].streams.
 `concat` picks the stream-copy path whenever the inputs match codec/size/rate — and quietly falls back to a full filter re-encode when they don't. There's no warning: a "lossless join" on mismatched inputs isn't. `concat --copy` turns the auto-pick into a gate — it refuses mismatched inputs (and the re-encode flags `--transition`/`--level`/`--gap`/`--audio-fade`) instead of silently losing the copy.
 
 `chapter --snap` re-seats marks on the nearest keyframe: two marks can snap onto the SAME keyframe, so a second dedup pass runs after snapping (the `snapped` extra counts moves before dedup).
+
+## `probe.encrypted` is a byte-scan, not an ffprobe field
+
+ffprobe 4.4 never reports CENC encryption — `remux --encrypt` output still shows `codec_tag: avc1`/`mp4a` and no encryption side data. `probe.encrypted` instead scans the file's first and last 1MB for the `sinf`/`encv`/`enca`/`schi` box signatures those files carry. URLs skip the scan (remote files can't be byte-read) and report `false`.
+
+## `concat --repeat` expands the input list before validation
+
+`--repeat 3` multiplies `inputs` before the two-input minimum runs, so a single file loops cleanly (`concat a.mp4 --repeat 4` → 4 plays). Transitions/fades/gaps all see the expanded list — every repeat seam gets the joint treatment, which is what loop-intended assemblies want.

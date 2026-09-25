@@ -39455,3 +39455,227 @@ fn r305_concat_copy_chapter_snap_subs_fixcps_probe_kinds() {
         assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
     }
 }
+
+#[test]
+fn r306_concat_repeat_transcode_gop_remux_nodata_probe_encrypted() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // concat --repeat repeats the whole joined sequence
+    let a = d.path().join("a.mp4");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=160x120:rate=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:v",
+            "libx264",
+            "-c:a",
+            "aac",
+            a.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let r = d.path().join("r.mp4");
+    let j = run_json(&[
+        "concat",
+        a.to_str().unwrap(),
+        a.to_str().unwrap(),
+        "--repeat",
+        "3",
+        "-o",
+        r.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["repeated"], 3, "{j}");
+    let j = run_json(&["probe", r.to_str().unwrap()]);
+    let dur = j["probe"]["duration"].as_f64().unwrap();
+    assert!(dur > 5.5 && dur < 6.5, "6 clips x ~1s: {dur}");
+    let j = run_json(&[
+        "concat",
+        a.to_str().unwrap(),
+        a.to_str().unwrap(),
+        "--repeat",
+        "0",
+        "-o",
+        d.path().join("bad.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+
+    // transcode --gop drops a keyframe every N frames
+    let g = d.path().join("g.mp4");
+    let j = run_json(&[
+        "transcode",
+        a.to_str().unwrap(),
+        "--gop",
+        "5",
+        "-o",
+        g.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let out = std::process::Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "packet=flags",
+            "-of",
+            "csv=p=0",
+            g.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    let text = String::from_utf8_lossy(&out.stdout);
+    let keys: Vec<usize> = text
+        .lines()
+        .enumerate()
+        .filter(|(_, l)| l.contains('K'))
+        .map(|(i, _)| i)
+        .collect();
+    assert!(keys.len() >= 2, "keyframes: {keys:?}");
+    for w in keys.windows(2) {
+        assert_eq!(w[1] - w[0], 5, "gop spacing: {keys:?}");
+    }
+    let j = run_json(&[
+        "transcode",
+        a.to_str().unwrap(),
+        "--gop",
+        "5",
+        "--copy-video",
+        "-o",
+        d.path().join("bad2.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    let j = run_json(&[
+        "transcode",
+        a.to_str().unwrap(),
+        "--preset",
+        "mp3",
+        "--gop",
+        "5",
+        "-o",
+        d.path().join("bad.mp3").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+
+    // remux --no-data strips telemetry/private data streams
+    let bin = d.path().join("d.bin");
+    std::fs::write(&bin, "somedata").unwrap();
+    let dts = d.path().join("d.ts");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=160x120:rate=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "data",
+            "-i",
+            bin.to_str().unwrap(),
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map",
+            "2",
+            "-c:v",
+            "mpeg2video",
+            "-c:a",
+            "mp2",
+            "-c:d",
+            "copy",
+            dts.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&["probe", dts.to_str().unwrap()]);
+    assert_eq!(j["probe"]["has_data"], true, "{j}");
+    let clean = d.path().join("clean.ts");
+    let j = run_json(&[
+        "remux",
+        dts.to_str().unwrap(),
+        "--no-data",
+        "-o",
+        clean.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", clean.to_str().unwrap()]);
+    assert_eq!(j["probe"]["has_data"], false, "{j}");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "--no-data",
+        "-o",
+        d.path().join("bad3.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+
+    // probe encrypted: remux --encrypt output reads true, plain reads false
+    let e = d.path().join("e.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "--encrypt",
+        "-o",
+        e.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", e.to_str().unwrap()]);
+    assert_eq!(j["probe"]["encrypted"], true, "{j}");
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(j["probe"]["encrypted"], false, "{j}");
+
+    // +7 canvases: 9:16 short video + 16:9 regional OTT
+    for name in ["sharechat", "chingari", "vmate"] {
+        let o = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1080, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1920, "{name}: {j}");
+    }
+    for name in ["blim", "vix", "irokotv", "starzplay"] {
+        let o = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
+    }
+}

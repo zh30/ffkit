@@ -6,6 +6,25 @@ use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 use crate::spawn::Argv;
 pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    if args.gop.is_some() && args.copy_video {
+        return Err(Error::input(
+            "transcode --gop needs a re-encode — drop --copy-video",
+        ));
+    }
+    if args.gop.is_some()
+        && matches!(
+            args.preset,
+            Some(TranscodePreset::Mp3)
+                | Some(TranscodePreset::Aac)
+                | Some(TranscodePreset::Wav)
+                | Some(TranscodePreset::Flac)
+                | Some(TranscodePreset::Opus)
+        )
+    {
+        return Err(Error::input(
+            "transcode --gop is a video encode flag — audio presets have no keyframes",
+        ));
+    }
     let ext = args
         .output
         .extension()
@@ -161,6 +180,7 @@ fn proxy(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     cap_bitrate(&mut argv, &args.vbitrate);
     ar_ac(&mut argv, args);
+    gop_push(&mut argv, args);
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({"proxy": true, "copy_video": args.copy_video}));
@@ -247,6 +267,7 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     cap_bitrate(&mut argv, &args.vbitrate);
     ar_ac(&mut argv, args);
+    gop_push(&mut argv, args);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -292,6 +313,7 @@ fn hevc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     cap_bitrate(&mut argv, &args.vbitrate);
     ar_ac(&mut argv, args);
+    gop_push(&mut argv, args);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -335,6 +357,7 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     cap_bitrate(&mut argv, &args.vbitrate);
     ar_ac(&mut argv, args);
+    gop_push(&mut argv, args);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -376,6 +399,7 @@ fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     cap_bitrate(&mut argv, &args.vbitrate);
     ar_ac(&mut argv, args);
+    gop_push(&mut argv, args);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -458,6 +482,7 @@ fn audio_only(
         }
     }
     ar_ac(&mut argv, args);
+    gop_push(&mut argv, args);
     argv.push(&args.output);
     let c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({"audio_only": true})))
@@ -525,6 +550,7 @@ fn prores(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     cap_bitrate(&mut argv, &args.vbitrate);
     ar_ac(&mut argv, args);
+    gop_push(&mut argv, args);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -577,6 +603,7 @@ fn dnxhd(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     ar_ac(&mut argv, args);
+    gop_push(&mut argv, args);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -596,6 +623,12 @@ fn ar_ac(argv: &mut Argv, args: &TranscodeArgs) {
     }
     if let Some(ch) = args.channels {
         argv.extend(["-ac", &ch.to_string()]);
+    }
+}
+
+fn gop_push(argv: &mut Argv, args: &TranscodeArgs) {
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
     }
 }
 

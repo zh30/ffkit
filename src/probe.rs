@@ -40,6 +40,7 @@ pub struct Probe {
     /// embedded payloads) — gate for `extract --attachment` / `remux
     /// --no-attachments`
     pub has_attachment: bool,
+    pub encrypted: bool,
     /// Container-wide bitrate (format.bit_rate) — overall-budget QC for
     /// platform ingest caps
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -493,7 +494,11 @@ pub fn probe(path: &Path, timeout: Duration) -> Result<Probe, Error> {
     let spawned = spawn::run(&argv, timeout, false)?;
     let spawned = spawn::require_ok(&argv, spawned)?;
     let raw = spawn::stdout_str(&spawned)?;
-    parse_ffprobe(raw)
+    let mut p = parse_ffprobe(raw)?;
+    if !path.to_string_lossy().contains("://") {
+        p.encrypted = file_has_encryption_atoms(path);
+    }
+    Ok(p)
 }
 
 #[derive(Deserialize)]
@@ -635,6 +640,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
         has_audio: audio.is_some(),
         has_data: parsed.streams.iter().any(|s| s.codec_type == "data"),
         has_attachment: parsed.streams.iter().any(|s| s.codec_type == "attachment"),
+        encrypted: false,
         bit_rate: parsed
             .format
             .as_ref()
@@ -877,4 +883,32 @@ pub fn keyframe_packets(path: &Path, timeout: Duration) -> (usize, Vec<(usize, f
         }
     }
     (packet_count, keys)
+}
+
+/// CENC detection: ffprobe doesn't surface encryption, so scan the moov
+/// (head or tail of file) for the protection boxes the muxers write —
+/// `sinf` protection-info or the encrypted sample entries `encv`/`enca`/`schi`.
+fn file_has_encryption_atoms(path: &Path) -> bool {
+    use std::io::{Read, Seek, SeekFrom};
+    const SLAB: usize = 1_048_576;
+    let mut f = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut buf = vec![0u8; SLAB];
+    let n = f.read(&mut buf).unwrap_or(0);
+    buf.truncate(n);
+    if let Ok(m) = f.metadata() {
+        if m.len() > SLAB as u64 {
+            let mut tail = vec![0u8; SLAB];
+            if f.seek(SeekFrom::End(-(SLAB as i64))).is_ok() {
+                let n = f.read(&mut tail).unwrap_or(0);
+                tail.truncate(n);
+                buf.extend_from_slice(&tail);
+            }
+        }
+    }
+    [b"sinf", b"encv", b"enca", b"schi"]
+        .iter()
+        .any(|t| buf.windows(4).any(|w| w == t.as_slice()))
 }

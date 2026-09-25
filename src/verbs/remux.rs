@@ -349,6 +349,21 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             ));
         }
     }
+    if args.no_data {
+        if !keep.is_empty() || !drop.is_empty() {
+            return Err(Error::input(
+                "remux --no-data drops the data map — --keep/--drop pick streams directly",
+            ));
+        }
+        if args.program.is_some() {
+            return Err(Error::input(
+                "remux --no-data conflicts with --program (the service carries its data members)",
+            ));
+        }
+        if !probe.has_data {
+            return Err(Error::input("remux --no-data: input has no data streams"));
+        }
+    }
     if args.no_subs && (args.audio || args.video) {
         return Err(Error::input(
             "remux --no-subs only applies to a full repack — drop --audio/--video",
@@ -615,7 +630,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
                 "remux --drop re-maps streams — drop --audio-delay/--video-delay",
             ));
         }
-        if args.no_subs || args.no_video || args.no_audio || args.no_attachments {
+        if args.no_subs || args.no_video || args.no_audio || args.no_attachments || args.no_data {
             return Err(Error::input(
                 "remux --drop drops by index — drop the --no-* kind flags",
             ));
@@ -660,6 +675,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             args.no_video,
             args.no_audio,
             args.no_attachments,
+            args.no_data,
             args.audio_delay.is_some(),
             args.video_delay.is_some(),
         ];
@@ -743,6 +759,10 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         // strip embedded font/payload streams (attached_pic cover art is
         // --no-cover's job; 't' specifiers hit the rest)
         argv.extend(["-map", "0", "-map", "-0:t", "-c", "copy"]);
+    } else if args.no_data {
+        // strip telemetry/timed-metadata tracks (GoPro gpmd, camera
+        // private data — 'd' specifiers hit every data stream)
+        argv.extend(["-map", "0", "-map", "-0:d", "-c", "copy"]);
     } else if args.audio_delay.is_some() {
         // sync fix: non-audio streams from input 0, audio from the
         // itsoffset-shifted second read of the same file

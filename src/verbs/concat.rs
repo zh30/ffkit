@@ -48,6 +48,17 @@ pub fn run(args: ConcatArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--level must be -70..=-5 LUFS (e.g. -14)"));
         }
     }
+    if let Some(n) = args.repeat {
+        if n == 0 {
+            return Err(Error::input("concat --repeat needs a positive count"));
+        }
+        if n > 1 {
+            let base = args.inputs.clone();
+            for _ in 1..n {
+                args.inputs.extend(base.iter().cloned());
+            }
+        }
+    }
     if args.inputs.len() < 2 {
         return Err(Error::input("concat needs at least two inputs"));
     }
@@ -130,6 +141,9 @@ pub fn run(args: ConcatArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         filter_concat(&args, g, &input_refs, &probes, chap_file.as_deref())?
     };
+    if args.repeat.unwrap_or(1) > 1 {
+        c = c.with_extra(json!({ "repeated": args.repeat.unwrap() }));
+    }
     if let Some(cf) = &chap_file {
         c = c.with_extra(json!({ "chapters": args.inputs.len() }));
         std::fs::remove_file(cf).ok();
