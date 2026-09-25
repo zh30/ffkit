@@ -1417,6 +1417,22 @@ pub enum TranscodePreset {
     /// Cirrus Logic AccuPak + PCM in .mov (early-90s QuickTime codec)
     #[value(name = "cljr")]
     Cljr,
+    /// Dolby Digital audio-only in .ac3 (broadcast ATSC/DVD audio spec)
+    #[value(name = "ac3")]
+    Ac3,
+    /// Dolby Digital Plus audio-only in .eac3 (streaming-era enhanced spec)
+    #[value(name = "eac3")]
+    Eac3,
+    /// TTA lossless audio-only in .tta (True Audio archival)
+    #[value(name = "tta")]
+    Tta,
+    /// DTS audio-only in .dts (disc-era surround spec)
+    #[value(name = "dca")]
+    Dca,
+    /// Raw uncompressed video + PCM in .avi/.mkv (bit-exact interchange —
+    /// keeps the source pixel format, no conversion)
+    #[value(name = "raw")]
+    Raw,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2347,6 +2363,20 @@ pub enum DeliverPlatform {
     Immoscout,
     /// Idealista property-listing video (ES/IT/PT)
     Idealista,
+    /// AutoTrader vehicle-listing video
+    Autotrader,
+    /// CarGurus vehicle-listing video
+    Cargurus,
+    /// Carvana vehicle-listing video
+    Carvana,
+    /// Carwow vehicle-listing video
+    Carwow,
+    /// mobile.de vehicle-listing video (DE)
+    Mobilede,
+    /// AutoScout24 vehicle-listing video (EU)
+    Autoscout,
+    /// Copart salvage-auction listing video
+    Copart,
 }
 
 #[derive(clap::Args, Debug)]

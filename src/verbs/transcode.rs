@@ -20,7 +20,13 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | Some(TranscodePreset::Flac)
                 | Some(TranscodePreset::Opus)
                 | Some(TranscodePreset::Ogg)
-                | Some(TranscodePreset::Alac)
+                | Some(
+                    TranscodePreset::Alac
+                        | TranscodePreset::Ac3
+                        | TranscodePreset::Eac3
+                        | TranscodePreset::Tta
+                        | TranscodePreset::Dca
+                )
         )
     {
         return Err(Error::input(
@@ -73,6 +79,10 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Opus
                 | TranscodePreset::Ogg
                 | TranscodePreset::Alac
+                | TranscodePreset::Ac3
+                | TranscodePreset::Eac3
+                | TranscodePreset::Tta
+                | TranscodePreset::Dca
         )
     {
         return Err(Error::input("--range applies to video presets only"));
@@ -93,6 +103,10 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Opus
                 | TranscodePreset::Ogg
                 | TranscodePreset::Alac
+                | TranscodePreset::Ac3
+                | TranscodePreset::Eac3
+                | TranscodePreset::Tta
+                | TranscodePreset::Dca
         )
     {
         return Err(Error::input("--field-order applies to video presets only"));
@@ -107,6 +121,10 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Opus
                 | TranscodePreset::Ogg
                 | TranscodePreset::Alac
+                | TranscodePreset::Ac3
+                | TranscodePreset::Eac3
+                | TranscodePreset::Tta
+                | TranscodePreset::Dca
                 | TranscodePreset::Gif
                 | TranscodePreset::Prores
                 | TranscodePreset::Dnxhd
@@ -127,6 +145,10 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                     | TranscodePreset::Opus
                     | TranscodePreset::Ogg
                     | TranscodePreset::Alac
+                    | TranscodePreset::Ac3
+                    | TranscodePreset::Eac3
+                    | TranscodePreset::Tta
+                    | TranscodePreset::Dca
             )
         {
             return Err(Error::input(
@@ -153,7 +175,11 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         | TranscodePreset::Flac
         | TranscodePreset::Opus
         | TranscodePreset::Ogg
-        | TranscodePreset::Alac => audio_only(&args, g, preset),
+        | TranscodePreset::Alac
+        | TranscodePreset::Ac3
+        | TranscodePreset::Eac3
+        | TranscodePreset::Tta
+        | TranscodePreset::Dca => audio_only(&args, g, preset),
         TranscodePreset::Gif => gif(&args, g),
         TranscodePreset::H264 => h264(&args, g),
         TranscodePreset::Hevc => hevc(&args, g),
@@ -255,6 +281,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             Some("yuv411p"),
             Some("pcm_s16le"),
         ),
+        TranscodePreset::Raw => lossless(&args, g, "rawvideo", &["avi", "mkv"], None),
     }
 }
 
@@ -606,6 +633,17 @@ fn audio_only(
                 argv.extend(["-c:a", "libvorbis", "-b:a", abitrate(args, "192k")])
             }
             TranscodePreset::Alac => argv.extend(["-c:a", "alac"]),
+            TranscodePreset::Ac3 => argv.extend(["-c:a", "ac3", "-b:a", abitrate(args, "192k")]),
+            TranscodePreset::Eac3 => argv.extend(["-c:a", "eac3", "-b:a", abitrate(args, "192k")]),
+            TranscodePreset::Tta => argv.extend(["-c:a", "tta"]),
+            TranscodePreset::Dca => argv.extend([
+                "-c:a",
+                "dca",
+                "-b:a",
+                abitrate(args, "768k"),
+                "-strict",
+                "-2",
+            ]),
             _ => argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "192k")]),
         }
     }

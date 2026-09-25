@@ -531,7 +531,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Redfin
         | DeliverPlatform::Domain
         | DeliverPlatform::Immoscout
-        | DeliverPlatform::Idealista => (1920, 1080),
+        | DeliverPlatform::Idealista
+        | DeliverPlatform::Autotrader
+        | DeliverPlatform::Cargurus
+        | DeliverPlatform::Carvana
+        | DeliverPlatform::Carwow
+        | DeliverPlatform::Mobilede
+        | DeliverPlatform::Autoscout
+        | DeliverPlatform::Copart => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1293,6 +1300,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Domain => "domain",
         DeliverPlatform::Immoscout => "immoscout",
         DeliverPlatform::Idealista => "idealista",
+        DeliverPlatform::Autotrader => "autotrader",
+        DeliverPlatform::Cargurus => "cargurus",
+        DeliverPlatform::Carvana => "carvana",
+        DeliverPlatform::Carwow => "carwow",
+        DeliverPlatform::Mobilede => "mobilede",
+        DeliverPlatform::Autoscout => "autoscout",
+        DeliverPlatform::Copart => "copart",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

@@ -901,3 +901,5 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - EdTech course-upload platforms (udemy/coursera/…) already existed in `DeliverPlatform` — dedupe against the enum list itself, not the CHANGELOG, when picking platform batches.
 - RoQ needs **power-of-two** width AND height (Quake refuses anything else) — `--preset roq` snaps each dim to the nearest pow2 letterboxed, and its audio is roq_dpcm pinned at 22050Hz (not optional).
 - `.flv` containers can't hold `pcm_s16le` — the Flash Screen presets ride `qt_era(acodec = Some("libmp3lame"))`, which is also why `--abitrate` is refused everywhere except when audio is mp3.
+- The `dca` (DTS) encoder is experimental on 4.4 — it refuses without `-strict -2`, which `--preset dca` ships. Same class of flag as `-vstrict -1` for AMV.
+- `transcode --preset raw` uses no `-pix_fmt`: rawvideo passes the SOURCE format through verbatim (yuv420p in → yuv420p out) — that's the point vs v308/v410 which upconvert to 4:4:4.

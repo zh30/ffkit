@@ -42055,3 +42055,78 @@ fn r325_legacy_codecs_realestate_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{p}: {j}");
     }
 }
+
+#[test]
+fn r326_dolby_audio_raw_vehicle_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    for (preset, ext, expect_a) in [
+        ("ac3", "ac3", "ac3"),
+        ("eac3", "eac3", "eac3"),
+        ("tta", "tta", "tta"),
+        ("dca", "dts", "dts"),
+    ] {
+        let o = dir.path().join(format!("r326-{preset}.{ext}"));
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            preset,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{preset}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["acodec"], expect_a, "{preset}: {j}");
+        assert_eq!(j["probe"]["has_video"], false, "{preset}: {j}");
+    }
+    // rawvideo keeps the source pix_fmt verbatim
+    let o = dir.path().join("r326.avi");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "raw",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "raw: {j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["vcodec"], "rawvideo", "{j}");
+    assert_eq!(j["probe"]["acodec"], "pcm_s16le", "{j}");
+    // audio presets refuse video flags
+    let bad = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "ac3",
+        "--gop",
+        "12",
+        "-o",
+        dir.path().join("r326-bad.ac3").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "ac3 --gop: {bad}");
+    for p in [
+        "autotrader",
+        "cargurus",
+        "carvana",
+        "carwow",
+        "mobilede",
+        "autoscout",
+        "copart",
+    ] {
+        let o = dir.path().join(format!("r326-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{p}: {j}");
+    }
+}

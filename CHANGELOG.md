@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.353.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset ac3`/`eac3` — Dolby Digital / Digital Plus audio-only in .ac3/.eac3 (broadcast ATSC ingest + streaming-era surround delivery, `-b:a` 192k via `--abitrate`); `transcode --preset tta` — TTA lossless audio-only in .tta; `transcode --preset dca` — DTS audio-only in .dts (disc-era surround — 4.4's encoder is experimental, shipped with `-strict -2`); `transcode --preset raw` — rawvideo + PCM in .avi/.mkv (bit-exact interchange — the source pix_fmt passes through verbatim)
+- `deliver --platform` +7: autotrader, cargurus, carvana, carwow, mobilede, autoscout, copart (vehicle-marketplace listing videos 16:9 1920x1080)
+
 ## [0.352.0] — 2026-09-25
 
 ### Added
