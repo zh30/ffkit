@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.345.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset dv` — DV25 in .dv/.avi (the camcorder-tape master: MiniDV/DVCAM archives, NLE-era broadcast decks; DV is a fixed spec so the preset snaps to the NTSC-legal 720x480@30000/1001 yuv411p canvas letterboxed + PCM 48kHz stereo audio, and refuses every tuning flag — fps/gop/crf/bitrates/rates don't apply)
+- `transcode --preset mjpeg` — Motion JPEG + MP3 in .avi/.mov (NLE-era editing format — Digital Betacam captures, frame-accurate scrub masters; every frame an intra JPEG so random access needs no decode dependencies; honors --fps/--gop/--vbitrate/--abitrate/--ar/--channels)
+- `subs --convert` reads `.pjs` — Phoenix `start,end,"text"` rows where the times are DECISECONDS (20 = 2.0s — same units as MPL2, different shape; parsed in ffkit — legacy anime-fansub archives)
+- `deliver --platform` +7: cnn, abc, nbc, cbs, foxnews, aljazeera, bbcnews (news-broadcaster clips 16:9 1920x1080)
+
 ## [0.344.0] — 2026-09-25
 
 ### Added

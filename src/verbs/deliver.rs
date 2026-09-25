@@ -409,6 +409,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Nickelodeon
         | DeliverPlatform::Cartoonnetwork
         | DeliverPlatform::Adultswim
+        | DeliverPlatform::Cnn
+        | DeliverPlatform::Abc
+        | DeliverPlatform::Nbc
+        | DeliverPlatform::Cbs
+        | DeliverPlatform::Foxnews
+        | DeliverPlatform::Aljazeera
+        | DeliverPlatform::Bbcnews
         | DeliverPlatform::Twitch => (1920, 1080),
         DeliverPlatform::X | DeliverPlatform::Mastodon | DeliverPlatform::Discord => (1280, 720),
         DeliverPlatform::Threads | DeliverPlatform::Instagram | DeliverPlatform::Facebook => {
@@ -1181,6 +1188,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Nickelodeon => "nickelodeon",
         DeliverPlatform::Cartoonnetwork => "cartoonnetwork",
         DeliverPlatform::Adultswim => "adultswim",
+        DeliverPlatform::Cnn => "cnn",
+        DeliverPlatform::Abc => "abc",
+        DeliverPlatform::Nbc => "nbc",
+        DeliverPlatform::Cbs => "cbs",
+        DeliverPlatform::Foxnews => "foxnews",
+        DeliverPlatform::Aljazeera => "aljazeera",
+        DeliverPlatform::Bbcnews => "bbcnews",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

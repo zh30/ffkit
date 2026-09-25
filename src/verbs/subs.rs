@@ -1085,9 +1085,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && in_ext != "stl"
         && in_ext != "rt"
         && in_ext != "mps"
+        && in_ext != "pjs"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps input",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs input",
         ));
     }
     if out_ext != "srt"
@@ -1103,7 +1104,7 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "smi"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi output",
         ));
     }
     let raw = if in_ext == "scc" || in_ext == "stl" || in_ext == "rt" || in_ext == "mps" {
@@ -1153,6 +1154,8 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         parse_sami(&raw)?
     } else if in_ext == "csv" {
         parse_csv_subs(&raw)?
+    } else if in_ext == "pjs" {
+        parse_pjs(&raw)?
     } else {
         // vtt → srt-shaped blocks: drop WEBVTT/NOTE/STYLE blocks and cue
         // settings.
@@ -1745,6 +1748,54 @@ fn parse_microdvd(raw: &str, fps_arg: Option<f64>) -> Result<Vec<crate::srt::Cue
     }
     if cues.is_empty() {
         return Err(Error::input("sub: no cues found"));
+    }
+    Ok(cues)
+}
+
+/// Phoenix Japanimation Society `.pjs` — `start,end,"text"` rows where the
+/// times are DECISECONDS (20 = 2.0s — same units as MPL2, different shape).
+/// ffmpeg 4.4's pjs demuxer exists, but the format is a three-field row so
+/// ffkit parses it directly — legacy anime-fansub archives.
+fn parse_pjs(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
+    let mut cues = Vec::new();
+    for (ln, line) in raw.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Some((start_s, rest)) = line.split_once(',') else {
+            return Err(Error::input(format!(
+                "pjs line {ln}: want start,end,\"text\" decisecond row, got '{line}'"
+            )));
+        };
+        let Some((end_s, mut text)) = rest.split_once(',') else {
+            return Err(Error::input(format!("pjs line {ln}: bad end in '{line}'")));
+        };
+        let start_d = start_s.trim().parse::<f64>().map_err(|_| {
+            Error::input(format!("pjs line {ln}: bad start decisecond in '{line}'"))
+        })?;
+        let end_d = end_s
+            .trim()
+            .parse::<f64>()
+            .map_err(|_| Error::input(format!("pjs line {ln}: bad end decisecond in '{line}'")))?;
+        if end_d <= start_d {
+            return Err(Error::input(format!(
+                "pjs line {ln}: end {end_d} ≤ start {start_d}"
+            )));
+        }
+        text = text.trim();
+        if text.len() >= 2 && text.starts_with('"') && text.ends_with('"') {
+            text = &text[1..text.len() - 1];
+        }
+        let text = text.replace("\\\"", "\"").replace('|', "\n");
+        cues.push(crate::srt::Cue {
+            start: start_d / 10.0,
+            end: end_d / 10.0,
+            text,
+        });
+    }
+    if cues.is_empty() {
+        return Err(Error::input("pjs: no cues parsed"));
     }
     Ok(cues)
 }

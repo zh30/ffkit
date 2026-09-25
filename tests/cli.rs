@@ -41318,3 +41318,109 @@ fn r317_ogg_alac_rotate_alpha_rtl_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
     }
 }
+
+#[test]
+fn r318_dv_mjpeg_pjs_news_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // transcode --preset dv — DV25 NTSC camcorder master: fixed spec
+    // 720x480@30000/1001 yuv411p + PCM 48kHz stereo, tuning flags refused
+    let dv = d.path().join("t.dv");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dv.to_str().unwrap(),
+        "--preset",
+        "dv",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let p = run_json(&["probe", dv.to_str().unwrap()]);
+    let v = &p["probe"]["streams"][0];
+    assert_eq!(v["codec"], "dvvideo");
+    assert_eq!(v["width"], 720);
+    assert_eq!(v["height"], 480);
+    let a = &p["probe"]["streams"][1];
+    assert_eq!(a["codec"], "pcm_s16le");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dv.to_str().unwrap(),
+        "--preset",
+        "dv",
+        "--fps",
+        "25",
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("fixed spec"));
+
+    // transcode --preset mjpeg — Motion JPEG + MP3 .avi NLE editing master
+    let avi = d.path().join("t.avi");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        avi.to_str().unwrap(),
+        "--preset",
+        "mjpeg",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let p = run_json(&["probe", avi.to_str().unwrap()]);
+    let mut codecs: Vec<String> = p["probe"]["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["codec"].as_str().unwrap().to_string())
+        .collect();
+    codecs.sort();
+    assert_eq!(codecs, vec!["mjpeg", "mp3"], "{p}");
+
+    // subs --convert .pjs — Phoenix `start,end,"text"` DECISECOND rows
+    let pjs = d.path().join("t.pjs");
+    std::fs::write(&pjs, "1, 20, \"Hello PJS\"\n30, 40, \"Second\"\n").unwrap();
+    let out = d.path().join("o.srt");
+    let j = run_json(&[
+        "subs",
+        pjs.to_str().unwrap(),
+        "--convert",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.contains("00:00:00,100 --> 00:00:02,000"), "{text}");
+    assert!(text.contains("Hello PJS"), "{text}");
+
+    // deliver --platform +7 news broadcasters (16:9 1920x1080)
+    for name in [
+        "cnn",
+        "abc",
+        "nbc",
+        "cbs",
+        "foxnews",
+        "aljazeera",
+        "bbcnews",
+    ] {
+        let o = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
+    }
+}

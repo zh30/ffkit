@@ -869,3 +869,11 @@ Clean on 4.4: scc, stl, rt, mpsub, subviewer. Garbage on 4.4: pjs, jss, vplayer 
 ## --rtl marks go per cue-text line, not per cue
 
 Unicode bidi control resets at every line break: one U+202B..U+202C pair around a whole multi-line cue only protects the first line — the rest render LTR again. Wrap each text line separately (extras report `rtl_wrapped` per cue touched).
+
+## DV is a fixed spec, not a tuning surface
+
+The dv muxer initializes only when the streams are exactly `video: 25fps or 29.97fps, audio: 2ch/48|44|32kHz/PCM` — there is no dv bit-rate/GOP/size to tune (the dvvideo encoder itself only accepts the DV-legal canvases 720x480/720x576 + matching rates). The dv preset snaps to NTSC 720x480@30000/1001 yuv411p letterboxed and refuses every tuning flag rather than letting ffmpeg report a cryptic muxer error.
+
+## `.pjs` times are deciseconds, not milliseconds or frames
+
+Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same units as MPL2's `[s][e]`, different shape). ffmpeg 4.4's pjs demuxer handles canonical rows, but the three-field row is trivial enough that ffkit parses it directly — no demuxer quirks to inherit.

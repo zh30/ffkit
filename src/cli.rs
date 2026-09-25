@@ -1336,6 +1336,13 @@ pub enum TranscodePreset {
     /// Audio-only ALAC in .m4a/.mp4 (Apple Lossless — lossless music
     /// archive for the Apple ecosystem, no quality loss vs wav)
     Alac,
+    /// DV25 in .dv/.avi — the camcorder-tape master (MiniDV/DVCAM
+    /// archives, NLE-era broadcast decks; snaps to the DV-legal
+    /// NTSC canvas 720x480@30000/1001, PCM 48kHz stereo audio)
+    Dv,
+    /// Motion JPEG + MP2 in .avi/.mov (NLE-era editing format —
+    /// Digital Betacam captures, frame-accurate scrub masters)
+    Mjpeg,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2154,6 +2161,20 @@ pub enum DeliverPlatform {
     Cartoonnetwork,
     /// Adult Swim highlight clip 16:9 landscape (1920x1080, -14 LUFS)
     Adultswim,
+    /// CNN news clip 16:9 landscape (1920x1080, -14 LUFS)
+    Cnn,
+    /// ABC news clip 16:9 landscape (1920x1080, -14 LUFS)
+    Abc,
+    /// NBC news clip 16:9 landscape (1920x1080, -14 LUFS)
+    Nbc,
+    /// CBS news clip 16:9 landscape (1920x1080, -14 LUFS)
+    Cbs,
+    /// Fox News clip 16:9 landscape (1920x1080, -14 LUFS)
+    Foxnews,
+    /// Al Jazeera news clip 16:9 landscape (1920x1080, -14 LUFS)
+    Aljazeera,
+    /// BBC News clip 16:9 landscape (1920x1080, -14 LUFS)
+    Bbcnews,
 }
 
 #[derive(clap::Args, Debug)]

@@ -167,6 +167,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Gpp => gpp(&args, g),
         TranscodePreset::Flv => flv(&args, g),
         TranscodePreset::Theora => theora(&args, g),
+        TranscodePreset::Dv => dv(&args, g),
+        TranscodePreset::Mjpeg => mjpeg(&args, g),
     }
 }
 
@@ -966,6 +968,117 @@ fn gpp(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "gpp" }));
+    Ok(c)
+}
+
+/// DV25 in .dv/.avi — the camcorder-tape master: MiniDV/DVCAM archives,
+/// NLE-era broadcast decks. DV is a fixed spec, not a tuning surface:
+/// NTSC 720x480@30000/1001 yuv411p video + PCM 48kHz stereo audio, so the
+/// preset snaps the picture to the legal canvas letterboxed and refuses
+/// every flag that would break the spec (like gpp's legal-canvas snap).
+fn dv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if !matches!(ext.as_str(), "dv" | "avi") {
+        return Err(Error::input(format!(
+            "transcode --preset dv needs a .dv/.avi target, not .{ext}"
+        )));
+    }
+    if args.fps.is_some()
+        || args.gop.is_some()
+        || args.range.is_some()
+        || args.field_order.is_some()
+        || args.interlace_mode.is_some()
+        || args.interlaced
+        || args.ar.is_some()
+        || args.channels.is_some()
+        || args.vbitrate.is_some()
+        || args.abitrate.is_some()
+        || args.crf.is_some()
+        || args.width.is_some()
+        || args.colors.is_some()
+    {
+        return Err(Error::input(
+            "transcode --preset dv is a fixed spec (720x480@30000/1001 yuv411p + PCM 48kHz stereo) — tuning flags don't apply",
+        ));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("dv preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend([
+        "-vf",
+        "scale=w=720:h=480:force_original_aspect_ratio=decrease,pad=720:480:(ow-iw)/2:(oh-ih)/2,fps=30000/1001",
+    ]);
+    argv.extend(["-c:v", "dvvideo", "-pix_fmt", "yuv411p"]);
+    if probe.has_audio {
+        argv.extend(["-c:a", "pcm_s16le", "-ar", "48000", "-ac", "2"]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "dv" }));
+    Ok(c)
+}
+
+/// Motion JPEG + MP3 in .avi/.mov — the NLE-era editing format: Digital
+/// Betacam captures and frame-accurate scrub masters (every frame is an
+/// intra JPEG — random access with zero decode dependencies).
+fn mjpeg(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if !matches!(ext.as_str(), "avi" | "mov") {
+        return Err(Error::input(format!(
+            "transcode --preset mjpeg needs a .avi/.mov target, not .{ext}"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("mjpeg preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend(["-c:v", "mjpeg"]);
+    if let Some(b) = &args.vbitrate {
+        argv.extend(["-b:v", b]);
+    }
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "libmp3lame", "-b:a", abitrate(args, "192k")]);
+        if let Some(r) = args.ar {
+            argv.extend(["-ar", &r.to_string()]);
+        }
+        if let Some(ch) = args.channels {
+            argv.extend(["-ac", &ch.to_string()]);
+        }
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "mjpeg" }));
     Ok(c)
 }
 
