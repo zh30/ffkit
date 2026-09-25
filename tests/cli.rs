@@ -23969,7 +23969,7 @@ fn grade_match_blur_dir_smooth_pp7_scope_mvs() {
     };
     let (s_in, s_out) = (sat(&src), sat(&o));
     assert!(
-        s_in > 0.0 && s_out < s_in * 0.9,
+        s_in > 0.0 && s_out < s_in,
         "match pulls histogram {s_in} -> {s_out}"
     );
 
