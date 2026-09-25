@@ -66,8 +66,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Wav
                 | TranscodePreset::Flac
                 | TranscodePreset::Opus
-        | TranscodePreset::Ogg
-        | TranscodePreset::Alac
+                | TranscodePreset::Ogg
+                | TranscodePreset::Alac
         )
     {
         return Err(Error::input("--range applies to video presets only"));
@@ -86,8 +86,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Wav
                 | TranscodePreset::Flac
                 | TranscodePreset::Opus
-        | TranscodePreset::Ogg
-        | TranscodePreset::Alac
+                | TranscodePreset::Ogg
+                | TranscodePreset::Alac
         )
     {
         return Err(Error::input("--field-order applies to video presets only"));
@@ -100,8 +100,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Wav
                 | TranscodePreset::Flac
                 | TranscodePreset::Opus
-        | TranscodePreset::Ogg
-        | TranscodePreset::Alac
+                | TranscodePreset::Ogg
+                | TranscodePreset::Alac
                 | TranscodePreset::Gif
                 | TranscodePreset::Prores
                 | TranscodePreset::Dnxhd
@@ -120,8 +120,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                     | TranscodePreset::Wav
                     | TranscodePreset::Flac
                     | TranscodePreset::Opus
-        | TranscodePreset::Ogg
-        | TranscodePreset::Alac
+                    | TranscodePreset::Ogg
+                    | TranscodePreset::Alac
             )
         {
             return Err(Error::input(

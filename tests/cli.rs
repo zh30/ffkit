@@ -41239,7 +41239,10 @@ fn r317_ogg_alac_rotate_alpha_rtl_platforms() {
         "45",
     ]);
     assert_eq!(j["status"], "failed");
-    assert!(j["error"]["message"].as_str().unwrap().contains("90|180|270"));
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("90|180|270"));
 
     // probe streams[].alpha — per-track alpha-capable pix_fmt (ffv1 yuva vs
     // yuv420p mp4 which reports no field)
