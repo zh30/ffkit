@@ -510,7 +510,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Vidcast
         | DeliverPlatform::Msstream
         | DeliverPlatform::Panopto
-        | DeliverPlatform::Sharepoint => (1920, 1080),
+        | DeliverPlatform::Sharepoint
+        | DeliverPlatform::Zoom
+        | DeliverPlatform::Webex
+        | DeliverPlatform::Gotomeeting
+        | DeliverPlatform::Bluejeans
+        | DeliverPlatform::Ringcentral
+        | DeliverPlatform::Hopin
+        | DeliverPlatform::Airmeet => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1251,6 +1258,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Msstream => "msstream",
         DeliverPlatform::Panopto => "panopto",
         DeliverPlatform::Sharepoint => "sharepoint",
+        DeliverPlatform::Zoom => "zoom",
+        DeliverPlatform::Webex => "webex",
+        DeliverPlatform::Gotomeeting => "gotomeeting",
+        DeliverPlatform::Bluejeans => "bluejeans",
+        DeliverPlatform::Ringcentral => "ringcentral",
+        DeliverPlatform::Hopin => "hopin",
+        DeliverPlatform::Airmeet => "airmeet",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

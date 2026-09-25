@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.350.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset v410` — uncompressed 10-bit 4:4:4 + PCM in .mov (yuv444p10le — the finishing-suite interchange master colorists/QC pass around); `transcode --preset ayuv` — uncompressed 8-bit 4:4:4:4 + PCM in .mov (yuva444p — always carries alpha, the uncompressed motion-graphics interchange); `transcode --preset rv10` / `--preset rv20` — RealVideo video-only in .rm (late-90s dial-up streaming codec — the .rm container has no usable audio encoder, so it's picture-only)
+- `deliver --platform` +7: zoom, webex, gotomeeting, bluejeans, ringcentral, hopin, airmeet (meeting & webinar recording uploads 16:9 1920x1080)
+
 ## [0.349.0] — 2026-09-25
 
 ### Added

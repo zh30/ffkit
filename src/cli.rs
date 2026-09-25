@@ -1371,6 +1371,21 @@ pub enum TranscodePreset {
     /// Zip Motion Blocks Video + PCM in .avi — DOSBox-era screencast
     /// recordings (game-capture archives, rgb24)
     Zmbv,
+    /// Uncompressed 10-bit 4:4:4 + PCM in .mov — finishing-suite
+    /// interchange (v410 yuv444p10le; the colour-managed master
+    /// colorists/QC pass around)
+    V410,
+    /// Uncompressed 8-bit 4:4:4:4 + PCM in .mov — always carries alpha
+    /// (ayuv yuva444p; motion-graphics interchange when prores4444 is
+    /// too compressed and ffv1 is too exotic)
+    Ayuv,
+    /// RealVideo 1.0 video-only in .rm — the late-90s dial-up streaming
+    /// codec (the container has no usable audio encoder, so it's
+    /// picture-only)
+    Rv10,
+    /// RealVideo 2.0 video-only in .rm — the second-gen dial-up
+    /// streaming codec
+    Rv20,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2259,6 +2274,20 @@ pub enum DeliverPlatform {
     Panopto,
     /// SharePoint video preview link 16:9 landscape (1920x1080, -14 LUFS)
     Sharepoint,
+    /// Zoom cloud recordings / Zoom Events replays
+    Zoom,
+    /// Webex (Cisco) meeting recordings
+    Webex,
+    /// GoToMeeting / GoTo Webinar recordings
+    Gotomeeting,
+    /// BlueJeans meeting & event recordings
+    Bluejeans,
+    /// RingCentral meeting recordings
+    Ringcentral,
+    /// Hopin (RingCentral Events) session recordings
+    Hopin,
+    /// Airmeet virtual-event session recordings
+    Airmeet,
 }
 
 #[derive(clap::Args, Debug)]

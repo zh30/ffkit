@@ -177,12 +177,16 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Amv => amv(&args, g),
         TranscodePreset::Qtrle => qtrle(&args, g),
         TranscodePreset::V210 => v210(&args, g),
-        TranscodePreset::Huffyuv => lossless(&args, g, "huffyuv", &["avi", "mkv"]),
-        TranscodePreset::Utvideo => lossless(&args, g, "utvideo", &["avi"]),
-        TranscodePreset::Ffvhuff => lossless(&args, g, "ffvhuff", &["mkv"]),
-        TranscodePreset::Cinepak => qt_era(&args, g, "cinepak", &["mov", "avi"], None),
-        TranscodePreset::Svq1 => qt_era(&args, g, "svq1", &["mov"], None),
-        TranscodePreset::Zmbv => qt_era(&args, g, "zmbv", &["avi"], Some("rgb24")),
+        TranscodePreset::Huffyuv => lossless(&args, g, "huffyuv", &["avi", "mkv"], None),
+        TranscodePreset::Utvideo => lossless(&args, g, "utvideo", &["avi"], None),
+        TranscodePreset::Ffvhuff => lossless(&args, g, "ffvhuff", &["mkv"], None),
+        TranscodePreset::V410 => lossless(&args, g, "v410", &["mov"], Some("yuv444p10le")),
+        TranscodePreset::Ayuv => lossless(&args, g, "ayuv", &["mov"], Some("yuva444p")),
+        TranscodePreset::Cinepak => qt_era(&args, g, "cinepak", &["mov", "avi"], None, true),
+        TranscodePreset::Svq1 => qt_era(&args, g, "svq1", &["mov"], None, true),
+        TranscodePreset::Zmbv => qt_era(&args, g, "zmbv", &["avi"], Some("rgb24"), true),
+        TranscodePreset::Rv10 => qt_era(&args, g, "rv10", &["rm"], None, false),
+        TranscodePreset::Rv20 => qt_era(&args, g, "rv20", &["rm"], None, false),
     }
 }
 
@@ -1447,6 +1451,7 @@ fn lossless(
     g: &Globals,
     codec: &str,
     exts: &[&str],
+    pix_fmt: Option<&str>,
 ) -> Result<Contract, Error> {
     let ext = args
         .output
@@ -1480,6 +1485,9 @@ fn lossless(
         argv.extend(["-map", "0:a?"]);
     }
     argv.extend(["-c:v", codec]);
+    if let Some(p) = pix_fmt {
+        argv.extend(["-pix_fmt", p]);
+    }
     if let Some(n) = args.gop {
         argv.extend(["-g", &n.to_string()]);
     }
@@ -1510,6 +1518,7 @@ fn qt_era(
     codec: &str,
     exts: &[&str],
     pix_fmt: Option<&str>,
+    audio: bool,
 ) -> Result<Contract, Error> {
     let ext = args
         .output
@@ -1539,7 +1548,7 @@ fn qt_era(
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
-    if probe.has_audio {
+    if probe.has_audio && audio {
         argv.extend(["-map", "0:a?"]);
     }
     argv.extend(["-c:v", codec]);
@@ -1552,7 +1561,7 @@ fn qt_era(
     if let Some(n) = args.gop {
         argv.extend(["-g", &n.to_string()]);
     }
-    if probe.has_audio {
+    if probe.has_audio && audio {
         argv.extend(["-c:a", "pcm_s16le"]);
         if let Some(r) = args.ar {
             argv.extend(["-ar", &r.to_string()]);

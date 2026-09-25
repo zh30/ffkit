@@ -41841,3 +41841,72 @@ fn r322_qt_era_presets_stats_async_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
     }
 }
+
+#[test]
+fn r323_uncompressed_realvideo_webinar_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    for (preset, ext, expect_v, expect_pf) in [
+        ("v410", "mov", "v410", "yuv444p10le"),
+        ("ayuv", "mov", "ayuv", "yuva444p"),
+        ("rv10", "rm", "rv10", "yuv420p"),
+        ("rv20", "rm", "rv20", "yuv420p"),
+    ] {
+        let o = dir.path().join(format!("{preset}.{ext}"));
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            preset,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{preset}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["vcodec"], expect_v, "{preset}: {j}");
+        assert_eq!(j["probe"]["pix_fmt"], expect_pf, "{preset}: {j}");
+        if preset == "v410" || preset == "ayuv" {
+            assert_eq!(j["probe"]["acodec"], "pcm_s16le", "{preset}: {j}");
+        } else {
+            assert_eq!(j["probe"]["has_audio"], false, "{preset}: {j}");
+        }
+    }
+    // uncompressed presets refuse bitrate flags
+    let o = dir.path().join("v.mov");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "v410",
+        "--vbitrate",
+        "4M",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+
+    // webinar/meeting recording platforms → 16:9 1080p
+    for name in [
+        "zoom",
+        "webex",
+        "gotomeeting",
+        "bluejeans",
+        "ringcentral",
+        "hopin",
+        "airmeet",
+    ] {
+        let o = dir.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
+    }
+}
