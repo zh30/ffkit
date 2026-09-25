@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.338.0] — 2026-09-25
+
+### Added
+
+- `subs --convert` reads `.mpl` MPL2 (`[start][end]text` in deciseconds — Polish legacy archives, `|` line breaks) and `.smi` SAMI (`<SYNC Start=ms>` cue blocks — a cue holds until the next SYNC, inline tags stripped); `.mpl` also writes back (`[s*10][e*10]text`)
+- `transcode --preset mpeg2` — MPEG-2 video + MP2 audio in .mpg/.mpeg/.vob (DVD/broadcast legacy master — set-top players, TV ingest, archival interop)
+- `deliver --chapters marks.txt` now works on video packs too — real mp4 container chapters YouTube reads as timeline markers (was podcast/audiobook-only)
+- `deliver --platform` +7: `pixelfed` 1:1 1080x1080 Fediverse square posts, `artstation` 16:9 1920x1080 portfolio host, `clapper`/`younow`/`meesho`/`bulbul`/`fanvue` 9:16 1080x1920 short-video & live-commerce posts (300 destinations)
+
 ## [0.337.0] — 2026-09-25
 
 ### Added

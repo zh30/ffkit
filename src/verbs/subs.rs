@@ -1058,9 +1058,11 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && in_ext != "sbv"
         && in_ext != "csv"
         && in_ext != "sub"
+        && in_ext != "mpl"
+        && in_ext != "smi"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub input",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi input",
         ));
     }
     if out_ext != "srt"
@@ -1072,9 +1074,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "dfxp"
         && out_ext != "sbv"
         && out_ext != "csv"
+        && out_ext != "mpl"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl output",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -1086,6 +1089,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         parse_sbv(&raw)?
     } else if in_ext == "sub" {
         parse_microdvd(&raw, args.fps)?
+    } else if in_ext == "mpl" {
+        parse_mpl2(&raw)?
+    } else if in_ext == "smi" {
+        parse_sami(&raw)?
     } else if in_ext == "csv" {
         parse_csv_subs(&raw)?
     } else {
@@ -1228,6 +1235,20 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
                 ttml_clock(c.start),
                 ttml_clock(c.end),
                 text
+            ));
+        }
+        s
+    } else if out_ext == "mpl" {
+        // MPL2 — Polish legacy player format: [start][end]text in
+        // DECISECONDS, | is the line break. Export for editors that
+        // still hand-craft .mpl for old toolchain releases
+        let mut s = String::new();
+        for c in &cues {
+            s.push_str(&format!(
+                "[{}][{}]{}\n",
+                (c.start * 10.0).round() as i64,
+                (c.end * 10.0).round() as i64,
+                c.text.replace('\n', "|")
             ));
         }
         s
@@ -1649,6 +1670,143 @@ fn parse_microdvd(raw: &str, fps_arg: Option<f64>) -> Result<Vec<crate::srt::Cue
     }
     if cues.is_empty() {
         return Err(Error::input("sub: no cues found"));
+    }
+    Ok(cues)
+}
+
+fn parse_mpl2(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
+    let mut cues = Vec::new();
+    for (ln, line) in raw.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Some(st) = line.strip_prefix('[').and_then(|r| {
+            r.find(']')
+                .map(|i| (r[..i].parse::<f64>().ok(), &r[i + 1..]))
+        }) else {
+            return Err(Error::input(format!(
+                "mpl line {ln}: want [start][end]text, got '{line}'"
+            )));
+        };
+        let (Some(start_d), rest) = st else {
+            return Err(Error::input(format!(
+                "mpl line {ln}: bad start decisecond in '{line}'"
+            )));
+        };
+        let Some(en) = rest.strip_prefix('[').and_then(|r| {
+            r.find(']')
+                .map(|i| (r[..i].parse::<f64>().ok(), &r[i + 1..]))
+        }) else {
+            return Err(Error::input(format!(
+                "mpl line {ln}: bad end decisecond in '{line}'"
+            )));
+        };
+        let (Some(end_d), text) = en else {
+            return Err(Error::input(format!(
+                "mpl line {ln}: bad end decisecond in '{line}'"
+            )));
+        };
+        if end_d <= start_d {
+            return Err(Error::input(format!(
+                "mpl line {ln}: end {end_d} ≤ start {start_d}"
+            )));
+        }
+        cues.push(crate::srt::Cue {
+            // MPL2 times are deciseconds — [123] = 12.3s
+            start: start_d / 10.0,
+            end: end_d / 10.0,
+            text: text.replace(
+                '|', "
+",
+            ),
+        });
+    }
+    if cues.is_empty() {
+        return Err(Error::input("mpl: no cues found"));
+    }
+    Ok(cues)
+}
+
+fn parse_sami(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
+    // SAMI (.smi): `<SYNC Start=ms><P Class=CC>text` — a cue holds from its
+    // SYNC start until the next SYNC's start; HTML-ish tags inside the text
+    // are stripped, | is not special (uses <br> or real newlines)
+    let mut marks: Vec<(u64, usize)> = Vec::new(); // (start_ms, text_offset)
+    let lo = raw.to_lowercase();
+    let mut off = 0usize;
+    while let Some(i) = lo[off..].find("<sync") {
+        let at = off + i;
+        let Some(st_i) = lo[at..].find("start") else {
+            break;
+        };
+        let st_at = at + st_i;
+        let after = &raw[st_at + 5..];
+        let after_t = after.trim_start();
+        let after_t = after_t.strip_prefix('=').unwrap_or(after_t).trim_start();
+        let after_t = after_t
+            .strip_prefix('"')
+            .or_else(|| after_t.strip_prefix('\''))
+            .unwrap_or(after_t);
+        let num: String = after_t.chars().take_while(|c| c.is_ascii_digit()).collect();
+        if num.is_empty() {
+            off = at + 5;
+            continue;
+        }
+        let Ok(ms) = num.parse::<u64>() else {
+            off = at + 5;
+            continue;
+        };
+        // text begins after the closing '>' of the SYNC tag
+        let Some(gt) = lo[st_at..].find('>') else {
+            break;
+        };
+        marks.push((ms, st_at + gt + 1));
+        off = st_at + gt + 1;
+    }
+    if marks.is_empty() {
+        return Err(Error::input("smi: no <SYNC Start=ms> blocks found"));
+    }
+    let strip_tags = |t: &str| -> String {
+        let mut out = String::with_capacity(t.len());
+        let mut in_tag = false;
+        for ch in t.chars() {
+            match ch {
+                '<' => in_tag = true,
+                '>' => in_tag = false,
+                _ if !in_tag => out.push(ch),
+                _ => {}
+            }
+        }
+        out.replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&#39;", "'")
+    };
+    let mut cues = Vec::new();
+    for (k, (ms, t_off)) in marks.iter().enumerate() {
+        let next_ms = marks.get(k + 1).map(|m| m.0);
+        let text_end = if let Some((_, o)) = marks.get(k + 1) {
+            // next sync's tag start
+            lo[..*o].rfind("<sync").unwrap_or(*o)
+        } else {
+            raw.len()
+        };
+        let text = strip_tags(raw[*t_off..text_end].trim());
+        if text.is_empty() {
+            continue;
+        }
+        let start = *ms as f64 / 1000.0;
+        let end = next_ms.map(|e| e as f64 / 1000.0).unwrap_or(start + 4.0);
+        if end <= start {
+            continue;
+        }
+        cues.push(crate::srt::Cue { start, end, text });
+    }
+    if cues.is_empty() {
+        return Err(Error::input("smi: no cues found"));
     }
     Ok(cues)
 }

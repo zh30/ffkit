@@ -147,6 +147,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Proxy => proxy(&args, g),
         TranscodePreset::Ffv1 => ffv1(&args, g),
         TranscodePreset::Apng => apng(&args, g),
+        TranscodePreset::Mpeg2 => mpeg2(&args, g),
     }
 }
 
@@ -680,6 +681,47 @@ fn ffv1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "ffv1" }));
+    Ok(c)
+}
+
+/// MPEG-2 + MP2 — DVD/broadcast legacy master (.mpg/.mpeg/.vob): set-top
+/// players, TV ingest, archival interop with decades-old systems.
+fn mpeg2(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if !matches!(ext.as_str(), "mpg" | "mpeg" | "vob") {
+        return Err(Error::input(format!(
+            "transcode --preset mpeg2 needs a .mpg/.mpeg/.vob target, not .{ext}"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("mpeg2 preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend(["-c:v", "mpeg2video"]);
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "mp2"]);
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "mpeg2" }));
     Ok(c)
 }
 

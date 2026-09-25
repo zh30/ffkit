@@ -40154,6 +40154,123 @@ fn r309_transcode_tune_ffv1_apng_deliver_maxrate_platforms() {
 }
 
 #[test]
+fn r311_subs_mpl_smi_transcode_mpeg2_deliver_chapters_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // subs --convert .mpl — MPL2 [s][e]text in deciseconds, | line break
+    let mpl = d.path().join("in.mpl");
+    std::fs::write(&mpl, "[0][10]Hello MPL|second line\n[25][40]World\n").unwrap();
+    let srt = d.path().join("out.srt");
+    let j = run_json(&[
+        "subs",
+        mpl.to_str().unwrap(),
+        "--convert",
+        "-o",
+        srt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let text = std::fs::read_to_string(&srt).unwrap();
+    assert!(text.contains("00:00:00,000 --> 00:00:01,000"), "{text}");
+    assert!(text.contains("Hello MPL\nsecond line"), "{text}");
+    assert!(text.contains("00:00:02,500 --> 00:00:04,000"), "{text}");
+
+    // .srt → .mpl round-trip (deciseconds + | breaks)
+    let back = d.path().join("rt.mpl");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--convert",
+        "-o",
+        back.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let text = std::fs::read_to_string(&back).unwrap();
+    assert!(text.contains("[0][10]Hello MPL|second line"), "{text}");
+
+    // subs --convert .smi — SAMI <SYNC Start=ms>, cue ends at next SYNC
+    let smi = d.path().join("in.smi");
+    std::fs::write(
+        &smi,
+        "<SAMI>\n<BODY>\n<SYNC Start=200><P Class=ENCC>Hello &amp; <br>SAMI\n<SYNC Start=800><P Class=ENCC>World\n</BODY></SAMI>\n",
+    )
+    .unwrap();
+    let srt2 = d.path().join("out2.srt");
+    let j = run_json(&[
+        "subs",
+        smi.to_str().unwrap(),
+        "--convert",
+        "-o",
+        srt2.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let text = std::fs::read_to_string(&srt2).unwrap();
+    assert!(text.contains("00:00:00,200 --> 00:00:00,800"), "{text}");
+    assert!(text.contains("Hello & SAMI"), "{text}");
+    assert!(text.contains("00:00:00,800 -->"), "{text}");
+
+    // transcode --preset mpeg2 — mpeg2video + mp2 in .mpg
+    let mpg = d.path().join("out.mpg");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "mpeg2",
+        "-o",
+        mpg.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", mpg.to_str().unwrap()]);
+    assert_eq!(j["probe"]["streams"][0]["codec"], "mpeg2video", "{j}");
+    assert_eq!(j["probe"]["streams"][1]["codec"], "mp2", "{j}");
+
+    // deliver --chapters on a video pack — container chapters baked in
+    let marks = d.path().join("marks.txt");
+    std::fs::write(&marks, "0:00 Intro\n0.4 Body\n").unwrap();
+    let ytv = d.path().join("yt.mp4");
+    let j = run_json(&[
+        "deliver",
+        f.to_str().unwrap(),
+        "--platform",
+        "youtube",
+        "--chapters",
+        marks.to_str().unwrap(),
+        "-o",
+        ytv.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["chapters"], 2, "{j}");
+    let j = run_json(&["probe", ytv.to_str().unwrap()]);
+    assert_eq!(j["probe"]["chapter_count"], 2, "{j}");
+
+    for (name, (w, h)) in [
+        ("pixelfed", (1080, 1080)),
+        ("artstation", (1920, 1080)),
+        ("clapper", (1080, 1920)),
+        ("younow", (1080, 1920)),
+        ("meesho", (1080, 1920)),
+        ("bulbul", (1080, 1920)),
+        ("fanvue", (1080, 1920)),
+    ] {
+        let o = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], w, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], h, "{name}: {j}");
+    }
+}
+#[test]
 fn r310_conform_maxrate_chapter_ffmeta_subs_sub_dash_utc_platforms() {
     if !has_ffmpeg() {
         return;

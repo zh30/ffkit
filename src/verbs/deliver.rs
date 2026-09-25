@@ -86,11 +86,6 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             "deliver --cover only applies to --platform podcast/audiobook (feed art)",
         ));
     }
-    if args.chapters.is_some() && !audio_pack {
-        return Err(Error::input(
-            "deliver --chapters only applies to --platform podcast/audiobook",
-        ));
-    }
     if audio_pack {
         if args.logo.is_some() || args.intro.is_some() || args.outro.is_some() {
             return Err(Error::input(
@@ -370,6 +365,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Hoichoi
         | DeliverPlatform::Boomplay
         | DeliverPlatform::Sohu
+        | DeliverPlatform::Artstation
         | DeliverPlatform::Ifeng
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
@@ -386,7 +382,8 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         DeliverPlatform::Square
         | DeliverPlatform::Shopify
         | DeliverPlatform::Etsy
-        | DeliverPlatform::Poshmark => (1080, 1080),
+        | DeliverPlatform::Poshmark
+        | DeliverPlatform::Pixelfed => (1080, 1080),
         DeliverPlatform::Xhs | DeliverPlatform::Lemon8 => (1080, 1440),
         DeliverPlatform::Wechat => (1080, 1260),
         DeliverPlatform::Pinterest => (1000, 1500),
@@ -412,6 +409,11 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Mirrativ
         | DeliverPlatform::Mxtakatak
         | DeliverPlatform::Roposo
+        | DeliverPlatform::Clapper
+        | DeliverPlatform::Younow
+        | DeliverPlatform::Meesho
+        | DeliverPlatform::Bulbul
+        | DeliverPlatform::Fanvue
         | DeliverPlatform::Vmate
         | DeliverPlatform::Josh
         | DeliverPlatform::Weverse
@@ -480,6 +482,27 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         apply.push("-i");
         apply.push(logo);
         let i = ni;
+        Some(i)
+    } else {
+        None
+    };
+    // --chapters on video packs: ffmeta input appended last →
+    // -map_chapters bakes them into the mp4 (YouTube timeline markers).
+    let mut chap_marks: Vec<(f64, String)> = Vec::new();
+    let mut chap_file: Option<std::path::PathBuf> = None;
+    let chap_i = if let Some(cf) = &args.chapters {
+        crate::paths::ensure_input(cf)?;
+        let marks = crate::verbs::chapter::parse_yt_list(cf)?;
+        crate::verbs::chapter::check_marks(&marks, probe.duration, "deliver --chapters")?;
+        let meta = crate::verbs::chapter::ffmeta_table(&marks, probe.duration);
+        let tmp =
+            std::env::temp_dir().join(format!("ffkit-deliver-chap-{}.ffmeta", std::process::id()));
+        std::fs::write(&tmp, meta).map_err(|e| Error::output(format!("writing chapters: {e}")))?;
+        chap_marks = marks;
+        apply.extend(["-f", "ffmetadata", "-i"]);
+        apply.push(&tmp);
+        let i = ni;
+        chap_file = Some(tmp);
         Some(i)
     } else {
         None
@@ -604,6 +627,9 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     if args.to.is_none() {
         apply.extend(["-movflags", "+faststart"]);
     }
+    if let Some(ci) = chap_i {
+        apply.extend(["-map_chapters", &ci.to_string()]);
+    }
     push_metadata(&mut apply, &args);
 
     let mut measure: Option<Argv> = None;
@@ -689,6 +715,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             measured,
             args.fps.unwrap_or(30),
             &args,
+            chap_marks.len(),
         ));
     }
 
@@ -702,6 +729,9 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             let mut commands = engine::commands_of(&[m]);
             commands.extend(c.commands.clone());
             c.commands = commands;
+            if let Some(tmp) = &chap_file {
+                let _ = std::fs::remove_file(tmp);
+            }
             return Ok(finish(
                 c,
                 platform,
@@ -709,12 +739,16 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
                 measured,
                 args.fps.unwrap_or(30),
                 &args,
+                chap_marks.len(),
             ));
         }
     }
 
     argvs.push(apply);
     let c = engine::write_job("deliver", &[&args.input], &args.output, argvs, g)?;
+    if let Some(tmp) = &chap_file {
+        let _ = std::fs::remove_file(tmp);
+    }
     Ok(finish(
         c,
         platform,
@@ -722,6 +756,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         measured,
         args.fps.unwrap_or(30),
         &args,
+        chap_marks.len(),
     ))
 }
 
@@ -732,6 +767,7 @@ fn finish(
     measured: Option<serde_json::Value>,
     fps: u32,
     args: &DeliverArgs,
+    chapters: usize,
 ) -> Contract {
     c.with_extra(json!({
         "platform": platform,
@@ -743,6 +779,7 @@ fn finish(
         "intro": args.intro.is_some(),
         "outro": args.outro.is_some(),
         "logo": args.logo.is_some(),
+        "chapters": chapters,
     }))
 }
 
@@ -1041,6 +1078,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Roposo => "roposo",
         DeliverPlatform::Boomplay => "boomplay",
         DeliverPlatform::Sohu => "sohu",
+        DeliverPlatform::Pixelfed => "pixelfed",
+        DeliverPlatform::Artstation => "artstation",
+        DeliverPlatform::Clapper => "clapper",
+        DeliverPlatform::Younow => "younow",
+        DeliverPlatform::Meesho => "meesho",
+        DeliverPlatform::Bulbul => "bulbul",
+        DeliverPlatform::Fanvue => "fanvue",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

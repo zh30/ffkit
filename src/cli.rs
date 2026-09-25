@@ -1300,6 +1300,9 @@ pub enum TranscodePreset {
     /// Animated PNG — full-color sticker/reaction loops where gif's pal8
     /// banding shows (.apng target, loops forever, -vn implied)
     Apng,
+    /// MPEG-2 video + MP2 audio — DVD/broadcast legacy master (.mpg/.vob;
+    /// set-top players, TV ingest, archival interop)
+    Mpeg2,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1365,8 +1368,9 @@ pub struct DeliverArgs {
     #[arg(long)]
     pub cover: Option<PathBuf>,
     /// Embed chapter markers from a YouTube-format list ("mm:ss title" per
-    /// line — same file `chapter --yt` exports) on the audio feed pack
-    /// (podcast/audiobook: Apple Podcasts chapters, audiobook bookmarks)
+    /// line — same file `chapter --yt` exports) as real container chapters:
+    /// podcast/audiobook feeds get Apple Podcasts seek stops, video packs get
+    /// mp4/m4b chapters — YouTube and players read them as timeline markers
     #[arg(long)]
     pub chapters: Option<PathBuf>,
     /// Title metadata tag written into the pack (Apple Podcasts title)
@@ -1994,6 +1998,20 @@ pub enum DeliverPlatform {
     Boomplay,
     /// Sohu 搜狐视频 — CN video portal 16:9
     Sohu,
+    /// Pixelfed — Fediverse Instagram-style square posts 1:1
+    Pixelfed,
+    /// ArtStation — portfolio/video-host 16:9
+    Artstation,
+    /// Clapper — US TikTok-alt short-video 9:16
+    Clapper,
+    /// YouNow — live-stream social video 9:16
+    Younow,
+    /// Meesho — IN commerce video listings 9:16
+    Meesho,
+    /// Bulbul — IN commerce video listings 9:16
+    Bulbul,
+    /// Fanvue — creator-economy posts 9:16
+    Fanvue,
 
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,

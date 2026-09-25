@@ -811,3 +811,15 @@ The "nothing to conform" gate lists every transform flag — forgetting `--maxra
 ## Digit-leading platform names need `#[value(name = …)]`
 
 clap derives value names from the Rust variant (`Live17` → `live17`), so `--platform 17live` is rejected unless the variant carries `#[value(name = "17live")]` — same trick as `NineGag` → `9gag`.
+
+## `.mpl` MPL2 times are deciseconds, not frames or seconds
+
+`[123][456]line` = 12.3s→45.6s (×0.1). The sibling `.sub` MicroDVD is frame-based and needs `--fps`; MPL2 is self-timing — a count × 10 for seconds.
+
+## SAMI `.smi` cues end at the next `<SYNC>`, not an End attribute
+
+A cue's text runs from its `<SYNC Start=ms>` tag until the following SYNC's start; the last cue has no closer so the parser falls back to a default hold. In-file tags (`<P>`, `<br>`) are markup, not text — strip on parse.
+
+## `-map_chapters N` needs the ffmeta input index, not a stream map
+
+Container chapters come from a `-f ffmetadata` INPUT; `-map_chapters` takes that input's number (1-based by input order). In multi-input verbs (intro/outro/logo) the chapters input is appended last — count inputs, don't hardcode the index.
