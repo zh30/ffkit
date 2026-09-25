@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.317.0] — 2026-09-24
+
+### Added
+- `probe`/`scan` `streams[].color_primaries`/`color_transfer` — per-track HDR spec pair (bt2020+smpte2084 PQ / arib-std-b67 HLG per track — an SDR track in an HDR package slips platform QC without them; top-level probe already reported them, this exposes them per stream for multi-angle files)
+- `live --loudnorm` — one-pass dynamic loudnorm on the pushed aac chain (broadcast −23 LUFS spec — normalize ingest loudness inline without a measure pass; rides after --volume/--audio-delay/--hold in the same graph, refuses --no-audio)
+- `deliver --platform` +7: `netflix`/`disney`/`max`/`peacock`/`paramount`/`appletv`/`primevideo` — SVOD hosts (16:9 1080p, −14 LUFS pipeline)
+
 ## [0.316.0] — 2026-09-24
 
 ### Added

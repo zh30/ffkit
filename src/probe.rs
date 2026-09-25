@@ -148,6 +148,14 @@ pub struct ProbeStream {
     /// multi-angle file; HDR/SDR deliverable QC per track)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color_space: Option<String>,
+    /// Color primaries (video — bt2020/bt709; the HDR/SDR pair with
+    /// color_transfer a platform's HDR spec requires)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color_primaries: Option<String>,
+    /// Transfer characteristic (video — smpte2084=PQ / arib-std-b67=HLG;
+    /// an SDR track in an HDR package slips spec QC without it)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color_transfer: Option<String>,
     /// Player-default track (disposition.default) — QC which track a
     /// player picks before `remux --default-audio`/`--default-sub`.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -494,6 +502,8 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                     .filter(|r| r.as_str() != "0:1"),
                 field_order: s.field_order.clone().filter(|f| f.as_str() != "unknown"),
                 color_space: s.color_space.clone(),
+                color_primaries: s.color_primaries.clone(),
+                color_transfer: s.color_transfer.clone(),
                 default: s
                     .disposition
                     .as_ref()

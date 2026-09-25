@@ -157,6 +157,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             ("volume", args.volume.is_some()),
             ("channels", args.channels.is_some()),
             ("audio-delay", args.audio_delay.is_some()),
+            ("loudnorm", args.loudnorm),
         ] {
             if set {
                 return Err(Error::input(format!(
@@ -524,6 +525,9 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(d) = args.audio_delay {
             s.push_str(&format!(",adelay={}", (d * 1000.0).round() as u64));
         }
+        if args.loudnorm {
+            s.push_str(",loudnorm");
+        }
         s
     };
     let mut vout = String::new();
@@ -594,6 +598,12 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
                 achain.push(',');
             }
             achain.push_str(&format!("adelay={}", (d * 1000.0).round() as u64));
+        }
+        if args.loudnorm {
+            if !achain.is_empty() {
+                achain.push(',');
+            }
+            achain.push_str("loudnorm");
         }
         if !achain.is_empty() {
             fc.push_str(&format!("[{amap}]{achain}[avol];"));

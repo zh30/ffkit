@@ -197,6 +197,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Hulu
         | DeliverPlatform::UNext
         | DeliverPlatform::Gyao
+        | DeliverPlatform::Netflix
+        | DeliverPlatform::Disney
+        | DeliverPlatform::Max
+        | DeliverPlatform::Peacock
+        | DeliverPlatform::Paramount
+        | DeliverPlatform::Appletv
+        | DeliverPlatform::Primevideo
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
         | DeliverPlatform::Parler
@@ -663,6 +670,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Hulu => "hulu",
         DeliverPlatform::UNext => "u-next",
         DeliverPlatform::Gyao => "gyao",
+        DeliverPlatform::Netflix => "netflix",
+        DeliverPlatform::Disney => "disney",
+        DeliverPlatform::Max => "max",
+        DeliverPlatform::Peacock => "peacock",
+        DeliverPlatform::Paramount => "paramount",
+        DeliverPlatform::Appletv => "appletv",
+        DeliverPlatform::Primevideo => "primevideo",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

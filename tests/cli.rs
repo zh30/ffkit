@@ -37365,3 +37365,113 @@ fn r289_field_order_number_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r290_color_hdr_loudnorm_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // streams[].color_primaries/color_transfer — the HDR pair (a platform's
+    // HDR spec requires bt2020 + smpte2084/arib-std-b67 per track)
+    let hdr = d.path().join("hdr.mkv");
+    assert!(std::process::Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=320x240:rate=25:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:v",
+            "libx264",
+            "-color_primaries",
+            "bt2020",
+            "-color_trc",
+            "smpte2084",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&hdr)
+        .status()
+        .unwrap()
+        .success());
+    let j = run_json(&["probe", hdr.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    assert_eq!(v["color_primaries"], "bt2020");
+    assert_eq!(v["color_transfer"], "smpte2084");
+    let a = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+    assert!(a.get("color_primaries").is_none() || a["color_primaries"].is_null());
+
+    // live --loudnorm — dynamic loudness normalize on the pushed aac chain
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--loudnorm",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "dry_run");
+    assert!(j["commands"].to_string().contains("loudnorm"));
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--loudnorm",
+        "--no-audio",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "failed");
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--loudnorm",
+        "--volume",
+        "1.2",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "dry_run");
+    let cmds = j["commands"].to_string();
+    assert!(
+        cmds.contains("volume=1.2") && cmds.contains("loudnorm"),
+        "{cmds}"
+    );
+
+    // deliver --platform +7: SVOD hosts
+    for name in [
+        "netflix",
+        "disney",
+        "max",
+        "peacock",
+        "paramount",
+        "appletv",
+        "primevideo",
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

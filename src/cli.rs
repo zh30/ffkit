@@ -1611,6 +1611,20 @@ pub enum DeliverPlatform {
     UNext,
     /// GYAO! JP free streaming 16:9 landscape (1920x1080, -14 LUFS)
     Gyao,
+    /// Netflix SVOD 16:9 landscape (1920x1080, -14 LUFS)
+    Netflix,
+    /// Disney+ SVOD 16:9 landscape (1920x1080, -14 LUFS)
+    Disney,
+    /// Max (HBO) SVOD 16:9 landscape (1920x1080, -14 LUFS)
+    Max,
+    /// Peacock SVOD 16:9 landscape (1920x1080, -14 LUFS)
+    Peacock,
+    /// Paramount+ SVOD 16:9 landscape (1920x1080, -14 LUFS)
+    Paramount,
+    /// Apple TV+ SVOD 16:9 landscape (1920x1080, -14 LUFS)
+    Appletv,
+    /// Prime Video SVOD 16:9 landscape (1920x1080, -14 LUFS)
+    Primevideo,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -5287,6 +5301,10 @@ pub struct LiveArgs {
     /// re-rendering it; refuses --no-audio)
     #[arg(long)]
     pub volume: Option<f64>,
+    /// One-pass dynamic loudnorm on the pushed audio (broadcast −23 LUFS
+    /// spec — normalize ingest loudness inline; refuses --no-audio)
+    #[arg(long)]
+    pub loudnorm: bool,
     /// Downscale before streaming, WxH (push a 4K master to a 720p ingest)
     #[arg(long)]
     pub scale: Option<String>,

@@ -701,3 +701,8 @@ absent ≠ progressive, just means the codec/container didn't tag it.
 `select='eq(n\,15)'` inside a filter string escapes the option-comma —
 in a Rust format! that's `\\,` in source. `eq(n,15)` unescaped splits
 the filter args and ffmpeg fails with Undefined constant.
+## dynamic loudnorm stderr noise
+One-pass `loudnorm` on the live push chain prints its loudness stats to
+stderr each interval — cosmetic progress noise, not a failure. The
+normalized spec is the default −23 LUFS broadcast target; measured
+two-pass normalization stays the `loudnorm` verb's job.
