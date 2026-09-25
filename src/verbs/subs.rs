@@ -992,9 +992,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             .unwrap_or_default()
     };
     let (in_ext, out_ext) = (ext(&args.input), ext(&args.output));
-    if in_ext != "srt" && in_ext != "vtt" && in_ext != "ass" {
+    if in_ext != "srt" && in_ext != "vtt" && in_ext != "ass" && in_ext != "ttml" && in_ext != "dfxp"
+    {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass input and .srt/.vtt/.txt/.ass output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp input",
         ));
     }
     if out_ext != "srt"
@@ -1003,14 +1004,17 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "ass"
         && out_ext != "lrc"
         && out_ext != "ttml"
+        && out_ext != "dfxp"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass input and .srt/.vtt/.txt/.ass/.lrc/.ttml output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp output",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
     let mut cues = if in_ext == "ass" {
         parse_ass(&raw)?
+    } else if in_ext == "ttml" || in_ext == "dfxp" {
+        parse_ttml(&raw)?
     } else {
         // vtt → srt-shaped blocks: drop WEBVTT/NOTE/STYLE blocks and cue
         // settings.
@@ -1061,7 +1065,7 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             .replace('>', "&gt;")
             .replace('\n', "<br/>")
     };
-    let out = if out_ext == "ttml" {
+    let out = if out_ext == "ttml" || out_ext == "dfxp" {
         // minimal TTML/DFXP (broadcast + Netflix subtitle exchange) —
         // one <p> per cue, HH:MM:SS.mmm clock times, <br/> line breaks
         let mut s = String::from(
@@ -1357,6 +1361,68 @@ fn parse_ass(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
     if cues.is_empty() {
         return Err(Error::input(
             "subs --convert: no Dialogue events in the .ass file",
+        ));
+    }
+    Ok(cues)
+}
+
+/// .ttml/.dfxp input for --convert: `<p begin end>` cues (the broadcast/
+/// Netflix exchange format — reads back ffkit's own `.ttml` output too).
+/// Clock times are `H:MM:SS.mmm`; `<br/>` breaks become newlines, XML
+/// entities unescape, remaining tags strip.
+fn parse_ttml(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
+    let attr = |tag: &str, name: &str| -> Option<String> {
+        let pat = format!("{name}=\"");
+        let i = tag.find(&pat)? + pat.len();
+        let j = tag[i..].find('"')? + i;
+        Some(tag[i..j].to_string())
+    };
+    let unescape = |s: &str| -> String {
+        s.replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .replace("&amp;", "&")
+    };
+    let mut cues = Vec::new();
+    let mut rest = raw;
+    while let Some(i) = rest.find("<p ") {
+        let seg = &rest[i + 3..];
+        let Some(tag_end) = seg.find('>') else {
+            break;
+        };
+        let tag = &seg[..tag_end];
+        let after = &seg[tag_end + 1..];
+        let Some(close) = after.find("</p>") else {
+            break;
+        };
+        let body = &after[..close];
+        rest = &after[close + 4..];
+        let (Some(b), Some(e)) = (attr(tag, "begin"), attr(tag, "end")) else {
+            continue;
+        };
+        let start = crate::time::parse_time(&b)
+            .map_err(|_| Error::input(format!("subs --convert: bad ttml begin '{b}'")))?;
+        let end = crate::time::parse_time(&e)
+            .map_err(|_| Error::input(format!("subs --convert: bad ttml end '{e}'")))?;
+        let text = body
+            .replace("<br/>", "\n")
+            .replace("<br />", "\n")
+            .replace("<br>", "\n");
+        let text = unescape(&crate::srt::strip_markup(&text));
+        let text = text.trim();
+        if text.is_empty() {
+            continue;
+        }
+        cues.push(crate::srt::Cue {
+            start,
+            end,
+            text: text.to_string(),
+        });
+    }
+    if cues.is_empty() {
+        return Err(Error::input(
+            "subs --convert: no <p begin end> cues in the .ttml/.dfxp file",
         ));
     }
     Ok(cues)

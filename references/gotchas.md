@@ -720,3 +720,11 @@ Codec `level` reads `-99` for untagged streams (ffprobe's "no level") —
 the iTunes explicit/clean tag can't be written via ffmpeg 4.4.
 `chapter --at 0.3` anchors the FIRST mark at t=0 (container chapters
 start at 0) — later marks keep their times.
+
+## TTML/DFXP is muxer-only in ffmpeg 4.4
+ffmpeg 4.4 can WRITE ttml but has no demuxer — `subs --convert x.ttml`
+round-trips through ffkit's own `<p begin end>` parser, not libavformat.
+The parser reads begin/end attributes (H:MM:SS.mmm or HH:MM:SS:FF) and
+`<br>` line breaks; styling, regions, and `<div>` markup are ignored.
+`r_frame_rate` is the codec's declared base rate — on CFR files
+`r_fps == fps`; a mismatch per track means VFR footage, not a bug.

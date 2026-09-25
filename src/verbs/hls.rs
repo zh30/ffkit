@@ -134,6 +134,14 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--audio-only needs an audio stream"));
         }
     }
+    if args.video_only {
+        if args.audio_only {
+            return Err(Error::input("--video-only conflicts with --audio-only"));
+        }
+        if !probe.has_video {
+            return Err(Error::input("--video-only needs a video stream"));
+        }
+    }
     if !args.ladder.is_empty() {
         // ABR ladder: N variants at tiered bitrates, one audio, master.m3u8.
         if args.copy || args.single {
@@ -193,7 +201,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
                 "yuv420p".to_string(),
             ]);
         }
-        if probe.has_audio {
+        if probe.has_audio && !args.video_only {
             // ffmpeg <7 hls: an elementary stream may appear in only one
             // variant group — so each variant gets its own aac encode.
             for i in 0..n {
@@ -207,7 +215,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
                 ]);
             }
         }
-        let varmap = if probe.has_audio {
+        let varmap = if probe.has_audio && !args.video_only {
             (0..n)
                 .map(|i| format!("v:{i},a:{i}"))
                 .collect::<Vec<_>>()
@@ -283,7 +291,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "-bsf:v".to_string(),
             "h264_mp4toannexb".to_string(),
         ]);
-        if probe.has_audio {
+        if probe.has_audio && !args.video_only {
             argv.extend(["-c:a".to_string(), "copy".to_string()]);
         }
     } else {
@@ -301,7 +309,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
                 "yuv420p".to_string(),
             ]);
         }
-        if probe.has_audio {
+        if probe.has_audio && !args.video_only {
             argv.extend([
                 "-c:a".to_string(),
                 "aac".to_string(),
@@ -312,6 +320,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         if args.audio_only {
             argv.extend(["-vn".to_string()]);
         }
+    }
+    if args.video_only {
+        argv.extend(["-an".to_string()]);
     }
     argv.extend([
         "-f".to_string(),
@@ -453,6 +464,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "time_names": args.time_names,
         "independent": args.independent,
         "iframes": args.iframes,
+        "video_only": args.video_only,
         "base_url": args.base_url,
         "live_window": if args.live { args.live_window.unwrap_or(6) } else { 0 },
     }));

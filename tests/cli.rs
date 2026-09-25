@@ -38153,3 +38153,118 @@ fn r296_original_hls_iframes_subs_ttml_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r297_bitrate_rfps_video_only_ttml_in_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // probe bit_rate: container-wide bitrate QC (platform ingest caps)
+    // + streams[].r_fps: per-track r_frame_rate — r_fps != fps flags VFR
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert!(j["probe"]["bit_rate"].as_u64().unwrap() > 0, "{}", j);
+    let vid = &j["probe"]["streams"][0];
+    assert_eq!(vid["kind"], "video");
+    assert!(vid["r_fps"].as_f64().unwrap() > 0.0, "{vid}");
+    assert!(j["probe"]["streams"][1].get("r_fps").is_none(), "{}", j);
+
+    // hls --video-only / dash --video-only: muted rendition packages
+    let hdir = d.path().join("h");
+    std::fs::create_dir(&hdir).unwrap();
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        hdir.to_str().unwrap(),
+        "--video-only",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let n_audio = std::process::Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_streams",
+            hdir.join("seg_000.ts").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!String::from_utf8_lossy(&n_audio.stdout).contains("codec_type=audio"));
+
+    let ddir = d.path().join("d.mpd");
+    let j = run_json(&[
+        "dash",
+        f.to_str().unwrap(),
+        "-o",
+        ddir.to_str().unwrap(),
+        "--video-only",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let mpd = std::fs::read_to_string(&ddir).unwrap();
+    assert!(!mpd.contains("audio"), "{mpd}");
+
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        hdir.to_str().unwrap(),
+        "--video-only",
+        "--audio-only",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // subs --convert: .ttml/.dfxp input parses <p begin end> cues
+    // (broadcast/Netflix subtitle exchange round-trip)
+    let ttml = d.path().join("t.ttml");
+    std::fs::write(
+        &ttml,
+        "<tt><body><div>\
+         <p begin=\"00:00:01.500\" end=\"00:00:02.500\">A &amp; B<br/>line2</p>\
+         </div></body></tt>",
+    )
+    .unwrap();
+    let srt = d.path().join("back.srt");
+    let j = run_json(&[
+        "subs",
+        ttml.to_str().unwrap(),
+        "--convert",
+        "-o",
+        srt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let s = std::fs::read_to_string(&srt).unwrap();
+    assert!(s.contains("00:00:01,500 --> 00:00:02,500"), "{s}");
+    assert!(s.contains("A & B\nline2"), "{s}");
+    let dfxp = d.path().join("t.dfxp");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--convert",
+        "-o",
+        dfxp.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    assert!(std::fs::read_to_string(&dfxp)
+        .unwrap()
+        .contains("<p begin=\"00:00:01.500\""));
+
+    // deliver --platform: US live-TV streaming platforms
+    for name in [
+        "fubo", "sling", "philo", "directv", "xumo", "vidgo", "frndly",
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

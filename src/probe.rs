@@ -33,6 +33,10 @@ pub struct Probe {
     pub color_transfer: Option<String>,
     pub has_video: bool,
     pub has_audio: bool,
+    /// Container-wide bitrate (format.bit_rate) — overall-budget QC for
+    /// platform ingest caps
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bit_rate: Option<u64>,
     /// Video carries an alpha channel (yuva*/rgba family) — QC before
     /// shipping sticker/overlay assets where transparency matters.
     pub has_alpha: bool,
@@ -116,6 +120,10 @@ pub struct ProbeStream {
     /// landed on every track of a mixed-rate file)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fps: Option<f64>,
+    /// Real base frame rate (r_frame_rate) — differs from `fps` on VFR
+    /// footage, so `r_fps != fps` flags the per-track variable rate
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r_fps: Option<f64>,
     /// Stream duration in seconds (truncated-track QC — an audio track
     /// shorter than the video tail leaves dead air)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -335,6 +343,8 @@ struct FfprobeFormat {
     #[serde(default)]
     format_name: Option<String>,
     #[serde(default)]
+    bit_rate: Option<String>,
+    #[serde(default)]
     tags: Option<std::collections::HashMap<String, String>>,
 }
 
@@ -488,6 +498,11 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
         color_transfer: video.and_then(|v| v.color_transfer.clone()),
         has_video: video.is_some(),
         has_audio: audio.is_some(),
+        bit_rate: parsed
+            .format
+            .as_ref()
+            .and_then(|f| f.bit_rate.as_deref())
+            .and_then(|v| v.parse().ok()),
         size_bytes: parsed
             .format
             .as_ref()
@@ -548,6 +563,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 profile: s.profile.clone(),
                 fps: parse_rate(s.avg_frame_rate.as_deref())
                     .or_else(|| parse_rate(s.r_frame_rate.as_deref())),
+                r_fps: parse_rate(s.r_frame_rate.as_deref()),
                 duration: s.duration.as_deref().and_then(parse_f64),
                 bit_rate: s.bit_rate.as_deref().and_then(|v| v.parse().ok()),
                 pix_fmt: s.pix_fmt.clone(),

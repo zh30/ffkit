@@ -1709,6 +1709,20 @@ pub enum DeliverPlatform {
     Nowtv,
     /// SRF Swiss public broadcaster 16:9 landscape (1920x1080, -14 LUFS)
     Srf,
+    /// Fubo US sports-first live TV 16:9 landscape (1920x1080, -14 LUFS)
+    Fubo,
+    /// Sling US vMVPD live TV 16:9 landscape (1920x1080, -14 LUFS)
+    Sling,
+    /// Philo US entertainment live TV 16:9 landscape (1920x1080, -14 LUFS)
+    Philo,
+    /// DirecTV US satellite/streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Directv,
+    /// Xumo US FAST platform 16:9 landscape (1920x1080, -14 LUFS)
+    Xumo,
+    /// Vidgo US live TV 16:9 landscape (1920x1080, -14 LUFS)
+    Vidgo,
+    /// Frndly US family live TV 16:9 landscape (1920x1080, -14 LUFS)
+    Frndly,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -5554,6 +5568,9 @@ pub struct HlsArgs {
     /// Audio-only stream package (-vn; podcasts, voice-over HLS)
     #[arg(long)]
     pub audio_only: bool,
+    /// Video-only stream package (-an; muted/preview renditions)
+    #[arg(long)]
+    pub video_only: bool,
     /// Fragmented MP4 segments (CMAF; plays on Safari/AirPlay, .m4s files)
     #[arg(long)]
     pub fmp4: bool,
@@ -5642,6 +5659,9 @@ pub struct DashArgs {
     /// Audio-only stream package (-vn; podcasts, voice-over DASH)
     #[arg(long)]
     pub audio_only: bool,
+    /// Video-only stream package (-an; muted/preview renditions)
+    #[arg(long)]
+    pub video_only: bool,
     /// ABR ladder: comma list of heights (e.g. 1080,720,480) → N video
     /// Representations at tiered bitrates in one manifest
     /// (adaptive DASH — players switch rungs with bandwidth)

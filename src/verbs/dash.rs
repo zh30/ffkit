@@ -52,6 +52,9 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         if args.audio_only {
             return Err(Error::input("--ladder doesn't combine with --audio-only"));
         }
+        if args.video_only {
+            return Err(Error::input("--ladder doesn't combine with --video-only"));
+        }
         if !probe.has_video {
             return Err(Error::input("--ladder needs a video stream"));
         }
@@ -80,11 +83,20 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut argv = engine::ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
+    if args.video_only {
+        if args.audio_only {
+            return Err(Error::input("--video-only conflicts with --audio-only"));
+        }
+        if !probe.has_video {
+            return Err(Error::input("--video-only needs a video stream"));
+        }
+        argv.extend(["-an".to_string()]);
+    }
     if args.copy {
         if probe.has_video && !args.audio_only {
             argv.extend(["-c:v".to_string(), "copy".to_string()]);
         }
-        if probe.has_audio {
+        if probe.has_audio && !args.video_only {
             argv.extend(["-c:a".to_string(), "copy".to_string()]);
         }
     } else if hs.is_empty() {
@@ -115,7 +127,7 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
                 ]);
             }
         }
-        if probe.has_audio {
+        if probe.has_audio && !args.video_only {
             if args.webm {
                 argv.extend([
                     "-c:a".to_string(),
@@ -191,7 +203,7 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
         let n_streams = n;
-        if probe.has_audio {
+        if probe.has_audio && !args.video_only {
             argv.extend([
                 "-map".to_string(),
                 "0:a".to_string(),
@@ -206,7 +218,7 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
             ]);
         }
         let vids: Vec<String> = (0..n_streams).map(|i| i.to_string()).collect();
-        let adapt = if probe.has_audio {
+        let adapt = if probe.has_audio && !args.video_only {
             format!("id=0,streams={} id=1,streams={n_streams}", vids.join(","))
         } else {
             format!("id=0,streams={}", vids.join(","))

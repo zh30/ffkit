@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.324.0] — 2026-09-24
+
+### Added
+
+- `probe`/`scan` `bit_rate` — container-wide bitrate QC (platform ingest caps gate the total budget, not just per-track)
+- `probe`/`scan` `streams[].r_fps` — per-track real base rate (r_frame_rate); `r_fps != fps` flags VFR footage per track
+- `hls --video-only` / `dash --video-only` — video-only packages (-an; muted/preview renditions; complements `--audio-only`)
+- `subs --convert` input `.ttml`/`.dfxp` — TTML/DFXP `<p begin end>` cue parsing (broadcast/Netflix exchange read-back), `.dfxp` output alias
+- `deliver --platform` +7: `fubo`/`sling`/`philo`/`directv`/`xumo`/`vidgo`/`frndly` — US live-TV streaming platforms (16:9 1920x1080, -14 LUFS pipeline)
+
 ## [0.323.0] — 2026-09-24
 
 ### Added
