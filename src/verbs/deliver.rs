@@ -481,7 +481,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Fansly
         | DeliverPlatform::Fanbox
         | DeliverPlatform::Cameo
-        | DeliverPlatform::Subscribestar => (1080, 1920),
+        | DeliverPlatform::Subscribestar
+        | DeliverPlatform::Tmall
+        | DeliverPlatform::Noon
+        | DeliverPlatform::Nykaa
+        | DeliverPlatform::Daraz
+        | DeliverPlatform::Jumia
+        | DeliverPlatform::Tiktokshop
+        | DeliverPlatform::Quikr => (1080, 1920),
         DeliverPlatform::Weibo => (1920, 1080),
         _ => (1080, 1920),
     };
@@ -1195,6 +1202,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Foxnews => "foxnews",
         DeliverPlatform::Aljazeera => "aljazeera",
         DeliverPlatform::Bbcnews => "bbcnews",
+        DeliverPlatform::Tmall => "tmall",
+        DeliverPlatform::Noon => "noon",
+        DeliverPlatform::Nykaa => "nykaa",
+        DeliverPlatform::Daraz => "daraz",
+        DeliverPlatform::Jumia => "jumia",
+        DeliverPlatform::Tiktokshop => "tiktokshop",
+        DeliverPlatform::Quikr => "quikr",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

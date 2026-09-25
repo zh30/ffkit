@@ -41430,3 +41430,102 @@ fn r318_dv_mjpeg_pjs_news_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
     }
 }
+
+#[test]
+fn r319_amv_psb_packets_sea_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // transcode --preset amv: fixed spec 160x120 amv + adpcm 22050Hz mono
+    let o = dir.path().join("o.amv");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "amv",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["vcodec"], "amv", "{j}");
+    assert_eq!(j["probe"]["width"], 160, "{j}");
+    assert_eq!(j["probe"]["height"], 120, "{j}");
+    assert_eq!(j["probe"]["acodec"], "adpcm_ima_amv", "{j}");
+    assert_eq!(j["probe"]["sample_rate"], 22050, "{j}");
+    assert_eq!(j["probe"]["channels"], 1, "{j}");
+
+    // fixed spec refuses tuning flags upfront
+    let o2 = dir.path().join("o2.amv");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "amv",
+        "--fps",
+        "30",
+        "-o",
+        o2.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    let msg = j["error"]["message"].as_str().unwrap();
+    assert!(msg.contains("fixed spec"), "{msg}");
+
+    // subs --convert .psb PowerDivX brace-timestamp rows
+    let psb = dir.path().join("t.psb");
+    std::fs::write(
+        &psb,
+        "{00:00:01.000}{00:00:02.000}Hello PSB\n{00:00:03.000}{00:00:04.000}Line2|wrap\n",
+    )
+    .unwrap();
+    let out = dir.path().join("o.srt");
+    let j = run_json(&[
+        "subs",
+        psb.to_str().unwrap(),
+        "--convert",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.contains("00:00:01,000 --> 00:00:02,000"), "{text}");
+    assert!(text.contains("Hello PSB"), "{text}");
+    assert!(text.contains("Line2\nwrap"), "{text}");
+
+    // scan --packets: real packet counts per stream + truncation flag
+    let j = run_json(&["scan", f.to_str().unwrap(), "--packets"]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let counted = j["extra"]["streams_counted"].as_array().unwrap();
+    assert_eq!(counted.len(), 2, "{j}");
+    assert_eq!(counted[0]["codec"], "h264", "{j}");
+    assert!(counted[0]["counted_frames"].as_u64().unwrap() > 0, "{j}");
+    assert_eq!(j["extra"]["packet_mismatch"], false, "{j}");
+
+    // deliver --platform +7 e-commerce (9:16 1080x1920)
+    for name in [
+        "tmall",
+        "noon",
+        "nykaa",
+        "daraz",
+        "jumia",
+        "tiktokshop",
+        "quikr",
+    ] {
+        let o = dir.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1080, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1920, "{name}: {j}");
+    }
+}

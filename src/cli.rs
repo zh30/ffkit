@@ -1343,6 +1343,10 @@ pub enum TranscodePreset {
     /// Motion JPEG + MP2 in .avi/.mov (NLE-era editing format —
     /// Digital Betacam captures, frame-accurate scrub masters)
     Mjpeg,
+    /// AMV in .amv — the Chinese handheld-player master (MP3/MP4
+    /// players circa 2006; snaps to the AMV-legal 160x120 canvas,
+    /// ADPCM 22050Hz mono audio)
+    Amv,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2175,6 +2179,20 @@ pub enum DeliverPlatform {
     Aljazeera,
     /// BBC News clip 16:9 landscape (1920x1080, -14 LUFS)
     Bbcnews,
+    /// Tmall product video 9:16 portrait (1080x1920, -14 LUFS)
+    Tmall,
+    /// Noon product video 9:16 portrait (1080x1920, -14 LUFS)
+    Noon,
+    /// Nykaa product video 9:16 portrait (1080x1920, -14 LUFS)
+    Nykaa,
+    /// Daraz product video 9:16 portrait (1080x1920, -14 LUFS)
+    Daraz,
+    /// Jumia Africa product video 9:16 portrait (1080x1920, -14 LUFS)
+    Jumia,
+    /// TikTok Shop product video 9:16 portrait (1080x1920, -14 LUFS)
+    Tiktokshop,
+    /// Quikr India classified video 9:16 portrait (1080x1920, -14 LUFS)
+    Quikr,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6890,6 +6908,12 @@ pub struct ScanArgs {
     /// `bitrate_spike_at` — platform peak-rate spec checks
     #[arg(long)]
     pub bitrate: bool,
+    /// Real per-stream packet counts via -count_packets (a second
+    /// ffprobe pass): `streams_counted` — nb_read_packets per stream.
+    /// Declared `nb_frames` comes from container headers; counted is
+    /// actual — a mismatch means a truncated/damaged file
+    #[arg(long)]
+    pub packets: bool,
 }
 
 #[derive(clap::Args, Debug)]

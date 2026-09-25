@@ -877,3 +877,15 @@ The dv muxer initializes only when the streams are exactly `video: 25fps or 29.9
 ## `.pjs` times are deciseconds, not milliseconds or frames
 
 Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same units as MPL2's `[s][e]`, different shape). ffmpeg 4.4's pjs demuxer handles canonical rows, but the three-field row is trivial enough that ffkit parses it directly — no demuxer quirks to inherit.
+
+## The amv muxer's adpcm block_size is sample_rate / video_fps
+
+`adpcm_ima_amv -block_size` is not a free parameter: the muxer validates it against the audio packet size the video cadence implies (22050Hz / 25fps = 882, / 30fps = 735) and errors naming the wanted value if it mismatches. The preset pins fps=25 in the chain so 882 is always right — never derive it from source channels (mono vs stereo is a red herring).
+
+## `.psb` braces carry timestamps, `.sub` braces carry frames
+
+`{hh:mm:ss.mmm}{hh:mm:ss.mmm}text` is PowerSub — times, not frame numbers. MicroDVD `{f}{f}text` counts frames (needs a rate). Both live in legacy archives next to each other: a brace-prefix file is NOT automatically MicroDVD — check whether the inside has colons.
+
+## ffprobe -count_packets: declared vs real frames
+
+`nb_frames` comes from container headers — a truncated file keeps its optimistic header. `ffprobe -count_packets -show_streams` actually walks the file and reports `nb_read_packets`; a mismatch means the file is damaged, not that the metadata is stale.

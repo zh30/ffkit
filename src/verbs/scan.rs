@@ -866,5 +866,52 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(tc) = &probe.timecode {
         extra["timecode"] = json!(tc);
     }
+    // --packets: real per-stream packet counts (a second ffprobe pass with
+    // -count_packets). Declared nb_frames comes from container headers;
+    // nb_read_packets is what's actually there — a mismatch means a
+    // truncated/damaged file the header lied about
+    if args.packets {
+        let mut av = Argv::ffprobe();
+        av.extend([
+            "-v",
+            "error",
+            "-count_packets",
+            "-show_streams",
+            "-of",
+            "json",
+        ]);
+        av.push(&args.input);
+        if let Ok(sp) = spawn::require_ok(&av, spawn::run(&av, g.timeout, false)?) {
+            if let Ok(raw) = spawn::stdout_str(&sp) {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(raw) {
+                    let mut counted = Vec::new();
+                    let mut mismatch = false;
+                    if let Some(ss) = v["streams"].as_array() {
+                        for (i, st) in ss.iter().enumerate() {
+                            if let Some(n) = st["nb_read_packets"]
+                                .as_str()
+                                .and_then(|s| s.parse::<u64>().ok())
+                            {
+                                let declared =
+                                    st["nb_frames"].as_str().and_then(|s| s.parse::<u64>().ok());
+                                if let Some(d) = declared {
+                                    if d != n {
+                                        mismatch = true;
+                                    }
+                                }
+                                counted.push(json!({
+                                    "index": i,
+                                    "codec": st["codec_name"],
+                                    "counted_frames": n,
+                                }));
+                            }
+                        }
+                    }
+                    extra["streams_counted"] = json!(counted);
+                    extra["packet_mismatch"] = json!(mismatch);
+                }
+            }
+        }
+    }
     Ok(Contract::ok("scan", None, Some(probe)).with_extra(extra))
 }

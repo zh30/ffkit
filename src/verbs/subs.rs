@@ -1086,9 +1086,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && in_ext != "rt"
         && in_ext != "mps"
         && in_ext != "pjs"
+        && in_ext != "psb"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs input",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb input",
         ));
     }
     if out_ext != "srt"
@@ -1104,7 +1105,7 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "smi"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi output",
         ));
     }
     let raw = if in_ext == "scc" || in_ext == "stl" || in_ext == "rt" || in_ext == "mps" {
@@ -1156,6 +1157,8 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         parse_csv_subs(&raw)?
     } else if in_ext == "pjs" {
         parse_pjs(&raw)?
+    } else if in_ext == "psb" {
+        parse_psb(&raw)?
     } else {
         // vtt → srt-shaped blocks: drop WEBVTT/NOTE/STYLE blocks and cue
         // settings.
@@ -1796,6 +1799,60 @@ fn parse_pjs(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
     }
     if cues.is_empty() {
         return Err(Error::input("pjs: no cues parsed"));
+    }
+    Ok(cues)
+}
+
+/// PowerDivX `.psb` — `{hh:mm:ss.mmm}{hh:mm:ss.mmm}text` timestamp-brace
+/// rows. Same brace shape as MicroDVD `.sub` but TIMESTAMPS not frame
+/// numbers — paired with .pjs for the legacy-fansub-archive family.
+fn parse_psb(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
+    fn ts(t: &str) -> Option<f64> {
+        let (h, rest) = t.split_once(':')?;
+        let (m, s) = rest.split_once(':')?;
+        Some(
+            h.trim().parse::<f64>().ok()? * 3600.0
+                + m.trim().parse::<f64>().ok()? * 60.0
+                + s.trim().parse::<f64>().ok()?,
+        )
+    }
+    let mut cues = Vec::new();
+    for (ln, line) in raw.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Some((start_t, rest)) = line.strip_prefix('{').and_then(|r| r.split_once('}')) else {
+            return Err(Error::input(format!(
+                "psb line {ln}: want {{start}}{{end}}text, got '{line}'"
+            )));
+        };
+        let Some(start) = ts(start_t.trim()) else {
+            return Err(Error::input(format!(
+                "psb line {ln}: bad start timestamp in '{line}'"
+            )));
+        };
+        let Some((end_t, text)) = rest.strip_prefix('{').and_then(|r| r.split_once('}')) else {
+            return Err(Error::input(format!("psb line {ln}: bad end in '{line}'")));
+        };
+        let Some(end) = ts(end_t.trim()) else {
+            return Err(Error::input(format!(
+                "psb line {ln}: bad end timestamp in '{line}'"
+            )));
+        };
+        if end <= start {
+            return Err(Error::input(format!(
+                "psb line {ln}: end {end} ≤ start {start}"
+            )));
+        }
+        cues.push(crate::srt::Cue {
+            start,
+            end,
+            text: text.replace('|', "\n"),
+        });
+    }
+    if cues.is_empty() {
+        return Err(Error::input("psb: no cues parsed"));
     }
     Ok(cues)
 }

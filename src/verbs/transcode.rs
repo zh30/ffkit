@@ -169,6 +169,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Theora => theora(&args, g),
         TranscodePreset::Dv => dv(&args, g),
         TranscodePreset::Mjpeg => mjpeg(&args, g),
+        TranscodePreset::Amv => amv(&args, g),
     }
 }
 
@@ -1079,6 +1080,69 @@ fn mjpeg(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "mjpeg" }));
+    Ok(c)
+}
+
+/// AMV in .amv — the Chinese handheld-player master: MP3/MP4 players
+/// circa 2006. Another fixed spec like dv: AMV video is 160x120 (the muxer
+/// needs -vstrict -1 for the non-16-multiple height) + adpcm_ima_amv at
+/// 22050Hz mono, so the preset snaps to the legal canvas letterboxed and
+/// refuses every tuning flag.
+fn amv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != "amv" {
+        return Err(Error::input(format!(
+            "transcode --preset amv needs a .amv target, not .{ext}"
+        )));
+    }
+    if args.fps.is_some()
+        || args.gop.is_some()
+        || args.range.is_some()
+        || args.field_order.is_some()
+        || args.interlace_mode.is_some()
+        || args.interlaced
+        || args.ar.is_some()
+        || args.channels.is_some()
+        || args.vbitrate.is_some()
+        || args.abitrate.is_some()
+        || args.crf.is_some()
+        || args.width.is_some()
+        || args.colors.is_some()
+    {
+        return Err(Error::input(
+            "transcode --preset amv is a fixed spec (160x120 + ADPCM 22050Hz mono) — tuning flags don't apply",
+        ));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("amv preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend([
+        "-vf",
+        "scale=w=160:h=120:force_original_aspect_ratio=decrease,pad=160:120:(ow-iw)/2:(oh-ih)/2,fps=25",
+    ]);
+    argv.extend(["-c:v", "amv", "-vstrict", "-1"]);
+    if probe.has_audio {
+        // the amv muxer demands block_size == sample_rate / video_fps —
+        // the chain above pins 22050Hz / 25fps, so 882 always
+        argv.extend(["-c:a", "adpcm_ima_amv", "-block_size", "882"]);
+        argv.extend(["-ar", "22050", "-ac", "1"]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "amv" }));
     Ok(c)
 }
 

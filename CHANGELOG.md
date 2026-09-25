@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.346.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset amv` — AMV video + ADPCM in .amv (the Chinese handheld-player master: MP3/MP4 players circa 2006; another fixed spec like dv — the preset snaps to the legal 160x120@25fps canvas letterboxed + adpcm_ima_amv 22050Hz mono, and refuses every tuning flag. The amv muxer demands block_size == sample_rate/video_fps so the chain pins 25fps → block 882, and -vstrict -1 for the non-16-multiple height)
+- `subs --convert` reads `.psb` — PowerSub `{hh:mm:ss.mmm}{hh:mm:ss.mmm}text` rows (the OTHER brace format: MicroDVD braces count frames, PSB braces carry timestamps; parsed in ffkit, `|` folds to a line break)
+- `scan --packets` — real per-stream packet counts via a second ffprobe -count_packets pass: extras `streams_counted` (per-stream codec + counted_frames) + `packet_mismatch` (true when header-declared nb_frames disagrees with what is actually in the file — truncated/damaged-ingest QC, no decode)
+- `deliver --platform` +7: tmall, noon, nykaa, daraz, jumia, tiktokshop, quikr (e-commerce product video 9:16 1080x1920)
+
 ## [0.345.0] — 2026-09-25
 
 ### Added
