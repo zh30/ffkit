@@ -253,6 +253,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Xumo
         | DeliverPlatform::Vidgo
         | DeliverPlatform::Frndly
+        | DeliverPlatform::Iplayer
+        | DeliverPlatform::My5
+        | DeliverPlatform::Britbox
+        | DeliverPlatform::Acorntv
+        | DeliverPlatform::Shudder
+        | DeliverPlatform::Showtime
+        | DeliverPlatform::Starz
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
         | DeliverPlatform::Parler
@@ -775,6 +782,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Xumo => "xumo",
         DeliverPlatform::Vidgo => "vidgo",
         DeliverPlatform::Frndly => "frndly",
+        DeliverPlatform::Iplayer => "iplayer",
+        DeliverPlatform::My5 => "my5",
+        DeliverPlatform::Britbox => "britbox",
+        DeliverPlatform::Acorntv => "acorntv",
+        DeliverPlatform::Shudder => "shudder",
+        DeliverPlatform::Showtime => "showtime",
+        DeliverPlatform::Starz => "starz",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

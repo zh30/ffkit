@@ -96,6 +96,11 @@ pub struct ProbeStream {
     pub kind: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub codec: Option<String>,
+    /// Codec tag string (avc1/hvc1/hev1/mp4a/stpp…) — QC that
+    /// `remux --tag` landed; untagged streams read `[0][0][0][0]` and
+    /// are filtered out.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub codec_tag: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
     /// Per-track display title (meta --title-audio/--title-subs/
@@ -275,6 +280,8 @@ struct FfprobeStream {
     disposition: Option<std::collections::HashMap<String, i64>>,
     #[serde(default)]
     codec_name: Option<String>,
+    #[serde(default)]
+    codec_tag_string: Option<String>,
     width: Option<u32>,
     height: Option<u32>,
     #[serde(default)]
@@ -553,6 +560,10 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 index: s.index.unwrap_or(i as u32),
                 kind: s.codec_type.clone(),
                 codec: s.codec_name.clone(),
+                codec_tag: s
+                    .codec_tag_string
+                    .clone()
+                    .filter(|t| t.as_str() != "[0][0][0][0]"),
                 language: s.tags.as_ref().and_then(|t| t.get("language").cloned()),
                 title: s.tags.as_ref().and_then(|t| t.get("title").cloned()),
                 width: s.width,

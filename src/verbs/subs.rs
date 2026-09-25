@@ -992,10 +992,15 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             .unwrap_or_default()
     };
     let (in_ext, out_ext) = (ext(&args.input), ext(&args.output));
-    if in_ext != "srt" && in_ext != "vtt" && in_ext != "ass" && in_ext != "ttml" && in_ext != "dfxp"
+    if in_ext != "srt"
+        && in_ext != "vtt"
+        && in_ext != "ass"
+        && in_ext != "ttml"
+        && in_ext != "dfxp"
+        && in_ext != "sbv"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp input",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv input",
         ));
     }
     if out_ext != "srt"
@@ -1005,9 +1010,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "lrc"
         && out_ext != "ttml"
         && out_ext != "dfxp"
+        && out_ext != "sbv"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv output",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -1015,6 +1021,8 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         parse_ass(&raw)?
     } else if in_ext == "ttml" || in_ext == "dfxp" {
         parse_ttml(&raw)?
+    } else if in_ext == "sbv" {
+        parse_sbv(&raw)?
     } else {
         // vtt → srt-shaped blocks: drop WEBVTT/NOTE/STYLE blocks and cue
         // settings.
@@ -1136,6 +1144,25 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
                 ass_ts(c.start),
                 ass_ts(c.end),
                 text
+            ));
+        }
+        s
+    } else if out_ext == "sbv" {
+        // YouTube SubViewer: `H:MM:SS.mmm,H:MM:SS.mmm` header + text
+        // lines — upload Studio-editable captions in Studio's own format
+        let sbv_clock = |t: f64| {
+            let h = (t / 3600.0).floor() as u64;
+            let m = ((t - h as f64 * 3600.0) / 60.0).floor() as u64;
+            let s = t - h as f64 * 3600.0 - m as f64 * 60.0;
+            format!("{h}:{m:02}:{s:06.3}")
+        };
+        let mut s = String::new();
+        for c in &cues {
+            s.push_str(&format!(
+                "{},{}\n{}\n\n",
+                sbv_clock(c.start),
+                sbv_clock(c.end),
+                c.text
             ));
         }
         s
@@ -1426,6 +1453,47 @@ fn parse_ttml(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
         ));
     }
     Ok(cues)
+}
+
+/// .sbv input for --convert: YouTube SubViewer blocks
+/// (`H:MM:SS.mmm,H:MM:SS.mmm` header line + text) — Studio caption
+/// exports read back into the generic cue model.
+fn parse_sbv(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
+    let norm = |body: &str| -> String {
+        body.replace("\r\n", "\n")
+            .split("\n\n")
+            .filter(|b| !b.trim().is_empty())
+            .map(|b| {
+                b.lines()
+                    .map(|l| {
+                        // `H:MM:SS.mmm,H:MM:SS.mmm` → srt arrow form;
+                        // a cue-text line with a comma stays untouched
+                        // (both halves must actually parse as times)
+                        if let Some((a, e)) = l.split_once(',') {
+                            let fmt = |t: &str| {
+                                let t = t.trim();
+                                if t.len() >= 2 && t.chars().nth(1) == Some(':') {
+                                    format!("0{t}")
+                                } else {
+                                    t.to_string()
+                                }
+                            };
+                            let (fa, fe) = (fmt(a), fmt(e));
+                            if crate::time::parse_time(&fa).is_ok()
+                                && crate::time::parse_time(&fe).is_ok()
+                            {
+                                return format!("{fa} --> {fe}");
+                            }
+                        }
+                        l.to_string()
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n")
+    };
+    crate::srt::parse_srt(&norm(raw))
 }
 
 fn append_sub(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {

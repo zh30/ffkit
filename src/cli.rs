@@ -1723,6 +1723,20 @@ pub enum DeliverPlatform {
     Vidgo,
     /// Frndly US family live TV 16:9 landscape (1920x1080, -14 LUFS)
     Frndly,
+    /// BBC iPlayer UK public streamer 16:9 landscape (1920x1080, -14 LUFS)
+    Iplayer,
+    /// My5 UK Channel 5 streamer 16:9 landscape (1920x1080, -14 LUFS)
+    My5,
+    /// BritBox UK catalogue streamer 16:9 landscape (1920x1080, -14 LUFS)
+    Britbox,
+    /// Acorn TV UK niche streamer 16:9 landscape (1920x1080, -14 LUFS)
+    Acorntv,
+    /// Shudder US horror niche streamer 16:9 landscape (1920x1080, -14 LUFS)
+    Shudder,
+    /// Showtime US premium streamer 16:9 landscape (1920x1080, -14 LUFS)
+    Showtime,
+    /// Starz US premium streamer 16:9 landscape (1920x1080, -14 LUFS)
+    Starz,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -5672,6 +5686,11 @@ pub struct DashArgs {
     /// without waiting for whole segments)
     #[arg(long)]
     pub streaming: bool,
+    /// Fragment every SEC inside each segment (-frag_duration +
+    /// -frag_type duration — moof granularity between --streaming's
+    /// per-frame and plain whole segments; trick-play prep)
+    #[arg(long)]
+    pub frag: Option<f64>,
     /// Global SIDX index box for the --single byte-range file
     /// (-global_sidx — HTTP range seeking in the packaged asset; mp4
     /// single-file only, conflicts with --streaming)

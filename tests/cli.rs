@@ -38268,3 +38268,154 @@ fn r297_bitrate_rfps_video_only_ttml_in_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+/// r298: probe/scan streams[].codec_tag (codec tag string — write→verify
+/// loop for `remux --tag`), subs --convert .sbv input+output (YouTube
+/// SubViewer), dash --frag SEC (moof-per-SEC fragments), +7 deliver
+/// platforms.
+#[test]
+fn r298_codec_tag_sbv_dash_frag_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // streams[].codec_tag: avc1/mp4a on mp4; mkv untagged → absent
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    let st = j["probe"]["streams"].as_array().unwrap();
+    assert_eq!(st[0]["codec_tag"], "avc1");
+    assert_eq!(st[1]["codec_tag"], "mp4a");
+    let mkv = d.path().join("t.mkv");
+    let st_mkv = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-i",
+            f.to_str().unwrap(),
+            "-c",
+            "copy",
+            mkv.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st_mkv.success());
+    let j = run_json(&["probe", mkv.to_str().unwrap()]);
+    for s in j["probe"]["streams"].as_array().unwrap() {
+        assert!(s.get("codec_tag").is_none(), "{s:?}");
+    }
+
+    // subs --convert .sbv: Studio-editable caption format round-trip
+    let srt = d.path().join("t.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:01,500 --> 00:00:02,500\nHello, world\nline2\n\n",
+    )
+    .unwrap();
+    let sbv = d.path().join("t.sbv");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        sbv.to_str().unwrap(),
+        "--convert",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let s = std::fs::read_to_string(&sbv).unwrap();
+    assert!(s.contains("0:00:01.500,0:00:02.500"), "{s}");
+    assert!(s.contains("Hello, world\nline2"), "{s}");
+    let back = d.path().join("back.srt");
+    let j = run_json(&[
+        "subs",
+        sbv.to_str().unwrap(),
+        "-o",
+        back.to_str().unwrap(),
+        "--convert",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let s = std::fs::read_to_string(&back).unwrap();
+    assert!(s.contains("00:00:01,500 --> 00:00:02,500"), "{s}");
+    // comma in cue text must not be treated as a header line
+    assert!(s.contains("Hello, world"), "{s}");
+
+    // dash --frag SEC: moof fragments per SEC inside each segment
+    let long = d.path().join("long.mp4");
+    let st_long = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=4:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=4",
+            "-c:v",
+            "libx264",
+            "-g",
+            "60",
+            "-c:a",
+            "aac",
+            "-shortest",
+            long.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st_long.success());
+    let ddir = d.path().join("df");
+    let j = run_json(&[
+        "dash",
+        long.to_str().unwrap(),
+        "-o",
+        ddir.to_str().unwrap(),
+        "--frag",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let seg = std::fs::read(ddir.join("seg-0-00001.m4s")).unwrap();
+    let moofs = seg.windows(4).filter(|w| *w == b"moof").count();
+    assert_eq!(moofs, 4, "one moof per second, got {moofs}");
+    let ddir0 = d.path().join("d0");
+    let j = run_json(&[
+        "dash",
+        long.to_str().unwrap(),
+        "-o",
+        ddir0.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let seg0 = std::fs::read(ddir0.join("seg-0-00001.m4s")).unwrap();
+    let moofs0 = seg0.windows(4).filter(|w| *w == b"moof").count();
+    assert_eq!(moofs0, 1, "whole-segment moof, got {moofs0}");
+    let j = run_json(&[
+        "dash",
+        long.to_str().unwrap(),
+        "-o",
+        d.path().join("d2").to_str().unwrap(),
+        "--frag",
+        "1",
+        "--streaming",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // +7 deliver platforms: UK/premium-US 16:9 1920x1080 canvases
+    for name in [
+        "iplayer", "my5", "britbox", "acorntv", "shudder", "showtime", "starz",
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}: {j}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

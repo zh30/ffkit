@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.325.0] — 2026-09-24
+
+### Added
+
+- `probe`/`scan` `streams[].codec_tag` — codec tag string per track (avc1/hvc1/hev1/mp4a/stpp…); the write→verify pair for `remux --tag` (mkv untagged streams report absent)
+- `subs --convert` `.sbv` input + output — YouTube SubViewer captions (`H:MM:SS.mmm,H:MM:SS.mmm` header lines; Studio-editable uploads round-trip)
+- `dash --frag SEC` — moof fragments every SEC inside each segment (trick-play prep; granularity between --streaming's per-frame and whole segments; conflicts with --streaming)
+- `deliver --platform` +7: `iplayer`/`my5`/`britbox`/`acorntv`/`shudder`/`showtime`/`starz` — UK + US premium streamers (16:9 1920x1080, -14 LUFS pipeline)
+
 ## [0.324.0] — 2026-09-24
 
 ### Added

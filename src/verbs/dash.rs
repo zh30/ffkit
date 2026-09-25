@@ -21,6 +21,16 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
             "--streaming and --sidx are exclusive (fragments vs one-file index)",
         ));
     }
+    if args.streaming && args.frag.is_some() {
+        return Err(Error::input(
+            "--frag doesn't combine with --streaming (per-SEC vs per-frame fragments)",
+        ));
+    }
+    if let Some(f) = args.frag {
+        if !(0.1..=30.0).contains(&f) {
+            return Err(Error::input("--frag must be 0.1..=30 seconds"));
+        }
+    }
     if args.sidx && !args.single {
         return Err(Error::input(
             "--sidx indexes the single byte-range file — pass --single too",
@@ -253,6 +263,14 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if args.streaming {
         argv.extend(["-streaming".to_string(), "1".to_string()]);
+    }
+    if let Some(f) = args.frag {
+        argv.extend([
+            "-frag_type".to_string(),
+            "duration".to_string(),
+            "-frag_duration".to_string(),
+            format!("{:.3}", f),
+        ]);
     }
     if args.sidx {
         argv.extend(["-global_sidx".to_string(), "1".to_string()]);
