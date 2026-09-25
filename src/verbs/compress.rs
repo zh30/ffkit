@@ -21,6 +21,11 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         if !probe.has_video {
             return Err(Error::input("compress --crf is video-only"));
         }
+        if let Some(f) = args.fps {
+            if f == 0 || f > 240 {
+                return Err(Error::input("--fps must be 1-240"));
+            }
+        }
         let vf = match args.res {
             Some(h) => format!(
                 "scale=-2:{h}:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p"
@@ -31,6 +36,9 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push("-i");
         argv.push(&args.input);
         argv.extend(["-vf", &vf, "-c:v", "libx264", "-crf", &crf.to_string()]);
+        if let Some(f) = args.fps {
+            argv.extend(["-r", &f.to_string()]);
+        }
         if probe.has_audio {
             argv.extend([
                 "-c:a",
@@ -45,6 +53,9 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push(&args.output);
         let c = engine::write_job("compress", &[&args.input], &args.output, vec![argv], g)?;
         return Ok(c.with_extra(json!({ "crf": crf, "passes": 1 })));
+    }
+    if args.fps.is_some() && !probe.has_video {
+        return Err(Error::input("compress --fps needs video"));
     }
     let size_str = match &args.size {
         Some(s) => s.clone(),
@@ -131,6 +142,9 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
             "-passlogfile",
         ]);
         pass1.push(&passlog);
+        if let Some(f) = args.fps {
+            pass1.extend(["-r", &f.to_string()]);
+        }
         pass1.extend(["-an", "-f", "null", "-"]);
 
         let mut pass2 = ffmpeg_base(g.progress);
@@ -148,6 +162,9 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
             "-passlogfile",
         ]);
         pass2.push(&passlog);
+        if let Some(f) = args.fps {
+            pass2.extend(["-r", &f.to_string()]);
+        }
         if probe.has_audio {
             pass2.extend(["-c:a", "aac", "-b:a", &format!("{:.0}", audio_bps)]);
         } else {

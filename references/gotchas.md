@@ -835,3 +835,11 @@ DivX-era players and projectors reject `.avi` files whose video fourcc isn't `xv
 ## `compress --size` named caps are aliases, not live lookups
 
 `--size whatsapp` maps to a fixed 16MB table entry — app limits change server-side without notice, so an explicit `--size NMB` always wins when the platform publishes a different cap.
+
+## EDL record-in TC is frame-typed — the ff field needs `--fps`
+
+`hh:mm:ss:ff` converts to seconds only with the frame rate the EDL was authored at; CMX headers don't carry it, so `chapter --import .edl` defaults to 30 (NTSC) — PAL exchange files need `--fps 25` or every mark lands slightly early.
+
+## `-vtag xvid` is a player check, not a codec difference
+
+DivX-era gear rejects .avi files whose fourcc isn't `xvid` even with bit-identical MPEG-4 payloads — always pair `libxvid` with the tag.

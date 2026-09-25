@@ -374,6 +374,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Utreon
         | DeliverPlatform::Caffeine
         | DeliverPlatform::Qq
+        | DeliverPlatform::Nba
+        | DeliverPlatform::Nfl
+        | DeliverPlatform::Mlb
+        | DeliverPlatform::Nhl
+        | DeliverPlatform::Fifa
+        | DeliverPlatform::Ufc
+        | DeliverPlatform::Wwe
         | DeliverPlatform::Twitch => (1920, 1080),
         DeliverPlatform::X | DeliverPlatform::Mastodon | DeliverPlatform::Discord => (1280, 720),
         DeliverPlatform::Threads | DeliverPlatform::Instagram | DeliverPlatform::Facebook => {
@@ -622,6 +629,18 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         "-pix_fmt",
         "yuv420p",
     ]);
+    if let Some(p) = args.profile {
+        apply.extend([
+            "-profile:v",
+            crate::verbs::transcode::transcode_profile_name(p),
+        ]);
+    }
+    if let Some(l) = &args.level {
+        apply.extend(["-level:v", l]);
+    }
+    if let Some(b) = args.bf {
+        apply.extend(["-bf", &b.to_string()]);
+    }
     if let Some(m) = &args.maxrate {
         apply.extend(["-maxrate:v", m]);
         let buf = args.bufsize.clone().unwrap_or_else(|| double_rate(m));
@@ -1099,6 +1118,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Zalando => "zalando",
         DeliverPlatform::Coupang => "coupang",
         DeliverPlatform::Mercadolibre => "mercadolibre",
+        DeliverPlatform::Nba => "nba",
+        DeliverPlatform::Nfl => "nfl",
+        DeliverPlatform::Mlb => "mlb",
+        DeliverPlatform::Nhl => "nhl",
+        DeliverPlatform::Fifa => "fifa",
+        DeliverPlatform::Ufc => "ufc",
+        DeliverPlatform::Wwe => "wwe",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

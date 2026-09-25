@@ -40154,6 +40154,130 @@ fn r309_transcode_tune_ffv1_apng_deliver_maxrate_platforms() {
 }
 
 #[test]
+fn r313_wmv_deliver_device_flags_compress_fps_edl_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // transcode --preset wmv -> wmv2 + wmav2 in .wmv
+    let wmv = d.path().join("out.wmv");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        wmv.to_str().unwrap(),
+        "--preset",
+        "wmv",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", wmv.to_str().unwrap()]);
+    let streams = p["probe"]["streams"].as_array().unwrap();
+    assert_eq!(streams[0]["codec"], "wmv2");
+    assert_eq!(streams[1]["codec"], "wmav2");
+    let bad = d.path().join("out.mp4");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        bad.to_str().unwrap(),
+        "--preset",
+        "wmv",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // deliver --profile/--level/--bf -> device-compat h264 pack
+    let dev = d.path().join("dev.mp4");
+    let j = run_json(&[
+        "deliver",
+        f.to_str().unwrap(),
+        "-o",
+        dev.to_str().unwrap(),
+        "--platform",
+        "youtube",
+        "--profile",
+        "baseline",
+        "--level",
+        "3.0",
+        "--bf",
+        "0",
+        "--overwrite",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", dev.to_str().unwrap()]);
+    let v = &p["probe"]["streams"][0];
+    assert_eq!(v["profile"], "Constrained Baseline");
+    assert_eq!(v["level"], 30);
+    assert_eq!(v["has_b_frames"], 0);
+
+    // compress --fps caps the output rate
+    let c = d.path().join("c.mp4");
+    let j = run_json(&[
+        "compress",
+        f.to_str().unwrap(),
+        "-o",
+        c.to_str().unwrap(),
+        "--size",
+        "whatsapp",
+        "--fps",
+        "15",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", c.to_str().unwrap()]);
+    assert_eq!(p["probe"]["streams"][0]["fps"], 15.0);
+
+    // chapter --edl export -> --import .edl round-trip (record-in TC + titles)
+    let marks = d.path().join("marks.txt");
+    std::fs::write(&marks, "0:00 Intro\n0:00.4 Body\n").unwrap();
+    let edl = d.path().join("out.edl");
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "--import",
+        marks.to_str().unwrap(),
+        "--edl",
+        "-o",
+        edl.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let txt = std::fs::read_to_string(&edl).unwrap();
+    assert!(txt.contains("* FROM CLIP NAME: Intro"), "txt={txt}");
+    let yt = d.path().join("rt.txt");
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "--import",
+        edl.to_str().unwrap(),
+        "--yt",
+        "-o",
+        yt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let rt = std::fs::read_to_string(&yt).unwrap();
+    assert!(rt.contains("0:00 Intro"), "rt={rt}");
+    assert!(rt.contains("0:00 Body"), "rt={rt}");
+
+    // deliver --platform sports leagues (16:9)
+    for p in ["nba", "nfl", "mlb", "nhl", "fifa", "ufc", "wwe"] {
+        let o = d.path().join(format!("{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+            "--overwrite",
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pr = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pr["probe"]["width"], 1920, "{p}");
+        assert_eq!(pr["probe"]["height"], 1080, "{p}");
+    }
+}
+
+#[test]
 fn r312_subs_smi_out_mpeg1_xvid_named_size_platforms() {
     if !has_ffmpeg() {
         return;

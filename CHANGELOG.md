@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.340.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset wmv` — WMV2 video + WMA audio in .wmv/.asf (Windows Media-era master: corporate training archives, old PowerPoint-embedded video)
+- `deliver --profile/--level/--bf` — device-compat trio on the pack's h264 encode (baseline + low level + 0 B-frames for car players, kiosks, old phones)
+- `compress --fps N` — frame-rate cap on the budget pass (a 60fps capture at 30 frees motion bitrate under a messaging cap; crf and two-pass paths)
+- `chapter --import .edl` — CMX-style EDL events → marks (record-in TC + `* FROM CLIP NAME:` title; pairs with `--edl` export; `--fps` decodes the ff field, default 30)
+- `deliver --platform` +7 league destinations: nba, nfl, mlb, nhl, fifa, ufc, wwe (16:9 1920x1080 highlight posts)
+
+
 ## [0.339.0] — 2026-09-25
 
 ## [0.338.0] — 2026-09-25

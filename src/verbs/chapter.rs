@@ -88,6 +88,46 @@ fn yt_ts(t: f64) -> String {
 /// Parse a YouTube-format chapter list ("mm:ss title" or "h:mm:ss title"
 /// per line) into (seconds, title) marks — the file `chapter --yt` writes
 /// and YouTube descriptions carry.
+fn parse_edl(text: &str, fps: f64) -> Result<Vec<(f64, String)>, Error> {
+    // CMX-style EDL: "NNN  AX  V  C  <src-in> <src-out> <rec-in> <rec-out>"
+    // + "* FROM CLIP NAME: title" — take the record-in TC as the mark and
+    // the clip name as its title (our --edl export writes this shape)
+    let tc = |s: &str| -> Option<f64> {
+        let p: Vec<f64> = s.split(':').filter_map(|x| x.parse().ok()).collect();
+        if p.len() == 4 {
+            Some(p[0] * 3600.0 + p[1] * 60.0 + p[2] + p[3] / fps.max(1.0))
+        } else {
+            None
+        }
+    };
+    let mut out = Vec::new();
+    let mut pending_t: Option<f64> = None;
+    for line in text.lines() {
+        let l = line.trim();
+        if let Some(rest) = l.strip_prefix("* FROM CLIP NAME:") {
+            if let Some(t) = pending_t.take() {
+                out.push((t, rest.trim().to_string()));
+            }
+            continue;
+        }
+        let parts: Vec<&str> = l.split_whitespace().collect();
+        if parts.len() >= 8 && parts[0].chars().all(|c| c.is_ascii_digit()) {
+            if let Some(t) = tc(parts[6]) {
+                if let Some(t) = pending_t.replace(t) {
+                    out.push((t, format!("event {}", parts[0])));
+                }
+            }
+        }
+    }
+    if let Some(t) = pending_t.take() {
+        out.push((t, "event".to_string()));
+    }
+    if out.is_empty() {
+        return Err(Error::input("no CMX events found in the .edl"));
+    }
+    Ok(out)
+}
+
 fn parse_podcast_json(text: &str, path: &std::path::Path) -> Result<Vec<(f64, String)>, Error> {
     let v: serde_json::Value = serde_json::from_str(text)
         .map_err(|e| Error::input(format!("--import: {}: bad JSON: {e}", path.display())))?;
@@ -541,6 +581,8 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             marks.extend(parse_csv_list(&text, path)?);
         } else if kind == "fcpxml" || kind == "xml" {
             marks.extend(parse_fcpxml(&text, path)?);
+        } else if kind == "edl" {
+            marks.extend(parse_edl(&text, args.fps.unwrap_or(30.0))?);
         } else if kind == "ffmeta" || kind == "ffmetadata" {
             marks.extend(parse_ffmeta_list(&text, path)?);
         } else if kind == "srt" {

@@ -150,6 +150,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Mpeg2 => mpeg2(&args, g),
         TranscodePreset::Mpeg1 => mpeg1(&args, g),
         TranscodePreset::Xvid => xvid(&args, g),
+        TranscodePreset::Wmv => wmv(&args, g),
     }
 }
 
@@ -809,6 +810,47 @@ fn xvid(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c)
 }
 
+/// WMV2 + WMA in .wmv/.asf — Windows Media-era master: corporate training
+/// archives, old PowerPoint-embedded video, Windows-only playback gear.
+fn wmv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if !matches!(ext.as_str(), "wmv" | "asf") {
+        return Err(Error::input(format!(
+            "transcode --preset wmv needs a .wmv/.asf target, not .{ext}"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("wmv preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend(["-c:v", "wmv2"]);
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "wmav2"]);
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "wmv" }));
+    Ok(c)
+}
+
 /// Animated PNG — full-color looping stickers/reactions where gif's 256
 /// colors band (apng plays everywhere gif does; loops forever).
 fn apng(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
@@ -868,7 +910,7 @@ fn transcode_tune_name(t: crate::cli::TranscodeTune) -> &'static str {
     }
 }
 
-fn transcode_profile_name(p: crate::cli::TranscodeProfile) -> &'static str {
+pub(crate) fn transcode_profile_name(p: crate::cli::TranscodeProfile) -> &'static str {
     match p {
         crate::cli::TranscodeProfile::Baseline => "baseline",
         crate::cli::TranscodeProfile::Main => "main",

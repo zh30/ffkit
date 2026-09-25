@@ -962,6 +962,10 @@ pub struct CompressArgs {
     /// Downscale to this height first (frees bitrate at small sizes)
     #[arg(long)]
     pub res: Option<u32>,
+    /// Cap the frame rate (a 60fps capture at 30 frees motion bitrate
+    /// under a messaging cap)
+    #[arg(long)]
+    pub fps: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1311,6 +1315,9 @@ pub enum TranscodePreset {
     /// Xvid/MPEG-4 part 2 in .avi — the legacy-rip master (2000s DivX-era
     /// players, projectors, and set-top boxes that only read .avi)
     Xvid,
+    /// WMV2 + WMA in .wmv/.asf — Windows Media-era master (corporate
+    /// training archives, old PowerPoint-embedded video, Windows-only gear)
+    Wmv,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1327,6 +1334,16 @@ pub struct DeliverArgs {
     /// H.264 quality level (default 20; lower = sharper/larger, 18 visually lossless)
     #[arg(long)]
     pub crf: Option<u32>,
+    /// x264 encode profile for old devices (baseline|main|high —
+    /// car players, kiosks, old phones reject High)
+    #[arg(long)]
+    pub profile: Option<TranscodeProfile>,
+    /// x264 encode level, e.g. 3.1 (device-compat ingest specs)
+    #[arg(long)]
+    pub level: Option<String>,
+    /// Max B-frames (0 = decode order = display order — baseline/mobile spec)
+    #[arg(long)]
+    pub bf: Option<u32>,
     /// Peak video bitrate the encode may burst to, like `4500k`/`6M` —
     /// platform ingest cap (Instagram ~25M, Twitch ≤6000k); paired with
     /// --bufsize for a real CBR envelope
@@ -2049,6 +2066,20 @@ pub enum DeliverPlatform {
     Caffeine,
     /// QQ video posts 16:9 landscape (1920x1080, -14 LUFS)
     Qq,
+    /// NBA League Pass — basketball highlights 16:9
+    Nba,
+    /// NFL+ — football highlights 16:9
+    Nfl,
+    /// MLB.TV — baseball highlights 16:9
+    Mlb,
+    /// NHL — hockey highlights 16:9
+    Nhl,
+    /// FIFA+ — soccer highlights 16:9
+    Fifa,
+    /// UFC Fight Pass — MMA highlights 16:9
+    Ufc,
+    /// WWE — wrestling highlights 16:9
+    Wwe,
 }
 
 #[derive(clap::Args, Debug)]
@@ -7124,6 +7155,10 @@ pub struct ChapterArgs {
     /// snapping a seek lands late). extras: snapped
     #[arg(long)]
     pub snap: bool,
+    /// Frames/sec for reading the ff field of .edl imports (default 30 —
+    /// NTSC EDLs; PAL exchange is 25)
+    #[arg(long)]
+    pub fps: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
