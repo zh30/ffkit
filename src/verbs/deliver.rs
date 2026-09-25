@@ -232,6 +232,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Hidive
         | DeliverPlatform::Retrocrush
         | DeliverPlatform::Bstation
+        | DeliverPlatform::Ard
+        | DeliverPlatform::Zdf
+        | DeliverPlatform::Nrk
+        | DeliverPlatform::Svt
+        | DeliverPlatform::Dr
+        | DeliverPlatform::Cbc
+        | DeliverPlatform::Sbs
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
         | DeliverPlatform::Parler
@@ -733,6 +740,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Hidive => "hidive",
         DeliverPlatform::Retrocrush => "retrocrush",
         DeliverPlatform::Bstation => "bstation",
+        DeliverPlatform::Ard => "ard",
+        DeliverPlatform::Zdf => "zdf",
+        DeliverPlatform::Nrk => "nrk",
+        DeliverPlatform::Svt => "svt",
+        DeliverPlatform::Dr => "dr",
+        DeliverPlatform::Cbc => "cbc",
+        DeliverPlatform::Sbs => "sbs",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

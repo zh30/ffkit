@@ -1681,6 +1681,20 @@ pub enum DeliverPlatform {
     Retrocrush,
     /// Bstation SEA anime streaming 16:9 landscape (1920x1080, -14 LUFS)
     Bstation,
+    /// ARD German public broadcaster 16:9 landscape (1920x1080, -14 LUFS)
+    Ard,
+    /// ZDF German public broadcaster 16:9 landscape (1920x1080, -14 LUFS)
+    Zdf,
+    /// NRK Norwegian public broadcaster 16:9 landscape (1920x1080, -14 LUFS)
+    Nrk,
+    /// SVT Swedish public broadcaster 16:9 landscape (1920x1080, -14 LUFS)
+    Svt,
+    /// DR Danish public broadcaster 16:9 landscape (1920x1080, -14 LUFS)
+    Dr,
+    /// CBC Canadian public broadcaster 16:9 landscape (1920x1080, -14 LUFS)
+    Cbc,
+    /// SBS Australian public broadcaster 16:9 landscape (1920x1080, -14 LUFS)
+    Sbs,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -4576,6 +4590,15 @@ pub struct RemuxArgs {
     /// mkv/webm only, mp4 drops the flag silently)
     #[arg(long)]
     pub commentary: Option<usize>,
+    /// Flag audio track N as a visual-impaired/audio-description track
+    /// (the 4.4-correct AD flag — -disposition +visual_impaired; mkv/webm
+    /// only, mp4 drops the flag silently)
+    #[arg(long)]
+    pub audio_desc: Option<usize>,
+    /// Flag audio track N as a dub track (dubbed-language track for
+    /// multi-language files — mkv/webm only)
+    #[arg(long)]
+    pub dub: Option<usize>,
     /// Keep ONLY the listed absolute stream indices (comma list,
     /// e.g. `0,3` keeps video 0 + audio 3 — the escape hatch when
     /// --audio-order/--sub-order/--lang can't express the pick; unlisted

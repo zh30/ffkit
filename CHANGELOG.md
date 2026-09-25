@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.322.0] — 2026-09-24
+
+### Added
+
+- `remux --audio-desc N` — flag audio track N as audio-description/visual-impaired (the 4.4-correct AD spec flag — players label it "AD"; mkv/webm only, mp4/mov drops the flag so it's refused rather than a no-op)
+- `remux --dub N` — flag audio track N as a dubbed-language track (multi-language delivery files; mkv/webm only)
+- `probe`/`scan` `streams[].visual_impaired`/`dub` — per-track disposition QC (write→verify loop for both flags)
+- `deliver --platform` +7: `ard`/`zdf`/`nrk`/`svt`/`dr`/`cbc`/`sbs` — public broadcasters (16:9 1920x1080, -14 LUFS pipeline)
+- Fix: multiple disposition flags on one track now merge into a single `-disposition` option — a repeated `-disposition:a:N` option replaces the previous value, so `--sdh 0 --forced-sub 0` previously lost `forced` (now emits `+forced+hearing_impaired`)
+
 ## [0.321.0] — 2026-09-24
 
 ### Added

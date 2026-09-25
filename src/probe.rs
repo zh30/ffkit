@@ -192,6 +192,12 @@ pub struct ProbeStream {
     /// Commentary track (director's commentary — QC `remux --commentary`)
     #[serde(default, skip_serializing_if = "is_false")]
     pub comment: bool,
+    /// Visual-impaired/audio-description track — QC `remux --audio-desc`
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub visual_impaired: bool,
+    /// Dub track (dubbed-language track — QC `remux --dub`)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub dub: bool,
     /// Attached-picture track (muxed cover art — QC that `remux --cover`
     /// landed and which stream index carries it)
     #[serde(default, skip_serializing_if = "is_false")]
@@ -583,6 +589,18 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                     .disposition
                     .as_ref()
                     .and_then(|d| d.get("comment").copied())
+                    .unwrap_or(0)
+                    == 1,
+                visual_impaired: s
+                    .disposition
+                    .as_ref()
+                    .and_then(|d| d.get("visual_impaired").copied())
+                    .unwrap_or(0)
+                    == 1,
+                dub: s
+                    .disposition
+                    .as_ref()
+                    .and_then(|d| d.get("dub").copied())
                     .unwrap_or(0)
                     == 1,
                 attached_pic: s

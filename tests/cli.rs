@@ -37922,3 +37922,120 @@ fn r294_sdh_commentary_dispositions_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r295_audio_desc_dub_dispositions_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+    let run_ff = |args: &[&str]| {
+        assert!(std::process::Command::new("ffmpeg")
+            .args(args)
+            .status()
+            .unwrap()
+            .success());
+    };
+
+    // remux --audio-desc/--dub: flag an audio-description track and a
+    // dubbed-language track (the 4.4-correct accessibility/localization
+    // dispositions — mkv/webm only)
+    let two_a = d.path().join("two_a.mkv");
+    run_ff(&[
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-i",
+        f.to_str().unwrap(),
+        "-map",
+        "0",
+        "-map",
+        "0:a",
+        "-c",
+        "copy",
+        two_a.to_str().unwrap(),
+    ]);
+    let out = d.path().join("flagged.mkv");
+    let j = run_json(&[
+        "remux",
+        two_a.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--audio-desc",
+        "0",
+        "--dub",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let auds: Vec<_> = streams.iter().filter(|s| s["kind"] == "audio").collect();
+    assert_eq!(auds.len(), 2);
+    assert_eq!(auds[0]["visual_impaired"], true, "{}", auds[0]);
+    assert_eq!(auds[1]["dub"], true, "{}", auds[1]);
+
+    // several flags on ONE track merge into a single -disposition option
+    // (a repeated -disposition:a:N replaces the previous value)
+    let out2 = d.path().join("flagged2.mkv");
+    let j = run_json(&[
+        "remux",
+        two_a.to_str().unwrap(),
+        "-o",
+        out2.to_str().unwrap(),
+        "--audio-desc",
+        "0",
+        "--dub",
+        "0",
+        "--commentary",
+        "0",
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let aud0 = j["probe"]["streams"].as_array().unwrap()[1].clone();
+    assert_eq!(aud0["visual_impaired"], true, "{}", aud0);
+    assert_eq!(aud0["dub"], true, "{}", aud0);
+    assert_eq!(aud0["comment"], true, "{}", aud0);
+    assert!(j["commands"]
+        .to_string()
+        .contains("+comment+visual_impaired+dub"));
+
+    // mp4 silently drops the flags — refuse rather than no-op
+    let mp4 = d.path().join("flagged.mp4");
+    for flag in ["--audio-desc", "--dub"] {
+        let j = run_json(&[
+            "remux",
+            two_a.to_str().unwrap(),
+            "-o",
+            mp4.to_str().unwrap(),
+            flag,
+            "0",
+        ]);
+        assert_eq!(j["status"], "failed", "{flag}");
+    }
+    // out-of-range fails cleanly
+    let j = run_json(&[
+        "remux",
+        two_a.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--dub",
+        "5",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // deliver --platform: public broadcasters
+    for name in ["ard", "zdf", "nrk", "svt", "dr", "cbc", "sbs"] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}
