@@ -19601,10 +19601,12 @@ fn thump_riser_whoosh_accents() {
             "--json",
         ]);
         assert_eq!(j["status"], "ok", "{v} {j}");
-        // thump peaks at --at; riser/whoosh swell up into it (peak just before)
-        let ss = if v == "thump" { 0.95 } else { 0.7 };
-        let hit = peak(&out, ss, 0.25);
-        let dry = peak(&tone, ss, 0.25);
+        // thump peaks at --at; riser/whoosh crest lands anywhere in the
+        // 0.5-0.95 swell before it — span the whole swell so encoder-level
+        // timing drift can't put the real peak outside the measured window
+        let (ss, t) = if v == "thump" { (0.95, 0.25) } else { (0.5, 0.45) };
+        let hit = peak(&out, ss, t);
+        let dry = peak(&tone, ss, t);
         assert!(hit > dry + 1.0, "{v} hit {hit} should exceed dry {dry}");
         // accents are momentary: outside their span the track stays at tone level
         let quiet = if v == "thump" {
