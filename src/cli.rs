@@ -1321,6 +1321,9 @@ pub enum TranscodePreset {
     /// MS-MPEG4 v2 + MP3 in .avi — the pre-DivX Windows codec
     /// (MP42 tag: Windows ME-era screen captures, ancient players)
     Msmpeg4,
+    /// H.263 + AMR-NB in .3gp — the feature-phone master
+    /// (MMS-era mobile video, J2ME handsets; audio drops to 8kHz mono)
+    Gpp,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2097,6 +2100,20 @@ pub enum DeliverPlatform {
     Foxsports,
     /// CBS Sports — US sports broadcaster highlights 16:9
     Cbssports,
+    /// Eurosport — EU sports broadcaster highlights 16:9
+    Eurosport,
+    /// Kayo — AU sports streaming highlights 16:9
+    Kayo,
+    /// Optus Sport — AU soccer broadcaster highlights 16:9
+    Optussport,
+    /// SuperSport — ZA sports broadcaster highlights 16:9
+    Supersport,
+    /// Astro — MY sports broadcaster highlights 16:9
+    Astro,
+    /// Willow TV — US/CA cricket broadcaster highlights 16:9
+    Willow,
+    /// Premier Sports — UK sports broadcaster highlights 16:9
+    Premier,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6175,6 +6192,17 @@ pub struct ConformArgs {
     /// pull one channel out of a captured mux into the spec pass)
     #[arg(long)]
     pub program: Option<u32>,
+    /// H.264 encode profile for device-compat spec conform
+    /// (baseline|main|high — car/kiosk players reject High)
+    #[arg(long)]
+    pub profile: Option<TranscodeProfile>,
+    /// H.264 level cap (e.g. 3.0/4.1 — old decoders reject high levels;
+    /// a level alone keeps the profile's features — pair with --profile)
+    #[arg(long)]
+    pub level: Option<String>,
+    /// B-frames (mobile/baseline ingest wants 0 — decode order = display order)
+    #[arg(long)]
+    pub bf: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]

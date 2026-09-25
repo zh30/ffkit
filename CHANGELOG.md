@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.342.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset gpp` — H.263 + AMR-NB in .3gp (the feature-phone master: MMS-era mobile video; h263 encodes only five legal canvas sizes so the preset snaps to the nearest, letterboxed; audio forced to the codec's 8kHz mono)
+- `subs --convert` reads `.stl` + `.rt` — Spruce broadcast subtitles and RealText captions both decode through ffmpeg's demuxers (same delegation as `.scc`)
+- `conform --profile/--level/--bf` — the device-compat trio on the spec pass (baseline+low level+0 B-frames for car/kiosk players — mirrors `deliver`'s trio)
+- `probe`/`scan` `streams[].time_base` — per-stream mux timescale (1/90000 mpegts vs 1/15360 mp4 — packet pts math QC)
+- `deliver --platform` +7 sports broadcasters: eurosport, kayo, optussport, supersport, astro, willow, premier (16:9 1920x1080)
+
+
 ## [0.341.0] — 2026-09-25
 
 ### Added

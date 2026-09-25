@@ -1061,9 +1061,11 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && in_ext != "mpl"
         && in_ext != "smi"
         && in_ext != "scc"
+        && in_ext != "stl"
+        && in_ext != "rt"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc input",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt input",
         ));
     }
     if out_ext != "srt"
@@ -1079,12 +1081,13 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "smi"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi output",
         ));
     }
-    let raw = if in_ext == "scc" {
-        // .scc carries CEA-608 captions as hex pairs — delegate the decode
-        // to ffmpeg's scc demuxer, then parse the srt it emits
+    let raw = if in_ext == "scc" || in_ext == "stl" || in_ext == "rt" {
+        // .scc carries CEA-608 captions as hex pairs, .stl is the Spruce
+        // broadcast format, .rt is RealPlayer captions — all three decode
+        // through ffmpeg demuxers; parse the srt each emits
         let mut av = crate::spawn::Argv::ffmpeg();
         av.extend(["-loglevel", "error", "-i"]);
         av.push(&args.input);

@@ -152,6 +152,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Xvid => xvid(&args, g),
         TranscodePreset::Wmv => wmv(&args, g),
         TranscodePreset::Msmpeg4 => msmpeg4(&args, g),
+        TranscodePreset::Gpp => gpp(&args, g),
     }
 }
 
@@ -813,6 +814,61 @@ fn xvid(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
 
 /// MS-MPEG4 v2 + MP3 in .avi — the pre-DivX Windows codec (MP42 tag):
 /// Windows ME-era screen captures and players older than the Xvid era.
+/// H.263 + AMR-NB in .3gp — the feature-phone master: MMS-era mobile
+/// video and J2ME handsets. AMR-NB speech audio is 8kHz mono — anything
+/// else fails the codec's own constraint, so it's forced not probed.
+fn gpp(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != "3gp" && ext != "3g2" {
+        return Err(Error::input(format!(
+            "transcode --preset gpp needs a .3gp/.3g2 target, not .{ext}"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("gpp preset: input has no video"));
+    }
+    // H.263 encodes only five fixed picture sizes — snap to the nearest
+    // legal canvas, letterboxed so the frame never distorts
+    const LEGAL: [(u32, u32); 5] = [(128, 96), (176, 144), (352, 288), (704, 576), (1408, 1152)];
+    let area = (probe.width.unwrap_or(176) as u64) * (probe.height.unwrap_or(144) as u64);
+    let (w, h) = LEGAL
+        .iter()
+        .min_by_key(|(lw, lh)| ((lw * lh) as u64).abs_diff(area))
+        .copied()
+        .unwrap();
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend([
+        "-vf",
+        &format!("scale=w={w}:h={h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2"),
+    ]);
+    argv.extend(["-c:v", "h263"]);
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "libopencore_amrnb", "-ar", "8000", "-ac", "1"]);
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "gpp" }));
+    Ok(c)
+}
+
 fn msmpeg4(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let ext = args
         .output

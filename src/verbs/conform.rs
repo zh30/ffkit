@@ -65,9 +65,12 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         && args.channels.is_none()
         && args.maxrate.is_none()
         && args.bufsize.is_none()
+        && args.profile.is_none()
+        && args.level.is_none()
+        && args.bf.is_none()
     {
         return Err(Error::input(
-            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R",
+            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf",
         ));
     }
     if let Some(r) = args.ar {
@@ -208,6 +211,18 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
                 "conform --bufsize pairs with --maxrate (a buffer alone isn't a rate cap)",
             ));
         }
+        if let Some(p) = &args.profile {
+            argv.extend([
+                "-profile:v".to_string(),
+                crate::verbs::transcode::transcode_profile_name(*p).to_string(),
+            ]);
+        }
+        if let Some(l) = &args.level {
+            argv.extend(["-level:v".to_string(), l.clone()]);
+        }
+        if let Some(b) = args.bf {
+            argv.extend(["-bf".to_string(), b.to_string()]);
+        }
     }
     if let Some(c) = args.crf {
         if c > 51 {
@@ -261,6 +276,9 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         "ar": args.ar,
         "channels": args.channels,
         "program": args.program,
+        "profile": args.profile.as_ref().map(|p| crate::verbs::transcode::transcode_profile_name(*p)),
+        "level": args.level,
+        "bf": args.bf,
     }));
     Ok(c)
 }

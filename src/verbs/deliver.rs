@@ -388,6 +388,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Tntsports
         | DeliverPlatform::Foxsports
         | DeliverPlatform::Cbssports
+        | DeliverPlatform::Eurosport
+        | DeliverPlatform::Kayo
+        | DeliverPlatform::Optussport
+        | DeliverPlatform::Supersport
+        | DeliverPlatform::Astro
+        | DeliverPlatform::Willow
+        | DeliverPlatform::Premier
         | DeliverPlatform::Twitch => (1920, 1080),
         DeliverPlatform::X | DeliverPlatform::Mastodon | DeliverPlatform::Discord => (1280, 720),
         DeliverPlatform::Threads | DeliverPlatform::Instagram | DeliverPlatform::Facebook => {
@@ -1139,6 +1146,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Tntsports => "tntsports",
         DeliverPlatform::Foxsports => "foxsports",
         DeliverPlatform::Cbssports => "cbssports",
+        DeliverPlatform::Eurosport => "eurosport",
+        DeliverPlatform::Kayo => "kayo",
+        DeliverPlatform::Optussport => "optussport",
+        DeliverPlatform::Supersport => "supersport",
+        DeliverPlatform::Astro => "astro",
+        DeliverPlatform::Willow => "willow",
+        DeliverPlatform::Premier => "premier",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

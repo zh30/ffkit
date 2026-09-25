@@ -40154,6 +40154,142 @@ fn r309_transcode_tune_ffv1_apng_deliver_maxrate_platforms() {
 }
 
 #[test]
+fn r315_gpp_stl_rt_conform_device_timebase_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // transcode --preset gpp -> h263/s263 + amr_nb 8kHz mono in .3gp;
+    // h263's five legal canvas sizes snap 320x240 to 352x288 letterboxed
+    let gp = d.path().join("out.3gp");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        gp.to_str().unwrap(),
+        "--preset",
+        "gpp",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", gp.to_str().unwrap()]);
+    let streams = p["probe"]["streams"].as_array().unwrap();
+    assert_eq!(streams[0]["codec"], "h263");
+    assert_eq!(streams[0]["codec_tag"], "s263");
+    assert_eq!(streams[0]["width"], 352);
+    assert_eq!(streams[0]["height"], 288);
+    assert_eq!(streams[1]["codec"], "amr_nb");
+    assert_eq!(streams[1]["sample_rate"], 8000);
+    assert_eq!(streams[1]["channels"], 1);
+    let bad = d.path().join("out.mp4");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        bad.to_str().unwrap(),
+        "--preset",
+        "gpp",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // subs --convert .stl (Spruce broadcast) + .rt (RealText) inputs —
+    // both decode through ffmpeg demuxers like .scc does
+    let stl = d.path().join("in.stl");
+    std::fs::write(
+        &stl,
+        "$FontName       = Arial\n\n00:00:01:00 , 00:00:03:00 , Hello stl\n",
+    )
+    .unwrap();
+    let srt = d.path().join("stl.srt");
+    let j = run_json(&[
+        "subs",
+        stl.to_str().unwrap(),
+        "--convert",
+        "-o",
+        srt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let body = std::fs::read_to_string(&srt).unwrap();
+    assert!(
+        body.contains("00:00:01,000 --> 00:00:03,000"),
+        "body={body}"
+    );
+    assert!(body.contains("Hello stl"), "body={body}");
+    let rt = d.path().join("in.rt");
+    std::fs::write(
+        &rt,
+        "<window height=\"250\" width=\"320\" duration=\"5\"><time begin=\"0:01\"/><clear/>Hello rt<time begin=\"0:03\"/><clear/>Bye</window>\n",
+    )
+    .unwrap();
+    let srt2 = d.path().join("rt.srt");
+    let j = run_json(&[
+        "subs",
+        rt.to_str().unwrap(),
+        "--convert",
+        "-o",
+        srt2.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let body = std::fs::read_to_string(&srt2).unwrap();
+    assert!(body.contains("Hello rt"), "body={body}");
+    assert!(body.contains("Bye"), "body={body}");
+
+    // conform --profile/--level/--bf — device-compat trio on the spec pass
+    let c = d.path().join("conf.mp4");
+    let j = run_json(&[
+        "conform",
+        f.to_str().unwrap(),
+        "-o",
+        c.to_str().unwrap(),
+        "--profile",
+        "baseline",
+        "--level",
+        "3.0",
+        "--bf",
+        "0",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", c.to_str().unwrap()]);
+    let v = &p["probe"]["streams"][0];
+    assert_eq!(v["profile"], "Constrained Baseline");
+    assert_eq!(v["level"], 30);
+    assert_eq!(v["has_b_frames"], 0);
+
+    // probe streams[].time_base — mux timescale per track
+    let p = run_json(&["probe", f.to_str().unwrap()]);
+    let streams = p["probe"]["streams"].as_array().unwrap();
+    assert_eq!(streams[0]["time_base"], "1/15360");
+    assert!(streams[1]["time_base"].as_str().unwrap().starts_with("1/"));
+
+    // 7 sports broadcasters -> 16:9 1920x1080
+    for p in [
+        "eurosport",
+        "kayo",
+        "optussport",
+        "supersport",
+        "astro",
+        "willow",
+        "premier",
+    ] {
+        let o = d.path().join(format!("{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        let v = &pj["probe"]["streams"][0];
+        assert_eq!(v["width"], 1920, "{p}");
+        assert_eq!(v["height"], 1080, "{p}");
+    }
+}
+
+#[test]
 fn r314_msmpeg4_scc_conform_program_platforms() {
     if !has_ffmpeg() {
         return;

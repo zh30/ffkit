@@ -275,6 +275,10 @@ pub struct ProbeStream {
     /// >0 means decoder lookahead delay, QC for low-latency/mobile specs)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has_b_frames: Option<u32>,
+    /// Mux timescale (1/90000 mpegts vs 1/15360 mp4) — packet pts math
+    /// QC: a remux that re-times without scaling shifts every stamp
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time_base: Option<String>,
 }
 
 fn is_false(v: &bool) -> bool {
@@ -406,6 +410,8 @@ struct FfprobeStream {
     bits_per_raw_sample: Option<String>,
     #[serde(default)]
     has_b_frames: Option<u32>,
+    #[serde(default)]
+    time_base: Option<String>,
     #[serde(default)]
     r_frame_rate: Option<String>,
     #[serde(default)]
@@ -752,6 +758,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                     .as_deref()
                     .and_then(|v| v.parse().ok()),
                 has_b_frames: s.has_b_frames,
+                time_base: s.time_base.clone().filter(|t| t.as_str() != "N/A"),
                 forced: s
                     .disposition
                     .as_ref()

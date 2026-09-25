@@ -847,3 +847,7 @@ DivX-era gear rejects .avi files whose fourcc isn't `xvid` even with bit-identic
 ## The scc muxer is passthrough-only — there is no scc encoder
 
 `DE scc` in `-formats` looks bidirectional, but ffmpeg has no scc *encoder*: the muxer only accepts ready-made CEA-608 packets (scc-in, or 608 extracted from video). `srt → scc` fails with "no stream" — read `.scc` in, deliver out in any text format.
+
+## h263 encodes only five fixed picture sizes — and h263p has no .3gp tag
+
+The h263 encoder accepts only 128x96/176x144/352x288/704x576/1408x1152 — any other frame size fails encode-side. The gpp preset snaps to the nearest legal canvas letterboxed instead of erroring on arbitrary inputs. And `h263p` (the v2 codec) has no tag in the 3gp muxer ("Could not find tag for codec h263p") — write `h263`.
