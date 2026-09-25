@@ -51,9 +51,14 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "transcode --profile/--level/--bf/--tune are x264 encode flags — h264/proxy presets only",
         ));
     }
-    if args.alpha && !matches!(preset, TranscodePreset::Webm | TranscodePreset::Prores) {
+    if args.alpha
+        && !matches!(
+            preset,
+            TranscodePreset::Webm | TranscodePreset::Prores | TranscodePreset::Qtrle
+        )
+    {
         return Err(Error::input(
-            "--alpha needs a webm or prores output (h264/hevc/av1 can't carry alpha)",
+            "--alpha needs a webm, prores or qtrle output (h264/hevc/av1 can't carry alpha)",
         ));
     }
 
@@ -170,6 +175,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Dv => dv(&args, g),
         TranscodePreset::Mjpeg => mjpeg(&args, g),
         TranscodePreset::Amv => amv(&args, g),
+        TranscodePreset::Qtrle => qtrle(&args, g),
+        TranscodePreset::V210 => v210(&args, g),
     }
 }
 
@@ -1314,4 +1321,114 @@ fn double_rate(r: &str) -> String {
     };
     let n: f64 = num.parse().unwrap_or(0.0);
     format!("{}{}", (n * 2.0).round() as i64, suf)
+}
+
+/// QuickTime Animation RLE in .mov — the lossless animation/screencast
+/// master. Every frame is intra RLE (zero decode dependency like mjpeg,
+/// but lossless), and argb keeps the alpha channel for motion-graphics
+/// interchange.
+fn qtrle(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if !matches!(ext.as_str(), "mov" | "qt") {
+        return Err(Error::input(format!(
+            "transcode --preset qtrle needs a .mov/.qt target, not .{ext}"
+        )));
+    }
+    if args.vbitrate.is_some() || args.crf.is_some() || args.abitrate.is_some() {
+        return Err(Error::input(
+            "transcode --preset qtrle is lossless — bitrate/crf flags don't apply",
+        ));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("qtrle preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend(["-c:v", "qtrle"]);
+    argv.extend(["-pix_fmt", if args.alpha { "argb" } else { "rgb24" }]);
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "pcm_s16le"]);
+        if let Some(r) = args.ar {
+            argv.extend(["-ar", &r.to_string()]);
+        }
+        if let Some(ch) = args.channels {
+            argv.extend(["-ac", &ch.to_string()]);
+        }
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "qtrle" }));
+    Ok(c)
+}
+
+/// Uncompressed 10-bit 4:2:2 in .mov — the broadcast/edit-bay master.
+/// v210 packs YUV 422 10-bit into 32-bit words (AJA Kona / broadcast
+/// ingest spec). Bitrate flags are meaningless on an uncompressed codec;
+/// audio stays PCM.
+fn v210(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != "mov" {
+        return Err(Error::input(format!(
+            "transcode --preset v210 needs a .mov target, not .{ext}"
+        )));
+    }
+    if args.vbitrate.is_some()
+        || args.crf.is_some()
+        || args.abitrate.is_some()
+        || args.gop.is_some()
+    {
+        return Err(Error::input(
+            "transcode --preset v210 is uncompressed — bitrate/crf/gop flags don't apply",
+        ));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("v210 preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend(["-c:v", "v210", "-pix_fmt", "yuv422p10le"]);
+    if probe.has_audio {
+        argv.extend(["-c:a", "pcm_s16le"]);
+        if let Some(r) = args.ar {
+            argv.extend(["-ar", &r.to_string()]);
+        }
+        if let Some(ch) = args.channels {
+            argv.extend(["-ac", &ch.to_string()]);
+        }
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "v210" }));
+    Ok(c)
 }

@@ -488,7 +488,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Daraz
         | DeliverPlatform::Jumia
         | DeliverPlatform::Tiktokshop
-        | DeliverPlatform::Quikr => (1080, 1920),
+        | DeliverPlatform::Quikr
+        | DeliverPlatform::Dubizzle
+        | DeliverPlatform::Wallapop
+        | DeliverPlatform::Subito
+        | DeliverPlatform::Kleinanzeigen
+        | DeliverPlatform::Blocket
+        | DeliverPlatform::Tradera
+        | DeliverPlatform::Leboncoin => (1080, 1920),
         DeliverPlatform::Weibo => (1920, 1080),
         _ => (1080, 1920),
     };
@@ -1209,6 +1216,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Jumia => "jumia",
         DeliverPlatform::Tiktokshop => "tiktokshop",
         DeliverPlatform::Quikr => "quikr",
+        DeliverPlatform::Dubizzle => "dubizzle",
+        DeliverPlatform::Wallapop => "wallapop",
+        DeliverPlatform::Subito => "subito",
+        DeliverPlatform::Kleinanzeigen => "kleinanzeigen",
+        DeliverPlatform::Blocket => "blocket",
+        DeliverPlatform::Tradera => "tradera",
+        DeliverPlatform::Leboncoin => "leboncoin",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

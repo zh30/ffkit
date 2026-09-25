@@ -1347,6 +1347,12 @@ pub enum TranscodePreset {
     /// players circa 2006; snaps to the AMV-legal 160x120 canvas,
     /// ADPCM 22050Hz mono audio)
     Amv,
+    /// QuickTime Animation RLE in .mov — lossless animation/screencast
+    /// master (rgb24, argb with --alpha)
+    Qtrle,
+    /// Uncompressed 10-bit 4:2:2 broadcast master + PCM in .mov —
+    /// v210 (edit-bay/broadcast ingest spec; bitrate flags meaningless)
+    V210,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2193,6 +2199,20 @@ pub enum DeliverPlatform {
     Tiktokshop,
     /// Quikr India classified video 9:16 portrait (1080x1920, -14 LUFS)
     Quikr,
+    /// Dubizzle MENA classifieds video 9:16 portrait (1080x1920, -14 LUFS)
+    Dubizzle,
+    /// Wallapop ES classifieds video 9:16 portrait (1080x1920, -14 LUFS)
+    Wallapop,
+    /// Subito IT classifieds video 9:16 portrait (1080x1920, -14 LUFS)
+    Subito,
+    /// Kleinanzeigen DE classifieds video 9:16 portrait (1080x1920, -14 LUFS)
+    Kleinanzeigen,
+    /// Blocket SE classifieds video 9:16 portrait (1080x1920, -14 LUFS)
+    Blocket,
+    /// Tradera SE auction video 9:16 portrait (1080x1920, -14 LUFS)
+    Tradera,
+    /// Leboncoin FR classifieds video 9:16 portrait (1080x1920, -14 LUFS)
+    Leboncoin,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3613,6 +3633,11 @@ pub struct SubsArgs {
     /// start; extras: stretched)
     #[arg(long, value_name = "CPS")]
     pub fix_cps: Option<f64>,
+    /// Split a cue with more than N text lines into multiple cues (text
+    /// split at line boundaries, duration divided evenly) — the auto-fix
+    /// for the --max-lines gate (extras: lines_split)
+    #[arg(long)]
+    pub fix_lines: Option<u32>,
     /// Readability gate: report cues faster than N chars/sec
     /// (Netflix-style caption-speed spec; extras: over_limit/worst_cps)
     #[arg(long)]
@@ -6914,6 +6939,11 @@ pub struct ScanArgs {
     /// actual — a mismatch means a truncated/damaged file
     #[arg(long)]
     pub packets: bool,
+    /// Decode-clean QC: a full decode pass at -v warning —
+    /// `decode_errors` stderr warning/error count, `decodes_clean`
+    /// verdict, `first_error` first issue line (corrupt-ingest gate)
+    #[arg(long)]
+    pub verify: bool,
 }
 
 #[derive(clap::Args, Debug)]

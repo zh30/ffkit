@@ -4,6 +4,7 @@ use crate::cli::{Globals, SubsArgs};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
+use crate::srt::Cue;
 
 /// Read a subtitle file as text. `--encoding` decodes legacy charsets
 /// (gbk/big5/sjis/latin1) via encoding_rs; without it the file must be UTF-8.
@@ -75,6 +76,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.dedupe
         || args.dedupe_text
         || args.fix_cps.is_some()
+        || args.fix_lines.is_some()
         || args.cps.is_some()
         || args.min_dur.is_some()
         || args.min_gap.is_some()
@@ -617,6 +619,32 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             None,
         ));
     }
+    let mut lines_split = 0usize;
+    if let Some(n) = args.fix_lines {
+        if n == 0 {
+            return Err(Error::input("subs --fix-lines needs a positive line count"));
+        }
+        let n = n as usize;
+        let mut out: Vec<Cue> = Vec::with_capacity(cues.len());
+        for cue in cues {
+            let lines: Vec<&str> = cue.text.lines().collect();
+            if lines.len() <= n {
+                out.push(cue);
+                continue;
+            }
+            let chunks: Vec<&[&str]> = lines.chunks(n).collect();
+            let span = cue.end - cue.start;
+            for (i, ch) in chunks.iter().enumerate() {
+                out.push(Cue {
+                    start: cue.start + span * i as f64 / chunks.len() as f64,
+                    end: cue.start + span * (i + 1) as f64 / chunks.len() as f64,
+                    text: ch.join("\n"),
+                });
+            }
+            lines_split += 1;
+        }
+        cues = out;
+    }
     let mut stretched = 0usize;
     if let Some(cps) = args.fix_cps {
         if !cps.is_finite() || cps <= 0.0 {
@@ -681,6 +709,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "cues": cues.len(),
         "cps_limit": args.cps,
         "stretched": stretched,
+        "lines_split": lines_split,
         "min_gap": args.min_gap,
         "over_limit": over_limit,
         "worst_cps": (worst_cps * 100.0).round() / 100.0,

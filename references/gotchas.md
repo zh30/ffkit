@@ -889,3 +889,7 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 ## ffprobe -count_packets: declared vs real frames
 
 `nb_frames` comes from container headers — a truncated file keeps its optimistic header. `ffprobe -count_packets -show_streams` actually walks the file and reports `nb_read_packets`; a mismatch means the file is damaged, not that the metadata is stale.
+
+## ffmpeg decode-verify runs at -v warning, not -v error
+
+`scan --verify`'s damage report is the stderr line count of a full `ffmpeg -f null -` decode — but "corrupt decoded frame" logs at WARNING level: `-v error` prints nothing even on a damaged file and reports a false clean bill. The pass runs at `-v warning` so warnings AND errors count, and the exit code is never trusted (ffmpeg exits 0 with recoverable corruption either way).

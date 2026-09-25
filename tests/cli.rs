@@ -41529,3 +41529,126 @@ fn r319_amv_psb_packets_sea_platforms() {
         assert_eq!(j["probe"]["height"], 1920, "{name}: {j}");
     }
 }
+
+#[test]
+fn r320_qtrle_v210_verify_fixlines_classifieds() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // transcode --preset qtrle: lossless QuickTime Animation RLE
+    let o = dir.path().join("o.mov");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "qtrle",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["vcodec"], "qtrle", "{j}");
+
+    // --alpha picks argb for the motion-graphics interchange path
+    let oa = dir.path().join("oa.mov");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "qtrle",
+        "--alpha",
+        "-o",
+        oa.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", oa.to_str().unwrap()]);
+    assert_eq!(j["probe"]["pix_fmt"], "argb", "{j}");
+
+    // transcode --preset v210: uncompressed 10-bit 4:2:2 broadcast master
+    let v = dir.path().join("v.mov");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "v210",
+        "-o",
+        v.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", v.to_str().unwrap()]);
+    assert_eq!(j["probe"]["vcodec"], "v210", "{j}");
+    assert_eq!(j["probe"]["pix_fmt"], "yuv422p10le", "{j}");
+    assert_eq!(j["probe"]["acodec"], "pcm_s16le", "{j}");
+
+    // uncompressed refuses bitrate/crf flags
+    let bad = dir.path().join("bad.mov");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "v210",
+        "--crf",
+        "20",
+        "-o",
+        bad.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+
+    // scan --verify: clean fixture decodes clean
+    let j = run_json(&["scan", f.to_str().unwrap(), "--verify"]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["decodes_clean"], true, "{j}");
+    assert_eq!(j["extra"]["decode_errors"], 0, "{j}");
+
+    // subs --fix-lines 2: splits a 5-line cue at line boundaries
+    let long = dir.path().join("long.srt");
+    std::fs::write(
+        &long,
+        "1\n00:00:00,000 --> 00:00:04,000\nl1\nl2\nl3\nl4\nl5\n\n2\n00:00:05,000 --> 00:00:06,000\nok\n",
+    )
+    .unwrap();
+    let out = dir.path().join("fl.srt");
+    let j = run_json(&[
+        "subs",
+        long.to_str().unwrap(),
+        "--fix-lines",
+        "2",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["lines_split"], 1, "{j}");
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.contains("l1\nl2"), "{text}");
+    assert!(text.contains("l3\nl4"), "{text}");
+    assert!(text.contains("l5"), "{text}");
+    // the 4s cue splits into 3 sequential cues
+    assert!(text.contains("00:00:01,333"), "{text}");
+    // deliver --platform +7 classifieds (9:16 1080x1920)
+    for name in [
+        "dubizzle",
+        "wallapop",
+        "subito",
+        "kleinanzeigen",
+        "blocket",
+        "tradera",
+        "leboncoin",
+    ] {
+        let o = dir.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1080, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1920, "{name}: {j}");
+    }
+}

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.347.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset qtrle` — QuickTime Animation RLE in .mov (the lossless animation/screencast master: intra-RLE frames with zero decode dependency; rgb24 by default, argb with `--alpha` for motion-graphics interchange; PCM audio, bitrate/crf flags refused as meaningless on a lossless codec)
+- `transcode --preset v210` — uncompressed 10-bit 4:2:2 in .mov (v210 broadcast/edit-bay ingest master + pcm_s16le; bitrate/crf/gop flags refused — uncompressed spec)
+- `scan --verify` — decode-clean QC: a full `ffmpeg -v warning -i input -f null -` pass; extras `decodes_clean`, `decode_errors` (stderr line count), `first_error` (corrupt-ingest gate — ffmpeg logs corrupt frames at warning level without failing, so the line count IS the damage report)
+- `subs --fix-lines N` — splits each cue with more than N text lines into sequential cues at line boundaries (the auto-fix for the `--max-lines` gate; duration divided evenly, extras report `lines_split`)
+- `deliver --platform` +7: dubizzle, wallapop, subito, kleinanzeigen, blocket, tradera, leboncoin (classifieds video 9:16 1080x1920)
+
 ## [0.346.0] — 2026-09-25
 
 ### Added

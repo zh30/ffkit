@@ -913,5 +913,25 @@ pub fn run(args: ScanArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+
+    // --verify: a full decode pass at -v warning — ffmpeg logs one line
+    // per corrupt packet/frame to stderr WITHOUT failing the run (corrupt
+    // frames log at warning level, exit stays 0), so the stderr line
+    // count IS the damage report: corrupt-ingest gate
+    if args.verify {
+        let mut dv = Argv::ffmpeg();
+        dv.extend(["-v", "warning", "-i"]);
+        dv.push(&args.input);
+        dv.extend(["-f", "null", "-"]);
+        if let Ok(sp) = spawn::run(&dv, g.timeout, false) {
+            let log = spawn::stderr_str(&sp);
+            let errors: Vec<&str> = log.lines().filter(|l| !l.trim().is_empty()).collect();
+            extra["decode_errors"] = json!(errors.len());
+            extra["decodes_clean"] = json!(errors.is_empty());
+            if let Some(first) = errors.first() {
+                extra["first_error"] = json!(first.trim());
+            }
+        }
+    }
     Ok(Contract::ok("scan", None, Some(probe)).with_extra(extra))
 }
