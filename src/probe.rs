@@ -136,6 +136,10 @@ pub struct ProbeStream {
     /// "16:9" anamorphic vs stored width/height)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dar: Option<String>,
+    /// Field order (video — "progressive" / "tt"/"tb"/"tff"/"bff";
+    /// interlaced masters trip deinterlace + broadcast deliverable QC)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field_order: Option<String>,
     /// Channel layout (audio — "stereo"/"mono"/"5.1"; a 5.1 master
     /// hiding among stereo deliverables trips platform spec QC)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -220,6 +224,8 @@ struct FfprobeStream {
     sample_aspect_ratio: Option<String>,
     #[serde(default)]
     display_aspect_ratio: Option<String>,
+    #[serde(default)]
+    field_order: Option<String>,
     #[serde(default)]
     color_space: Option<String>,
     #[serde(default)]
@@ -486,6 +492,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                     .display_aspect_ratio
                     .clone()
                     .filter(|r| r.as_str() != "0:1"),
+                field_order: s.field_order.clone().filter(|f| f.as_str() != "unknown"),
                 color_space: s.color_space.clone(),
                 default: s
                     .disposition

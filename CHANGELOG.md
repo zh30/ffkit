@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.316.0] — 2026-09-24
+
+### Added
+- `probe`/`scan` `streams[].field_order` — per-track field order (interlaced masters tagged `tt`/`tb`/`tff`/`bff` trip deinterlace + broadcast deliverable QC; "progressive" reported, "unknown" filtered as absent — pairs with `transcode --field-order` as write→verify)
+- `frames --number N` — grab exactly frame N (0-based decoded order — pinpoint a known-bad frame by index where `--at`'s time math drifts on VFR; select + vsync 0, one still out)
+- `deliver --platform` +7: `tubi`/`pluto`/`dazn`/`espn`/`hulu`/`u-next`/`gyao` — free/sports/streaming hosts (16:9 1080p, −14 LUFS pipeline)
+
 ## [0.315.0] — 2026-09-24
 
 ### Added

@@ -141,6 +141,21 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
         vf = format!("select='not(mod(n\\,{n}))'");
         argv_vsync = Some("0");
     }
+    // --number: grab exactly frame N (0-based decoded order) — pinpoint a
+    // known-bad frame by index where --at's time math would drift on VFR
+    if let Some(n) = args.number {
+        if args.count.is_some()
+            || args.untile.is_some()
+            || !args.at.is_empty()
+            || args.nth.is_some()
+        {
+            return Err(Error::input(
+                "--number overrides --every — drop --count/--untile/--at/--nth",
+            ));
+        }
+        vf = format!("select='eq(n\\,{n})'");
+        argv_vsync = Some("0");
+    }
     // --count spreads N stills across ~95% of the clip (thumb --count spacing);
     // a higher rate lands the last pts past EOF and drops a frame.
     let mut frame_cap: Option<u32> = None;

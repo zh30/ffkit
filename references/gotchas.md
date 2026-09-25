@@ -693,3 +693,11 @@ chain when `vout` is still empty.
 Cue N is the index in the .srt as written (1-based) — --move runs first
 inside tidy before --clip/--drop/--sort filters renumber or drop cues.
 A re-seated cue can overlap its neighbor; chain `--fix-overlaps` to clamp.
+## field_order progressive vs absent
+ffprobe reports `field_order=progressive` on tagged progressive tracks,
+`unknown` (filtered) on untagged, `tt`/`tb`/`tff`/`bff` on interlaced —
+absent ≠ progressive, just means the codec/container didn't tag it.
+## select frame indices need the escaped comma
+`select='eq(n\,15)'` inside a filter string escapes the option-comma —
+in a Rust format! that's `\\,` in source. `eq(n,15)` unescaped splits
+the filter args and ffmpeg fails with Undefined constant.

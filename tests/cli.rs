@@ -37240,3 +37240,128 @@ fn r288_sar_dar_move_hold_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r289_field_order_number_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // streams[].field_order — interlaced-master QC (deinterlace decision +
+    // broadcast deliverable specs check field order per track)
+    let inter = d.path().join("inter.mkv");
+    assert!(std::process::Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=320x240:rate=25:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-c:v",
+            "mpeg2video",
+            "-flags",
+            "+ildct+ilme",
+            "-top",
+            "1",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&inter)
+        .status()
+        .unwrap()
+        .success());
+    let j = run_json(&["probe", inter.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    let fo = v["field_order"].as_str().unwrap();
+    assert!(
+        ["tt", "tb", "tff", "bff", "bt", "bb"].contains(&fo),
+        "expected interlaced field order, got {fo}"
+    );
+    let a = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+    assert!(a.get("field_order").is_none() || a["field_order"].is_null());
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    assert!(
+        v["field_order"].is_null() || v["field_order"] == "progressive",
+        "progressive source should not report interlaced order"
+    );
+
+    // frames --number N — grab exactly frame N (0-based decoded order)
+    let j = run_json(&[
+        "frames",
+        f.to_str().unwrap(),
+        "-o",
+        d.path().join("n%d.png").to_str().unwrap(),
+        "--number",
+        "15",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["count"], 1);
+    let files = j["extra"]["files"].as_array().unwrap();
+    assert_eq!(files.len(), 1);
+    assert!(std::path::Path::new(files[0].as_str().unwrap()).exists());
+    // pixel-identical to a raw ffmpeg select of the same frame index
+    let raw = d.path().join("raw15.png");
+    assert!(std::process::Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            f.to_str().unwrap(),
+            "-vf",
+            "select='eq(n\\,15)'",
+            "-vsync",
+            "0",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&raw)
+        .status()
+        .unwrap()
+        .success());
+    assert_eq!(
+        std::fs::read(files[0].as_str().unwrap()).unwrap(),
+        std::fs::read(&raw).unwrap()
+    );
+    let j = run_json(&[
+        "frames",
+        f.to_str().unwrap(),
+        "-o",
+        d.path().join("x%d.png").to_str().unwrap(),
+        "--number",
+        "15",
+        "--nth",
+        "2",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // deliver --platform +7: free/sports/streaming hosts
+    for name in ["tubi", "pluto", "dazn", "espn", "hulu", "u-next", "gyao"] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

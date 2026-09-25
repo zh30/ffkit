@@ -1596,6 +1596,21 @@ pub enum DeliverPlatform {
     Showmax,
     /// SHAHID MENA streaming 16:9 landscape (1920x1080, -14 LUFS)
     Shahid,
+    /// Tubi free streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Tubi,
+    /// Pluto TV free streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Pluto,
+    /// DAZN sports streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Dazn,
+    /// ESPN sports streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Espn,
+    /// Hulu streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Hulu,
+    /// U-NEXT JP streaming 16:9 landscape (1920x1080, -14 LUFS)
+    #[value(name = "u-next")]
+    UNext,
+    /// GYAO! JP free streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Gyao,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -5029,6 +5044,10 @@ pub struct FramesArgs {
     /// (overrides --every; e.g. --nth 10 on 30fps = 3 stills/sec)
     #[arg(long)]
     pub nth: Option<u32>,
+    /// Grab exactly frame N (0-based, decoded order — pinpoint a known-bad
+    /// frame by index; select + vsync 0, overrides --every/--at/--count)
+    #[arg(long)]
+    pub number: Option<u32>,
     /// Split every frame into a COLSxROWS tile sequence instead —
     /// breaks a contact-sheet/mosaic back into per-tile stills (untile)
     #[arg(long)]
