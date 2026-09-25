@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.315.0] — 2026-09-24
+
+### Added
+- `probe`/`scan` `streams[].sar`/`dar` — per-track sample/display aspect ratio (anamorphic masters tagged to render 16:9 over 4:3 storage — QC before a re-encode drops the tag and squeezes the picture)
+- `subs --move N,T` — re-seat cue N (the input file's numbering) to start at T (nudge one mis-timed cue without resyncing the file; duration kept)
+- `live --hold SEC` — freeze the first frame + mute the audio head for SEC (tpad clone + adelay in one graph — ingest warmup while stream health checks run; refuses --slate/--card)
+- `deliver --platform` +7: `truthsocial`/`gettr`/`parler`/`locals`/`utreon`/`caffeine`/`qq` — alt-social/community video posts (16:9 1080p, −14 LUFS pipeline)
+
 ## [0.314.0] — 2026-09-24
 
 ### Added

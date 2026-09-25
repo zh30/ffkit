@@ -1596,6 +1596,20 @@ pub enum DeliverPlatform {
     Showmax,
     /// SHAHID MENA streaming 16:9 landscape (1920x1080, -14 LUFS)
     Shahid,
+    /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
+    Truthsocial,
+    /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
+    Gettr,
+    /// Parler video posts 16:9 landscape (1920x1080, -14 LUFS)
+    Parler,
+    /// Locals creator community video 16:9 landscape (1920x1080, -14 LUFS)
+    Locals,
+    /// Utreon creator video host 16:9 landscape (1920x1080, -14 LUFS)
+    Utreon,
+    /// caffeine.tv live host 16:9 landscape (1920x1080, -14 LUFS)
+    Caffeine,
+    /// QQ video posts 16:9 landscape (1920x1080, -14 LUFS)
+    Qq,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3076,6 +3090,10 @@ pub struct SubsArgs {
     /// `--shift`+`--rate` combined transform)
     #[arg(long)]
     pub resync: Option<String>,
+    /// Re-seat cue N (1-based, the input file's numbering) to start at T —
+    /// nudge one mis-timed cue without resyncing the file (duration kept)
+    #[arg(long = "move")]
+    pub cue_move: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5237,6 +5255,11 @@ pub struct LiveArgs {
     /// leads the picture; the video side stays untouched)
     #[arg(long)]
     pub audio_delay: Option<f64>,
+    /// Freeze the first frame + mute audio for SEC before the feed begins
+    /// (tpad clone + adelay — ingest warmup while the stream health checks;
+    /// refuses --slate/--card since those ARE the lead-in)
+    #[arg(long)]
+    pub hold: Option<f64>,
     /// Push audio channel count — 1 mono for speech/radio ingest specs
     /// that reject stereo (refuses --no-audio)
     #[arg(long)]

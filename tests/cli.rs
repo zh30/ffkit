@@ -37100,3 +37100,143 @@ fn r287_chlayout_lrc_audiodelay_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r288_sar_dar_move_hold_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // streams[].sar/dar — anamorphic-tag QC (a 4:3 file tagged to render 16:9)
+    let ana = d.path().join("ana.mp4");
+    assert!(std::process::Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=720x576:rate=25:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-vf",
+            "setsar=64:45",
+            "-c:v",
+            "libx264",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&ana)
+        .status()
+        .unwrap()
+        .success());
+    let j = run_json(&["probe", ana.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    let sar = v["sar"].as_str().unwrap();
+    let dar = v["dar"].as_str().unwrap();
+    assert_ne!(sar, "1:1");
+    assert!(dar != sar, "anamorphic tags should differ");
+    let a = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+    assert!(a.get("sar").is_none() || a["sar"].is_null());
+
+    // subs --move N,T — re-seat one cue (the file's numbering), duration kept
+    let srt = d.path().join("m.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:00,400\none\n\n\
+         2\n00:00:02,000 --> 00:00:02,500\ntwo\n",
+    )
+    .unwrap();
+    let out = d.path().join("m2.srt");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--move",
+        "2,0.5",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["moved"], 1);
+    let txt = std::fs::read_to_string(&out).unwrap();
+    assert!(txt.contains("00:00:00,500 --> 00:00:01,000"), "{txt}");
+    assert!(txt.contains("00:00:00,000 --> 00:00:00,400"), "{txt}");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "-o",
+        out.to_str().unwrap(),
+        "--move",
+        "9,0.5",
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("out of range"));
+
+    // live --hold — first-frame freeze + silent pad in the same graph
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--hold",
+        "2",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "dry_run");
+    let cmds = j["commands"].to_string();
+    assert!(
+        cmds.contains("tpad=start_duration=2:start_mode=clone"),
+        "{cmds}"
+    );
+    assert!(cmds.contains("adelay=2000"), "{cmds}");
+    let j = run_json(&[
+        "live",
+        f.to_str().unwrap(),
+        "--to",
+        "tcp://127.0.0.1:1",
+        "--hold",
+        "2",
+        "--no-audio",
+        "--dry-run",
+    ]);
+    assert_eq!(j["status"], "dry_run");
+    let cmds = j["commands"].to_string();
+    assert!(cmds.contains("tpad="), "{cmds}");
+    assert!(!cmds.contains("adelay="), "{cmds}");
+
+    // deliver --platform +7: alt-social/community canvases
+    for name in [
+        "truthsocial",
+        "gettr",
+        "parler",
+        "locals",
+        "utreon",
+        "caffeine",
+        "qq",
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

@@ -198,6 +198,19 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             ));
         }
     }
+    if let Some(d) = args.hold {
+        if !has_video {
+            return Err(Error::input("live --hold: input has no video"));
+        }
+        if args.slate.is_some() || args.card.is_some() {
+            return Err(Error::input("live --hold conflicts with --slate/--card"));
+        }
+        if !d.is_finite() || d <= 0.0 || d > 300.0 {
+            return Err(Error::input(
+                "live --hold wants a positive duration in seconds",
+            ));
+        }
+    }
     if args.slate.is_some() && !has_video {
         return Err(Error::input(
             "live --slate needs a video stream to hold the card over",
@@ -352,7 +365,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-loop", "1", "-i"]);
         argv.push(ov);
     }
-    let use_fc = args.slate.is_some() || args.overlay.is_some();
+    let use_fc = args.slate.is_some() || args.overlay.is_some() || args.hold.is_some();
     let mut subs_chain: Option<String> = None;
     if let Some(subs) = &args.subs {
         if !has_video {
@@ -487,8 +500,22 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
     let vchain = format!(
         "scale={cw}:{ch}:force_original_aspect_ratio=decrease,pad={cw}:{ch}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps={fps},format=yuv420p"
     );
-    // subs burn applies to the content chain only, never the slate card
-    let vchain_content = format!("{vchain}{}", subs_chain.as_deref().unwrap_or(""));
+    // subs burn applies to the content chain only, never the slate card;
+    // tpad runs first so the held frame is the decoded first frame
+    let tpad_chain = args
+        .hold
+        .map(|d| format!("tpad=start_duration={d}:start_mode=clone"));
+    let mut vc_parts: Vec<String> = Vec::new();
+    if let Some(t) = &tpad_chain {
+        vc_parts.push(t.clone());
+    }
+    if !vchain.is_empty() {
+        vc_parts.push(vchain.clone());
+    }
+    if let Some(sc) = subs_chain {
+        vc_parts.push(sc);
+    }
+    let vchain_content = vc_parts.join(",");
     let vol_chain = {
         let mut s = args
             .volume
@@ -525,7 +552,7 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
         } else {
             ni
         };
-        if args.scale.is_some() || args.vertical || args.subs.is_some() {
+        if args.scale.is_some() || args.vertical || args.subs.is_some() || args.hold.is_some() {
             fc.push_str(&format!("[{src}:v]{vchain_content}[vc];"));
             vout = "[vc]".to_string();
         } else {
@@ -560,10 +587,25 @@ pub fn run(args: LiveArgs, g: &Globals) -> Result<Contract, Error> {
             }
             achain.push_str(&format!("adelay={}", (d * 1000.0).round() as u64));
         }
+        // --hold pads the audio head too — a frozen picture over live audio
+        // desyncs the whole stream
+        if let Some(d) = args.hold {
+            if !achain.is_empty() {
+                achain.push(',');
+            }
+            achain.push_str(&format!("adelay={}", (d * 1000.0).round() as u64));
+        }
         if !achain.is_empty() {
             fc.push_str(&format!("[{amap}]{achain}[avol];"));
             aout = Some("[avol]".to_string());
         }
+    }
+    // a bare --hold still needs a video graph — without slate/overlay no
+    // arm above emits the content chain and the tpad would never reach argv.
+    // vchain is always non-empty, so gate on --hold itself
+    if args.hold.is_some() && vout.is_empty() && has_video {
+        fc.push_str(&format!("[{vmap}]{vchain_content}[vc];"));
+        vout = "[vc]".to_string();
     }
     if !fc.is_empty() {
         argv.extend(["-filter_complex", fc.trim_end_matches(';')]);

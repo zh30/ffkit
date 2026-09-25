@@ -682,3 +682,14 @@ adelay flag needs the pushed aac path.
 LRC lines carry only a start `[mm:ss.xx]`; each line's end is the next line's
 timestamp (cue end data is dropped on export — re-importing an .lrc won't
 rebuild cue durations). Multi-line cues join with a space, one line per cue.
+## graph-only live flags must join use_fc
+`live` builds `-filter_complex` only when slate/overlay/hold asks for it —
+a flag that feeds the graph (like --hold's tpad) but doesn't flip `use_fc`
+either silently drops out (no graph emitted) or collides `-vf` with
+`-filter_complex`. New graph flags: add to `use_fc` AND emit the content
+chain when `vout` is still empty.
+
+## subs --move counts the input file, not the result
+Cue N is the index in the .srt as written (1-based) — --move runs first
+inside tidy before --clip/--drop/--sort filters renumber or drop cues.
+A re-seated cue can overlap its neighbor; chain `--fix-overlaps` to clamp.

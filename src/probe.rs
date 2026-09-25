@@ -128,6 +128,14 @@ pub struct ProbeStream {
     /// platforms needing yuv420p; QC every track of mixed-depth files)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pix_fmt: Option<String>,
+    /// Sample aspect ratio (video — anamorphic masters carry SAR ≠ 1:1;
+    /// QC before re-encoding drops the tag and squeezes the picture)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sar: Option<String>,
+    /// Display aspect ratio (video — the shape a player renders;
+    /// "16:9" anamorphic vs stored width/height)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dar: Option<String>,
     /// Channel layout (audio — "stereo"/"mono"/"5.1"; a 5.1 master
     /// hiding among stereo deliverables trips platform spec QC)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -208,6 +216,10 @@ struct FfprobeStream {
     avg_frame_rate: Option<String>,
     #[serde(default)]
     pix_fmt: Option<String>,
+    #[serde(default)]
+    sample_aspect_ratio: Option<String>,
+    #[serde(default)]
+    display_aspect_ratio: Option<String>,
     #[serde(default)]
     color_space: Option<String>,
     #[serde(default)]
@@ -466,6 +478,14 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 duration: s.duration.as_deref().and_then(parse_f64),
                 bit_rate: s.bit_rate.as_deref().and_then(|v| v.parse().ok()),
                 pix_fmt: s.pix_fmt.clone(),
+                sar: s
+                    .sample_aspect_ratio
+                    .clone()
+                    .filter(|r| r.as_str() != "0:1"),
+                dar: s
+                    .display_aspect_ratio
+                    .clone()
+                    .filter(|r| r.as_str() != "0:1"),
                 color_space: s.color_space.clone(),
                 default: s
                     .disposition

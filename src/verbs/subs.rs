@@ -86,6 +86,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.drop.is_some()
         || args.wrap.is_some()
         || args.find.is_some()
+        || args.cue_move.is_some()
     {
         return tidy(&args, g);
     }
@@ -268,6 +269,29 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
     let mut cues = crate::srt::parse_srt(&raw)?;
+    let mut moved = 0usize;
+    // --move N,T: re-seat one cue — runs first so N is the input file's
+    // numbering before any filter drops/reorders cues
+    if let Some(raw) = &args.cue_move {
+        let (n_raw, t_raw) = raw
+            .split_once(',')
+            .ok_or_else(|| Error::input("subs --move needs N,T (e.g. 3,1.5)"))?;
+        let n: usize = n_raw
+            .trim()
+            .parse()
+            .map_err(|_| Error::input("subs --move: cue index must be a number"))?;
+        if n == 0 || n > cues.len() {
+            return Err(Error::input(format!(
+                "subs --move: cue index {n} out of range 1..={}",
+                cues.len()
+            )));
+        }
+        let t = crate::time::parse_time(t_raw)?;
+        let c = &mut cues[n - 1];
+        c.end = t + (c.end - c.start);
+        c.start = t;
+        moved = 1;
+    }
     let mut dropped = 0usize;
     // --clip F,T: keep cues overlapping the window, clamp edges, re-time
     // to 0 — runs first so every other tidy op sees the clipped set.
@@ -572,6 +596,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "sdh_stripped": sdh_stripped,
         "clipped": clipped,
         "excised": excised,
+        "moved": moved,
         "rewrapped": rewrapped,
         "find": args.find,
         "found": found,

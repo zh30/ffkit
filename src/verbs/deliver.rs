@@ -190,6 +190,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Zee5
         | DeliverPlatform::Showmax
         | DeliverPlatform::Shahid
+        | DeliverPlatform::Truthsocial
+        | DeliverPlatform::Gettr
+        | DeliverPlatform::Parler
+        | DeliverPlatform::Locals
+        | DeliverPlatform::Utreon
+        | DeliverPlatform::Caffeine
+        | DeliverPlatform::Qq
         | DeliverPlatform::Twitch => (1920, 1080),
         DeliverPlatform::X | DeliverPlatform::Mastodon | DeliverPlatform::Discord => (1280, 720),
         DeliverPlatform::Threads | DeliverPlatform::Instagram | DeliverPlatform::Facebook => {
@@ -642,6 +649,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Zee5 => "zee5",
         DeliverPlatform::Showmax => "showmax",
         DeliverPlatform::Shahid => "shahid",
+        DeliverPlatform::Truthsocial => "truthsocial",
+        DeliverPlatform::Gettr => "gettr",
+        DeliverPlatform::Parler => "parler",
+        DeliverPlatform::Locals => "locals",
+        DeliverPlatform::Utreon => "utreon",
+        DeliverPlatform::Caffeine => "caffeine",
+        DeliverPlatform::Qq => "qq",
     }
 }
 
