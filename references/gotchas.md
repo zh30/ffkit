@@ -903,3 +903,4 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - `.flv` containers can't hold `pcm_s16le` — the Flash Screen presets ride `qt_era(acodec = Some("libmp3lame"))`, which is also why `--abitrate` is refused everywhere except when audio is mp3.
 - The `dca` (DTS) encoder is experimental on 4.4 — it refuses without `-strict -2`, which `--preset dca` ships. Same class of flag as `-vstrict -1` for AMV.
 - `transcode --preset raw` uses no `-pix_fmt`: rawvideo passes the SOURCE format through verbatim (yuv420p in → yuv420p out) — that's the point vs v308/v410 which upconvert to 4:4:4.
+- `mulaw` is a fixed-spec preset: G.711 IS 8kHz mono telephony — `--ar`/`--channels` are refused upfront (the `.au` muxer would accept other rates, but a "G.711" output that isn't 8k mono is a lie).

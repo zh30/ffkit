@@ -42130,3 +42130,70 @@ fn r326_dolby_audio_raw_vehicle_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{p}: {j}");
     }
 }
+
+#[test]
+fn r327_lossless_telephony_audio_travel_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    for (preset, file, expect_a) in [
+        ("aiff", "r327.aiff", "pcm_s16be"),
+        ("pcm24", "r327-24.wav", "pcm_s24le"),
+        ("pcm32f", "r327-32f.wav", "pcm_f32le"),
+        ("mulaw", "r327.au", "pcm_mulaw"),
+        ("adx", "r327.adx", "adpcm_adx"),
+        ("adpcm", "r327-adpcm.wav", "adpcm_ima_wav"),
+    ] {
+        let o = dir.path().join(file);
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            preset,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{preset}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["acodec"], expect_a, "{preset}: {j}");
+        assert_eq!(j["probe"]["has_video"], false, "{preset}: {j}");
+    }
+    // mulaw pins the G.711 8kHz/mono spec
+    let j = run_json(&["probe", dir.path().join("r327.au").to_str().unwrap()]);
+    assert_eq!(j["probe"]["sample_rate"], 8000, "{j}");
+    assert_eq!(j["probe"]["channels"], 1, "{j}");
+    // and refuses --ar/--channels overrides
+    let bad = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "mulaw",
+        "--ar",
+        "44100",
+        "-o",
+        dir.path().join("r327-bad.au").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "mulaw --ar: {bad}");
+    for p in [
+        "airbnb",
+        "booking",
+        "expedia",
+        "hotels",
+        "tripadvisor",
+        "agoda",
+        "vrbo",
+    ] {
+        let o = dir.path().join(format!("r327-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{p}: {j}");
+    }
+}

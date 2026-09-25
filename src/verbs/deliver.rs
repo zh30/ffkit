@@ -538,7 +538,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Carwow
         | DeliverPlatform::Mobilede
         | DeliverPlatform::Autoscout
-        | DeliverPlatform::Copart => (1920, 1080),
+        | DeliverPlatform::Copart
+        | DeliverPlatform::Airbnb
+        | DeliverPlatform::Booking
+        | DeliverPlatform::Expedia
+        | DeliverPlatform::Hotels
+        | DeliverPlatform::Tripadvisor
+        | DeliverPlatform::Agoda
+        | DeliverPlatform::Vrbo => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1307,6 +1314,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Mobilede => "mobilede",
         DeliverPlatform::Autoscout => "autoscout",
         DeliverPlatform::Copart => "copart",
+        DeliverPlatform::Airbnb => "airbnb",
+        DeliverPlatform::Booking => "booking",
+        DeliverPlatform::Expedia => "expedia",
+        DeliverPlatform::Hotels => "hotels",
+        DeliverPlatform::Tripadvisor => "tripadvisor",
+        DeliverPlatform::Agoda => "agoda",
+        DeliverPlatform::Vrbo => "vrbo",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

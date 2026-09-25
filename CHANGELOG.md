@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.354.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset aiff` — AIFF + PCM-BE audio-only in .aiff (Apple-era lossless master); `--preset pcm24`/`pcm32f` — 24-bit / 32-bit-float WAV audio-only (studio master + DAW interchange); `--preset mulaw` — G.711 µ-law audio-only in .au pinned 8kHz mono (telephony/IVR spec — refuses `--ar`/`--channels`); `--preset adx` — CRI ADX ADPCM in .adx (Sega-era game audio); `--preset adpcm` — IMA-ADPCM in .wav (classic game-engine audio)
+- `deliver --platform` +7: airbnb, booking, expedia, hotels, tripadvisor, agoda, vrbo (travel-booking listing videos 16:9 1920x1080)
+
 ## [0.353.0] — 2026-09-25
 
 ### Added

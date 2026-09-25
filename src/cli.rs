@@ -1433,6 +1433,24 @@ pub enum TranscodePreset {
     /// keeps the source pixel format, no conversion)
     #[value(name = "raw")]
     Raw,
+    /// AIFF + PCM big-endian audio-only in .aiff (Apple-era lossless master)
+    #[value(name = "aiff")]
+    Aiff,
+    /// 24-bit PCM WAV audio-only in .wav (studio master)
+    #[value(name = "pcm24")]
+    Pcm24,
+    /// 32-bit float WAV audio-only in .wav (DAW interchange)
+    #[value(name = "pcm32f")]
+    Pcm32f,
+    /// G.711 mu-law audio-only in .au, pinned 8kHz mono (telephony/IVR spec)
+    #[value(name = "mulaw")]
+    Mulaw,
+    /// CRI ADX ADPCM audio-only in .adx (Sega-era game audio)
+    #[value(name = "adx")]
+    Adx,
+    /// IMA-ADPCM audio-only in .wav (classic game-engine audio)
+    #[value(name = "adpcm")]
+    Adpcm,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2377,6 +2395,20 @@ pub enum DeliverPlatform {
     Autoscout,
     /// Copart salvage-auction listing video
     Copart,
+    /// Airbnb listing video
+    Airbnb,
+    /// Booking.com listing video
+    Booking,
+    /// Expedia listing video
+    Expedia,
+    /// Hotels.com listing video
+    Hotels,
+    /// Tripadvisor listing video
+    Tripadvisor,
+    /// Agoda listing video (APAC)
+    Agoda,
+    /// Vrbo listing video
+    Vrbo,
 }
 
 #[derive(clap::Args, Debug)]

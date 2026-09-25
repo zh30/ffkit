@@ -26,11 +26,24 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                         | TranscodePreset::Eac3
                         | TranscodePreset::Tta
                         | TranscodePreset::Dca
+                        | TranscodePreset::Aiff
+                        | TranscodePreset::Pcm24
+                        | TranscodePreset::Pcm32f
+                        | TranscodePreset::Mulaw
+                        | TranscodePreset::Adx
+                        | TranscodePreset::Adpcm
                 )
         )
     {
         return Err(Error::input(
             "transcode --gop is a video encode flag — audio presets have no keyframes",
+        ));
+    }
+    if (args.ar.is_some() || args.channels.is_some())
+        && matches!(args.preset, Some(TranscodePreset::Mulaw))
+    {
+        return Err(Error::input(
+            "G.711 mu-law is the 8kHz mono telephony spec — drop --ar/--channels",
         ));
     }
     let ext = args
@@ -83,6 +96,12 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Eac3
                 | TranscodePreset::Tta
                 | TranscodePreset::Dca
+                | TranscodePreset::Aiff
+                | TranscodePreset::Pcm24
+                | TranscodePreset::Pcm32f
+                | TranscodePreset::Mulaw
+                | TranscodePreset::Adx
+                | TranscodePreset::Adpcm
         )
     {
         return Err(Error::input("--range applies to video presets only"));
@@ -107,6 +126,12 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Eac3
                 | TranscodePreset::Tta
                 | TranscodePreset::Dca
+                | TranscodePreset::Aiff
+                | TranscodePreset::Pcm24
+                | TranscodePreset::Pcm32f
+                | TranscodePreset::Mulaw
+                | TranscodePreset::Adx
+                | TranscodePreset::Adpcm
         )
     {
         return Err(Error::input("--field-order applies to video presets only"));
@@ -125,6 +150,12 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Eac3
                 | TranscodePreset::Tta
                 | TranscodePreset::Dca
+                | TranscodePreset::Aiff
+                | TranscodePreset::Pcm24
+                | TranscodePreset::Pcm32f
+                | TranscodePreset::Mulaw
+                | TranscodePreset::Adx
+                | TranscodePreset::Adpcm
                 | TranscodePreset::Gif
                 | TranscodePreset::Prores
                 | TranscodePreset::Dnxhd
@@ -179,7 +210,13 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         | TranscodePreset::Ac3
         | TranscodePreset::Eac3
         | TranscodePreset::Tta
-        | TranscodePreset::Dca => audio_only(&args, g, preset),
+        | TranscodePreset::Dca
+        | TranscodePreset::Aiff
+        | TranscodePreset::Pcm24
+        | TranscodePreset::Pcm32f
+        | TranscodePreset::Mulaw
+        | TranscodePreset::Adx
+        | TranscodePreset::Adpcm => audio_only(&args, g, preset),
         TranscodePreset::Gif => gif(&args, g),
         TranscodePreset::H264 => h264(&args, g),
         TranscodePreset::Hevc => hevc(&args, g),
@@ -610,7 +647,7 @@ fn audio_only(
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_audio {
         return Err(Error::input(
-            "audio preset (mp3/aac/wav/flac/opus/ogg/alac): input has no audio",
+            "audio preset (mp3/aac/wav/flac/opus/ogg/alac/ac3/eac3/tta/dca/aiff/pcm24/pcm32f/mulaw/adx/adpcm): input has no audio",
         ));
     }
     let mut argv = ffmpeg_base(g.progress);
@@ -644,6 +681,12 @@ fn audio_only(
                 "-strict",
                 "-2",
             ]),
+            TranscodePreset::Aiff => argv.extend(["-c:a", "pcm_s16be"]),
+            TranscodePreset::Pcm24 => argv.extend(["-c:a", "pcm_s24le"]),
+            TranscodePreset::Pcm32f => argv.extend(["-c:a", "pcm_f32le"]),
+            TranscodePreset::Mulaw => argv.extend(["-c:a", "pcm_mulaw", "-ar", "8000", "-ac", "1"]),
+            TranscodePreset::Adx => argv.extend(["-c:a", "adpcm_adx"]),
+            TranscodePreset::Adpcm => argv.extend(["-c:a", "adpcm_ima_wav"]),
             _ => argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "192k")]),
         }
     }
