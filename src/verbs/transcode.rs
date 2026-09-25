@@ -151,6 +151,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Mpeg1 => mpeg1(&args, g),
         TranscodePreset::Xvid => xvid(&args, g),
         TranscodePreset::Wmv => wmv(&args, g),
+        TranscodePreset::Msmpeg4 => msmpeg4(&args, g),
     }
 }
 
@@ -807,6 +808,50 @@ fn xvid(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "xvid" }));
+    Ok(c)
+}
+
+/// MS-MPEG4 v2 + MP3 in .avi — the pre-DivX Windows codec (MP42 tag):
+/// Windows ME-era screen captures and players older than the Xvid era.
+fn msmpeg4(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != "avi" {
+        return Err(Error::input(format!(
+            "transcode --preset msmpeg4 needs a .avi target, not .{ext}"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("msmpeg4 preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    // -vtag mp42: legacy players fourcc-check for the MS-MPEG4 v2 tag —
+    // an unlabeled stream decodes fine but gets refused by the players
+    // this preset exists for
+    argv.extend(["-c:v", "msmpeg4v2", "-vtag", "mp42"]);
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "libmp3lame"]);
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "msmpeg4" }));
     Ok(c)
 }
 

@@ -9,10 +9,55 @@ use crate::error::Error;
 
 pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
+    // --program: scope the conform to one service of a multi-program
+    // transport stream — 0:p:N can't combine with per-stream filters, so
+    // members map by absolute index (probe.programs[] → program_members)
+    let mut prog_video: Option<u32> = None;
+    let mut prog_audio: Option<u32> = None;
+    if let Some(n) = args.program {
+        if n == 0 {
+            return Err(Error::input(
+                "conform --program is 1-based (use probe.programs[] num)",
+            ));
+        }
+        if probe.programs.is_empty() {
+            return Err(Error::input("conform --program: input carries no programs"));
+        }
+        match probe.program_members(n) {
+            Some((v, a, _)) => {
+                prog_video = v.first().copied();
+                prog_audio = a.first().copied();
+            }
+            None => {
+                let avail: Vec<String> = probe.programs.iter().map(|p| p.num.to_string()).collect();
+                return Err(Error::input(format!(
+                    "conform --program {n} not in input (programs: {})",
+                    avail.join(",")
+                )));
+            }
+        }
+    }
+    let has_video = if args.program.is_some() {
+        prog_video.is_some()
+    } else {
+        probe.has_video
+    };
+    let has_audio = if args.program.is_some() {
+        prog_audio.is_some()
+    } else {
+        probe.has_audio
+    };
+    if args.program.is_some() && !has_video && !has_audio {
+        return Err(Error::input(format!(
+            "conform --program {} has no video or audio streams",
+            args.program.unwrap_or(0)
+        )));
+    }
     if args.size.is_none()
         && args.fps.is_none()
         && args.lufs.is_none()
         && args.crf.is_none()
+        && args.program.is_none()
         && args.hold.is_none()
         && args.hold_start.is_none()
         && !args.even
@@ -75,8 +120,12 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
                 Some(_) => return Err(Error::input("--fps must be 1..=240")),
                 None => String::new(),
             };
+            let vin = match prog_video {
+                Some(i) => format!("0:{i}"),
+                None => "0:v".to_string(),
+            };
             blur_fc = Some(format!(
-                "[0:v]split[cm][cb];[cb]scale={w}:{h}:force_original_aspect_ratio=increase:force_divisible_by=2,crop={w}:{h},gblur=sigma=40[bg];[cm]scale=w={w}:h={h}:force_original_aspect_ratio=decrease:force_divisible_by=2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2{fps_tail},format=yuv420p[vout]"
+                "[{vin}]split[cm][cb];[cb]scale={w}:{h}:force_original_aspect_ratio=increase:force_divisible_by=2,crop={w}:{h},gblur=sigma=40[bg];[cm]scale=w={w}:h={h}:force_original_aspect_ratio=decrease:force_divisible_by=2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2{fps_tail},format=yuv420p[vout]"
             ));
         }
     }
@@ -113,7 +162,7 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     if !tpad.is_empty() {
-        if !probe.has_video {
+        if !has_video {
             return Err(Error::input("--hold needs a video stream"));
         }
         vf.push(format!("tpad={tpad}"));
@@ -122,7 +171,17 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
-    if probe.has_video {
+    // raw member maps — with --blur the video member feeds the filter
+    // graph instead ([0:{vi}] label), so only map it directly otherwise
+    if blur_fc.is_none() {
+        if let Some(vi) = prog_video {
+            argv.extend(["-map".to_string(), format!("0:{vi}")]);
+        }
+    }
+    if let Some(ai) = prog_audio {
+        argv.extend(["-map".to_string(), format!("0:{ai}")]);
+    }
+    if has_video {
         if let Some(fc) = blur_fc {
             argv.extend(["-filter_complex".to_string(), fc]);
             argv.extend(["-map".to_string(), "[vout]".to_string()]);
@@ -155,7 +214,7 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--crf must be 0..=51"));
         }
     }
-    if probe.has_audio {
+    if has_audio {
         // loudnorm upsamples internally — resample back AFTER it.
         // --ar overrides the broadcast-48k default (44100 podcasts, 96000 masters)
         let rate = args.ar.unwrap_or(48000);
@@ -201,6 +260,7 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         "hold_start": args.hold_start,
         "ar": args.ar,
         "channels": args.channels,
+        "program": args.program,
     }));
     Ok(c)
 }

@@ -40154,6 +40154,159 @@ fn r309_transcode_tune_ffv1_apng_deliver_maxrate_platforms() {
 }
 
 #[test]
+fn r314_msmpeg4_scc_conform_program_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // transcode --preset msmpeg4 -> msmpeg4v2/mp42 + mp3 in .avi
+    let avi = d.path().join("out.avi");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        avi.to_str().unwrap(),
+        "--preset",
+        "msmpeg4",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", avi.to_str().unwrap()]);
+    let streams = p["probe"]["streams"].as_array().unwrap();
+    assert_eq!(streams[0]["codec"], "msmpeg4v2");
+    assert_eq!(streams[0]["codec_tag"], "mp42");
+    assert_eq!(streams[1]["codec"], "mp3");
+    let bad = d.path().join("out.mp4");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        bad.to_str().unwrap(),
+        "--preset",
+        "msmpeg4",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // subs --convert .scc input — CEA-608 hex pairs decode via ffmpeg's
+    // demuxer (scc is muxer-passthrough for writes, so output stays out)
+    let scc = d.path().join("in.scc");
+    std::fs::write(
+        &scc,
+        "Scenarist_SCC V1.0\n\n00:00:00:00\t9420 e8e5 ecec ef20 f7ef f2ec e4\n\n00:00:01:00\t942f\n\n",
+    )
+    .unwrap();
+    let srt = d.path().join("rt.srt");
+    let j = run_json(&[
+        "subs",
+        scc.to_str().unwrap(),
+        "--convert",
+        "-o",
+        srt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let body = std::fs::read_to_string(&srt).unwrap();
+    assert!(body.contains("ello worl"), "body={body}");
+
+    // conform --program picks one service of a multi-program ts
+    let mp = d.path().join("mp.ts");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=160x120:rate=15",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map",
+            "2:v",
+            "-map",
+            "3:a",
+            "-c:v",
+            "mpeg2video",
+            "-c:a",
+            "mp2",
+            "-program",
+            "title=one:st=0:st=1",
+            "-program",
+            "title=two:st=2:st=3",
+            mp.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let cf = d.path().join("cf2.mp4");
+    let j = run_json(&[
+        "conform",
+        mp.to_str().unwrap(),
+        "-o",
+        cf.to_str().unwrap(),
+        "--program",
+        "2",
+        "--crf",
+        "30",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let p = run_json(&["probe", cf.to_str().unwrap()]);
+    assert_eq!(p["probe"]["width"], 160);
+    assert_eq!(p["probe"]["height"], 120);
+    let j = run_json(&[
+        "conform",
+        mp.to_str().unwrap(),
+        "-o",
+        cf.to_str().unwrap(),
+        "--program",
+        "0",
+        "--crf",
+        "30",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // deliver --platform sports broadcasters (16:9)
+    for p in [
+        "tsn",
+        "sportsnet",
+        "beinsports",
+        "skysports",
+        "tntsports",
+        "foxsports",
+        "cbssports",
+    ] {
+        let o = d.path().join(format!("{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+            "--overwrite",
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pr = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pr["probe"]["width"], 1920, "{p}");
+        assert_eq!(pr["probe"]["height"], 1080, "{p}");
+    }
+}
+
+#[test]
 fn r313_wmv_deliver_device_flags_compress_fps_edl_platforms() {
     if !has_ffmpeg() {
         return;

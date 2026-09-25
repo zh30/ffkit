@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.341.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset msmpeg4` — MS-MPEG4 v2 + MP3 in .avi (`-vtag mp42` — the pre-DivX Windows codec for Windows ME-era screen captures and ancient players that fourcc-check)
+- `subs --convert` reads `.scc` — Scenarist Closed Captions decode via ffmpeg's scc demuxer (the broadcast 608 deliverable reads back to any subtitle format; the muxer is passthrough-only so .scc output isn't offered)
+- `conform --program N` — conform one service of a multi-program transport stream (broadcast pickup: `probe.programs[]` lists services, the conform encodes that service's first video+audio members — pairs with `remux --program` / `deliver --program` / `hls --program` / `dash --program`)
+- `deliver --platform` +7 sports broadcasters: tsn, sportsnet, beinsports, skysports, tntsports, foxsports, cbssports (16:9 1920x1080 highlight posts)
+
+
 ## [0.340.0] — 2026-09-25
 
 ### Added

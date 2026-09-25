@@ -1318,6 +1318,9 @@ pub enum TranscodePreset {
     /// WMV2 + WMA in .wmv/.asf — Windows Media-era master (corporate
     /// training archives, old PowerPoint-embedded video, Windows-only gear)
     Wmv,
+    /// MS-MPEG4 v2 + MP3 in .avi — the pre-DivX Windows codec
+    /// (MP42 tag: Windows ME-era screen captures, ancient players)
+    Msmpeg4,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2080,6 +2083,20 @@ pub enum DeliverPlatform {
     Ufc,
     /// WWE — wrestling highlights 16:9
     Wwe,
+    /// TSN — CA sports broadcaster highlights 16:9
+    Tsn,
+    /// Sportsnet — CA sports broadcaster highlights 16:9
+    Sportsnet,
+    /// beIN Sports — MENA/INTL sports broadcaster highlights 16:9
+    Beinsports,
+    /// Sky Sports — UK sports broadcaster highlights 16:9
+    Skysports,
+    /// TNT Sports (formerly BT Sport) — UK sports broadcaster highlights 16:9
+    Tntsports,
+    /// Fox Sports — US sports broadcaster highlights 16:9
+    Foxsports,
+    /// CBS Sports — US sports broadcaster highlights 16:9
+    Cbssports,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6153,6 +6170,11 @@ pub struct ConformArgs {
     /// 2 = stereo — the default)
     #[arg(long)]
     pub channels: Option<u8>,
+    /// Conform only program N of a multi-service transport stream
+    /// (program number from `probe.programs[]` — broadcast pickup:
+    /// pull one channel out of a captured mux into the spec pass)
+    #[arg(long)]
+    pub program: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]

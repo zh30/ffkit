@@ -1060,9 +1060,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && in_ext != "sub"
         && in_ext != "mpl"
         && in_ext != "smi"
+        && in_ext != "scc"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi input",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc input",
         ));
     }
     if out_ext != "srt"
@@ -1078,10 +1079,21 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "smi"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi output",
         ));
     }
-    let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
+    let raw = if in_ext == "scc" {
+        // .scc carries CEA-608 captions as hex pairs — delegate the decode
+        // to ffmpeg's scc demuxer, then parse the srt it emits
+        let mut av = crate::spawn::Argv::ffmpeg();
+        av.extend(["-loglevel", "error", "-i"]);
+        av.push(&args.input);
+        av.extend(["-f", "srt", "-"]);
+        let sp = crate::spawn::require_ok(&av, crate::spawn::run(&av, g.timeout, false)?)?;
+        crate::spawn::stdout_str(&sp)?.to_string()
+    } else {
+        read_sub_file(&args.input, args.encoding.as_deref())?
+    };
     let mut cues = if in_ext == "ass" {
         parse_ass(&raw)?
     } else if in_ext == "ttml" || in_ext == "dfxp" {

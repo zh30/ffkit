@@ -843,3 +843,7 @@ DivX-era players and projectors reject `.avi` files whose video fourcc isn't `xv
 ## `-vtag xvid` is a player check, not a codec difference
 
 DivX-era gear rejects .avi files whose fourcc isn't `xvid` even with bit-identical MPEG-4 payloads — always pair `libxvid` with the tag.
+
+## The scc muxer is passthrough-only — there is no scc encoder
+
+`DE scc` in `-formats` looks bidirectional, but ffmpeg has no scc *encoder*: the muxer only accepts ready-made CEA-608 packets (scc-in, or 608 extracted from video). `srt → scc` fails with "no stream" — read `.scc` in, deliver out in any text format.
