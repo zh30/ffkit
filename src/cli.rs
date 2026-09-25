@@ -1625,6 +1625,20 @@ pub enum DeliverPlatform {
     Appletv,
     /// Prime Video SVOD 16:9 landscape (1920x1080, -14 LUFS)
     Primevideo,
+    /// Globoplay BR streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Globoplay,
+    /// Viaplay Nordic streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Viaplay,
+    /// Joyn DE streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Joyn,
+    /// RaiPlay IT streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Raiplay,
+    /// Atresplayer ES streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Atresplayer,
+    /// ITVX UK streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Itvx,
+    /// Crave CA streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Crave,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -5059,9 +5073,10 @@ pub struct FramesArgs {
     #[arg(long)]
     pub nth: Option<u32>,
     /// Grab exactly frame N (0-based, decoded order — pinpoint a known-bad
-    /// frame by index; select + vsync 0, overrides --every/--at/--count)
+    /// frame by index; select + vsync 0, comma list grabs several
+    /// indices, overrides --every/--at/--count)
     #[arg(long)]
-    pub number: Option<u32>,
+    pub number: Option<String>,
     /// Split every frame into a COLSxROWS tile sequence instead —
     /// breaks a contact-sheet/mosaic back into per-tile stills (untile)
     #[arg(long)]

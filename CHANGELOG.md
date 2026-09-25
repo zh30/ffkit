@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.318.0] — 2026-09-24
+
+### Added
+- `probe`/`scan` `streams[]` +3: `color_range` (tv limited / pc JPEG-range — a full-range file through a limited pipeline crushes blacks), `sample_fmt` (audio "s16"/"fltp" — real sample encoding, not just codec name), per-track `start_time` (a track starting late is the baked-in offset behind `av_desync_ms`)
+- `frames --number 0,5,12` — comma list grabs several exact frame indices in one pass (bad-frame QC list)
+- `deliver --platform` +7: `globoplay`/`viaplay`/`joyn`/`raiplay`/`atresplayer`/`itvx`/`crave` — regional SVOD hosts (16:9 1080p, −14 LUFS pipeline)
+
 ## [0.317.0] — 2026-09-24
 
 ### Added

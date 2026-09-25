@@ -156,6 +156,19 @@ pub struct ProbeStream {
     /// an SDR track in an HDR package slips spec QC without it)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color_transfer: Option<String>,
+    /// Color range (video — "tv" limited / "pc" full JPEG-range; a
+    /// full-range file through a limited-range pipeline crushes blacks)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color_range: Option<String>,
+    /// Sample format (audio — "s16"/"fltp" planar vs packed; delivery
+    /// spec QC on the actual sample encoding, not just the codec name)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sample_fmt: Option<String>,
+    /// Per-track start_time (audio/video — a track starting late is a
+    /// baked-in lip-sync/crossfade offset, the raw signal behind
+    /// `av_desync_ms`)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_time: Option<f64>,
     /// Player-default track (disposition.default) — QC which track a
     /// player picks before `remux --default-audio`/`--default-sub`.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -240,9 +253,13 @@ struct FfprobeStream {
     color_primaries: Option<String>,
     #[serde(default)]
     color_transfer: Option<String>,
+    #[serde(default)]
+    color_range: Option<String>,
     channels: Option<u32>,
     #[serde(default)]
     channel_layout: Option<String>,
+    #[serde(default)]
+    sample_fmt: Option<String>,
     #[serde(default)]
     sample_rate: Option<String>,
     #[serde(default)]
@@ -504,6 +521,9 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 color_space: s.color_space.clone(),
                 color_primaries: s.color_primaries.clone(),
                 color_transfer: s.color_transfer.clone(),
+                color_range: s.color_range.clone().filter(|r| r.as_str() != "unknown"),
+                sample_fmt: s.sample_fmt.clone(),
+                start_time: s.start_time.as_deref().and_then(parse_f64),
                 default: s
                     .disposition
                     .as_ref()

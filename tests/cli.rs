@@ -37475,3 +37475,146 @@ fn r290_color_hdr_loudnorm_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r291_stream_qc_number_list_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // streams[].start_time/sample_fmt — per-track timing + sample encoding
+    // (a track starting late is a baked-in offset behind av_desync_ms)
+    let off = d.path().join("off.mkv");
+    assert!(std::process::Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            f.to_str().unwrap(),
+            "-itsoffset",
+            "0.4",
+            "-i",
+            f.to_str().unwrap(),
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-c",
+            "copy",
+        ])
+        .arg(&off)
+        .status()
+        .unwrap()
+        .success());
+    let j = run_json(&["probe", off.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    let a = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+    assert_eq!(v["start_time"], 0.0);
+    let a_start = a["start_time"].as_f64().unwrap();
+    assert!(a_start > 0.2, "audio should start late, got {a_start}");
+    assert_eq!(a["sample_fmt"], "fltp");
+
+    // streams[].color_range — limited vs JPEG-range tagging
+    let hdr = d.path().join("hdr.mkv");
+    assert!(std::process::Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=320x240:rate=25:duration=1",
+            "-c:v",
+            "libx264",
+            "-color_range",
+            "tv",
+        ])
+        .arg(&hdr)
+        .status()
+        .unwrap()
+        .success());
+    let j = run_json(&["probe", hdr.to_str().unwrap()]);
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    assert_eq!(v["color_range"], "tv");
+
+    // frames --number 0,15,29 — comma list grabs several indices in one pass
+    let j = run_json(&[
+        "frames",
+        f.to_str().unwrap(),
+        "-o",
+        d.path().join("g%d.png").to_str().unwrap(),
+        "--number",
+        "0,15,29",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["count"], 3);
+    let files = j["extra"]["files"].as_array().unwrap();
+    assert_eq!(files.len(), 3);
+    // middle still is pixel-identical to a raw select of frame 15
+    let raw = d.path().join("raw15.png");
+    assert!(std::process::Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            f.to_str().unwrap(),
+            "-vf",
+            "select='eq(n\\,15)'",
+            "-vsync",
+            "0",
+            "-frames:v",
+            "1",
+        ])
+        .arg(&raw)
+        .status()
+        .unwrap()
+        .success());
+    assert_eq!(
+        std::fs::read(files[1].as_str().unwrap()).unwrap(),
+        std::fs::read(&raw).unwrap()
+    );
+    let j = run_json(&[
+        "frames",
+        f.to_str().unwrap(),
+        "-o",
+        d.path().join("x%d.png").to_str().unwrap(),
+        "--number",
+        "abc",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // deliver --platform +7: regional SVOD hosts
+    for name in [
+        "globoplay",
+        "viaplay",
+        "joyn",
+        "raiplay",
+        "atresplayer",
+        "itvx",
+        "crave",
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

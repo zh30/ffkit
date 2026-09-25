@@ -143,7 +143,7 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
     }
     // --number: grab exactly frame N (0-based decoded order) — pinpoint a
     // known-bad frame by index where --at's time math would drift on VFR
-    if let Some(n) = args.number {
+    if let Some(raw) = &args.number {
         if args.count.is_some()
             || args.untile.is_some()
             || !args.at.is_empty()
@@ -153,7 +153,15 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
                 "--number overrides --every — drop --count/--untile/--at/--nth",
             ));
         }
-        vf = format!("select='eq(n\\,{n})'");
+        let mut terms = Vec::new();
+        for part in raw.split(',') {
+            let n: u32 = part
+                .trim()
+                .parse()
+                .map_err(|_| Error::input("frames --number wants a 0-based frame index"))?;
+            terms.push(format!("eq(n\\,{n})"));
+        }
+        vf = format!("select='{}'", terms.join("+"));
         argv_vsync = Some("0");
     }
     // --count spreads N stills across ~95% of the clip (thumb --count spacing);

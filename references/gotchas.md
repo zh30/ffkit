@@ -706,3 +706,7 @@ One-pass `loudnorm` on the live push chain prints its loudness stats to
 stderr each interval — cosmetic progress noise, not a failure. The
 normalized spec is the default −23 LUFS broadcast target; measured
 two-pass normalization stays the `loudnorm` verb's job.
+## itsoffset measures approximate
+`-itsoffset 0.4` lands ~0.377s on the stream's start_time — timescale
+rounding (the demuxer quantizes to the codec's tbn). Assert per-stream
+start_time with a window (>0.2), never an exact equality.
