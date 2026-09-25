@@ -19604,7 +19604,11 @@ fn thump_riser_whoosh_accents() {
         // thump peaks at --at; riser/whoosh crest lands anywhere in the
         // 0.5-0.95 swell before it — span the whole swell so encoder-level
         // timing drift can't put the real peak outside the measured window
-        let (ss, t) = if v == "thump" { (0.95, 0.25) } else { (0.5, 0.45) };
+        let (ss, t) = if v == "thump" {
+            (0.95, 0.25)
+        } else {
+            (0.5, 0.45)
+        };
         let hit = peak(&out, ss, t);
         let dry = peak(&tone, ss, t);
         assert!(hit > dry + 1.0, "{v} hit {hit} should exceed dry {dry}");
