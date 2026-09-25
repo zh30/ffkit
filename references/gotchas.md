@@ -853,3 +853,11 @@ DivX-era gear rejects .avi files whose fourcc isn't `xvid` even with bit-identic
 The h263 encoder accepts only 128x96/176x144/352x288/704x576/1408x1152 — any other frame size fails encode-side. The gpp preset snaps to the nearest legal canvas letterboxed instead of erroring on arbitrary inputs. And `h263p` (the v2 codec) has no tag in the 3gp muxer ("Could not find tag for codec h263p") — write `h263`.
 
 Ubuntu/Debian ship AMR encoders in `libavcodec-extra`, not the base `libavcodec` — `Unknown encoder 'libopencore_amrnb'` means install the extra codec package (`apt-get install libavcodec-extra`), which replaces the base libavcodec.
+
+## `.sub` is two formats in the wild — sniff before picking a parser
+
+MicroDVD `{f}{f}text` (frame numbers) and SubViewer `hh:mm:ss.mmm,hh:mm:ss.mmm` (timestamps) share the `.sub` extension. `subs --convert` sniffs the first non-empty line: starting with `{` means MicroDVD-shaped — parse as frames and keep its errors (a missing rate still reports `--fps`); anything else goes through ffmpeg's `subviewer` demuxer (`-f subviewer` reads both v1 and v2; `subviewer1` emits nothing). MPsub `.mps` lines are `start duration`, not start-end — the demuxer pair is `time_base`+`duration`, reading them as start-end makes every cue run away to ~1193h.
+
+## ffmpeg 4.4 subtitle demuxers: only some are worth delegating to
+
+Clean on 4.4: scc, stl, rt, mpsub, subviewer. Garbage on 4.4: pjs, jss, vplayer (cue ends land ~1193h), aqtitle (every cue at 0:00) — don't route `.aqt`/`.jss`/`.vps`/`.pjs` through the demuxer path; parse yourself or refuse.

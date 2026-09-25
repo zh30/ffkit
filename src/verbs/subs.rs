@@ -1063,9 +1063,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && in_ext != "scc"
         && in_ext != "stl"
         && in_ext != "rt"
+        && in_ext != "mps"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt input",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps input",
         ));
     }
     if out_ext != "srt"
@@ -1081,13 +1082,14 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "smi"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi output",
         ));
     }
-    let raw = if in_ext == "scc" || in_ext == "stl" || in_ext == "rt" {
+    let raw = if in_ext == "scc" || in_ext == "stl" || in_ext == "rt" || in_ext == "mps" {
         // .scc carries CEA-608 captions as hex pairs, .stl is the Spruce
-        // broadcast format, .rt is RealPlayer captions — all three decode
-        // through ffmpeg demuxers; parse the srt each emits
+        // broadcast format, .rt is RealPlayer captions, .mps is MPlayer's
+        // start+duration lines — all four decode through ffmpeg demuxers;
+        // parse the srt each emits
         let mut av = crate::spawn::Argv::ffmpeg();
         av.extend(["-loglevel", "error", "-i"]);
         av.push(&args.input);
@@ -1104,7 +1106,26 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
     } else if in_ext == "sbv" {
         parse_sbv(&raw)?
     } else if in_ext == "sub" {
-        parse_microdvd(&raw, args.fps)?
+        // .sub is ambiguous in the wild — MicroDVD {f}{f} lines vs
+        // SubViewer v1/v2. MicroDVD-shaped files keep their own errors
+        // (a missing rate still reports --fps); anything else goes
+        // through ffmpeg's subviewer demuxer (it reads both v1 and v2)
+        let microdvd_shaped = raw
+            .lines()
+            .map(str::trim)
+            .find(|l| !l.is_empty())
+            .is_some_and(|l| l.starts_with('{'));
+        if microdvd_shaped {
+            parse_microdvd(&raw, args.fps)?
+        } else {
+            let mut av = crate::spawn::Argv::ffmpeg();
+            av.extend(["-loglevel", "error", "-f", "subviewer", "-i"]);
+            av.push(&args.input);
+            av.extend(["-f", "srt", "-"]);
+            let sp = crate::spawn::require_ok(&av, crate::spawn::run(&av, g.timeout, false)?)?;
+            let srt = crate::spawn::stdout_str(&sp)?.to_string();
+            crate::srt::parse_srt(&srt)?
+        }
     } else if in_ext == "mpl" {
         parse_mpl2(&raw)?
     } else if in_ext == "smi" {

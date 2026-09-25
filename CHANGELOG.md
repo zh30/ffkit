@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.343.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset flv` — FLV1 + MP3 in .flv (the Flash-era web master: YouTube 2005-era uploads, Flash video archives; the flv muxer interleaves audio first — probe asserts codec set, not order)
+- `transcode --preset theora` — Theora + Vorbis in .ogv/.ogg (open-web master: pre-WebM HTML5 video, Wikipedia/Wikimedia embeds — `-q:v 5` quality)
+- `subs --convert` reads `.mps` + `.sub` SubViewer — MPsub start+duration lines decode through ffmpeg's demuxer; the ambiguous `.sub` extension tries MicroDVD `{f}{f}` first, then falls back to ffmpeg's `subviewer` demuxer (reads SubViewer v1+v2)
+- `probe`/`scan` `chapters[]` — embedded chapter marks with {start, end, title} (verify placement without `extract --chapter`)
+- `deliver --platform` +7: laliga, bundesliga, seriea, ligue1, mls, championsleague (league highlight posts 16:9 1920x1080) + mildom (JP live-streaming clip 16:9 1920x1080)
+
+
 ## [0.342.0] — 2026-09-25
 
 ### Added

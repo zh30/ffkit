@@ -1324,6 +1324,12 @@ pub enum TranscodePreset {
     /// H.263 + AMR-NB in .3gp — the feature-phone master
     /// (MMS-era mobile video, J2ME handsets; audio drops to 8kHz mono)
     Gpp,
+    /// FLV1 + MP3 in .flv — the Flash-era web master
+    /// (YouTube 2005-era uploads, Flash video archives)
+    Flv,
+    /// Theora + Vorbis in .ogv — the open-web master
+    /// (pre-WebM HTML5 video, Wikipedia/Wikimedia embeds)
+    Theora,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2114,6 +2120,20 @@ pub enum DeliverPlatform {
     Willow,
     /// Premier Sports — UK sports broadcaster highlights 16:9
     Premier,
+    /// La Liga highlights clip 16:9 landscape (1920x1080, -14 LUFS)
+    Laliga,
+    /// Bundesliga highlights clip 16:9 landscape (1920x1080, -14 LUFS)
+    Bundesliga,
+    /// Serie A highlights clip 16:9 landscape (1920x1080, -14 LUFS)
+    Seriea,
+    /// Ligue 1 highlights clip 16:9 landscape (1920x1080, -14 LUFS)
+    Ligue1,
+    /// MLS highlights clip 16:9 landscape (1920x1080, -14 LUFS)
+    Mls,
+    /// Champions League highlights clip 16:9 landscape (1920x1080, -14 LUFS)
+    Championsleague,
+    /// Mildom — JP live-streaming clip 16:9 landscape (1920x1080, -14 LUFS)
+    Mildom,
 }
 
 #[derive(clap::Args, Debug)]

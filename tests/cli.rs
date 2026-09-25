@@ -40290,6 +40290,190 @@ fn r315_gpp_stl_rt_conform_device_timebase_platforms() {
 }
 
 #[test]
+fn r316_flv_theora_mps_sub_subviewer_chapters_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // transcode --preset flv — flv1+mp3 Flash-era web master (flv muxer
+    // interleaves audio first: assert codec set, not order)
+    let fl = d.path().join("out.flv");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        fl.to_str().unwrap(),
+        "--preset",
+        "flv",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", fl.to_str().unwrap()]);
+    let mut codecs: Vec<String> = p["probe"]["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["codec"].as_str().unwrap().to_string())
+        .collect();
+    codecs.sort();
+    assert_eq!(codecs, ["flv1", "mp3"], "{codecs:?}");
+    let bad = d.path().join("bad.mp4");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        bad.to_str().unwrap(),
+        "--preset",
+        "flv",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // transcode --preset theora — theora+vorbis open-web master
+    let th = d.path().join("out.ogv");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        th.to_str().unwrap(),
+        "--preset",
+        "theora",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", th.to_str().unwrap()]);
+    let mut codecs: Vec<String> = p["probe"]["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["codec"].as_str().unwrap().to_string())
+        .collect();
+    codecs.sort();
+    assert_eq!(codecs, ["theora", "vorbis"], "{codecs:?}");
+
+    // subs --convert reads .mps — MPlayer start+DURATION lines via demuxer
+    let mps = d.path().join("t.mps");
+    std::fs::write(&mps, "FORMAT=TIME\n\n1.0 3.0\nHello mpsub\n").unwrap();
+    let srt1 = d.path().join("mps.srt");
+    let j = run_json(&[
+        "subs",
+        mps.to_str().unwrap(),
+        "-o",
+        srt1.to_str().unwrap(),
+        "--convert",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let body = std::fs::read_to_string(&srt1).unwrap();
+    assert!(
+        body.contains("00:00:01,000 --> 00:00:04,000"),
+        "body={body}"
+    );
+
+    // .sub in SubViewer shape falls back to the subviewer demuxer
+    let sv = d.path().join("s.sub");
+    std::fs::write(
+        &sv,
+        "00:00:01.000,00:00:03.000\nHello sv\n00:00:05.000,00:00:07.000\nSecond\n",
+    )
+    .unwrap();
+    let srt2 = d.path().join("sv.srt");
+    let j = run_json(&[
+        "subs",
+        sv.to_str().unwrap(),
+        "-o",
+        srt2.to_str().unwrap(),
+        "--convert",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let body = std::fs::read_to_string(&srt2).unwrap();
+    assert!(
+        body.contains("00:00:01,000 --> 00:00:03,000"),
+        "body={body}"
+    );
+    assert!(body.contains("Second"), "body={body}");
+
+    // .sub in MicroDVD shape still parses frame-based
+    let md = d.path().join("m.sub");
+    std::fs::write(&md, "{0}{25}Hello md\n").unwrap();
+    let srt3 = d.path().join("md.srt");
+    let j = run_json(&[
+        "subs",
+        md.to_str().unwrap(),
+        "-o",
+        srt3.to_str().unwrap(),
+        "--convert",
+        "--fps",
+        "25",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let body = std::fs::read_to_string(&srt3).unwrap();
+    assert!(
+        body.contains("00:00:00,000 --> 00:00:01,000"),
+        "body={body}"
+    );
+
+    // probe chapters[] — marks + titles read straight off the container
+    let meta = d.path().join("meta.txt");
+    std::fs::write(
+        &meta,
+        ";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=500\ntitle=Intro\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=500\nEND=1000\ntitle=Body\n",
+    )
+    .unwrap();
+    let ch = d.path().join("ch.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-i",
+            f.to_str().unwrap(),
+            "-i",
+            meta.to_str().unwrap(),
+            "-map",
+            "0",
+            "-map_metadata",
+            "1",
+            "-c",
+            "copy",
+            "-y",
+            ch.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(st.status.success());
+    let p = run_json(&["probe", ch.to_str().unwrap()]);
+    assert_eq!(p["probe"]["chapter_count"], 2);
+    let chapters = p["probe"]["chapters"].as_array().unwrap();
+    assert_eq!(chapters.len(), 2);
+    assert_eq!(chapters[0]["start"], 0.0);
+    assert_eq!(chapters[0]["end"], 0.5);
+    assert_eq!(chapters[0]["title"], "Intro");
+    assert_eq!(chapters[1]["title"], "Body");
+
+    // 7 league/streaming platforms -> 16:9 1920x1080
+    for p in [
+        "laliga",
+        "bundesliga",
+        "seriea",
+        "ligue1",
+        "mls",
+        "championsleague",
+        "mildom",
+    ] {
+        let o = d.path().join(format!("{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        let v = &pj["probe"]["streams"][0];
+        assert_eq!(v["width"], 1920, "{p}");
+        assert_eq!(v["height"], 1080, "{p}");
+    }
+}
+
+#[test]
 fn r314_msmpeg4_scc_conform_program_platforms() {
     if !has_ffmpeg() {
         return;

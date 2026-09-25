@@ -153,6 +153,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Wmv => wmv(&args, g),
         TranscodePreset::Msmpeg4 => msmpeg4(&args, g),
         TranscodePreset::Gpp => gpp(&args, g),
+        TranscodePreset::Flv => flv(&args, g),
+        TranscodePreset::Theora => theora(&args, g),
     }
 }
 
@@ -817,6 +819,88 @@ fn xvid(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
 /// H.263 + AMR-NB in .3gp — the feature-phone master: MMS-era mobile
 /// video and J2ME handsets. AMR-NB speech audio is 8kHz mono — anything
 /// else fails the codec's own constraint, so it's forced not probed.
+/// FLV1 + MP3 in .flv — the Flash-era web master: YouTube 2005-era uploads,
+/// Flash video archives, players that still only speak .flv.
+fn flv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != "flv" {
+        return Err(Error::input(format!(
+            "transcode --preset flv needs a .flv target, not .{ext}"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("flv preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend(["-c:v", "flv"]);
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "libmp3lame"]);
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "flv" }));
+    Ok(c)
+}
+
+/// Theora + Vorbis in .ogv — the open-web master: pre-WebM HTML5 video,
+/// Wikipedia/Wikimedia embeds, FLOSS-only playback chains.
+fn theora(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if !matches!(ext.as_str(), "ogv" | "ogg") {
+        return Err(Error::input(format!(
+            "transcode --preset theora needs a .ogv/.ogg target, not .{ext}"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("theora preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend(["-c:v", "libtheora", "-q:v", "5"]);
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "libvorbis"]);
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "theora" }));
+    Ok(c)
+}
+
 fn gpp(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let ext = args
         .output

@@ -96,6 +96,10 @@ pub struct Probe {
     /// `chapter --list` shows the marks themselves)
     #[serde(default)]
     pub chapter_count: u32,
+    /// The embedded chapter marks themselves (start/end secs + title) —
+    /// verify placement without `extract --chapter`
+    #[serde(default)]
+    pub chapters: Vec<ProbeChapter>,
     /// Programs multiplexed into the container (format.nb_programs —
     /// multi-service mpegts/spts deliverables: >1 means a mux carries
     /// several programs, pick before repack or you get all of them)
@@ -518,8 +522,19 @@ struct ChaptersOut {
 #[derive(Deserialize)]
 struct ChapterTime {
     start_time: Option<String>,
+    end_time: Option<String>,
     #[serde(default)]
     tags: std::collections::HashMap<String, String>,
+}
+
+/// One embedded chapter in the probe contract (times in seconds).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProbeChapter {
+    pub start: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
 }
 
 /// One embedded chapter mark.
@@ -816,6 +831,17 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
             })
         }),
         chapter_count: parsed.chapters.len() as u32,
+        chapters: parsed
+            .chapters
+            .iter()
+            .filter_map(|c| {
+                Some(ProbeChapter {
+                    start: c.start_time.as_deref()?.parse::<f64>().ok()?,
+                    end: c.end_time.as_deref().and_then(|t| t.parse::<f64>().ok()),
+                    title: c.tags.get("title").cloned(),
+                })
+            })
+            .collect(),
         program_count,
         probe_score,
         programs: parsed
