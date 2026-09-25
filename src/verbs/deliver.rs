@@ -364,6 +364,10 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Migu
         | DeliverPlatform::Pptv
         | DeliverPlatform::Letv
+        | DeliverPlatform::Kocowa
+        | DeliverPlatform::Rakuentv
+        | DeliverPlatform::Iwanttfc
+        | DeliverPlatform::Hoichoi
         | DeliverPlatform::Ifeng
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
@@ -398,6 +402,9 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Huoshan
         | DeliverPlatform::Quanmin
         | DeliverPlatform::Meipai
+        | DeliverPlatform::Pdd
+        | DeliverPlatform::Jd
+        | DeliverPlatform::Vip
         | DeliverPlatform::Vmate
         | DeliverPlatform::Josh
         | DeliverPlatform::Weverse
@@ -578,6 +585,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         "-pix_fmt",
         "yuv420p",
     ]);
+    if let Some(m) = &args.maxrate {
+        apply.extend(["-maxrate:v", m]);
+        let buf = args.bufsize.clone().unwrap_or_else(|| double_rate(m));
+        apply.extend(["-bufsize:v", &buf]);
+    } else if args.bufsize.is_some() {
+        return Err(Error::input(
+            "deliver --bufsize pairs with --maxrate (a buffer alone isn't a rate cap)",
+        ));
+    }
     if args.to.is_none() {
         apply.extend(["-movflags", "+faststart"]);
     }
@@ -1004,6 +1020,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Migu => "migu",
         DeliverPlatform::Pptv => "pptv",
         DeliverPlatform::Letv => "letv",
+        DeliverPlatform::Pdd => "pdd",
+        DeliverPlatform::Jd => "jd",
+        DeliverPlatform::Vip => "vip",
+        DeliverPlatform::Kocowa => "kocowa",
+        DeliverPlatform::Rakuentv => "rakuentv",
+        DeliverPlatform::Iwanttfc => "iwanttfc",
+        DeliverPlatform::Hoichoi => "hoichoi",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",
@@ -1016,6 +1039,19 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
 
 /// Apple-style container tags — title/author(album artist)/album/genre/
 /// comment land on every platform's output.
+/// CBR pairing: `--bufsize` defaults to 2x `--maxrate` — parse "4500k"/
+/// "6M"/"2000000" and double the numeric part, preserving the suffix.
+fn double_rate(rate: &str) -> String {
+    let (num, suffix) = match rate.strip_suffix(|c| matches!(c, 'k' | 'K' | 'M')) {
+        Some(n) => (n, &rate[rate.len() - 1..]),
+        None => (rate, ""),
+    };
+    match num.parse::<u64>() {
+        Ok(n) => format!("{}{}", n * 2, suffix),
+        Err(_) => rate.to_string(),
+    }
+}
+
 fn push_metadata(apply: &mut Argv, args: &DeliverArgs) {
     for (k, v) in [
         ("title", &args.title),

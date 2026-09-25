@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.336.0] — 2026-09-25
+
+### Added
+
+- `transcode --tune film|animation|grain|zerolatency|fastdecode|stillimage|psnr|ssim` — x264 content-shape tune on the h264/proxy presets (grain keeps film grain, fastdecode for weak players, zerolatency for capture-monitor pipelines); joins the device-compat x264spec gate alongside --profile/--level/--bf
+- `transcode --preset ffv1` — lossless archival master in .mkv (video ffv1 + audio flac; the museum/NLE-safe intermediate, only mkv carries ffv1)
+- `transcode --preset apng` — full-color animated PNG that loops forever (.apng/.png targets; stickers/reactions where gif's pal8 banding shows)
+- `deliver --maxrate R --bufsize R` — CBR rate-cap pair on platform renders (ingest envelopes like Twitch ≤6000k; qualified as `:v` codec options so the aac track isn't touched; --bufsize defaults to 2x --maxrate, parsing k/M suffixes numerically)
+- `deliver --platform` +7: `pdd`/`jd`/`vip` CN e-commerce video 9:16 1080x1920, `kocowa`/`rakuentv`/`iwanttfc`/`hoichoi` regional OTT 16:9 1920x1080 (286 destinations)
+
 ## [0.335.0] — 2026-09-25
 
 ### Added

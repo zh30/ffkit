@@ -39979,3 +39979,176 @@ fn r308_transcode_level_bf_remux_brand_subs_strip_emotes() {
         assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
     }
 }
+
+#[test]
+fn r309_transcode_tune_ffv1_apng_deliver_maxrate_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // --tune lands on the x264 encode
+    let o = d.path().join("tune.mp4");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--tune",
+        "grain",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a.as_str().unwrap())
+        .collect::<Vec<_>>();
+    let ti = cmd.iter().position(|a| *a == "-tune").expect("-tune");
+    assert_eq!(cmd[ti + 1], "grain");
+
+    // --tune conflicts with --copy-video and non-x264 presets
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--tune",
+        "grain",
+        "--copy-video",
+        "-o",
+        d.path().join("x.mp4").to_str().unwrap(),
+    ]);
+    assert!(j["error"]["message"].as_str().unwrap().contains("--tune"));
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--tune",
+        "grain",
+        "--preset",
+        "mp3",
+        "-o",
+        d.path().join("x.mp3").to_str().unwrap(),
+    ]);
+    assert!(j["error"]["message"].as_str().unwrap().contains("--tune"));
+
+    // --preset ffv1: lossless mkv master (ffv1 video + flac audio)
+    let o = d.path().join("master.mkv");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "ffv1",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["streams"][0]["codec"], "ffv1", "{j}");
+    assert_eq!(j["probe"]["streams"][1]["codec"], "flac", "{j}");
+
+    // ffv1 needs .mkv
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "ffv1",
+        "-o",
+        d.path().join("x.mp4").to_str().unwrap(),
+    ]);
+    assert!(j["error"]["message"].as_str().unwrap().contains(".mkv"));
+
+    // --preset apng: full-color animated loop
+    let o = d.path().join("sticker.apng");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "apng",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["streams"][0]["codec"], "apng", "{j}");
+
+    // apng needs .apng/.png
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "apng",
+        "-o",
+        d.path().join("x.mp4").to_str().unwrap(),
+    ]);
+    assert!(j["error"]["message"].as_str().unwrap().contains(".apng"));
+
+    // deliver --maxrate pairs --bufsize (2x default) as :v options
+    let o = d.path().join("cap.mp4");
+    let j = run_json(&[
+        "deliver",
+        f.to_str().unwrap(),
+        "--platform",
+        "youtube",
+        "--maxrate",
+        "4500k",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let flat: Vec<String> = j["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| c.as_array().unwrap().iter().map(|a| a.to_string()))
+        .collect();
+    assert!(flat.iter().any(|a| a == r#""-maxrate:v""#), "{flat:?}");
+    assert!(flat.iter().any(|a| a == r#""-bufsize:v""#), "{flat:?}");
+    assert!(flat.iter().any(|a| a == r#""9000k""#), "{flat:?}");
+
+    // --bufsize alone rejected
+    let j = run_json(&[
+        "deliver",
+        f.to_str().unwrap(),
+        "--platform",
+        "youtube",
+        "--bufsize",
+        "9M",
+        "-o",
+        d.path().join("x.mp4").to_str().unwrap(),
+    ]);
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("--bufsize"));
+
+    for name in ["kocowa", "rakuentv", "iwanttfc", "hoichoi"] {
+        let o = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
+    }
+    for name in ["pdd", "jd", "vip"] {
+        let o = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1080, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1920, "{name}: {j}");
+    }
+}

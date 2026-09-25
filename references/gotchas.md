@@ -798,3 +798,4 @@ ffprobe 4.4 never reports CENC encryption — `remux --encrypt` output still sho
 ## `-level:v` is profile-shaped, not a free cap
 
 x264's `-level:v` constrains the encode budget (macroblock rate, buffer size) — it can only tighten what the profile allows, and it reports as a NUMBER on probe (`3.1` → `level: 31`, `4.1` → `41`). Pair it with `--profile`: `--level` alone on a High encode still leaves High features in.
+- **`-maxrate`/`-bufsize` unqualified hits the audio codec too** — ffmpeg's codec-option matching applies them per-stream, and aac rejects a bufsize it can't parse. Always emit `-maxrate:v`/`-bufsize:v` (deliver does). Related: deriving bufsize as `format!("{m}x2")` is a literal string, not arithmetic — parse the number and double it, preserving the k/M suffix.

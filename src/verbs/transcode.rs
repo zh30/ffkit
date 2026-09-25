@@ -37,15 +37,16 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         _ => TranscodePreset::H264,
     });
 
-    let x264spec = args.profile.is_some() || args.level.is_some() || args.bf.is_some();
+    let x264spec =
+        args.profile.is_some() || args.level.is_some() || args.bf.is_some() || args.tune.is_some();
     if x264spec && args.copy_video {
         return Err(Error::input(
-            "transcode --profile/--level/--bf need a re-encode — drop --copy-video",
+            "transcode --profile/--level/--bf/--tune need a re-encode — drop --copy-video",
         ));
     }
     if x264spec && !matches!(preset, TranscodePreset::H264 | TranscodePreset::Proxy) {
         return Err(Error::input(
-            "transcode --profile/--level/--bf are x264 encode flags — h264/proxy presets only",
+            "transcode --profile/--level/--bf/--tune are x264 encode flags — h264/proxy presets only",
         ));
     }
     if args.alpha && !matches!(preset, TranscodePreset::Webm | TranscodePreset::Prores) {
@@ -144,6 +145,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Dnxhd => dnxhd(&args, g),
         TranscodePreset::Av1 => av1(&args, g),
         TranscodePreset::Proxy => proxy(&args, g),
+        TranscodePreset::Ffv1 => ffv1(&args, g),
+        TranscodePreset::Apng => apng(&args, g),
     }
 }
 
@@ -639,6 +642,78 @@ fn ar_ac(argv: &mut Argv, args: &TranscodeArgs) {
     }
 }
 
+/// FFV1 lossless archival master — mathematically lossless video + flac
+/// audio in .mkv (the museum/NLE-safe intermediate; only mkv carries ffv1).
+fn ffv1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != "mkv" {
+        return Err(Error::input(format!(
+            "transcode --preset ffv1 needs a .mkv target (only mkv carries ffv1), not .{ext}"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("ffv1 preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend(["-c:v", "ffv1"]);
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "flac"]);
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "ffv1" }));
+    Ok(c)
+}
+
+/// Animated PNG — full-color looping stickers/reactions where gif's 256
+/// colors band (apng plays everywhere gif does; loops forever).
+fn apng(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if !matches!(ext.as_str(), "apng" | "png") {
+        return Err(Error::input(format!(
+            "transcode --preset apng needs a .apng/.png target, not .{ext}"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("apng preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?", "-f", "apng", "-plays", "0"]);
+    if let Some(fps) = args.fps {
+        argv.extend(["-vf", &format!("fps={fps}")]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "apng", "loop": "forever" }));
+    Ok(c)
+}
+
 fn x264spec_push(argv: &mut Argv, args: &TranscodeArgs) {
     if let Some(p) = args.profile {
         argv.extend(["-profile:v", transcode_profile_name(p)]);
@@ -648,6 +723,22 @@ fn x264spec_push(argv: &mut Argv, args: &TranscodeArgs) {
     }
     if let Some(n) = args.bf {
         argv.extend(["-bf", &n.to_string()]);
+    }
+    if let Some(t) = args.tune {
+        argv.extend(["-tune", transcode_tune_name(t)]);
+    }
+}
+
+fn transcode_tune_name(t: crate::cli::TranscodeTune) -> &'static str {
+    match t {
+        crate::cli::TranscodeTune::Film => "film",
+        crate::cli::TranscodeTune::Animation => "animation",
+        crate::cli::TranscodeTune::Grain => "grain",
+        crate::cli::TranscodeTune::Zerolatency => "zerolatency",
+        crate::cli::TranscodeTune::Fastdecode => "fastdecode",
+        crate::cli::TranscodeTune::Stillimage => "stillimage",
+        crate::cli::TranscodeTune::Psnr => "psnr",
+        crate::cli::TranscodeTune::Ssim => "ssim",
     }
 }
 

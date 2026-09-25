@@ -1205,6 +1205,31 @@ pub struct TranscodeArgs {
     /// h264/proxy presets only
     #[arg(long)]
     pub bf: Option<u32>,
+    /// x264 tune (-tune) — content-shaped encoder bias: grain keeps film
+    /// grain, fastdecode for slow players, zerolatency for capture-monitor
+    /// pipelines; h264/proxy presets only
+    #[arg(long)]
+    pub tune: Option<TranscodeTune>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+pub enum TranscodeTune {
+    /// Film — default-ish live-action bias
+    Film,
+    /// Animation — flat-shaded content (deblock-tuned)
+    Animation,
+    /// Grain — preserves film grain/noise (grain-heavy masters band without it)
+    Grain,
+    /// Zerolatency — no lookahead/reorder (capture-monitor pipelines)
+    Zerolatency,
+    /// Fastdecode — simpler entropy coding for weak CPUs
+    Fastdecode,
+    /// Stillimage — single-frame/still optimize
+    Stillimage,
+    /// Psnr — objective-metric tune (analysis encodes)
+    Psnr,
+    /// Ssim — objective-metric tune (analysis encodes)
+    Ssim,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -1269,6 +1294,12 @@ pub enum TranscodePreset {
     Flac,
     /// Audio-only Opus (libopus 128k — smallest voice/music delivery)
     Opus,
+    /// FFV1 lossless in .mkv — archival/intermediate master (museum-grade
+    /// mathematically lossless; audio -> flac)
+    Ffv1,
+    /// Animated PNG — full-color sticker/reaction loops where gif's pal8
+    /// banding shows (.apng target, loops forever, -vn implied)
+    Apng,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1285,6 +1316,15 @@ pub struct DeliverArgs {
     /// H.264 quality level (default 20; lower = sharper/larger, 18 visually lossless)
     #[arg(long)]
     pub crf: Option<u32>,
+    /// Peak video bitrate the encode may burst to, like `4500k`/`6M` —
+    /// platform ingest cap (Instagram ~25M, Twitch ≤6000k); paired with
+    /// --bufsize for a real CBR envelope
+    #[arg(long)]
+    pub maxrate: Option<String>,
+    /// Rate-control buffer like `9000k`/`12M` (defaults to 2x --maxrate
+    /// when only --maxrate is given — the standard CBR pairing)
+    #[arg(long)]
+    pub bufsize: Option<String>,
     /// Burn this .srt/.vtt onto the delivery canvas (captioned Reels in one pass)
     #[arg(long)]
     pub subs: Option<PathBuf>,
@@ -1925,6 +1965,20 @@ pub enum DeliverPlatform {
     Pptv,
     /// LeTV 乐视视频 — OTT video portal 16:9
     Letv,
+    /// Pinduoduo 拼多多 — social-commerce video 9:16
+    Pdd,
+    /// JD.com 京东 — e-commerce product video 9:16
+    Jd,
+    /// VIP 唯品会 — e-commerce video 9:16
+    Vip,
+    /// Kocowa — K-content US SVOD 16:9
+    Kocowa,
+    /// Rakuten TV — European TVOD/SVOD 16:9
+    Rakuentv,
+    /// iWantTFC — Filipino OTT 16:9
+    Iwanttfc,
+    /// Hoichoi — Bengali OTT 16:9
+    Hoichoi,
 
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
