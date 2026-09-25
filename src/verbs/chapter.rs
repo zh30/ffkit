@@ -118,6 +118,45 @@ fn parse_podcast_json(text: &str, path: &std::path::Path) -> Result<Vec<(f64, St
     Ok(out)
 }
 
+// Final Cut Pro XML markers — the FCP/Resolve round-trip counterpart to
+// `chapter --fcpxml`: <marker start="Ts" value="Title"/> elements become
+// chapter marks (XML entities unescaped)
+fn parse_fcpxml(text: &str, path: &std::path::Path) -> Result<Vec<(f64, String)>, Error> {
+    let un = |v: &str| {
+        v.replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+    };
+    let attr = |tag: &str, key: &str| -> Option<String> {
+        let pat = format!("{key}=\"");
+        tag.find(&pat).and_then(|j| {
+            let v = &tag[j + pat.len()..];
+            v.find('"').map(|e| v[..e].to_string())
+        })
+    };
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(i) = rest.find("<marker ") {
+        rest = &rest[i..];
+        let end = rest.find('>').unwrap_or(rest.len());
+        let tag = &rest[..end];
+        let t = attr(tag, "start").and_then(|v| v.trim_end_matches('s').parse::<f64>().ok());
+        let title = attr(tag, "value").map(|v| un(&v)).unwrap_or_default();
+        if let (Some(t), false) = (t, title.is_empty()) {
+            out.push((t, title));
+        }
+        rest = &rest[end..];
+    }
+    if out.is_empty() {
+        return Err(Error::input(format!(
+            "--import: {}: no <marker> elements",
+            path.display()
+        )));
+    }
+    Ok(out)
+}
+
 // .lrc synced-lyrics import: [mm:ss.xx] per line, optional multi-stamp
 // lines ([t1][t2]text → one mark each), [key:value] header tags skipped.
 // Round-trips with `chapter --lrc` export.
@@ -440,6 +479,8 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             marks.extend(parse_vtt_list(&text, path)?);
         } else if kind == "csv" {
             marks.extend(parse_csv_list(&text, path)?);
+        } else if kind == "fcpxml" || kind == "xml" {
+            marks.extend(parse_fcpxml(&text, path)?);
         } else if kind == "srt" {
             // transcript → chapters: every cue start becomes a mark titled
             // by the cue's first line (auto-chapter a subtitle track for

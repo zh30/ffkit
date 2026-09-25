@@ -37724,3 +37724,85 @@ fn r292_stream_frames_level_pic_fcpxml_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}");
     }
 }
+
+#[test]
+fn r293_coded_dims_fcpxml_import_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // streams[].coded_width/coded_height — stored frame dims vs display
+    // (macroblock-padded encodes store e.g. 1088 for 1080)
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    let streams = j["probe"]["streams"].as_array().unwrap();
+    let v = streams.iter().find(|s| s["kind"] == "video").unwrap();
+    assert!(v["coded_width"].as_u64().unwrap() >= 320, "{}", v);
+    assert!(v["coded_height"].as_u64().unwrap() >= 240, "{}", v);
+    let a = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+    assert!(a.get("coded_width").is_none(), "{}", a);
+
+    // chapter --import .fcpxml — the --fcpxml export's round-trip: FCP
+    // timeline markers come back as chapter marks (entities unescaped)
+    let fcp = d.path().join("marks.fcpxml");
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "--at",
+        "0.3|A & B",
+        "--at",
+        "0.7|End <card>",
+        "--fcpxml",
+        "-o",
+        fcp.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let yt = d.path().join("back.txt");
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "--import",
+        fcp.to_str().unwrap(),
+        "--yt",
+        "-o",
+        yt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{}", j["error"]);
+    let text = std::fs::read_to_string(&yt).unwrap();
+    assert!(text.contains("A & B"), "{text}");
+    assert!(text.contains("End <card>"), "{text}");
+    // a file with no <marker> elements fails cleanly
+    let empty = d.path().join("empty.fcpxml");
+    std::fs::write(&empty, "<fcpxml version=\"1.8\"></fcpxml>").unwrap();
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "--import",
+        empty.to_str().unwrap(),
+        "--yt",
+        "-o",
+        yt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(j["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("no <marker>"));
+
+    // deliver --platform: public/regional broadcasters
+    for name in ["nhk", "arte", "tv2play", "npostart", "rtve", "tvp", "voyo"] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        assert_eq!(j["probe"]["width"], 1920, "{name}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}");
+    }
+}

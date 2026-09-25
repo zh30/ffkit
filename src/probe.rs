@@ -189,6 +189,12 @@ pub struct ProbeStream {
     /// landed and which stream index carries it)
     #[serde(default, skip_serializing_if = "is_false")]
     pub attached_pic: bool,
+    /// Coded frame size vs display size (video — macroblock-padded encodes
+    /// store e.g. 1920x1088 for 1080p; padding QC on masters)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub coded_width: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub coded_height: Option<u32>,
 }
 
 fn is_false(v: &bool) -> bool {
@@ -247,6 +253,10 @@ struct FfprobeStream {
     codec_name: Option<String>,
     width: Option<u32>,
     height: Option<u32>,
+    #[serde(default)]
+    coded_width: Option<u32>,
+    #[serde(default)]
+    coded_height: Option<u32>,
     #[serde(default)]
     r_frame_rate: Option<String>,
     #[serde(default)]
@@ -548,6 +558,8 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                     == 1,
                 nb_frames: s.nb_frames.as_deref().and_then(|v| v.parse().ok()),
                 level: s.level.and_then(|l| u32::try_from(l).ok()),
+                coded_width: s.coded_width,
+                coded_height: s.coded_height,
                 forced: s
                     .disposition
                     .as_ref()

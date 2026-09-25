@@ -1653,6 +1653,20 @@ pub enum DeliverPlatform {
     Voot,
     /// Claro Video LatAm streaming 16:9 landscape (1920x1080, -14 LUFS)
     Clarovideo,
+    /// NHK+ JP streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Nhk,
+    /// ARTE FR/DE culture channel 16:9 landscape (1920x1080, -14 LUFS)
+    Arte,
+    /// TV 2 Play DK streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Tv2play,
+    /// NPO Start NL public streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Npostart,
+    /// RTVE Play ES public streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Rtve,
+    /// TVP Stream PL public streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Tvp,
+    /// Voyo CZ/SK streaming 16:9 landscape (1920x1080, -14 LUFS)
+    Voyo,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)

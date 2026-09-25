@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.320.0] — 2026-09-24
+
+### Added
+
+- `probe`/`scan` `streams[].coded_width`/`coded_height` — stored frame dims vs display dims (macroblock-padded encodes store e.g. 1920x1088 for 1080p — master geometry QC)
+- `chapter --import` reads `.fcpxml`/`.xml` — FCP/Resolve `<marker>` elements become chapter marks (the `--fcpxml` export's round-trip; XML entities unescaped)
+- `deliver --platform` +7: `nhk`/`arte`/`tv2play`/`npostart`/`rtve`/`tvp`/`voyo` — public/regional broadcasters (16:9 1920x1080, -14 LUFS pipeline)
+
 ## [0.319.0] — 2026-09-24
 
 ### Added
