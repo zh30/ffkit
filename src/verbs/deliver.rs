@@ -276,6 +276,8 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Vidyard
         | DeliverPlatform::Uscreen
         | DeliverPlatform::Vdocipher
+        | DeliverPlatform::Jellyfin
+        | DeliverPlatform::Emby
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
         | DeliverPlatform::Parler
@@ -310,7 +312,12 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Whatnot
         | DeliverPlatform::Tinder
         | DeliverPlatform::Bumble
-        | DeliverPlatform::Hinge => (1080, 1920),
+        | DeliverPlatform::Hinge
+        | DeliverPlatform::Mercari
+        | DeliverPlatform::Vinted
+        | DeliverPlatform::Depop
+        | DeliverPlatform::Carousell
+        | DeliverPlatform::Olx => (1080, 1920),
         DeliverPlatform::Weibo => (1920, 1080),
         _ => (1080, 1920),
     };
@@ -833,6 +840,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Vidyard => "vidyard",
         DeliverPlatform::Uscreen => "uscreen",
         DeliverPlatform::Vdocipher => "vdocipher",
+        DeliverPlatform::Mercari => "mercari",
+        DeliverPlatform::Vinted => "vinted",
+        DeliverPlatform::Depop => "depop",
+        DeliverPlatform::Carousell => "carousell",
+        DeliverPlatform::Olx => "olx",
+        DeliverPlatform::Jellyfin => "jellyfin",
+        DeliverPlatform::Emby => "emby",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

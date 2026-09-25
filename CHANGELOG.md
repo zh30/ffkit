@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.329.0] — 2026-09-25
+
+### Added
+
+- `probe`/`scan` `programs[]` — multiplexed services in the container (num/service_name/member streams — which channel each mpegts program is; pick before `remux --program N`)
+- `remux --program N` — keep one whole service from a multi-service transport stream (`-map 0:p:N` broadcast demux; conflicts with the stream-pick flags, 1-based program numbers)
+- `probe`/`scan` `streams[].has_b_frames` — B-frames in use (0 = baseline/realtime-safe encode; >0 = decoder lookahead, low-latency/mobile spec QC)
+- `deliver --platform` +7: `mercari`/`vinted`/`depop`/`carousell`/`olx` (resale listings 9:16 1080x1920), `jellyfin`/`emby` (self-hosted media servers 16:9 1920x1080)
+
 ## [0.328.0] — 2026-09-24
 
 ### Added

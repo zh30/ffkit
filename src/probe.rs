@@ -95,6 +95,11 @@ pub struct Probe {
     /// container; catch it before a silent bad repack)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub probe_score: Option<u32>,
+    /// Multiplexed services in the container (mpegts/spts — which channel
+    /// each program is and which streams carry it; `remux --program N`
+    /// picks one by `num`)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub programs: Vec<ProbeProgram>,
 }
 
 /// One line of the stream table — index matches `remux`/`extract`
@@ -255,6 +260,10 @@ pub struct ProbeStream {
     /// pix_fmt name is ambiguous)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bits_per_raw_sample: Option<u32>,
+    /// B-frames in use (video — 0 means baseline/realtime-safe encode;
+    /// >0 means decoder lookahead delay, QC for low-latency/mobile specs)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub has_b_frames: Option<u32>,
 }
 
 fn is_false(v: &bool) -> bool {
@@ -300,6 +309,36 @@ struct FfprobeOut {
     format: Option<FfprobeFormat>,
     #[serde(default)]
     chapters: Vec<ChapterTime>,
+    #[serde(default)]
+    programs: Vec<FfprobeProgram>,
+}
+
+#[derive(Deserialize, Default)]
+struct FfprobeProgram {
+    #[serde(default)]
+    program_num: Option<u32>,
+    #[serde(default)]
+    tags: Option<std::collections::HashMap<String, String>>,
+    #[serde(default)]
+    streams: Vec<FfprobeProgramStream>,
+}
+
+#[derive(Deserialize, Default)]
+struct FfprobeProgramStream {
+    index: Option<u32>,
+}
+
+/// One multiplexed service in the container (mpegts/spts —
+/// `remux --program N` picks it by `num`)
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ProbeProgram {
+    /// Program number — the `remux --program N` selector
+    pub num: u32,
+    /// Broadcaster service name (which channel this program is)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub service_name: Option<String>,
+    /// Member stream indices (positions in `streams[]`)
+    pub streams: Vec<u32>,
 }
 
 #[derive(Deserialize, Default)]
@@ -329,6 +368,8 @@ struct FfprobeStream {
     chroma_location: Option<String>,
     #[serde(default)]
     bits_per_raw_sample: Option<String>,
+    #[serde(default)]
+    has_b_frames: Option<u32>,
     #[serde(default)]
     r_frame_rate: Option<String>,
     #[serde(default)]
@@ -412,6 +453,7 @@ pub fn probe(path: &Path, timeout: Duration) -> Result<Probe, Error> {
         "-show_format",
         "-show_streams",
         "-show_chapters",
+        "-show_programs",
         "-v",
         "error",
     ]);
@@ -665,6 +707,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                     .bits_per_raw_sample
                     .as_deref()
                     .and_then(|v| v.parse().ok()),
+                has_b_frames: s.has_b_frames,
                 forced: s
                     .disposition
                     .as_ref()
@@ -724,6 +767,17 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
         chapter_count: parsed.chapters.len() as u32,
         program_count,
         probe_score,
+        programs: parsed
+            .programs
+            .iter()
+            .filter_map(|p| {
+                p.program_num.map(|num| ProbeProgram {
+                    num,
+                    service_name: p.tags.as_ref().and_then(|t| t.get("service_name").cloned()),
+                    streams: p.streams.iter().filter_map(|s| s.index).collect(),
+                })
+            })
+            .collect(),
     })
 }
 

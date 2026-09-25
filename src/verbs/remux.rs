@@ -642,6 +642,33 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         vec!["0:s?".to_string()]
     };
+    if let Some(p) = args.program {
+        if p == 0 {
+            return Err(Error::input(
+                "remux --program: program numbers are 1-based (see probe.programs[])",
+            ));
+        }
+        let picks = [
+            args.audio || args.video,
+            !keep.is_empty(),
+            !drop.is_empty(),
+            !langs.is_empty(),
+            !sub_langs.is_empty(),
+            !audio_order.is_empty(),
+            !video_order.is_empty(),
+            !sub_order.is_empty(),
+            args.no_video,
+            args.no_audio,
+            args.no_attachments,
+            args.audio_delay.is_some(),
+            args.video_delay.is_some(),
+        ];
+        if picks.iter().any(|f| *f) {
+            return Err(Error::input(
+                "remux --program picks a whole service — drop the stream-pick flags",
+            ));
+        }
+    }
     if !keep.is_empty() {
         for i in &keep {
             argv.extend(["-map", format!("0:{i}").as_str()]);
@@ -652,6 +679,10 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         for i in &drop {
             argv.extend(["-map", format!("-0:{i}").as_str()]);
         }
+        argv.extend(["-c", "copy"]);
+    } else if let Some(p) = args.program {
+        // multi-service transport stream: keep one whole program
+        argv.extend(["-map", format!("0:p:{p}").as_str()]);
         argv.extend(["-c", "copy"]);
     } else if args.audio {
         if !probe.has_audio {

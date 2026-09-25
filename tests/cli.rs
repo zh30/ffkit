@@ -38674,3 +38674,113 @@ fn r301_probe_score_hls_name_platforms() {
         assert_eq!(j["probe"]["height"], h, "{name}");
     }
 }
+
+#[test]
+fn r302_programs_bframes_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // streams[].has_b_frames: the fixture's h264 B-frames report >0
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert!(j["probe"]["streams"][0]["has_b_frames"].as_u64().unwrap() > 0);
+
+    // programs[]: a two-service transport stream lists each service's
+    // name + member streams; remux --program N keeps exactly that one
+    let mp = d.path().join("mp.ts");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=160x120:rate=15",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map",
+            "2:v",
+            "-map",
+            "3:a",
+            "-c:v",
+            "mpeg2video",
+            "-c:a",
+            "mp2",
+            "-program",
+            "title=one:st=0:st=1",
+            "-program",
+            "title=two:st=2:st=3",
+            mp.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&["probe", mp.to_str().unwrap()]);
+    let progs = &j["probe"]["programs"];
+    assert_eq!(progs.as_array().unwrap().len(), 2, "{j}");
+    assert_eq!(progs[0]["service_name"], "one");
+    assert_eq!(progs[1]["streams"].as_array().unwrap().len(), 2);
+    let p2 = d.path().join("p2.ts");
+    let j = run_json(&[
+        "remux",
+        mp.to_str().unwrap(),
+        "-o",
+        p2.to_str().unwrap(),
+        "--program",
+        "2",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", p2.to_str().unwrap()]);
+    assert_eq!(j["probe"]["width"], 160);
+    let j = run_json(&[
+        "remux",
+        mp.to_str().unwrap(),
+        "-o",
+        d.path().join("bad.ts").to_str().unwrap(),
+        "--program",
+        "2",
+        "--video",
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // +7 deliver platforms: resale listings 9:16 + media servers 16:9
+    for (name, w, h) in [
+        ("mercari", 1080, 1920),
+        ("vinted", 1080, 1920),
+        ("depop", 1080, 1920),
+        ("carousell", 1080, 1920),
+        ("olx", 1080, 1920),
+        ("jellyfin", 1920, 1080),
+        ("emby", 1920, 1080),
+    ] {
+        let out = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--platform",
+            name,
+        ]);
+        assert_eq!(j["status"], "ok", "{name}: {j}");
+        assert_eq!(j["probe"]["width"], w, "{name}");
+        assert_eq!(j["probe"]["height"], h, "{name}");
+    }
+}

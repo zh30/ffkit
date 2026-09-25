@@ -1779,6 +1779,20 @@ pub enum DeliverPlatform {
     Uscreen,
     /// VdoCipher DRM hosting 16:9 landscape (1920x1080, -14 LUFS)
     Vdocipher,
+    /// Mercari resale listing video 9:16 vertical (1080x1920, -14 LUFS)
+    Mercari,
+    /// Vinted resale listing video 9:16 vertical (1080x1920, -14 LUFS)
+    Vinted,
+    /// Depop resale listing video 9:16 vertical (1080x1920, -14 LUFS)
+    Depop,
+    /// Carousell resale listing video 9:16 vertical (1080x1920, -14 LUFS)
+    Carousell,
+    /// OLX classifieds listing video 9:16 vertical (1080x1920, -14 LUFS)
+    Olx,
+    /// Jellyfin media-server video 16:9 landscape (1920x1080, -14 LUFS)
+    Jellyfin,
+    /// Emby media-server video 16:9 landscape (1920x1080, -14 LUFS)
+    Emby,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -4710,6 +4724,11 @@ pub struct RemuxArgs {
     /// them seek badly or probe at zero duration
     #[arg(long)]
     pub genpts: bool,
+    /// Keep only program N's streams from a multi-service transport
+    /// stream (program number from `probe.programs[]` — the whole
+    /// service at once; conflicts with the stream-pick flags)
+    #[arg(long)]
+    pub program: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]

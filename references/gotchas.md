@@ -749,3 +749,13 @@ filters the 0 to absent rather than claiming a file "has no programs"
 (it never had the concept). `dash --name PFX` prefixes segment AND
 init AND single-file names — the written-segment check counts against
 the same prefix, so a custom name can't fake "no segments written".
+
+## -map 0:p:N picks by program NUMBER, and Vec contract fields need serde(default)
+`ffmpeg -map 0:p:2` selects the program whose program_num is 2 — not the
+second program in the list. `-show_programs` reports num/service_name
+(`tags.service_name`)/member stream indices, but member streams carry NO
+program_num field — stream-level program attribution is impossible in 4.4.
+Probe `Vec` contract fields must carry `#[serde(default)]` alongside
+`skip_serializing_if = "Vec::is_empty"` — an empty vec serializes without
+the key, and pipeline re-deserializes each step's contract: a missing key
+fails the whole parse ("no probe" on every expect check).
