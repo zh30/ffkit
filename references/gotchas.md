@@ -768,3 +768,7 @@ differently per path: the plain path emits one `0:p:N` map, but
 absolute index (`[0:IDX]` for the ladder's video input, `0:IDX` for the
 service's first audio member). Member streams carry no program_num in
 ffprobe 4.4 — attribution is only reachable through programs[].streams.
+
+## `--dedupe` needs identical timing AND text; `--dedupe-text` drops same-text neighbours
+
+`subs --dedupe` removes a cue only when the previous cue's start AND text match exactly (broken exporters that double-emit a cue). Whisper-style transcripts print the same sentence at *different* times — `--dedupe` misses those; `--dedupe-text` compares normalized text (case/space-insensitive) against the previous KEPT cue and drops repeats regardless of timing. Both count into extras `dropped`. `chapter --min-gap` is the chapter-side analogue: it filters marks by spacing after the dedup/sort passes, so the first mark is always kept.

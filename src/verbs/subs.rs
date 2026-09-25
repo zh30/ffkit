@@ -73,6 +73,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.sort
         || args.fix_overlaps
         || args.dedupe
+        || args.dedupe_text
         || args.cps.is_some()
         || args.min_dur.is_some()
         || args.min_gap.is_some()
@@ -264,7 +265,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         != Some("srt")
     {
         return Err(Error::input(
-            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--cps/--min-dur/--min-gap/--join/--max-lines/--replace/--strip-speakers/--strip-sdh/--clip/--drop/--wrap) take an .srt input",
+            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--dedupe-text/--cps/--min-dur/--min-gap/--join/--max-lines/--replace/--strip-speakers/--strip-sdh/--clip/--drop/--wrap) take an .srt input",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -390,6 +391,28 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         let before = cues.len();
         cues.dedup_by(|a, b| a.start == b.start && a.end == b.end && a.text == b.text);
         dropped += before - cues.len();
+    }
+    if args.dedupe_text {
+        let norm = |s: &str| {
+            s.split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+                .to_lowercase()
+        };
+        let before = cues.len();
+        let mut out: Vec<crate::srt::Cue> = Vec::with_capacity(cues.len());
+        for c in cues {
+            if out
+                .last()
+                .map(|p: &crate::srt::Cue| norm(&p.text) == norm(&c.text))
+                .unwrap_or(false)
+            {
+                continue;
+            }
+            out.push(c);
+        }
+        dropped += before - out.len();
+        cues = out;
     }
     let mut joined = 0usize;
     if let Some(gap) = args.join {

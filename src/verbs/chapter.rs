@@ -580,6 +580,23 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
     }
     marks.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
     marks.dedup_by(|a, b| (a.0 - b.0).abs() < 0.05);
+    let mut min_gap_dropped = 0usize;
+    if let Some(gap) = args.min_gap {
+        if !gap.is_finite() || gap < 0.0 {
+            return Err(Error::input(
+                "chapter --min-gap needs a non-negative duration",
+            ));
+        }
+        let mut kept: Vec<(f64, String)> = Vec::with_capacity(marks.len());
+        for m in marks {
+            if kept.last().map(|(t, _)| m.0 - t < gap).unwrap_or(false) {
+                min_gap_dropped += 1;
+            } else {
+                kept.push(m);
+            }
+        }
+        marks = kept;
+    }
     if marks.is_empty() {
         return Err(Error::input(
             "chapter needs --at TIME|TITLE, or the detector (--auto/--scenes) found no marks",
@@ -821,6 +838,7 @@ FCM: NON-DROP FRAME
                 .iter()
                 .map(|(t, ti)| json!({"time": t, "title": ti}))
                 .collect::<Vec<_>>(),
+            "min_gap_dropped": min_gap_dropped,
         }));
         return Ok(c);
     }
@@ -856,6 +874,7 @@ FCM: NON-DROP FRAME
             .iter()
             .map(|(t, ti)| json!({"time": t, "title": ti}))
             .collect::<Vec<_>>(),
+        "min_gap_dropped": min_gap_dropped,
     });
     if matches!(c.status, Status::Ok) {
         if let Ok(p) = engine::probe_or_err(&args.output, g) {

@@ -38941,3 +38941,239 @@ fn r303_hls_dash_program_platforms() {
         assert_eq!(j["probe"]["height"], h, "{name}");
     }
 }
+
+#[test]
+fn r304_deliver_program_chapter_min_gap_subs_dedupe_text() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // two-service transport stream: one = 320w/440Hz, two = 160w/880Hz
+    let mp = d.path().join("mp.ts");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=160x120:rate=15",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=1",
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map",
+            "2:v",
+            "-map",
+            "3:a",
+            "-c:v",
+            "mpeg2video",
+            "-c:a",
+            "mp2",
+            "-program",
+            "title=one:st=0:st=1",
+            "-program",
+            "title=two:st=2:st=3",
+            mp.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(st.success());
+
+    // deliver --program 2: the platform pack renders service two's members
+    let out = d.path().join("out.mp4");
+    let j = run_json(&[
+        "deliver",
+        mp.to_str().unwrap(),
+        "--program",
+        "2",
+        "--platform",
+        "youtube",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let j = run_json(&["probe", out.to_str().unwrap()]);
+    assert_eq!(j["probe"]["width"], 1920, "{j}");
+    // dry-run argv shows member-index maps for the measure + render passes
+    let j = run_json(&[
+        "deliver",
+        mp.to_str().unwrap(),
+        "--program",
+        "2",
+        "--platform",
+        "youtube",
+        "--dry-run",
+        "-o",
+        d.path().join("dry.mp4").to_str().unwrap(),
+    ]);
+    let flat: Vec<String> = j["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|a| a.as_str().unwrap_or_default().to_string())
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    assert!(
+        flat.windows(2).any(|w| w == ["-map", "0:2"]),
+        "video member map: {flat:?}"
+    );
+    assert!(
+        flat.windows(2).any(|w| w == ["-map", "0:3"]),
+        "audio member map: {flat:?}"
+    );
+
+    // deliver --program on the podcast path maps the service audio member
+    let j = run_json(&[
+        "deliver",
+        mp.to_str().unwrap(),
+        "--program",
+        "2",
+        "--platform",
+        "podcast",
+        "--dry-run",
+        "-o",
+        d.path().join("p.m4a").to_str().unwrap(),
+    ]);
+    let flat: Vec<String> = j["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|c| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .map(|a| a.as_str().unwrap_or_default().to_string())
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    assert!(
+        flat.windows(2).any(|w| w == ["-map", "0:3"]),
+        "podcast member map: {flat:?}"
+    );
+
+    // errors: 0-based, missing num, program-less container
+    let j = run_json(&[
+        "deliver",
+        mp.to_str().unwrap(),
+        "--program",
+        "0",
+        "--platform",
+        "youtube",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+    let j = run_json(&[
+        "deliver",
+        mp.to_str().unwrap(),
+        "--program",
+        "9",
+        "--platform",
+        "youtube",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+    let j = run_json(&[
+        "deliver",
+        f.to_str().unwrap(),
+        "--program",
+        "1",
+        "--platform",
+        "youtube",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed");
+
+    // chapter --min-gap drops marks closer than the gap to the kept one
+    let marks = d.path().join("marks.txt");
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "--at",
+        "0|Intro",
+        "--at",
+        "0.3|Dense",
+        "--at",
+        "0.7|Kept",
+        "--min-gap",
+        "0.5",
+        "--yt",
+        "-o",
+        marks.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["min_gap_dropped"], 1);
+    let text = std::fs::read_to_string(&marks).unwrap();
+    assert!(!text.contains("Dense"), "marks: {text}");
+
+    // subs --dedupe-text drops a cue repeating the previous kept cue's text
+    let srt = d.path().join("t.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:00,400\nHello there\n\n\
+         2\n00:00:00,400 --> 00:00:00,800\nhello   there\n\n\
+         3\n00:00:00,800 --> 00:00:01,200\nDifferent line\n\n\
+         4\n00:00:01,200 --> 00:00:01,600\nHello there\n",
+    )
+    .unwrap();
+    let out_srt = d.path().join("o.srt");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--dedupe-text",
+        "-o",
+        out_srt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let text = std::fs::read_to_string(&out_srt).unwrap();
+    assert_eq!(text.matches("-->").count(), 3);
+    assert_eq!(text.matches("Hello there").count(), 2);
+
+    // +7 podcast-host platforms all render to the 16:9 1080p canvas
+    for (name, w, h) in [
+        ("buzzsprout", 1920, 1080),
+        ("captivate", 1920, 1080),
+        ("transistor", 1920, 1080),
+        ("redcircle", 1920, 1080),
+        ("sounder", 1920, 1080),
+        ("acast", 1920, 1080),
+        ("spreaker", 1920, 1080),
+    ] {
+        let o = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], w, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], h, "{name}: {j}");
+    }
+}

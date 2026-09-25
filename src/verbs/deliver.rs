@@ -21,6 +21,54 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     let probe = engine::probe_or_err(&args.input, g)?;
+    // --program: pick one service of a multi-program transport stream.
+    // `0:p:N` maps the whole program, so scoped paths address members by
+    // absolute index via probe.programs[] (see hls --program).
+    let prog_members = match args.program {
+        Some(0) => {
+            return Err(Error::input(
+                "deliver --program is 1-based (use probe.programs[] num)",
+            ));
+        }
+        Some(_) if probe.programs.is_empty() => {
+            return Err(Error::input("deliver --program: input carries no programs"));
+        }
+        Some(n) => match probe.program_members(n) {
+            Some(m) => Some(m),
+            None => {
+                let avail: Vec<String> = probe.programs.iter().map(|p| p.num.to_string()).collect();
+                return Err(Error::input(format!(
+                    "deliver --program {n} not in input (programs: {})",
+                    avail.join(",")
+                )));
+            }
+        },
+        None => None,
+    };
+    let sel_has_video = prog_members
+        .as_ref()
+        .map(|(v, _, _)| !v.is_empty())
+        .unwrap_or(probe.has_video);
+    let sel_has_audio = prog_members
+        .as_ref()
+        .map(|(_, a, _)| !a.is_empty())
+        .unwrap_or(probe.has_audio);
+    let first_v = prog_members
+        .as_ref()
+        .and_then(|(v, _, _)| v.first().copied());
+    let first_a = prog_members
+        .as_ref()
+        .and_then(|(_, a, _)| a.first().copied());
+    // Input-0 labels inside -filter_complex: `[0:v]`/`[0:a]` become the
+    // service's member index when a program is picked.
+    let vin = |i: u32| match (i, first_v) {
+        (0, Some(idx)) => format!("0:{idx}"),
+        _ => format!("{i}:v"),
+    };
+    let ain = |i: u32| match (i, first_a) {
+        (0, Some(idx)) => format!("0:{idx}"),
+        _ => format!("{i}:a"),
+    };
     if args.logo.is_none() && (args.logo_position.is_some() || args.logo_opacity.is_some()) {
         return Err(Error::input("--logo-position/--logo-opacity need --logo"));
     }
@@ -49,7 +97,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
                 "deliver --logo/--intro/--outro need a video platform — audio packs have no picture",
             ));
         }
-        return podcast(args, &probe, g);
+        return podcast(args, &probe, prog_members.as_ref(), g);
     }
     if args.to.is_some() {
         let scheme = args
@@ -66,7 +114,16 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             ));
         }
     }
-    engine::need_video(&probe, "deliver")?;
+    if args.program.is_some() {
+        if !sel_has_video {
+            return Err(Error::input(format!(
+                "deliver --program {} carries no video stream",
+                args.program.unwrap_or(0)
+            )));
+        }
+    } else {
+        engine::need_video(&probe, "deliver")?;
+    }
     let wrap = args.intro.is_some() || args.outro.is_some();
     if wrap {
         for clip in [args.intro.as_ref(), args.outro.as_ref()]
@@ -76,7 +133,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             crate::paths::ensure_input(clip)?;
             let cp = engine::probe_or_err(clip, g)?;
             engine::need_video(&cp, "deliver --intro/--outro")?;
-            if probe.has_audio && !cp.has_audio {
+            if sel_has_audio && !cp.has_audio {
                 return Err(Error::input(
                     "deliver --intro/--outro clips need an audio track to match the main audio",
                 ));
@@ -280,6 +337,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Emby
         | DeliverPlatform::Kofi
         | DeliverPlatform::Buymeacoffee
+        | DeliverPlatform::Buzzsprout
+        | DeliverPlatform::Captivate
+        | DeliverPlatform::Transistor
+        | DeliverPlatform::Redcircle
+        | DeliverPlatform::Sounder
+        | DeliverPlatform::Acast
+        | DeliverPlatform::Spreaker
         | DeliverPlatform::Truthsocial
         | DeliverPlatform::Gettr
         | DeliverPlatform::Parler
@@ -415,23 +479,24 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
                 }
             }
             chain.push_str(",format=yuv420p");
-            fc.push_str(&format!("[{i}:v]{chain}[v{k}];"));
-            if probe.has_audio {
+            fc.push_str(&format!("[{}]{chain}[v{k}];", vin(*i)));
+            if sel_has_audio {
                 fc.push_str(&format!(
-                    "[{i}:a]aresample=48000,aformat=channel_layouts=stereo[a{k}];"
+                    "[{}]aresample=48000,aformat=channel_layouts=stereo[a{k}];",
+                    ain(*i)
                 ));
             }
         }
         let ins: String = (0..segs.len())
             .map(|k| {
-                if probe.has_audio {
+                if sel_has_audio {
                     format!("[v{k}][a{k}]")
                 } else {
                     format!("[v{k}]")
                 }
             })
             .collect();
-        if probe.has_audio {
+        if sel_has_audio {
             fc.push_str(&format!("{ins}concat=n={}:v=1:a=1[vc][ac];", segs.len()));
         } else {
             fc.push_str(&format!("{ins}concat=n={}:v=1:a=0[vc];", segs.len()));
@@ -454,14 +519,26 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(op) = args.logo_opacity {
             lg.push_str(&format!(",format=rgba,colorchannelmixer=aa={op}"));
         }
-        let fc = format!("[0:v]{vf}[base];[{li}:v]{lg}[lg];[base][lg]overlay={x}:{y}[vout]");
+        let fc = format!(
+            "[{}]{vf}[base];[{li}:v]{lg}[lg];[base][lg]overlay={x}:{y}[vout]",
+            vin(0)
+        );
         apply.extend(["-filter_complex", &fc]);
         apply.extend(["-map", "[vout]"]);
-        if probe.has_audio {
-            apply.extend(["-map", "0:a:0"]);
+        if sel_has_audio {
+            let amap = first_a
+                .map(|i| format!("0:{i}"))
+                .unwrap_or_else(|| "0:a:0".to_string());
+            apply.extend(["-map", &amap]);
         }
     } else {
         apply.extend(["-vf", &vf]);
+        if let Some(vidx) = first_v {
+            apply.extend(["-map", &format!("0:{vidx}")]);
+            if let Some(aidx) = first_a {
+                apply.extend(["-map", &format!("0:{aidx}")]);
+            }
+        }
     }
     apply.extend([
         "-c:v",
@@ -480,11 +557,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut measure: Option<Argv> = None;
     let mut measured: Option<serde_json::Value> = None;
-    if probe.has_audio {
+    if sel_has_audio {
         let filter = loudnorm::measure_filter(target_i, TARGET_TP, TARGET_LRA);
         let mut m = Argv::ffmpeg();
         m.extend(["-nostats", "-i"]);
         m.push(&args.input);
+        if let Some(aidx) = first_a {
+            m.extend(["-map", &format!("0:{aidx}")]);
+        }
         m.extend(["-af", &filter, "-vn", "-f", "null", "-"]);
         if !g.dry_run {
             crate::paths::ensure_output_allowed(&args.output, &[&args.input], g.overwrite)?;
@@ -524,7 +604,7 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(fc) = wrap_fc {
         apply.extend(["-filter_complex", fc.trim_end_matches(';')]);
         apply.extend(["-map", &format!("[{wrap_vout}]")]);
-        if probe.has_audio {
+        if sel_has_audio {
             apply.extend(["-map", "[aout]"]);
         }
     }
@@ -861,6 +941,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Subscribestar => "subscribestar",
         DeliverPlatform::Kofi => "kofi",
         DeliverPlatform::Buymeacoffee => "buymeacoffee",
+        DeliverPlatform::Buzzsprout => "buzzsprout",
+        DeliverPlatform::Captivate => "captivate",
+        DeliverPlatform::Transistor => "transistor",
+        DeliverPlatform::Redcircle => "redcircle",
+        DeliverPlatform::Sounder => "sounder",
+        DeliverPlatform::Acast => "acast",
+        DeliverPlatform::Spreaker => "spreaker",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",
@@ -891,8 +978,17 @@ fn push_metadata(apply: &mut Argv, args: &DeliverArgs) {
 
 /// Audio-only feed pack: loudnorm to the podcast spec (−16 LUFS) → m4a AAC.
 /// Accepts audio-only inputs — the video platforms require a video track.
-fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Result<Contract, Error> {
-    if !probe.has_audio {
+fn podcast(
+    args: DeliverArgs,
+    probe: &crate::probe::Probe,
+    prog_members: Option<&(Vec<u32>, Vec<u32>, Vec<u32>)>,
+    g: &Globals,
+) -> Result<Contract, Error> {
+    let prog_audio = prog_members.and_then(|(_, a, _)| a.first().copied());
+    let has_audio = prog_members
+        .map(|(_, a, _)| !a.is_empty())
+        .unwrap_or(probe.has_audio);
+    if !has_audio {
         return Err(Error::input(
             "deliver --platform podcast needs an audio stream",
         ));
@@ -906,8 +1002,13 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
         crate::paths::ensure_input(cover)?;
         apply.push("-i");
         apply.push(cover);
-        apply.extend(["-map", "0:a", "-map", "1:v"]);
+        let amap = prog_audio
+            .map(|i| format!("0:{i}"))
+            .unwrap_or_else(|| "0:a".to_string());
+        apply.extend(["-map", &amap, "-map", "1:v"]);
         ni += 1;
+    } else if let Some(aidx) = prog_audio {
+        apply.extend(["-map", &format!("0:{aidx}")]);
     } else {
         apply.push("-vn");
     }
@@ -934,6 +1035,9 @@ fn podcast(args: DeliverArgs, probe: &crate::probe::Probe, g: &Globals) -> Resul
     let mut m = Argv::ffmpeg();
     m.extend(["-nostats", "-i"]);
     m.push(&args.input);
+    if let Some(aidx) = prog_audio {
+        m.extend(["-map", &format!("0:{aidx}")]);
+    }
     m.extend([
         "-af",
         &loudnorm::measure_filter(podcast_i, TARGET_TP, TARGET_LRA),

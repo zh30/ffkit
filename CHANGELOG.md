@@ -2,9 +2,16 @@
 
 ## [Unreleased]
 
+## [0.331.0] — 2026-09-25
+
 ## [0.330.0] — 2026-09-25
 
 ### Added
+
+- `deliver --program N` — pack one service out of a multi-program transport stream (broadcast pickup ingest): the pack takes the service's first video/audio member across the plain/logo/wrap/podcast paths (`probe.programs[]` lists services; pairs with `hls`/`dash`/`remux --program`).
+- `chapter --min-gap SEC` — drop marks closer than SEC to the previous kept mark (tidy a dense auto-TOC when `--scenes` over-fires on rapid cuts; first mark always kept, extras report `min_gap_dropped`).
+- `subs --dedupe-text` — drop a cue whose text repeats the previous kept cue (auto-transcript repeat-line artifacts: Whisper prints the same line twice at different timings; compared case/space-insensitive — unlike `--dedupe` which needs identical timing AND text).
+- `deliver --platform` +7 podcast-host canvases: `buzzsprout`, `captivate`, `transistor`, `redcircle`, `sounder`, `acast`, `spreaker` (16:9 1920x1080).
 
 - `hls --program N` / `dash --program N` — package one service out of a multi-program transport stream (`-map 0:p:N` on the plain path; `--ladder` maps the program's own member streams by absolute index — a program map can't compose with a media-type specifier). Stream presence is scoped to the picked service (`probe.programs[]` lists services; radio/silent services report correctly). 1-based validation + "not in input (programs: …)" errors
 - `deliver --platform` +7: `onlyfans`/`fansly`/`fanbox`/`cameo`/`subscribestar` (creator-economy posts 9:16 1080x1920), `kofi`/`buymeacoffee` (member posts 16:9 1920x1080)

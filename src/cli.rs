@@ -1303,6 +1303,12 @@ pub struct DeliverArgs {
     /// Comment/description metadata tag (audiobook synopsis, show notes)
     #[arg(long)]
     pub comment: Option<String>,
+    /// Package one service out of a multi-program transport stream
+    /// (broadcast pickup ingest — `probe.programs[]` lists services;
+    /// picks program NUMBER, not an index; the pack takes that
+    /// service's first video/audio member)
+    #[arg(long)]
+    pub program: Option<u32>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1808,6 +1814,20 @@ pub enum DeliverPlatform {
     Kofi,
     /// Buy Me a Coffee post video 16:9 landscape (1920x1080, -14 LUFS)
     Buymeacoffee,
+    /// Buzzsprout video episode 16:9 landscape (1920x1080, -14 LUFS)
+    Buzzsprout,
+    /// Captivate video episode 16:9 landscape (1920x1080, -14 LUFS)
+    Captivate,
+    /// Transistor video episode 16:9 landscape (1920x1080, -14 LUFS)
+    Transistor,
+    /// RedCircle video episode 16:9 landscape (1920x1080, -14 LUFS)
+    Redcircle,
+    /// Sounder video episode 16:9 landscape (1920x1080, -14 LUFS)
+    Sounder,
+    /// Acast video episode 16:9 landscape (1920x1080, -14 LUFS)
+    Acast,
+    /// Spreaker video episode 16:9 landscape (1920x1080, -14 LUFS)
+    Spreaker,
     /// Truth Social video posts 16:9 landscape (1920x1080, -14 LUFS)
     Truthsocial,
     /// GETTR video posts 16:9 landscape (1920x1080, -14 LUFS)
@@ -3228,6 +3248,11 @@ pub struct SubsArgs {
     /// repeat every cue; players flash the line twice)
     #[arg(long)]
     pub dedupe: bool,
+    /// Drop a cue whose text repeats the previous kept cue — auto-transcript
+    /// repeat-line artifacts (Whisper prints the same sentence twice across
+    /// different timings; text compared case/space-insensitive; extras: dropped)
+    #[arg(long)]
+    pub dedupe_text: bool,
     /// Readability gate: report cues faster than N chars/sec
     /// (Netflix-style caption-speed spec; extras: over_limit/worst_cps)
     #[arg(long)]
@@ -6841,6 +6866,11 @@ pub struct ChapterArgs {
     /// that was then retimed (mirrors subs --rate)
     #[arg(long)]
     pub rate: Option<f64>,
+    /// Drop marks closer than SEC to the previous kept mark — tidy a dense
+    /// TOC (--scenes over-firing on rapid cuts; first mark always kept;
+    /// extras: min_gap_dropped)
+    #[arg(long)]
+    pub min_gap: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
