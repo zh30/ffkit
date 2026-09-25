@@ -19,6 +19,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | Some(TranscodePreset::Wav)
                 | Some(TranscodePreset::Flac)
                 | Some(TranscodePreset::Opus)
+                | Some(TranscodePreset::Ogg)
+                | Some(TranscodePreset::Alac)
         )
     {
         return Err(Error::input(
@@ -64,6 +66,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Wav
                 | TranscodePreset::Flac
                 | TranscodePreset::Opus
+        | TranscodePreset::Ogg
+        | TranscodePreset::Alac
         )
     {
         return Err(Error::input("--range applies to video presets only"));
@@ -82,6 +86,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Wav
                 | TranscodePreset::Flac
                 | TranscodePreset::Opus
+        | TranscodePreset::Ogg
+        | TranscodePreset::Alac
         )
     {
         return Err(Error::input("--field-order applies to video presets only"));
@@ -94,6 +100,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Wav
                 | TranscodePreset::Flac
                 | TranscodePreset::Opus
+        | TranscodePreset::Ogg
+        | TranscodePreset::Alac
                 | TranscodePreset::Gif
                 | TranscodePreset::Prores
                 | TranscodePreset::Dnxhd
@@ -112,6 +120,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                     | TranscodePreset::Wav
                     | TranscodePreset::Flac
                     | TranscodePreset::Opus
+        | TranscodePreset::Ogg
+        | TranscodePreset::Alac
             )
         {
             return Err(Error::input(
@@ -136,7 +146,9 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         | TranscodePreset::Aac
         | TranscodePreset::Wav
         | TranscodePreset::Flac
-        | TranscodePreset::Opus => audio_only(&args, g, preset),
+        | TranscodePreset::Opus
+        | TranscodePreset::Ogg
+        | TranscodePreset::Alac => audio_only(&args, g, preset),
         TranscodePreset::Gif => gif(&args, g),
         TranscodePreset::H264 => h264(&args, g),
         TranscodePreset::Hevc => hevc(&args, g),
@@ -483,7 +495,7 @@ fn audio_only(
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_audio {
         return Err(Error::input(
-            "audio preset (mp3/aac/wav/flac/opus): input has no audio",
+            "audio preset (mp3/aac/wav/flac/opus/ogg/alac): input has no audio",
         ));
     }
     let mut argv = ffmpeg_base(g.progress);
@@ -502,6 +514,10 @@ fn audio_only(
             TranscodePreset::Opus => {
                 argv.extend(["-c:a", "libopus", "-b:a", abitrate(args, "128k")])
             }
+            TranscodePreset::Ogg => {
+                argv.extend(["-c:a", "libvorbis", "-b:a", abitrate(args, "192k")])
+            }
+            TranscodePreset::Alac => argv.extend(["-c:a", "alac"]),
             _ => argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "192k")]),
         }
     }

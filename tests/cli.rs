@@ -41176,3 +41176,142 @@ fn r310_conform_maxrate_chapter_ffmeta_subs_sub_dash_utc_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
     }
 }
+
+#[test]
+fn r317_ogg_alac_rotate_alpha_rtl_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let d = tempfile::tempdir().unwrap();
+    let f = fixture(d.path());
+
+    // transcode --preset ogg — libvorbis audio-only (open-web music/podcast)
+    let ogg = d.path().join("a.ogg");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        ogg.to_str().unwrap(),
+        "--preset",
+        "ogg",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", ogg.to_str().unwrap()]);
+    assert_eq!(p["probe"]["streams"][0]["codec"], "vorbis");
+
+    // transcode --preset alac — Apple Lossless archive (.m4a)
+    let m4a = d.path().join("a.m4a");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        m4a.to_str().unwrap(),
+        "--preset",
+        "alac",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", m4a.to_str().unwrap()]);
+    assert_eq!(p["probe"]["streams"][0]["codec"], "alac");
+
+    // conform --rotate — transpose during the spec pass: a 320x240 source
+    // rotated 90 lands 240x320; 180 keeps dims
+    let r90 = d.path().join("r90.mp4");
+    let j = run_json(&[
+        "conform",
+        f.to_str().unwrap(),
+        "-o",
+        r90.to_str().unwrap(),
+        "--rotate",
+        "90",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let p = run_json(&["probe", r90.to_str().unwrap()]);
+    let v = &p["probe"]["streams"][0];
+    assert_eq!(v["width"], 240);
+    assert_eq!(v["height"], 320);
+    let r45 = d.path().join("r45.mp4");
+    let j = run_json(&[
+        "conform",
+        f.to_str().unwrap(),
+        "-o",
+        r45.to_str().unwrap(),
+        "--rotate",
+        "45",
+    ]);
+    assert_eq!(j["status"], "failed");
+    assert!(j["error"]["message"].as_str().unwrap().contains("90|180|270"));
+
+    // probe streams[].alpha — per-track alpha-capable pix_fmt (ffv1 yuva vs
+    // yuv420p mp4 which reports no field)
+    let mkv = d.path().join("alpha.mkv");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=duration=0.5:size=160x120",
+            "-pix_fmt",
+            "yuva420p",
+            "-c:v",
+            "ffv1",
+        ])
+        .arg(&mkv)
+        .status()
+        .expect("spawn ffmpeg");
+    assert!(st.success(), "ffv1 fixture failed");
+    let p = run_json(&["probe", mkv.to_str().unwrap()]);
+    assert_eq!(p["probe"]["streams"][0]["alpha"], true, "{p}");
+    let p = run_json(&["probe", f.to_str().unwrap()]);
+    assert!(p["probe"]["streams"][0].get("alpha").is_none(), "{p}");
+
+    // subs --rtl — U+202B..U+202C wraps every cue-text LINE (multi-line cue
+    // gets marks per line, not per cue)
+    let srt = d.path().join("ar.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:00,000 --> 00:00:01,000\nfirst line\nsecond line\n\n",
+    )
+    .unwrap();
+    let out = d.path().join("ar2.srt");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--rtl",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["rtl_wrapped"], 1);
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.contains("\u{202b}first line\u{202c}"), "{text}");
+    assert!(text.contains("\u{202b}second line\u{202c}"), "{text}");
+
+    // deliver --platform +7 Viacom (16:9 1920x1080)
+    for name in [
+        "mtv",
+        "bet",
+        "vh1",
+        "comedycentral",
+        "nickelodeon",
+        "cartoonnetwork",
+        "adultswim",
+    ] {
+        let o = d.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
+    }
+}

@@ -68,9 +68,10 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         && args.profile.is_none()
         && args.level.is_none()
         && args.bf.is_none()
+        && args.rotate.is_none()
     {
         return Err(Error::input(
-            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf",
+            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf, --rotate DEG",
         ));
     }
     if let Some(r) = args.ar {
@@ -88,7 +89,24 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
     if args.blur && args.size.is_none() {
         return Err(Error::input("--blur needs --size (the target canvas)"));
     }
+    // --rotate DEG transposes the picture during the spec pass (portrait
+    // phone footage → landscape spec in one encode); runs before --size so
+    // the post-rotation frame is what the canvas math sees
+    let rotate_leg = match args.rotate {
+        Some(90) => Some("transpose=clock".to_string()),
+        Some(180) => Some("hflip,vflip".to_string()),
+        Some(270) => Some("transpose=cclock".to_string()),
+        Some(d) => {
+            return Err(Error::input(format!(
+                "--rotate must be 90|180|270, got {d}"
+            )))
+        }
+        None => None,
+    };
     let mut vf: Vec<String> = Vec::new();
+    if let Some(r) = &rotate_leg {
+        vf.push(r.clone());
+    }
     let mut blur_fc: Option<String> = None;
     if let Some(sz) = &args.size {
         let (w, h) = sz
@@ -127,8 +145,12 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
                 Some(i) => format!("0:{i}"),
                 None => "0:v".to_string(),
             };
+            let rot_head = match &rotate_leg {
+                Some(r) => format!("{r}[vrot];[vrot]"),
+                None => String::new(),
+            };
             blur_fc = Some(format!(
-                "[{vin}]split[cm][cb];[cb]scale={w}:{h}:force_original_aspect_ratio=increase:force_divisible_by=2,crop={w}:{h},gblur=sigma=40[bg];[cm]scale=w={w}:h={h}:force_original_aspect_ratio=decrease:force_divisible_by=2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2{fps_tail},format=yuv420p[vout]"
+                "[{vin}]{rot_head}split[cm][cb];[cb]scale={w}:{h}:force_original_aspect_ratio=increase:force_divisible_by=2,crop={w}:{h},gblur=sigma=40[bg];[cm]scale=w={w}:h={h}:force_original_aspect_ratio=decrease:force_divisible_by=2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2{fps_tail},format=yuv420p[vout]"
             ));
         }
     }

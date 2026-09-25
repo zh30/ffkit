@@ -1330,6 +1330,12 @@ pub enum TranscodePreset {
     /// Theora + Vorbis in .ogv — the open-web master
     /// (pre-WebM HTML5 video, Wikipedia/Wikimedia embeds)
     Theora,
+    /// Audio-only Ogg Vorbis (.ogg — open-web music/podcast upload,
+    /// Bandcamp/Jamendo-era delivery)
+    Ogg,
+    /// Audio-only ALAC in .m4a/.mp4 (Apple Lossless — lossless music
+    /// archive for the Apple ecosystem, no quality loss vs wav)
+    Alac,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2134,6 +2140,20 @@ pub enum DeliverPlatform {
     Championsleague,
     /// Mildom — JP live-streaming clip 16:9 landscape (1920x1080, -14 LUFS)
     Mildom,
+    /// MTV highlight clip 16:9 landscape (1920x1080, -14 LUFS)
+    Mtv,
+    /// BET highlight clip 16:9 landscape (1920x1080, -14 LUFS)
+    Bet,
+    /// VH1 highlight clip 16:9 landscape (1920x1080, -14 LUFS)
+    Vh1,
+    /// Comedy Central highlight clip 16:9 landscape (1920x1080, -14 LUFS)
+    Comedycentral,
+    /// Nickelodeon highlight clip 16:9 landscape (1920x1080, -14 LUFS)
+    Nickelodeon,
+    /// Cartoon Network highlight clip 16:9 landscape (1920x1080, -14 LUFS)
+    Cartoonnetwork,
+    /// Adult Swim highlight clip 16:9 landscape (1920x1080, -14 LUFS)
+    Adultswim,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3600,6 +3620,11 @@ pub struct SubsArgs {
     /// emotes_stripped, empty cues drop)
     #[arg(long)]
     pub strip_emotes: bool,
+    /// Wrap every cue-text line in U+202B..U+202C RTL marks — Arabic/Hebrew
+    /// captions render mirrored punctuation in players without them
+    /// (MENA subtitle delivery; extras: rtl_wrapped)
+    #[arg(long)]
+    pub rtl: bool,
     /// Keep only cues overlapping window `F,T` (`end` ok for T), clip the
     /// edges, and re-time the result to start at 0 — the `extract --audio
     /// --from/--to` counterpart for transcripts (grab the subtitle chunk
@@ -6223,6 +6248,10 @@ pub struct ConformArgs {
     /// B-frames (mobile/baseline ingest wants 0 — decode order = display order)
     #[arg(long)]
     pub bf: Option<u32>,
+    /// Rotate the picture 90|180|270° during the spec pass (transpose —
+    /// portrait phone footage → landscape spec in one encode)
+    #[arg(long)]
+    pub rotate: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]

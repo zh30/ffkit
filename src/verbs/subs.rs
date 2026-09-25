@@ -85,6 +85,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.strip_tags
         || args.strip_sdh
         || args.strip_emotes
+        || args.rtl
         || args.clip.is_some()
         || args.drop.is_some()
         || args.wrap.is_some()
@@ -564,6 +565,25 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         cues.retain(|c| !c.text.trim().is_empty());
         dropped += before - cues.len();
     }
+    let mut rtl_wrapped = 0usize;
+    if args.rtl {
+        // Arabic/Hebrew captions render mirrored punctuation in players
+        // without bidirectional marks — wrap every cue-text LINE in
+        // RLE..PDF so each line resolves RTL (marks must be per-line, not
+        // per-cue: a multi-line cue resets direction at each break)
+        for c in &mut cues {
+            let out = c
+                .text
+                .lines()
+                .map(|l| format!("\u{202b}{l}\u{202c}"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            if out != c.text {
+                c.text = out;
+                rtl_wrapped += 1;
+            }
+        }
+    }
     let mut tags_stripped = 0usize;
     if args.strip_tags {
         for c in &mut cues {
@@ -651,6 +671,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "tags_stripped": tags_stripped,
         "sdh_stripped": sdh_stripped,
         "emotes_stripped": emotes_stripped,
+        "rtl_wrapped": rtl_wrapped,
         "clipped": clipped,
         "excised": excised,
         "moved": moved,

@@ -861,3 +861,11 @@ MicroDVD `{f}{f}text` (frame numbers) and SubViewer `hh:mm:ss.mmm,hh:mm:ss.mmm` 
 ## ffmpeg 4.4 subtitle demuxers: only some are worth delegating to
 
 Clean on 4.4: scc, stl, rt, mpsub, subviewer. Garbage on 4.4: pjs, jss, vplayer (cue ends land ~1193h), aqtitle (every cue at 0:00) — don't route `.aqt`/`.jss`/`.vps`/`.pjs` through the demuxer path; parse yourself or refuse.
+
+## ffmpeg 4.4 transpose takes clock/cclock, not the long names
+
+`transpose=clockwise`/`cclockwise` don't exist on ffmpeg 4.4 — dir accepts `clock`, `cclock`, `clock_flip`, `cclock_flip` (or 0..3). conform --rotate maps 90→clock, 270→cclock, 180→hflip,vflip. Filter names drift between versions — smoke the exact filter string on the CI ffmpeg, not just the newest one.
+
+## --rtl marks go per cue-text line, not per cue
+
+Unicode bidi control resets at every line break: one U+202B..U+202C pair around a whole multi-line cue only protects the first line — the rest render LTR again. Wrap each text line separately (extras report `rtl_wrapped` per cue touched).

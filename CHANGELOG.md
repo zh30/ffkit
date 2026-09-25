@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.344.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset ogg` — audio-only Ogg Vorbis in .ogg (open-web music/podcast upload — Bandcamp/Jamendo-era delivery)
+- `transcode --preset alac` — ALAC in .m4a (Apple Lossless archive — lossless music for the Apple ecosystem, no quality loss vs wav)
+- `conform --rotate 90|180|270` — transposes the picture during the spec pass (portrait phone footage → landscape spec in one encode; runs before --size so the canvas math sees the rotated frame; also composes into the --blur filter chain)
+- `probe`/`scan` `streams[].alpha` — per-track alpha-capable pix_fmt (container `has_alpha` flattens to any stream — this pins which track carries transparency before a transcode drops the channel)
+- `subs --rtl` — wraps every cue-text line in U+202B..U+202C RTL marks (Arabic/Hebrew captions render mirrored punctuation in players without them — MENA subtitle delivery; extras: `rtl_wrapped`)
+- `deliver --platform` +7: mtv, bet, vh1, comedycentral, nickelodeon, cartoonnetwork, adultswim (Viacom network clips 16:9 1920x1080)
+
 ## [0.343.0] — 2026-09-25
 
 ### Added

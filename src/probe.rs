@@ -171,6 +171,11 @@ pub struct ProbeStream {
     /// platforms needing yuv420p; QC every track of mixed-depth files)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pix_fmt: Option<String>,
+    /// Alpha-capable pixel format (video — yuva*/rgba family on THIS track;
+    /// container `has_alpha` flattens to any stream, this pins which one —
+    /// QC before a transcode drops the channel)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alpha: Option<bool>,
     /// Sample aspect ratio (video — anamorphic masters carry SAR ≠ 1:1;
     /// QC before re-encoding drops the tag and squeezes the picture)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -739,6 +744,10 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 duration: s.duration.as_deref().and_then(parse_f64),
                 bit_rate: s.bit_rate.as_deref().and_then(|v| v.parse().ok()),
                 pix_fmt: s.pix_fmt.clone(),
+                alpha: s
+                    .pix_fmt
+                    .as_deref()
+                    .and_then(|pf| pix_fmt_has_alpha(pf).then_some(true)),
                 sar: s
                     .sample_aspect_ratio
                     .clone()
