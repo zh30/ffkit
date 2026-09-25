@@ -497,6 +497,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Tradera
         | DeliverPlatform::Leboncoin => (1080, 1920),
         DeliverPlatform::Weibo => (1920, 1080),
+        DeliverPlatform::Dropbox
+        | DeliverPlatform::Box
+        | DeliverPlatform::Onedrive
+        | DeliverPlatform::Gdrive
+        | DeliverPlatform::Mega
+        | DeliverPlatform::Wetransfer
+        | DeliverPlatform::Sendanywhere => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1223,6 +1230,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Blocket => "blocket",
         DeliverPlatform::Tradera => "tradera",
         DeliverPlatform::Leboncoin => "leboncoin",
+        DeliverPlatform::Dropbox => "dropbox",
+        DeliverPlatform::Box => "box",
+        DeliverPlatform::Onedrive => "onedrive",
+        DeliverPlatform::Gdrive => "gdrive",
+        DeliverPlatform::Mega => "mega",
+        DeliverPlatform::Wetransfer => "wetransfer",
+        DeliverPlatform::Sendanywhere => "sendanywhere",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",

@@ -177,6 +177,9 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Amv => amv(&args, g),
         TranscodePreset::Qtrle => qtrle(&args, g),
         TranscodePreset::V210 => v210(&args, g),
+        TranscodePreset::Huffyuv => lossless(&args, g, "huffyuv", &["avi", "mkv"]),
+        TranscodePreset::Utvideo => lossless(&args, g, "utvideo", &["avi"]),
+        TranscodePreset::Ffvhuff => lossless(&args, g, "ffvhuff", &["mkv"]),
     }
 }
 
@@ -1430,5 +1433,67 @@ fn v210(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "v210" }));
+    Ok(c)
+}
+
+/// Shared lossless-intermediate path — huffyuv / utvideo / ffvhuff are
+/// all intra-frame lossless codecs for edit masters (NLE-era capture and
+/// VirtualDub/matroska workflows). PCM audio; bitrate/crf flags refused.
+fn lossless(
+    args: &TranscodeArgs,
+    g: &Globals,
+    codec: &str,
+    exts: &[&str],
+) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if !exts.contains(&ext.as_str()) {
+        return Err(Error::input(format!(
+            "transcode --preset {codec} needs a {} target, not .{ext}",
+            exts.iter()
+                .map(|e| format!(".{e}"))
+                .collect::<Vec<_>>()
+                .join("/")
+        )));
+    }
+    if args.vbitrate.is_some() || args.crf.is_some() || args.abitrate.is_some() {
+        return Err(Error::input(format!(
+            "transcode --preset {codec} is lossless — bitrate/crf flags don't apply"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input(format!("{codec} preset: input has no video")));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend(["-c:v", codec]);
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "pcm_s16le"]);
+        if let Some(r) = args.ar {
+            argv.extend(["-ar", &r.to_string()]);
+        }
+        if let Some(ch) = args.channels {
+            argv.extend(["-ac", &ch.to_string()]);
+        }
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": codec }));
     Ok(c)
 }

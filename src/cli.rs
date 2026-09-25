@@ -1353,6 +1353,15 @@ pub enum TranscodePreset {
     /// Uncompressed 10-bit 4:2:2 broadcast master + PCM in .mov —
     /// v210 (edit-bay/broadcast ingest spec; bitrate flags meaningless)
     V210,
+    /// HuffYUV lossless capture intermediate + PCM in .avi/.mkv —
+    /// NLE-era lossless edit masters (faster than ffv1)
+    Huffyuv,
+    /// Ut Video lossless intermediate + PCM in .avi — the
+    /// VirtualDub/NLE-era fast lossless codec (CM Ultra specs)
+    Utvideo,
+    /// FFVHuff lossless intermediate + PCM in .mkv — FFmpeg's own
+    /// Huffyuv variant, the matroska-native lossless sibling
+    Ffvhuff,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2213,6 +2222,20 @@ pub enum DeliverPlatform {
     Tradera,
     /// Leboncoin FR classifieds video 9:16 portrait (1080x1920, -14 LUFS)
     Leboncoin,
+    /// Dropbox video preview link 16:9 landscape (1920x1080, -14 LUFS)
+    Dropbox,
+    /// Box video preview 16:9 landscape (1920x1080, -14 LUFS)
+    Box,
+    /// OneDrive video preview link 16:9 landscape (1920x1080, -14 LUFS)
+    Onedrive,
+    /// Google Drive video preview link 16:9 landscape (1920x1080, -14 LUFS)
+    Gdrive,
+    /// MEGA video preview link 16:9 landscape (1920x1080, -14 LUFS)
+    Mega,
+    /// WeTransfer video preview link 16:9 landscape (1920x1080, -14 LUFS)
+    Wetransfer,
+    /// SendAnywhere video link 16:9 landscape (1920x1080, -14 LUFS)
+    Sendanywhere,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3638,6 +3661,11 @@ pub struct SubsArgs {
     /// for the --max-lines gate (extras: lines_split)
     #[arg(long)]
     pub fix_lines: Option<u32>,
+    /// Report unique speaker labels in the transcript (extras:
+    /// speakers[] + speaker_count) — the cast list; pairs with
+    /// --strip-speakers which removes them
+    #[arg(long)]
+    pub speakers: bool,
     /// Readability gate: report cues faster than N chars/sec
     /// (Netflix-style caption-speed spec; extras: over_limit/worst_cps)
     #[arg(long)]

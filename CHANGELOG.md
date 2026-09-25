@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.348.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset huffyuv` / `--preset utvideo` / `--preset ffvhuff` — the lossless capture-intermediate family + PCM (NLE-era edit masters, faster than ffv1): shared `lossless()` path; huffyuv takes `.avi`/`.mkv`, utvideo `.avi`, ffvhuff `.mkv`; bitrate/crf refused as meaningless on lossless codecs
+- `subs --speakers` — transcript cast list: unique speaker labels via the same `[NAME]`/`<NAME>`/`NAME:` detection `--strip-speakers` uses (extras `speakers`/`speaker_count` — the report half of the pair)
+- `deliver --platform` +7: dropbox, box, onedrive, gdrive, mega, wetransfer, sendanywhere (cloud & file-share video links 16:9 1920x1080)
+
 ## [0.347.0] — 2026-09-25
 
 ### Added

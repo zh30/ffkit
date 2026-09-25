@@ -84,6 +84,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.max_lines.is_some()
         || args.replace.is_some()
         || args.strip_speakers
+        || args.speakers
         || args.strip_tags
         || args.strip_sdh
         || args.strip_emotes
@@ -475,6 +476,37 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
+    // shared speaker-label detection: [NAME] / <NAME> bracketed labels
+    // or ALL-CAPS `NAME:` labels — used by --speakers and --strip-speakers
+    fn speaker_label(l: &str) -> Option<&str> {
+        let l = l.trim_start();
+        let bracket = if l.starts_with('[') {
+            l.find(']')
+        } else if l.starts_with('<') {
+            l.find('>')
+        } else {
+            None
+        };
+        if let Some(end) = bracket {
+            if end <= 32 {
+                return Some(&l[..=end]);
+            }
+        }
+        if let Some(colon) = l.find(':') {
+            let head = &l[..colon];
+            if colon <= 30
+                && !head.is_empty()
+                && head.chars().all(|ch| {
+                    ch.is_ascii_uppercase() || ch.is_ascii_digit() || " .'_-".contains(ch)
+                })
+                && head.chars().any(|ch| ch.is_ascii_uppercase())
+            {
+                return Some(&l[..=colon]);
+            }
+        }
+        None
+    }
+
     if args.strip_speakers {
         for c in &mut cues {
             let t = c
@@ -482,32 +514,8 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
                 .lines()
                 .map(|l| {
                     let l = l.trim_start();
-                    // [NAME] / <NAME> bracketed labels, or ALL-CAPS NAME: labels
-                    let bracket = if l.starts_with('[') {
-                        l.find(']')
-                    } else if l.starts_with('<') {
-                        l.find('>')
-                    } else {
-                        None
-                    };
-                    if let Some(end) = bracket {
-                        if end <= 32 {
-                            return l[end + 1..].trim_start();
-                        }
-                    }
-                    if let Some(colon) = l.find(':') {
-                        let head = &l[..colon];
-                        if colon <= 30
-                            && !head.is_empty()
-                            && head.chars().all(|ch| {
-                                ch.is_ascii_uppercase()
-                                    || ch.is_ascii_digit()
-                                    || " .'_-".contains(ch)
-                            })
-                            && head.chars().any(|ch| ch.is_ascii_uppercase())
-                        {
-                            return l[colon + 1..].trim_start();
-                        }
+                    if let Some(label) = speaker_label(l) {
+                        return l[label.len()..].trim_start();
                     }
                     l
                 })
@@ -619,6 +627,21 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             None,
         ));
     }
+    let mut speakers: Vec<String> = Vec::new();
+    if args.speakers {
+        for c in &cues {
+            for l in c.text.lines() {
+                if let Some(label) = speaker_label(l) {
+                    let label = label
+                        .trim_start_matches(['[', '<'])
+                        .trim_end_matches([']', '>', ':']);
+                    if !speakers.iter().any(|s| s == label) {
+                        speakers.push(label.to_string());
+                    }
+                }
+            }
+        }
+    }
     let mut lines_split = 0usize;
     if let Some(n) = args.fix_lines {
         if n == 0 {
@@ -710,6 +733,8 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "cps_limit": args.cps,
         "stretched": stretched,
         "lines_split": lines_split,
+        "speakers": speakers,
+        "speaker_count": speakers.len(),
         "min_gap": args.min_gap,
         "over_limit": over_limit,
         "worst_cps": (worst_cps * 100.0).round() / 100.0,

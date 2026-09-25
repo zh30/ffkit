@@ -41652,3 +41652,108 @@ fn r320_qtrle_v210_verify_fixlines_classifieds() {
         assert_eq!(j["probe"]["height"], 1920, "{name}: {j}");
     }
 }
+
+#[test]
+fn r321_lossless_presets_speakers_cloud_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // lossless intermediate family: huffyuv/utvideo in .avi, ffvhuff in .mkv
+    for (preset, ext, codec) in [
+        ("huffyuv", "avi", "huffyuv"),
+        ("utvideo", "avi", "utvideo"),
+        ("ffvhuff", "mkv", "ffvhuff"),
+    ] {
+        let o = dir.path().join(format!("{preset}.{ext}"));
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            preset,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{preset}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["vcodec"], codec, "{preset}: {j}");
+        assert_eq!(j["probe"]["acodec"], "pcm_s16le", "{preset}: {j}");
+    }
+
+    // lossless refuses bitrate flags; wrong container refused
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "huffyuv",
+        "--crf",
+        "20",
+        "-o",
+        dir.path().join("b.avi").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "ffvhuff",
+        "-o",
+        dir.path().join("b.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "failed", "{j}");
+
+    // subs --speakers: unique speaker labels, both [NAME] and NAME: forms
+    let sp = dir.path().join("sp.srt");
+    std::fs::write(
+        &sp,
+        "1\n00:00:00,000 --> 00:00:02,000\n[ALICE] hello there\n\n2\n00:00:02,000 --> 00:00:04,000\nBOB: hi\n\n3\n00:00:04,000 --> 00:00:05,000\n[ALICE] again\n",
+    )
+    .unwrap();
+    let out = dir.path().join("spo.srt");
+    let j = run_json(&[
+        "subs",
+        sp.to_str().unwrap(),
+        "--speakers",
+        "-o",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["speaker_count"], 2, "{j}");
+    let names: Vec<&str> = j["extra"]["speakers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
+    assert!(
+        names.contains(&"ALICE") && names.contains(&"BOB"),
+        "{names:?}"
+    );
+
+    // deliver --platform +7 cloud/file hosts (16:9 1920x1080)
+    for name in [
+        "dropbox",
+        "box",
+        "onedrive",
+        "gdrive",
+        "mega",
+        "wetransfer",
+        "sendanywhere",
+    ] {
+        let o = dir.path().join(format!("{name}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            name,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{name}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{name}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{name}: {j}");
+    }
+}
