@@ -12,6 +12,10 @@
 - `probe`/`scan` `streams[].time_base` — per-stream mux timescale (1/90000 mpegts vs 1/15360 mp4 — packet pts math QC)
 - `deliver --platform` +7 sports broadcasters: eurosport, kayo, optussport, supersport, astro, willow, premier (16:9 1920x1080)
 
+### Fixed
+
+- CI now installs `libavcodec-extra` — Ubuntu's base `libavcodec58` lacks `libopencore_amrnb`, which the gpp preset needs
+
 
 ## [0.341.0] — 2026-09-25
 

@@ -851,3 +851,5 @@ DivX-era gear rejects .avi files whose fourcc isn't `xvid` even with bit-identic
 ## h263 encodes only five fixed picture sizes — and h263p has no .3gp tag
 
 The h263 encoder accepts only 128x96/176x144/352x288/704x576/1408x1152 — any other frame size fails encode-side. The gpp preset snaps to the nearest legal canvas letterboxed instead of erroring on arbitrary inputs. And `h263p` (the v2 codec) has no tag in the 3gp muxer ("Could not find tag for codec h263p") — write `h263`.
+
+Ubuntu/Debian ship AMR encoders in `libavcodec-extra`, not the base `libavcodec` — `Unknown encoder 'libopencore_amrnb'` means install the extra codec package (`apt-get install libavcodec-extra`), which replaces the base libavcodec.
