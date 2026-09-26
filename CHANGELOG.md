@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.359.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset ts` — H.264+AAC in `.ts`/`.m2ts` MPEG-TS (broadcast ingest, IPTV/DVB archive; `--crf`/`--abitrate` land on the h264/aac paths)
+- `transcode --preset mxf` — XDCAM/OP1a broadcast master in `.mxf` (mpeg2video 4:2:2 + 48kHz stereo PCM — spec-pinned, refuses `--ar`/`--channels`/`--crf`/`--abitrate`)
+- `remux --bsf` — codec-level bitstream repair during a stream copy: `annexb`/`hevc-annexb` (avcC→Annex B for `.ts`), `adts` (internet-radio/DAB+ ADTS captures → `.m4a`), `mp3-hdr`, `eac3-core`, `dca-core`, `mjpeg-jpg`, `fix-subs`, `redundant-pps`, `extract-extra`; repeatable, same-stream filters comma-join
+- `subs --convert` can now WRITE `.sub` MicroDVD — frame-number cues at `--fps` (default 25), completing the read/write pair
+- `deliver --platform` +7: newgrounds, deviantart, vsco, smugmug, zenfolio (creator community/portfolio posts), 9now, 7plus (Australian catch-up OTT) — all 16:9 1920x1080
+
 ## [0.358.0] — 2026-09-25
 
 ### Added

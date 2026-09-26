@@ -1185,9 +1185,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "csv"
         && out_ext != "mpl"
         && out_ext != "smi"
+        && out_ext != "sub"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi/.sub output",
         ));
     }
     let raw = if in_ext == "scc" || in_ext == "stl" || in_ext == "rt" || in_ext == "mps" {
@@ -1431,6 +1432,24 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
                 sbv_clock(c.start),
                 sbv_clock(c.end),
                 c.text
+            ));
+        }
+        s
+    } else if out_ext == "sub" {
+        // MicroDVD — the other .sub dialect (our reader splits them on
+        // content shape): frame-number cues `{start}{end}text` at --fps
+        // (default 25), `|` is the line break
+        let fps = args.fps.unwrap_or(25.0);
+        if fps <= 0.0 {
+            return Err(Error::input("subs --convert .sub needs a positive --fps"));
+        }
+        let mut s = String::new();
+        for c in &cues {
+            s.push_str(&format!(
+                "{{{}}}{{{}}}{}\n",
+                (c.start * fps).round() as i64,
+                (c.end * fps).round() as i64,
+                c.text.replace('\n', "|")
             ));
         }
         s

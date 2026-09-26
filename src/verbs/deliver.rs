@@ -574,6 +574,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Wix
         | DeliverPlatform::Webflow
         | DeliverPlatform::Framer => (1920, 1080),
+        DeliverPlatform::Newgrounds
+        | DeliverPlatform::Deviantart
+        | DeliverPlatform::Vsco
+        | DeliverPlatform::Smugmug
+        | DeliverPlatform::Zenfolio
+        | DeliverPlatform::Ninenow
+        | DeliverPlatform::Sevenplus => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1174,6 +1181,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Wix => "wix",
         DeliverPlatform::Webflow => "webflow",
         DeliverPlatform::Framer => "framer",
+        DeliverPlatform::Newgrounds => "newgrounds",
+        DeliverPlatform::Deviantart => "deviantart",
+        DeliverPlatform::Vsco => "vsco",
+        DeliverPlatform::Smugmug => "smugmug",
+        DeliverPlatform::Zenfolio => "zenfolio",
+        DeliverPlatform::Ninenow => "9now",
+        DeliverPlatform::Sevenplus => "7plus",
         DeliverPlatform::Brightcove => "brightcove",
         DeliverPlatform::Jwplayer => "jwplayer",
         DeliverPlatform::Kaltura => "kaltura",

@@ -1203,6 +1203,47 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     } else if matches!(ext.as_str(), "mp4" | "m4a" | "mov") {
         argv.extend(["-movflags", "+faststart"]);
     }
+    // --bsf: codec-level bitstream surgery on the copy path — retimed
+    // headers (annexb for .ts broadcast pickup, adts captures → .m4a)
+    // and spec knobs (redundant PPS). Same-stream filters comma-join
+    // into one -bsf:{v|a|s} — that comma list is ffmpeg's syntax.
+    if !args.bsf.is_empty() {
+        let mut v: Vec<&'static str> = Vec::new();
+        let mut a: Vec<&'static str> = Vec::new();
+        let mut s: Vec<&'static str> = Vec::new();
+        for b in &args.bsf {
+            match b {
+                crate::cli::RemuxBsf::Annexb => v.push("h264_mp4toannexb"),
+                crate::cli::RemuxBsf::HevcAnnexb => v.push("hevc_mp4toannexb"),
+                crate::cli::RemuxBsf::MjpegJpg => v.push("mjpeg2jpeg"),
+                crate::cli::RemuxBsf::RedundantPps => v.push("h264_redundant_pps"),
+                crate::cli::RemuxBsf::ExtractExtra => v.push("extract_extradata"),
+                crate::cli::RemuxBsf::Adts => a.push("aac_adtstoasc"),
+                crate::cli::RemuxBsf::Mp3Hdr => a.push("mp3_header_decompress"),
+                crate::cli::RemuxBsf::Eac3Core => a.push("eac3_core"),
+                crate::cli::RemuxBsf::DcaCore => a.push("dca_core"),
+                crate::cli::RemuxBsf::FixSubs => s.push("fix_sub_duration"),
+            }
+        }
+        if !v.is_empty() {
+            if !probe.has_video {
+                return Err(Error::input("remux --bsf: no video stream to filter"));
+            }
+            argv.extend(["-bsf:v".to_string(), v.join(",")]);
+        }
+        if !a.is_empty() {
+            if !probe.has_audio {
+                return Err(Error::input("remux --bsf: no audio stream to filter"));
+            }
+            argv.extend(["-bsf:a".to_string(), a.join(",")]);
+        }
+        if !s.is_empty() {
+            if !probe.has_subs {
+                return Err(Error::input("remux --bsf fix-subs: no subtitle stream"));
+            }
+            argv.extend(["-bsf:s".to_string(), s.join(",")]);
+        }
+    }
     // --encrypt: CENC AES-CTR on the ISOBMFF essence — DRM prep
     // (ClearKey/Widevine/PlayReady); report key+kid so the caller can
     // wire them into their license/config

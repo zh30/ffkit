@@ -457,6 +457,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             &[(128, 96), (176, 144), (352, 288), (704, 576), (1408, 1152)],
         ),
         TranscodePreset::Avui => avui(&args, g),
+        TranscodePreset::Ts => qt_era(&args, g, "libx264", &["ts", "m2ts"], None, Some("aac")),
+        TranscodePreset::Mxf => mxf(&args, g),
         TranscodePreset::Raw => lossless(&args, g, "rawvideo", &["avi", "mkv"], None),
     }
 }
@@ -1158,6 +1160,57 @@ fn avui(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "avui" }));
+    Ok(c)
+}
+
+// Broadcast master in MXF — XDCAM/OP1a: mpeg2video 4:2:2 + 48kHz stereo
+// PCM are the spec constants (the muxer refuses other audio); vbitrate/
+// gop/fps stay tunable so delivery specs can pin them
+fn mxf(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != "mxf" {
+        return Err(Error::input(format!(
+            "transcode --preset mxf needs a .mxf target, not .{ext}"
+        )));
+    }
+    if args.crf.is_some() || args.abitrate.is_some() || args.ar.is_some() || args.channels.is_some()
+    {
+        return Err(Error::input(
+            "transcode --preset mxf is spec-pinned — XDCAM audio is always 48kHz stereo PCM (drop --ar/--channels/--crf/--abitrate)",
+        ));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("mxf preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend(["-c:v", "mpeg2video", "-pix_fmt", "yuv422p"]);
+    if let Some(b) = &args.vbitrate {
+        argv.extend(["-b:v", b]);
+    }
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "pcm_s16le", "-ar", "48000", "-ac", "2"]);
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "mxf" }));
     Ok(c)
 }
 
@@ -2028,7 +2081,9 @@ fn qt_era(
                 .join("/")
         )));
     }
-    if args.crf.is_some() || (args.abitrate.is_some() && acodec != Some("libmp3lame")) {
+    if (args.crf.is_some() && codec != "libx264")
+        || (args.abitrate.is_some() && !matches!(acodec, Some("libmp3lame") | Some("aac")))
+    {
         return Err(Error::input(format!(
             "transcode --preset {codec} has no crf/abitrate knobs — use --vbitrate"
         )));
@@ -2056,6 +2111,9 @@ fn qt_era(
     if let Some(b) = &args.vbitrate {
         argv.extend(["-b:v", b]);
     }
+    if let Some(c) = args.crf {
+        argv.extend(["-crf", &c.to_string()]);
+    }
     if let Some(n) = args.gop {
         argv.extend(["-g", &n.to_string()]);
     }
@@ -2064,6 +2122,9 @@ fn qt_era(
             argv.extend(["-c:a", ac]);
             if ac == "libmp3lame" {
                 argv.extend(["-b:a", abitrate(args, "192k")]);
+            }
+            if ac == "aac" && args.abitrate.is_some() {
+                argv.extend(["-b:a", abitrate(args, "128k")]);
             }
             if ac == "real_144" {
                 argv.extend(["-ar", "8000", "-ac", "1"]);

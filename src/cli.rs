@@ -1529,6 +1529,12 @@ pub enum TranscodePreset {
     /// Avid Meridien uncompressed + PCM in .mov (broadcast capture-card ingest — snaps to 720x486, experimental -strict -2)
     #[value(name = "avui")]
     Avui,
+    /// H.264 + AAC in .ts/.m2ts MPEG-TS — broadcast ingest, IPTV/DVB
+    /// archives, and the container smart TVs capture
+    Ts,
+    /// MPEG-2 4:2:2 + 48kHz stereo PCM in .mxf — XDCAM/OP1a broadcast
+    /// master (the interchange file decks and QC rooms hand around)
+    Mxf,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2543,6 +2549,22 @@ pub enum DeliverPlatform {
     Webflow,
     /// Framer site/prototype video (global)
     Framer,
+    /// Newgrounds — animation/game portal uploads 16:9
+    Newgrounds,
+    /// DeviantArt — art community video posts 16:9
+    Deviantart,
+    /// VSCO — creator community video posts 16:9
+    Vsco,
+    /// SmugMug — photo/video portfolio hosting 16:9
+    Smugmug,
+    /// Zenfolio — photographer hosting with video 16:9
+    Zenfolio,
+    /// 9Now — Australian Nine catch-up OTT 16:9
+    #[value(name = "9now")]
+    Ninenow,
+    /// 7plus — Australian Seven OTT 16:9
+    #[value(name = "7plus")]
+    Sevenplus,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5286,6 +5308,32 @@ pub enum VocalMode {
     Isolate,
 }
 
+/// Bitstream filter applied during a stream copy — codec-level header
+/// and payload surgery (annexb for mp4→ts, adts captures → .m4a)
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum RemuxBsf {
+    /// H.264 avcC → Annex B startcodes (mp4/mov destined for .ts)
+    Annexb,
+    /// HEVC hvcC → Annex B startcodes (mp4/mov destined for .ts)
+    HevcAnnexb,
+    /// AAC ADTS → mp4-style header (internet-radio/DAB+ .aac → .m4a)
+    Adts,
+    /// Strip the fake Xing/VBR header off constant-rate MP3s
+    Mp3Hdr,
+    /// E-AC3 → core AC-3 (SPDIF-era amps can't decode the extension)
+    Eac3Core,
+    /// DTS → core substream (extracts the legacy track from dts-hd)
+    DcaCore,
+    /// MJPEG frames → JPEG payloads (camera still-capture streams)
+    MjpegJpg,
+    /// Re-stamp subtitle cue durations (heals overlapped/huge cue ends)
+    FixSubs,
+    /// Redundant PPS per keyframe (stream-recoverability broadcast spec)
+    RedundantPps,
+    /// Rebuild codec extradata from frames (heals files missing avcC)
+    ExtractExtra,
+}
+
 #[derive(clap::Args, Debug)]
 pub struct RemuxArgs {
     pub input: PathBuf,
@@ -5514,6 +5562,14 @@ pub struct RemuxArgs {
     /// them seek badly or probe at zero duration
     #[arg(long)]
     pub genpts: bool,
+
+    /// Codec bitstream repair during the copy, repeatable —
+    /// annexb|hevc-annexb|adts|mp3-hdr|eac3-core|dca-core|mjpeg-jpg|
+    /// fix-subs|redundant-pps|extract-extra (several same-stream
+    /// filters comma-join, e.g. --bsf annexb --bsf redundant-pps)
+    #[arg(long, value_enum)]
+    pub bsf: Vec<RemuxBsf>,
+
     /// Keep only program N's streams from a multi-service transport
     /// stream (program number from `probe.programs[]` — the whole
     /// service at once; conflicts with the stream-pick flags)

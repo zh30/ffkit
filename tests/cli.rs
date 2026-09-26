@@ -42500,3 +42500,148 @@ fn r331_telecom_elementary_short_still_publishing_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{p}: {j}");
     }
 }
+
+#[test]
+fn r332_broadcast_containers_bsf_microdvd_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // ts preset — h264+aac in MPEG-TS (crf lands on the h264 path)
+    let o = dir.path().join("r332.ts");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "ts",
+        "--crf",
+        "20",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "ts: {j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["vcodec"], "h264", "ts: {j}");
+    assert_eq!(j["probe"]["acodec"], "aac", "ts: {j}");
+    // mxf preset — XDCAM spec: mpeg2video yuv422p + 48kHz stereo PCM
+    let o = dir.path().join("r332.mxf");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "mxf",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "mxf: {j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["vcodec"], "mpeg2video", "mxf: {j}");
+    assert_eq!(j["probe"]["acodec"], "pcm_s16le", "mxf: {j}");
+    // mxf refuses audio knobs (48k stereo is spec-pinned)
+    let bad = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "mxf",
+        "--ar",
+        "44100",
+        "-o",
+        dir.path().join("r332-bad.mxf").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "mxf --ar: {bad}");
+    // remux --bsf annexb — stream-copy mp4 into .ts
+    let o = dir.path().join("r332-copy.ts");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "--bsf",
+        "annexb",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "bsf annexb: {j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["vcodec"], "h264", "bsf ts: {j}");
+    // remux --bsf adts — ADTS radio capture into .m4a
+    let adts = dir.path().join("r332-capture.aac");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "aac",
+        "-o",
+        adts.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "aac fixture: {j}");
+    let m4a = dir.path().join("r332.m4a");
+    let j = run_json(&[
+        "remux",
+        adts.to_str().unwrap(),
+        "--bsf",
+        "adts",
+        "-o",
+        m4a.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "bsf adts: {j}");
+    let j = run_json(&["probe", m4a.to_str().unwrap()]);
+    assert_eq!(j["probe"]["acodec"], "aac", "bsf m4a: {j}");
+    // bsf on a missing stream kind refuses up front
+    let bad = run_json(&[
+        "remux",
+        adts.to_str().unwrap(),
+        "--bsf",
+        "annexb",
+        "-o",
+        dir.path().join("r332-nv.ts").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "bsf no-video: {bad}");
+    // subs --convert .sub — MicroDVD frame numbers round-trip
+    let srt = dir.path().join("r332.srt");
+    std::fs::write(&srt, "1\n00:00:00,400 --> 00:00:01,000\nhello\n\n").unwrap();
+    let sub = dir.path().join("r332.sub");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--convert",
+        "--fps",
+        "25",
+        "-o",
+        sub.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "sub write: {j}");
+    assert_eq!(std::fs::read_to_string(&sub).unwrap(), "{10}{25}hello\n");
+    let back = dir.path().join("r332-rt.srt");
+    let j = run_json(&[
+        "subs",
+        sub.to_str().unwrap(),
+        "--convert",
+        "--fps",
+        "25",
+        "-o",
+        back.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "sub read-back: {j}");
+    let rt = std::fs::read_to_string(&back).unwrap();
+    assert!(rt.contains("00:00:00,400 --> 00:00:01,000"), "{rt}");
+    // publishing/portfolio/OTT platforms — 16:9 canvas
+    for p in [
+        "newgrounds",
+        "deviantart",
+        "vsco",
+        "smugmug",
+        "zenfolio",
+        "9now",
+        "7plus",
+    ] {
+        let o = dir.path().join(format!("r332-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
+    }
+}
