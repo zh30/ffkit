@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.357.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset hap`/`hapq` — Vidvox HAP DXT-texture + PCM in .mov/.avi (live-visual codec — Resolume/TouchDesigner/VJ ingest; `--alpha` upgrades `hap` to Hap Alpha DXT5, `hapq` ships the YCoCg hi-q variant); `transcode --preset cfhd` — GoPro CineForm HD + PCM in .mov/.avi (action-cam NLE intermediate); `transcode --preset vc2` — SMPTE VC-2/Dirac + PCM in .mov (BBC broadcast intermediate); `transcode --preset magicyuv` — MagicYUV lossless + PCM in .avi; `transcode --preset r10k` — AJA Kona 10-bit RGB + PCM in .mov
+- `transcode --preset truehd`/`mlp` — Blu-ray/HD-DVD lossless audio-only in .thd/.mlp (experimental encoders — shipped with `-strict -2`)
+- `deliver --platform` +7: okcupid, match, grindr, eharmony, zoosk, badoo, pof (dating-profile videos 9:16 1080x1920)
+
 ## [0.356.0] — 2026-09-25
 
 ### Added

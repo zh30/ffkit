@@ -472,6 +472,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Tinder
         | DeliverPlatform::Bumble
         | DeliverPlatform::Hinge
+        | DeliverPlatform::Okcupid
+        | DeliverPlatform::Match
+        | DeliverPlatform::Grindr
+        | DeliverPlatform::Eharmony
+        | DeliverPlatform::Zoosk
+        | DeliverPlatform::Badoo
+        | DeliverPlatform::Pof
         | DeliverPlatform::Mercari
         | DeliverPlatform::Vinted
         | DeliverPlatform::Depop
@@ -1146,6 +1153,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Tinder => "tinder",
         DeliverPlatform::Bumble => "bumble",
         DeliverPlatform::Hinge => "hinge",
+        DeliverPlatform::Okcupid => "okcupid",
+        DeliverPlatform::Match => "match",
+        DeliverPlatform::Grindr => "grindr",
+        DeliverPlatform::Eharmony => "eharmony",
+        DeliverPlatform::Zoosk => "zoosk",
+        DeliverPlatform::Badoo => "badoo",
+        DeliverPlatform::Pof => "pof",
         DeliverPlatform::Brightcove => "brightcove",
         DeliverPlatform::Jwplayer => "jwplayer",
         DeliverPlatform::Kaltura => "kaltura",

@@ -1496,6 +1496,30 @@ pub enum TranscodePreset {
     /// G.723.1 audio-only in .tco, pinned 8kHz mono (VoIP-era codec)
     #[value(name = "g723")]
     G723,
+    /// Vidvox HAP (DXT1) + PCM in .mov/.avi (live-visual codec — VJ/Resolume/TouchDesigner ingest; --alpha upgrades to Hap Alpha DXT5)
+    #[value(name = "hap")]
+    Hap,
+    /// Vidvox Hap Q (DXT5-YCoCg) + PCM in .mov/.avi (higher-quality live-visual variant)
+    #[value(name = "hapq")]
+    Hapq,
+    /// GoPro CineForm HD + PCM in .mov/.avi (action-cam NLE intermediate)
+    #[value(name = "cfhd")]
+    Cfhd,
+    /// SMPTE VC-2/Dirac + PCM in .mov (BBC broadcast intermediate codec)
+    #[value(name = "vc2")]
+    Vc2,
+    /// MagicYUV lossless + PCM in .avi (NLE-era fast lossless intermediate)
+    #[value(name = "magicyuv")]
+    Magicyuv,
+    /// AJA Kona 10-bit RGB + PCM in .mov (broadcast capture-card master)
+    #[value(name = "r10k")]
+    R10k,
+    /// Dolby TrueHD audio-only in .thd (Blu-ray lossless — experimental encoder, -strict -2)
+    #[value(name = "truehd")]
+    Truehd,
+    /// Meridian Lossless Packing audio-only in .mlp (HD-DVD era lossless — experimental encoder, -strict -2)
+    #[value(name = "mlp")]
+    Mlp,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2482,6 +2506,20 @@ pub enum DeliverPlatform {
     Kraken,
     /// Public.com investing promo video (US)
     Public,
+    /// OkCupid dating profile video (global)
+    Okcupid,
+    /// Match.com dating profile video (global)
+    Match,
+    /// Grindr dating profile video (global)
+    Grindr,
+    /// eHarmony dating profile video (global)
+    Eharmony,
+    /// Zoosk dating profile video (global)
+    Zoosk,
+    /// Badoo dating profile video (EU/global)
+    Badoo,
+    /// Plenty of Fish dating profile video (US/global)
+    Pof,
 }
 
 #[derive(clap::Args, Debug)]

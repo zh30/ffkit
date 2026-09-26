@@ -47,6 +47,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                         | TranscodePreset::Aptx
                         | TranscodePreset::Sbc
                         | TranscodePreset::G723
+                        | TranscodePreset::Truehd
+                        | TranscodePreset::Mlp
                 )
         )
     {
@@ -95,11 +97,14 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if args.alpha
         && !matches!(
             preset,
-            TranscodePreset::Webm | TranscodePreset::Prores | TranscodePreset::Qtrle
+            TranscodePreset::Webm
+                | TranscodePreset::Prores
+                | TranscodePreset::Qtrle
+                | TranscodePreset::Hap
         )
     {
         return Err(Error::input(
-            "--alpha needs a webm, prores or qtrle output (h264/hevc/av1 can't carry alpha)",
+            "--alpha needs a webm, prores, qtrle or hap output (h264/hevc/av1 can't carry alpha)",
         ));
     }
 
@@ -139,6 +144,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Aptx
                 | TranscodePreset::Sbc
                 | TranscodePreset::G723
+                | TranscodePreset::Truehd
+                | TranscodePreset::Mlp
         )
     {
         return Err(Error::input("--range applies to video presets only"));
@@ -184,6 +191,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Aptx
                 | TranscodePreset::Sbc
                 | TranscodePreset::G723
+                | TranscodePreset::Truehd
+                | TranscodePreset::Mlp
         )
     {
         return Err(Error::input("--field-order applies to video presets only"));
@@ -223,6 +232,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Aptx
                 | TranscodePreset::Sbc
                 | TranscodePreset::G723
+                | TranscodePreset::Truehd
+                | TranscodePreset::Mlp
                 | TranscodePreset::Gif
                 | TranscodePreset::Prores
                 | TranscodePreset::Dnxhd
@@ -268,6 +279,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                     | TranscodePreset::Aptx
                     | TranscodePreset::Sbc
                     | TranscodePreset::G723
+                    | TranscodePreset::Truehd
+                    | TranscodePreset::Mlp
             )
         {
             return Err(Error::input(
@@ -319,7 +332,9 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         | TranscodePreset::Voc
         | TranscodePreset::Aptx
         | TranscodePreset::Sbc
-        | TranscodePreset::G723 => audio_only(&args, g, preset),
+        | TranscodePreset::G723
+        | TranscodePreset::Truehd
+        | TranscodePreset::Mlp => audio_only(&args, g, preset),
         TranscodePreset::Gif => gif(&args, g),
         TranscodePreset::H264 => h264(&args, g),
         TranscodePreset::Hevc => hevc(&args, g),
@@ -421,6 +436,19 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             Some("yuv411p"),
             Some("pcm_s16le"),
         ),
+        TranscodePreset::Hap => hap(&args, g, "hap"),
+        TranscodePreset::Hapq => hap(&args, g, "hap_q"),
+        TranscodePreset::Cfhd => qt_era(
+            &args,
+            g,
+            "cfhd",
+            &["mov", "avi"],
+            Some("yuv422p10le"),
+            Some("pcm_s16le"),
+        ),
+        TranscodePreset::Vc2 => qt_era(&args, g, "vc2", &["mov"], None, Some("pcm_s16le")),
+        TranscodePreset::Magicyuv => lossless(&args, g, "magicyuv", &["avi"], None),
+        TranscodePreset::R10k => lossless(&args, g, "r10k", &["mov"], Some("gbrp10le")),
         TranscodePreset::Raw => lossless(&args, g, "rawvideo", &["avi", "mkv"], None),
     }
 }
@@ -750,7 +778,7 @@ fn audio_only(
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_audio {
         return Err(Error::input(
-            "audio preset (mp3/aac/wav/flac/opus/ogg/alac/ac3/eac3/tta/dca/aiff/pcm24/pcm32f/mulaw/adx/adpcm/alaw/speex/pcm8/adpcmms/g722/ra144/nelly/wv/mp2/caf/w64/voc/aptx/sbc/g723): input has no audio",
+            "audio preset (mp3/aac/wav/flac/opus/ogg/alac/ac3/eac3/tta/dca/aiff/pcm24/pcm32f/mulaw/adx/adpcm/alaw/speex/pcm8/adpcmms/g722/ra144/nelly/wv/mp2/caf/w64/voc/aptx/sbc/g723/truehd/mlp): input has no audio",
         ));
     }
     let mut argv = ffmpeg_base(g.progress);
@@ -807,6 +835,8 @@ fn audio_only(
             TranscodePreset::Aptx => argv.extend(["-c:a", "aptx"]),
             TranscodePreset::Sbc => argv.extend(["-c:a", "sbc"]),
             TranscodePreset::G723 => argv.extend(["-c:a", "g723_1", "-ar", "8000", "-ac", "1"]),
+            TranscodePreset::Truehd => argv.extend(["-c:a", "truehd", "-strict", "-2"]),
+            TranscodePreset::Mlp => argv.extend(["-c:a", "mlp", "-strict", "-2"]),
             _ => argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "192k")]),
         }
     }
@@ -935,6 +965,69 @@ fn dnxhd(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     gop_push(&mut argv, args);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
+}
+
+/// Vidvox HAP in .mov/.avi — the DXT-texture live-visual codec (Resolume,
+/// TouchDesigner, VJ ingest). `format` is the encoder's -format variant:
+/// hap ships DXT1 (upgraded to hap_alpha/DXT5 by --alpha), hap_q is the
+/// higher-quality YCoCg variant.
+fn hap(args: &TranscodeArgs, g: &Globals, format: &str) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if !["mov", "avi"].contains(&ext.as_str()) {
+        return Err(Error::input(format!(
+            "transcode --preset {format} needs a .mov/.avi target, not .{ext}"
+        )));
+    }
+    if args.crf.is_some() || args.abitrate.is_some() {
+        return Err(Error::input(format!(
+            "transcode --preset {format} has no crf/abitrate knobs — use --vbitrate"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input(format!("{format} preset: input has no video")));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend(["-c:v", "hap"]);
+    let format = if format == "hap" && args.alpha {
+        "hap_alpha"
+    } else {
+        format
+    };
+    argv.extend(["-format", format]);
+    if let Some(b) = &args.vbitrate {
+        argv.extend(["-b:v", b]);
+    }
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "pcm_s16le"]);
+        if let Some(r) = args.ar {
+            argv.extend(["-ar", &r.to_string()]);
+        }
+        if let Some(ch) = args.channels {
+            argv.extend(["-ac", &ch.to_string()]);
+        }
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": format }));
+    Ok(c)
 }
 
 fn abitrate<'a>(args: &'a TranscodeArgs, default: &'a str) -> &'a str {

@@ -42345,3 +42345,90 @@ fn r329_bluetooth_archival_audio_fintech_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{p}: {j}");
     }
 }
+
+#[test]
+fn r330_livevisual_intermediates_dating_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // video+PCM intermediate masters — probe video + audio codec set
+    for (preset, file, expect_v) in [
+        ("hap", "r330-hap.mov", "hap"),
+        ("hapq", "r330-hapq.mov", "hap"),
+        ("cfhd", "r330-cfhd.mov", "cfhd"),
+        ("vc2", "r330-vc2.mov", "dirac"),
+        ("magicyuv", "r330-magicyuv.avi", "magicyuv"),
+        ("r10k", "r330-r10k.mov", "r10k"),
+    ] {
+        let o = dir.path().join(file);
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            preset,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{preset}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["vcodec"], expect_v, "{preset}: {j}");
+        assert_eq!(j["probe"]["acodec"], "pcm_s16le", "{preset}: {j}");
+    }
+    // hap --alpha carries rgba
+    let o = dir.path().join("r330-alpha.mov");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "hap",
+        "--alpha",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "hap --alpha: {j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["vcodec"], "hap", "hap --alpha: {j}");
+    assert_eq!(j["probe"]["streams"][0]["alpha"], true, "hap --alpha: {j}");
+    // experimental Blu-ray lossless audio
+    for (preset, file, expect_a) in [("truehd", "r330.thd", "truehd"), ("mlp", "r330.mlp", "mlp")] {
+        let o = dir.path().join(file);
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            preset,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{preset}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["acodec"], expect_a, "{preset}: {j}");
+        assert_eq!(j["probe"]["has_video"], false, "{preset}: {j}");
+    }
+    // vc2 mis-extension refuses
+    let bad = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "vc2",
+        "-o",
+        dir.path().join("r330-bad.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "vc2 .mp4: {bad}");
+    for p in [
+        "okcupid", "match", "grindr", "eharmony", "zoosk", "badoo", "pof",
+    ] {
+        let o = dir.path().join(format!("r330-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1080, "{p}: {j}");
+        assert_eq!(j["probe"]["height"], 1920, "{p}: {j}");
+    }
+}

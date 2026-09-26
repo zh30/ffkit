@@ -908,3 +908,7 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - Pinned-rate telephony presets (mulaw/alaw/g722/ra144) refuse `--ar`/`--channels` upfront — a "G.711" file that isn't 8kHz mono is a spec lie even though .au accepts other rates.
 - `aptx` silently resamples to 48kHz — that's aptX's native rate, not a bug; `sbc` keeps your rate. Both ship raw elementary streams (.aptx/.sbc muxers), so nothing but ffprobe/ffmpeg can read them back.
 - `g723` is pinned 8kHz mono like the G.711 pair — G.723.1 has no other legal rate, so --ar/--channels are refused upfront. Raw G.723.1 files use .tco/.rco extensions.
+
+- **`transcode --preset hap` variants live in `-format`, not the codec name** — `-c:v hap` always reports codec `hap`; the variant is the `-format` AVOption (hap DXT1 / hap_alpha DXT5 / hap_q YCoCg). ffkit's `--alpha` upgrades `hap` → `hap_alpha`; `hapq` is a separate preset since Hap Q has no alpha variant (probe still says `hap` — check `streams[].alpha` for rgba to confirm the alpha shipped).
+- **`truehd`/`mlp` need `-strict -2`** — 4.4 marks both Blu-ray/HD-DVD lossless encoders experimental; the ffkit presets pass it for you, raw `ffmpeg -c:a truehd` fails with "experimental codecs are not enabled". `.thd`/`.mlp` are elementary streams — no container, probe reports acodec only.
+- **`vc2` probes back as `dirac`** — VC-2 is a Dirac/SMPTE profile: `-c:v vc2` writes a stream ffprobe names `dirac`. Assert `dirac`, not `vc2`, when verifying the output.
