@@ -42,6 +42,11 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "hls --time-dirs needs --time-names (segments must be clock-named to be dir-organized)",
         ));
     }
+    if args.seg_index && !args.time_names {
+        return Err(Error::input(
+            "hls --seg-index needs --time-names (the index appends to clock-named segments)",
+        ));
+    }
     if args.independent && args.copy {
         return Err(Error::input(
             "hls --independent can't force keyframes on a --copy repack",
@@ -79,10 +84,13 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     let seg_tpl = if args.single {
         dir.join(format!("{name_pfx}seg.{seg_ext}"))
     } else if args.time_names {
+        // %% escapes to a literal % through strftime so second_level_segment_index
+        // can substitute the ordinal after the clock expansion.
+        let idx = if args.seg_index { "_%%03d" } else { "" };
         if args.time_dirs {
-            dir.join(format!("{name_pfx}seg_%Y%m%d/%H%M%S.{seg_ext}"))
+            dir.join(format!("{name_pfx}seg_%Y%m%d/%H%M%S{idx}.{seg_ext}"))
         } else {
-            dir.join(format!("{name_pfx}seg_%Y%m%d-%H%M%S.{seg_ext}"))
+            dir.join(format!("{name_pfx}seg_%Y%m%d-%H%M%S{idx}.{seg_ext}"))
         }
     } else {
         dir.join(format!("{name_pfx}seg_%03d.{seg_ext}"))
@@ -474,6 +482,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.split_by_time {
         flags.push("split_by_time");
     }
+    if args.seg_index {
+        flags.push("second_level_segment_index");
+    }
     if !flags.is_empty() {
         argv.extend(["-hls_flags".to_string(), flags.join("+")]);
     }
@@ -609,6 +620,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "discontinuity": args.discontinuity,
         "time_names": args.time_names,
         "time_dirs": args.time_dirs,
+        "seg_index": args.seg_index,
         "split_by_time": args.split_by_time,
         "independent": args.independent,
         "iframes": args.iframes,

@@ -974,6 +974,11 @@ pub struct CompressArgs {
     /// (podcast/voice notes under a messaging cap)
     #[arg(long)]
     pub channels: Option<u8>,
+    /// Drop the audio track entirely (-an) — every bit of the size
+    /// budget goes to video (silent social previews; conflicts with
+    /// --ar/--channels)
+    #[arg(long)]
+    pub no_audio: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2712,6 +2717,20 @@ pub enum DeliverPlatform {
     Makersplace,
     /// Objkt NFT listing videos
     Objkt,
+    /// Google Ads / YouTube ad creatives
+    Googleads,
+    /// Meta (Facebook/Instagram) feed video ads
+    Metaads,
+    /// TikTok ad creatives
+    Tiktokads,
+    /// Snapchat ad creatives
+    Snapads,
+    /// Amazon sponsored-brand video ads
+    Amazonads,
+    /// Pinterest ad creatives
+    Pinterestads,
+    /// LinkedIn video ad creatives
+    Linkedinads,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4235,6 +4254,11 @@ pub struct SubsArgs {
     /// nudge one mis-timed cue without resyncing the file (duration kept)
     #[arg(long = "move")]
     pub cue_move: Option<String>,
+    /// Snap every cue's start/end to the nearest frame boundary at --fps
+    /// (default 25) — frame-accurate subtitles for broadcast/QC handoffs;
+    /// cues shorter than half a frame grow to one frame (extras: snapped)
+    #[arg(long)]
+    pub snap: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5760,6 +5784,14 @@ pub struct RemuxArgs {
     /// join-in-progress playback on mid-stream captures; .ts/.m2ts only)
     #[arg(long)]
     pub resend_headers: bool,
+    /// LATM/LOAS-encapsulate AAC audio in the transport stream
+    /// (-mpegts_flags latm — DVB/ATSC broadcast spec variant; .ts only)
+    #[arg(long)]
+    pub latm: bool,
+    /// Blu-ray m2ts packet mode (-mpegts_m2ts_mode — 192-byte packets +
+    /// BD PID plan: video 0x1011, audio 0x1100; .ts/.m2ts targets only)
+    #[arg(long)]
+    pub m2ts: bool,
     /// CMAF-interoperable fragmented mp4 (-movflags +cmaf — one chunk
     /// pack playable as both HLS fMP4 and DASH; mp4/mov targets only)
     #[arg(long)]
@@ -6790,6 +6822,11 @@ pub struct HlsArgs {
     /// HHMMSS.ts instead of thousands of flat files)
     #[arg(long)]
     pub time_dirs: bool,
+    /// Append the ordinal index to --time-names clock filenames
+    /// (second_level_segment_index — seg_YYYYMMDD-HHMMSS_000.ts: wall-clock
+    /// names that also sort correctly; needs --time-names)
+    #[arg(long)]
+    pub seg_index: bool,
     /// Tag EXT-X-INDEPENDENT-SEGMENTS + force a keyframe at every segment
     /// boundary (seek/trick-play VOD; conflicts with --copy and --ladder)
     #[arg(long)]

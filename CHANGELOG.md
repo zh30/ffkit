@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.368.0] — 2026-09-26
+
+### Added
+
+- `hls --seg-index` — `second_level_segment_index` appends the ordinal to `--time-names` clock filenames (`seg_YYYYMMDD-HHMMSS_000.ts` — wall-clock names that also sort numerically; needs `--time-names`)
+- `remux --latm` — `-mpegts_flags latm` LATM/LOAS-encapsulates the AAC stream in `.ts` (DVB/ATSC broadcast spec variant; probes back `aac_latm`; `.ts`/`.m2ts` targets only)
+- `remux --m2ts` — `-mpegts_m2ts_mode` Blu-ray packet mode: 192-byte packets + the BD PID plan (video `0x1011`, audio `0x1100`); `.ts`/`.m2ts` targets only
+- `subs --snap` — snaps every cue's start/end to the nearest `--fps` frame boundary (default 25) for frame-accurate broadcast/QC subtitle handoffs; extras report `snapped`
+- `compress --no-audio` — drops the audio track so the whole size budget feeds video (`-an`; conflicts with `--ar`/`--channels`; works in `--crf`, `--size`, and `--target` passes)
+- `deliver --platform` +7 ad-creative targets: `googleads`/`amazonads`/`linkedinads` 16:9 1920x1080, `metaads` 1:1 1080x1080, `tiktokads`/`snapads`/`pinterestads` 9:16 1080x1920
+
 ## [0.367.0] — 2026-09-26
 
 ### Added

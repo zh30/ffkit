@@ -376,11 +376,13 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         || args.network_id.is_some()
         || args.start_pid.is_some()
         || args.pmt_pid.is_some()
-        || args.resend_headers)
+        || args.resend_headers
+        || args.latm
+        || args.m2ts)
         && !matches!(ext.as_str(), "ts" | "m2ts" | "mts")
     {
         return Err(Error::input(
-            "remux transport-stream options (--service-name/--provider/--service-id/--tsid/--network-id/--start-pid/--pmt-pid/--resend-headers) write TS SI tables and PID plans — .ts/.m2ts targets only",
+            "remux transport-stream options (--service-name/--provider/--service-id/--tsid/--network-id/--start-pid/--pmt-pid/--resend-headers/--latm/--m2ts) write TS SI tables and PID plans — .ts/.m2ts targets only",
         ));
     }
     for (pid, flag) in [(args.start_pid, "--start-pid"), (args.pmt_pid, "--pmt-pid")] {
@@ -1349,8 +1351,18 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(p) = args.pmt_pid {
         argv.extend(["-mpegts_pmt_start_pid".to_string(), p.to_string()]);
     }
+    let mut ts_flags: Vec<&str> = Vec::new();
     if args.resend_headers {
-        argv.extend(["-mpegts_flags", "resend_headers"]);
+        ts_flags.push("resend_headers");
+    }
+    if args.latm {
+        ts_flags.push("latm");
+    }
+    if !ts_flags.is_empty() {
+        argv.extend(["-mpegts_flags".to_string(), ts_flags.join("+")]);
+    }
+    if args.m2ts {
+        argv.extend(["-mpegts_m2ts_mode".to_string(), "1".to_string()]);
     }
     {
         let mut mf = String::new();
@@ -1395,6 +1407,8 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["start_pid"] = json!(args.start_pid);
     extra["pmt_pid"] = json!(args.pmt_pid);
     extra["resend_headers"] = json!(args.resend_headers);
+    extra["latm"] = json!(args.latm);
+    extra["m2ts"] = json!(args.m2ts);
     extra["cmaf"] = json!(args.cmaf);
     extra["mdta"] = json!(args.mdta);
     extra["skip_trailer"] = json!(args.skip_trailer);

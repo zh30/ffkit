@@ -432,7 +432,8 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Shopify
         | DeliverPlatform::Etsy
         | DeliverPlatform::Poshmark
-        | DeliverPlatform::Pixelfed => (1080, 1080),
+        | DeliverPlatform::Pixelfed
+        | DeliverPlatform::Metaads => (1080, 1080),
         DeliverPlatform::Xhs | DeliverPlatform::Lemon8 => (1080, 1440),
         DeliverPlatform::Wechat => (1080, 1260),
         DeliverPlatform::Pinterest => (1000, 1500),
@@ -509,7 +510,10 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Kleinanzeigen
         | DeliverPlatform::Blocket
         | DeliverPlatform::Tradera
-        | DeliverPlatform::Leboncoin => (1080, 1920),
+        | DeliverPlatform::Leboncoin
+        | DeliverPlatform::Tiktokads
+        | DeliverPlatform::Snapads
+        | DeliverPlatform::Pinterestads => (1080, 1920),
         DeliverPlatform::Weibo => (1920, 1080),
         DeliverPlatform::Dropbox
         | DeliverPlatform::Box
@@ -643,7 +647,10 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Seek
         | DeliverPlatform::Monster
         | DeliverPlatform::Naukri
-        | DeliverPlatform::Apna => (1920, 1080),
+        | DeliverPlatform::Apna
+        | DeliverPlatform::Googleads
+        | DeliverPlatform::Amazonads
+        | DeliverPlatform::Linkedinads => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1303,6 +1310,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Superrare => "superrare",
         DeliverPlatform::Makersplace => "makersplace",
         DeliverPlatform::Objkt => "objkt",
+        DeliverPlatform::Googleads => "googleads",
+        DeliverPlatform::Metaads => "metaads",
+        DeliverPlatform::Tiktokads => "tiktokads",
+        DeliverPlatform::Snapads => "snapads",
+        DeliverPlatform::Amazonads => "amazonads",
+        DeliverPlatform::Pinterestads => "pinterestads",
+        DeliverPlatform::Linkedinads => "linkedinads",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

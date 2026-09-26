@@ -43702,3 +43702,166 @@ fn r340_time_dirs_split_notimeline_psc_nftstores() {
         assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
     }
 }
+
+#[test]
+fn r341_latm_m2ts_segindex_snap_noaudio_adplatforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // remux --latm LATM/LOAS-encapsulates the AAC stream in .ts
+    let o = dir.path().join("r341-latm.ts");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--latm",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["latm"], true, "{j}");
+    let pj = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][1]["codec"], "aac_latm", "{pj}");
+    // remux --m2ts switches to the Blu-ray PID plan (video 0x1011, audio 0x1100)
+    let o = dir.path().join("r341-bd.m2ts");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--m2ts",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["m2ts"], true, "{j}");
+    let pj = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][0]["stream_id"], "0x1011", "{pj}");
+    assert_eq!(pj["probe"]["streams"][1]["stream_id"], "0x1100", "{pj}");
+    // TS options refuse non-TS targets
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r341-x.mp4").to_str().unwrap(),
+            "--latm",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // hls --seg-index appends the ordinal to --time-names clock names
+    let d = dir.path().join("r341-hls");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        d.to_str().unwrap(),
+        "--seg",
+        "1",
+        "--time-names",
+        "--seg-index",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["seg_index"], true, "{j}");
+    assert!(
+        std::fs::read_dir(&d).unwrap().any(|e| {
+            let n = e.unwrap().file_name().to_string_lossy().into_owned();
+            n.starts_with("seg_")
+                && n.ends_with(".ts")
+                && n.contains('_')
+                && n.trim_end_matches(".ts")
+                    .rsplit('_')
+                    .next()
+                    .unwrap()
+                    .chars()
+                    .all(|c| c.is_ascii_digit())
+        }),
+        "expected a seg_*_*_NNN.ts clock+index segment in {d:?}"
+    );
+    // --seg-index without --time-names refuses
+    let out = ffkit()
+        .args([
+            "hls",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r341-hls2").to_str().unwrap(),
+            "--seg-index",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // subs --snap lands cue edges on frame boundaries at --fps
+    let s = dir.path().join("r341.srt");
+    std::fs::write(
+        &s,
+        "1\n00:00:00,013 --> 00:00:00,477\noff grid\n\n2\n00:00:00,521 --> 00:00:00,879\nlate\n",
+    )
+    .unwrap();
+    let so = dir.path().join("r341-snapped.srt");
+    let j = run_json(&[
+        "subs",
+        s.to_str().unwrap(),
+        "-o",
+        so.to_str().unwrap(),
+        "--snap",
+        "--fps",
+        "25",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["snapped"], 2, "{j}");
+    let body = std::fs::read_to_string(&so).unwrap();
+    assert!(body.contains("00:00:00,000 --> 00:00:00,480"), "{body}");
+    assert!(body.contains("00:00:00,520 --> 00:00:00,880"), "{body}");
+    // compress --no-audio gives the whole budget to video
+    let o = dir.path().join("r341-mute.mp4");
+    let j = run_json(&[
+        "compress",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--size",
+        "2MB",
+        "--no-audio",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["no_audio"], true, "{j}");
+    let pj = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["has_audio"], false, "{pj}");
+    // --no-audio + audio-shaping flags refuse
+    let out = ffkit()
+        .args([
+            "compress",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r341-x.mp4").to_str().unwrap(),
+            "--size",
+            "2MB",
+            "--no-audio",
+            "--ar",
+            "8000",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // +7 ad-creative targets: 16:9 1920x1080 for googleads/amazonads/linkedinads,
+    // 1:1 for metaads, 9:16 for tiktokads/snapads/pinterestads
+    for (p, w) in [
+        ("googleads", 1920),
+        ("amazonads", 1920),
+        ("linkedinads", 1920),
+        ("metaads", 1080),
+        ("tiktokads", 1080),
+        ("snapads", 1080),
+        ("pinterestads", 1080),
+    ] {
+        let o = dir.path().join(format!("ad-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], w, "{p}: {pj}");
+    }
+}

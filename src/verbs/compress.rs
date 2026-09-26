@@ -30,6 +30,23 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("compress --channels needs audio"));
         }
     }
+    if args.no_audio {
+        if !probe.has_audio {
+            return Err(Error::input(
+                "compress --no-audio: input has no audio to drop",
+            ));
+        }
+        if !probe.has_video {
+            return Err(Error::input(
+                "compress --no-audio needs video — dropping the only stream leaves nothing",
+            ));
+        }
+        if args.ar.is_some() || args.channels.is_some() {
+            return Err(Error::input(
+                "compress --no-audio conflicts with --ar/--channels",
+            ));
+        }
+    }
     if let Some(crf) = args.crf {
         if crf > 51 {
             return Err(Error::input("--crf must be 0..=51"));
@@ -55,7 +72,7 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(f) = args.fps {
             argv.extend(["-r", &f.to_string()]);
         }
-        if probe.has_audio {
+        if probe.has_audio && !args.no_audio {
             argv.extend([
                 "-c:a",
                 "aac",
@@ -74,7 +91,7 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-movflags", "+faststart"]);
         argv.push(&args.output);
         let c = engine::write_job("compress", &[&args.input], &args.output, vec![argv], g)?;
-        return Ok(c.with_extra(json!({ "crf": crf, "passes": 1 })));
+        return Ok(c.with_extra(json!({ "crf": crf, "passes": 1, "no_audio": args.no_audio })));
     }
     if args.fps.is_some() && !probe.has_video {
         return Err(Error::input("compress --fps needs video"));
@@ -112,7 +129,7 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
     // Size is bitrate × duration. Reserve 2% for the container, pay the audio
     // stream first, and the rest is the video budget.
     let usable_bps = (target as f64 * 8.0 * MUX_RESERVE) / probe.duration;
-    let audio_bps = if probe.has_audio {
+    let audio_bps = if probe.has_audio && !args.no_audio {
         (args.audio_kbps * 1_000.0).min(usable_bps * 0.8)
     } else {
         0.0
@@ -187,7 +204,7 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(f) = args.fps {
             pass2.extend(["-r", &f.to_string()]);
         }
-        if probe.has_audio {
+        if probe.has_audio && !args.no_audio {
             pass2.extend(["-c:a", "aac", "-b:a", &format!("{:.0}", audio_bps)]);
             if let Some(r) = args.ar {
                 pass2.extend(["-ar", &r.to_string()]);
@@ -226,6 +243,7 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         "audio_kbps": audio_bps / 1_000.0,
         "passes": if probe.has_video { 2 } else { 1 },
         "res": args.res,
+        "no_audio": args.no_audio,
     }));
     Ok(c)
 }

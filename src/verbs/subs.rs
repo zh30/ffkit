@@ -95,6 +95,7 @@ pub fn run(args: SubsArgs, g: &Globals) -> Result<Contract, Error> {
         || args.wrap.is_some()
         || args.find.is_some()
         || args.cue_move.is_some()
+        || args.snap
     {
         return tidy(&args, g);
     }
@@ -272,7 +273,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         != Some("srt")
     {
         return Err(Error::input(
-            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--dedupe-text/--fix-cps/--cps/--min-dur/--min-gap/--join/--max-lines/--replace/--strip-speakers/--strip-sdh/--strip-emotes/--clip/--drop/--wrap) take an .srt input",
+            "subs tidy flags (--sort/--fix-overlaps/--dedupe/--dedupe-text/--fix-cps/--cps/--min-dur/--min-gap/--join/--max-lines/--replace/--strip-speakers/--strip-sdh/--strip-emotes/--clip/--drop/--wrap/--snap) take an .srt input",
         ));
     }
     let raw = read_sub_file(&args.input, args.encoding.as_deref())?;
@@ -710,6 +711,24 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
 
+    let mut snapped = 0usize;
+    if args.snap {
+        let fps = args.fps.unwrap_or(25.0);
+        if !(1.0..=240.0).contains(&fps) {
+            return Err(Error::input("subs --snap needs --fps in 1-240"));
+        }
+        let frame = 1.0 / fps;
+        for c in &mut cues {
+            let s = (c.start * fps).round() / fps;
+            let e = ((c.end * fps).round() / fps).max(s + frame);
+            if (s - c.start).abs() > 1e-9 || (e - c.end).abs() > 1e-9 {
+                snapped += 1;
+            }
+            c.start = s;
+            c.end = e;
+        }
+    }
+
     std::fs::write(&args.output, crate::srt::to_srt(&cues))
         .map_err(|e| Error::output(e.to_string()))?;
     let mut c = Contract::ok("subs", Some(crate::paths::display(&args.output)), None);
@@ -757,6 +776,7 @@ fn tidy(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         "cps_limit": args.cps,
         "stretched": stretched,
         "lines_split": lines_split,
+        "snapped": snapped,
         "speakers": speakers,
         "speaker_count": speakers.len(),
         "min_gap": args.min_gap,
