@@ -44170,3 +44170,140 @@ fn r343_hls_subs_meta_compilation_lms() {
     assert!(j["extra"]["segments"].as_i64().unwrap_or(0) > 0, "{j}");
     assert!(j["extra"]["key_uri"].is_string(), "{j}");
 }
+
+#[test]
+fn r344_conform_aspect_meta_media_subs_psb_jss_edu() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // conform --sar/--dar — N:D colon input rewritten to N/D for the filter;
+    // probe reads back the reflagged aspect
+    let o = dir.path().join("r344-aspect.mp4");
+    let j = run_json(&[
+        "conform",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--sar",
+        "4:3",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["sar"], "4:3", "{j}");
+    let pj = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][0]["sar"], "4:3", "{pj}");
+    let o2 = dir.path().join("r344-dar.mp4");
+    let j = run_json(&[
+        "conform",
+        f.to_str().unwrap(),
+        "-o",
+        o2.to_str().unwrap(),
+        "--dar",
+        "16:9",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", o2.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][0]["dar"], "16:9", "{pj}");
+    // bad ratio refused up front
+    let out = ffkit()
+        .args([
+            "conform",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x.mp4").to_str().unwrap(),
+            "--sar",
+            "abc",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // meta --keywords lands the iTunes keyw atom (probe-readable on .m4a)
+    let mo = dir.path().join("r344-kw.m4a");
+    let j = run_json(&[
+        "meta",
+        f.to_str().unwrap(),
+        "-o",
+        mo.to_str().unwrap(),
+        "--keywords",
+        "vlog,travel",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pf = Command::new("ffprobe")
+        .args(["-v", "error", "-show_entries", "format_tags", "-of", "json"])
+        .arg(&mo)
+        .output()
+        .unwrap();
+    let tags: serde_json::Value =
+        serde_json::from_slice(&pf.stdout).unwrap_or(serde_json::json!({}));
+    assert_eq!(tags["format"]["tags"]["keywords"], "vlog,travel", "{tags}");
+    // meta --make/--model land the camera tags on .mov (mp4-family drops them)
+    let mv = dir.path().join("r344-mm.mov");
+    let j = run_json(&[
+        "meta",
+        f.to_str().unwrap(),
+        "-o",
+        mv.to_str().unwrap(),
+        "--make",
+        "Sony",
+        "--model",
+        "FX3",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pf = Command::new("ffprobe")
+        .args(["-v", "error", "-show_entries", "format_tags", "-of", "json"])
+        .arg(&mv)
+        .output()
+        .unwrap();
+    let tags: serde_json::Value =
+        serde_json::from_slice(&pf.stdout).unwrap_or(serde_json::json!({}));
+    assert_eq!(tags["format"]["tags"]["make"], "Sony", "{tags}");
+    assert_eq!(tags["format"]["tags"]["model"], "FX3", "{tags}");
+    // subs --convert write .psb/.jss — the read/write pair closes; re-read
+    // proves the timestamps parse back
+    let srt = dir.path().join("a.srt");
+    std::fs::write(&srt, "1\n00:00:01,000 --> 00:00:02,500\nhello world\n").unwrap();
+    for ext in ["psb", "jss"] {
+        let o = dir.path().join(format!("r344.{ext}"));
+        let j = run_json(&[
+            "subs",
+            srt.to_str().unwrap(),
+            "--convert",
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{ext}: {j}");
+        let back = dir.path().join(format!("r344-back.{ext}.srt"));
+        let j = run_json(&[
+            "subs",
+            o.to_str().unwrap(),
+            "--convert",
+            "-o",
+            back.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{ext} reread: {j}");
+        let body = std::fs::read_to_string(&back).unwrap();
+        assert!(body.contains("00:00:01,000"), "{ext}: {body}");
+        assert!(body.contains("hello world"), "{ext}: {body}");
+    }
+    // +7 lecture-capture / interactive-video targets — all 16:9 1920x1080
+    for p in [
+        "echo360",
+        "mediasite",
+        "yuja",
+        "warpwire",
+        "ensemblevideo",
+        "edpuzzle",
+        "playposit",
+    ] {
+        let o = dir.path().join(format!("edu-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
+    }
+}

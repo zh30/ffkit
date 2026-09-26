@@ -71,9 +71,11 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         && args.rotate.is_none()
         && args.timescale.is_none()
         && !args.no_audio
+        && args.sar.is_none()
+        && args.dar.is_none()
     {
         return Err(Error::input(
-            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf, --rotate DEG, --timescale N, --no-audio",
+            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf, --rotate DEG, --timescale N, --no-audio, --sar/--dar N:D",
         ));
     }
     if args.no_audio {
@@ -89,6 +91,21 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
             ));
         }
     }
+    let parse_ratio = |v: &str, name: &str| -> Result<String, Error> {
+        let v = v.trim();
+        // ':' is the filter-arg separator — N:D must go in as N/D
+        let frac = v.replace(':', "/");
+        let ok = frac
+            .split('/')
+            .all(|p| p.parse::<f64>().map(|n| n > 0.0).unwrap_or(false))
+            && !frac.is_empty();
+        if !ok {
+            return Err(Error::input(format!(
+                "conform --{name} takes N:D, N/D or a decimal, got '{v}'"
+            )));
+        }
+        Ok(frac)
+    };
     if let Some(ts) = args.timescale {
         let ext = args
             .output
@@ -223,6 +240,14 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         }
         vf.push(format!("tpad={tpad}"));
     }
+    // --sar/--dar: pixel/display aspect on the conformed frame —
+    // anamorphic masters (DV/DVD) reflagged without a re-scale
+    if let Some(s) = &args.sar {
+        vf.push(format!("setsar={}", parse_ratio(s, "sar")?));
+    }
+    if let Some(d) = &args.dar {
+        vf.push(format!("setdar={}", parse_ratio(d, "dar")?));
+    }
     vf.push("format=yuv420p".into());
 
     let mut argv = ffmpeg_base(g.progress);
@@ -342,6 +367,8 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         "level": args.level,
         "bf": args.bf,
         "timescale": args.timescale,
+        "sar": args.sar,
+        "dar": args.dar,
     }));
     Ok(c)
 }

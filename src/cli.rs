@@ -2759,6 +2759,20 @@ pub enum DeliverPlatform {
     Seesaw,
     /// ClassDojo classroom story videos
     Classdojo,
+    /// Echo360 lecture capture video uploads
+    Echo360,
+    /// Mediasite lecture capture video uploads
+    Mediasite,
+    /// YuJa enterprise video uploads
+    Yuja,
+    /// Warpwire education video uploads
+    Warpwire,
+    /// Ensemble Video education uploads
+    Ensemblevideo,
+    /// Edpuzzle interactive lesson videos
+    Edpuzzle,
+    /// PlayPosit interactive lesson videos
+    Playposit,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4360,6 +4374,17 @@ pub struct MetaArgs {
     /// Apple Music/Books libraries; mp4-family)
     #[arg(long)]
     pub compilation: bool,
+    /// Comma list of search keywords (iTunes keyw atom — Apple apps index
+    /// them for search; lands on mp4/m4a/mov)
+    #[arg(long)]
+    pub keywords: Option<String>,
+    /// Recorder/camera manufacturer tag (lands on .mov — dailies &
+    /// footage ingest identity; mp4-family drops it)
+    #[arg(long)]
+    pub make: Option<String>,
+    /// Recorder/camera model tag (lands on .mov — pairs with --make)
+    #[arg(long)]
+    pub model: Option<String>,
     /// Embed unsynced lyrics from a .lrc/.txt file — LRC timestamps
     /// are stripped so players show plain lines
     #[arg(long)]
@@ -7071,6 +7096,14 @@ pub struct ConformArgs {
     /// B-roll deliverables; conflicts with --ar/--channels/--lufs)
     #[arg(long)]
     pub no_audio: bool,
+    /// Pixel aspect ratio N:D or N/D (setsar — anamorphic capture masters:
+    /// DV/DVD/CIF sources reflagged widescreen without a re-scale)
+    #[arg(long)]
+    pub sar: Option<String>,
+    /// Display aspect ratio N:D or N/D (setdar — recomputes SAR so the
+    /// file *shows* the shape; applied after --sar when both are given)
+    #[arg(long)]
+    pub dar: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

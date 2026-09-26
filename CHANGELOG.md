@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.371.0] — 2026-09-26
+
+### Added
+
+- `conform --sar N:D`/`--dar N:D` — pixel/display aspect reflag on the spec pass (anamorphic DV/DVD/CIF masters reflagged widescreen without a re-scale; the colon input is rewritten to N/D internally because `:` is the filter option separator — `setdar=dar=16:9` misparses raw)
+- `meta --keywords` — iTunes `keyw` search-keyword atom (lands on mp4/m4a/mov, readable back via `probe` tags); `meta --make`/`--model` — recorder/camera manufacturer+model tags (`.mov` only — the mp4-family whitelist drops them)
+- `subs --convert` writes `.psb` + `.jss` — PowerSub `{ts}{ts}text` and JACOsub `HH:MM:SS.CC` centisecond writers (the read/write pairs for both archive formats are complete)
+- `deliver --platform` +7 lecture-capture / interactive-video targets: `echo360`, `mediasite`, `yuja`, `warpwire`, `ensemblevideo`, `edpuzzle`, `playposit` — lesson uploads 16:9 1920x1080 → 538 platforms
+
 ## [0.370.0] — 2026-09-26
 
 ### Added

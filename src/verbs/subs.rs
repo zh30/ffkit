@@ -1208,9 +1208,11 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "smi"
         && out_ext != "sub"
         && out_ext != "pjs"
+        && out_ext != "psb"
+        && out_ext != "jss"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb/.jss input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi/.sub/.pjs output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb/.jss input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi/.sub/.pjs/.psb/.jss output",
         ));
     }
     let raw = if in_ext == "scc" || in_ext == "stl" || in_ext == "rt" || in_ext == "mps" {
@@ -1487,6 +1489,45 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
                 (c.start * 10.0).round() as i64,
                 (c.end * 10.0).round() as i64,
                 c.text.replace('\n', "|").replace('"', "'")
+            ));
+        }
+        s
+    } else if out_ext == "psb" {
+        // PowerSub — {H:MM:SS.mmm}{H:MM:SS.mmm}text; the other brace
+        // dialect (MicroDVD .sub braces hold frame numbers — PSB braces
+        // hold timestamps). `|` folds lines; completes the read/write pair
+        let psb_ts = |t: f64| {
+            let h = (t / 3600.0).floor() as u64;
+            let m = ((t - h as f64 * 3600.0) / 60.0).floor() as u64;
+            let s = t - h as f64 * 3600.0 - m as f64 * 60.0;
+            format!("{h}:{m:02}:{s:06.3}")
+        };
+        let mut s = String::new();
+        for c in &cues {
+            s.push_str(&format!(
+                "{{{}}}{{{}}}{}\n",
+                psb_ts(c.start),
+                psb_ts(c.end),
+                c.text.replace('\n', "|")
+            ));
+        }
+        s
+    } else if out_ext == "jss" {
+        // JACOsub — `HH:MM:SS.CC HH:MM:SS.CC text` centisecond clocks
+        // (anime-sub archive format; `|` folds lines)
+        let jss_ts = |t: f64| {
+            let h = (t / 3600.0).floor() as u64;
+            let m = ((t - h as f64 * 3600.0) / 60.0).floor() as u64;
+            let s = t - h as f64 * 3600.0 - m as f64 * 60.0;
+            format!("{h:02}:{m:02}:{s:05.2}")
+        };
+        let mut s = String::new();
+        for c in &cues {
+            s.push_str(&format!(
+                "{} {} {}\n",
+                jss_ts(c.start),
+                jss_ts(c.end),
+                c.text.replace('\n', "|")
             ));
         }
         s

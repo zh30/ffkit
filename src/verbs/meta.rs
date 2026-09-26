@@ -58,6 +58,9 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         // the iTunes tmpo atom needs the `tmpo` key, so emit both.
         ("tmpo", bpm_text.as_deref()),
         ("compilation", comp_text),
+        ("keywords", args.keywords.as_deref()),
+        ("make", args.make.as_deref()),
+        ("model", args.model.as_deref()),
         ("lyrics", lyrics_text.as_deref()),
         ("copyright", args.copyright.as_deref()),
         ("album_artist", args.album_artist.as_deref()),
