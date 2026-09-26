@@ -141,6 +141,23 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--ladder needs 2..=6 heights"));
         }
     }
+    if let Some(spec) = args.var_map.as_deref() {
+        if args.copy || args.streaming || args.video_only || args.audio_only {
+            return Err(Error::input(
+                "--var-map maps raw streams — conflicts --copy/--streaming/--video-only/--audio-only",
+            ));
+        }
+        if args.program.is_some() || args.webm || !hs.is_empty() {
+            return Err(Error::input(
+                "--var-map conflicts with --ladder/--program/--webm",
+            ));
+        }
+        if !spec.contains("id=") || !spec.contains("streams=") {
+            return Err(Error::input(
+                "--var-map takes an -adaptation_sets spec like `id=0,streams=v id=1,streams=a`",
+            ));
+        }
+    }
 
     // -o is the manifest name (or a directory → <dir>/manifest.mpd)
     let (dir, manifest): (PathBuf, PathBuf) = if args.output.extension().is_some() {
@@ -186,6 +203,36 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         if sel_has_audio && !args.video_only {
             argv.extend(["-c:a".to_string(), "copy".to_string()]);
         }
+    } else if let Some(spec) = args.var_map.as_deref() {
+        // --var-map: map every elementary stream so the spec's stream
+        // indices line up (0:v:0, 0:a:0, …), encode the whole set once,
+        // and group them into AdaptationSets per the user's spec —
+        // multi-language ABR: several dubs ride separate sets
+        if sel_has_video {
+            argv.extend(["-map".to_string(), "0:v?".to_string()]);
+            argv.extend([
+                "-vf".to_string(),
+                "scale=trunc(iw/2)*2:trunc(ih/2)*2".to_string(),
+                "-c:v".to_string(),
+                "libx264".to_string(),
+                "-preset".to_string(),
+                "veryfast".to_string(),
+                "-crf".to_string(),
+                "20".to_string(),
+                "-pix_fmt".to_string(),
+                "yuv420p".to_string(),
+            ]);
+        }
+        if sel_has_audio {
+            argv.extend(["-map".to_string(), "0:a?".to_string()]);
+            argv.extend([
+                "-c:a".to_string(),
+                "aac".to_string(),
+                "-b:a".to_string(),
+                "128k".to_string(),
+            ]);
+        }
+        argv.extend(["-adaptation_sets".to_string(), spec.to_string()]);
     } else if hs.is_empty() {
         if sel_has_video && !args.audio_only {
             argv.extend([
@@ -443,6 +490,7 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         "init_name": args.init,
         "seg_name": args.seg_name,
         "no_timeline": args.no_timeline,
+        "var_map": args.var_map,
         "ladder": hs
             .iter()
             .map(|h| format!("{h}p"))

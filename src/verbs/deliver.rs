@@ -56,9 +56,37 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     let first_v = prog_members
         .as_ref()
         .and_then(|(v, _, _)| v.first().copied());
-    let first_a = prog_members
-        .as_ref()
-        .and_then(|(_, a, _)| a.first().copied());
+    let first_a = if let Some(l) = args.lang.as_deref() {
+        // --lang: the language-tagged dub track becomes the pack audio —
+        // multi-language masters make one deliverable per language
+        let l = l.to_lowercase();
+        if l.len() != 3 || !l.chars().all(|c| c.is_ascii_lowercase()) {
+            return Err(Error::input(
+                "deliver --lang takes an ISO-639-2 code (eng, jpn, …)",
+            ));
+        }
+        if args.program.is_some() {
+            return Err(Error::input("deliver --lang conflicts --program"));
+        }
+        if !probe.has_audio {
+            return Err(Error::input("deliver --lang needs an audio stream"));
+        }
+        let idx = probe
+            .streams
+            .iter()
+            .find(|s| s.kind == "audio" && s.language.as_deref() == Some(l.as_str()))
+            .map(|s| s.index)
+            .ok_or_else(|| {
+                Error::input(format!(
+                    "deliver --lang {l}: no audio track tagged '{l}' (probe.streams[].language)"
+                ))
+            })?;
+        Some(idx)
+    } else {
+        prog_members
+            .as_ref()
+            .and_then(|(_, a, _)| a.first().copied())
+    };
     // Input-0 labels inside -filter_complex: `[0:v]`/`[0:a]` become the
     // service's member index when a program is picked.
     let vin = |i: u32| match (i, first_v) {
@@ -705,7 +733,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Wynk
         | DeliverPlatform::Netease
         | DeliverPlatform::Qqmusic
-        | DeliverPlatform::Kugou => (1920, 1080),
+        | DeliverPlatform::Kugou
+        | DeliverPlatform::Zenodo
+        | DeliverPlatform::Figshare
+        | DeliverPlatform::Jove
+        | DeliverPlatform::Slideshare
+        | DeliverPlatform::Speakerdeck
+        | DeliverPlatform::Instructables
+        | DeliverPlatform::Hackster
+        | DeliverPlatform::Thingiverse => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -875,6 +911,9 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             if let Some(aidx) = first_a {
                 apply.extend(["-map", &format!("0:{aidx}")]);
             }
+        } else if let Some(aidx) = first_a {
+            // --lang picked a non-default dub: map every video + that track
+            apply.extend(["-map", "0:v", "-map", &format!("0:{aidx}")]);
         }
     }
     apply.extend([
@@ -1081,6 +1120,7 @@ fn finish(
         "chapters": chapters,
         "colr": args.colr,
         "gop": args.gop,
+        "lang": args.lang,
     }))
 }
 
@@ -1436,6 +1476,14 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Netease => "netease",
         DeliverPlatform::Qqmusic => "qqmusic",
         DeliverPlatform::Kugou => "kugou",
+        DeliverPlatform::Zenodo => "zenodo",
+        DeliverPlatform::Figshare => "figshare",
+        DeliverPlatform::Jove => "jove",
+        DeliverPlatform::Slideshare => "slideshare",
+        DeliverPlatform::Speakerdeck => "speakerdeck",
+        DeliverPlatform::Instructables => "instructables",
+        DeliverPlatform::Hackster => "hackster",
+        DeliverPlatform::Thingiverse => "thingiverse",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

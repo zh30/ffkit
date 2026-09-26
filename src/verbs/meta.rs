@@ -76,6 +76,11 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         ("synopsis", args.synopsis.as_deref()),
         ("hd_video", hd_text),
         ("comment", args.comment.as_deref()),
+        // music-release tags — land on mp3/flac/mkv/ogg; the mp4-family
+        // whitelist drops these keys entirely (documented in gotchas)
+        ("isrc", args.isrc.as_deref()),
+        ("license", args.license.as_deref()),
+        ("publisher", args.publisher.as_deref()),
     ]
     .into_iter()
     .filter_map(|(k, v)| v.map(|v| (k, v)))

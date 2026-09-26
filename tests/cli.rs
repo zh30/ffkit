@@ -45149,3 +45149,307 @@ fn r348_varmap_enciv_moof_tmcd() {
         assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
     }
 }
+
+#[test]
+fn r349_dashvarmap_mux_no_xing_meta_deliver() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // multi-audio tagged source: video + eng/jpn dubs
+    let multi = dir.path().join("multi.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=660:duration=1",
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map",
+            "2:a",
+            "-c:v",
+            "libx264",
+            "-c:a",
+            "aac",
+            "-metadata:s:a:0",
+            "language=eng",
+            "-metadata:s:a:1",
+            "language=jpn",
+            "-shortest",
+        ])
+        .arg(&multi)
+        .status()
+        .unwrap();
+    assert!(st.success(), "multi-audio fixture failed");
+
+    // dash --var-map: one video AdaptationSet + one audio set per dub
+    let dd = dir.path().join("dvm");
+    let j = run_json(&[
+        "dash",
+        multi.to_str().unwrap(),
+        "-o",
+        dd.to_str().unwrap(),
+        "--var-map",
+        "id=0,streams=0 id=1,streams=1 id=2,streams=2",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let mpd = std::fs::read_to_string(dd.join("manifest.mpd")).unwrap();
+    assert_eq!(mpd.matches("<AdaptationSet").count(), 3, "{mpd}");
+    assert_eq!(mpd.matches("<Representation").count(), 3, "{mpd}");
+
+    // remux --mux-delay/--mux-preload: start_time shift on .ts
+    let t0 = dir.path().join("t0.ts");
+    let j = run_json(&["remux", f.to_str().unwrap(), "-o", t0.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let t1 = dir.path().join("t1.ts");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        t1.to_str().unwrap(),
+        "--mux-preload",
+        "1.5",
+        "--mux-delay",
+        "2.0",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let p0 = run_json(&["probe", t0.to_str().unwrap()]);
+    let p1 = run_json(&["probe", t1.to_str().unwrap()]);
+    let s0 = p0["probe"]["start_time"].as_f64().unwrap();
+    let s1 = p1["probe"]["start_time"].as_f64().unwrap();
+    assert!(s1 - s0 > 1.0, "mux-delay shifts start_time: {s0}→{s1}");
+
+    // remux --no-faststart: moov lands after mdat
+    let moov_first = |p: &Path| -> bool {
+        let d = std::fs::read(p).unwrap();
+        let mo = d.windows(4).position(|w| w == b"moov").unwrap();
+        let md = d.windows(4).position(|w| w == b"mdat").unwrap();
+        mo < md
+    };
+    let nfs = dir.path().join("nfs.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        nfs.to_str().unwrap(),
+        "--no-faststart",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(!moov_first(&nfs), "moov should stay after mdat");
+    let fs = dir.path().join("fs.mp4");
+    let j = run_json(&["remux", f.to_str().unwrap(), "-o", fs.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(moov_first(&fs), "default remux keeps faststart");
+
+    // remux --no-xing: Xing/Info header stripped
+    let has_xing = |p: &Path| -> bool {
+        let d = std::fs::read(p).unwrap();
+        d.windows(4).any(|w| w == b"Xing" || w == b"Info")
+    };
+    let mp3a = dir.path().join("a.mp3");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        mp3a.to_str().unwrap(),
+        "--audio",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let mp3b = dir.path().join("b.mp3");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        mp3b.to_str().unwrap(),
+        "--audio",
+        "--no-xing",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(has_xing(&mp3a), "baseline mp3 carries Xing/Info");
+    assert!(!has_xing(&mp3b), "--no-xing strips the header");
+
+    // remux --flv-index: onMetaData keyframes table
+    let flva = dir.path().join("a.flv");
+    let j = run_json(&["remux", f.to_str().unwrap(), "-o", flva.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let flvb = dir.path().join("b.flv");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        flvb.to_str().unwrap(),
+        "--flv-index",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let flv_a = std::fs::read(&flva).unwrap();
+    let flv_b = std::fs::read(&flvb).unwrap();
+    assert!(!flv_a.windows(9).any(|w| w == b"keyframes"));
+    assert!(flv_b.windows(9).any(|w| w == b"keyframes"));
+
+    // meta --isrc/--license/--publisher land on mkv (matroska keeps
+    // arbitrary keys, uppercased; mp4-family drops them — gotchas)
+    let mkv = dir.path().join("m.mkv");
+    let j = run_json(&[
+        "meta",
+        f.to_str().unwrap(),
+        "-o",
+        mkv.to_str().unwrap(),
+        "--isrc",
+        "USRC17607839",
+        "--license",
+        "https://creativecommons.org/licenses/by/4.0/",
+        "--publisher",
+        "Indie Label",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", mkv.to_str().unwrap()]);
+    let tags = &pj["probe"]["tags"]["format"];
+    assert_eq!(tags["ISRC"], "USRC17607839", "{pj}");
+    assert_eq!(tags["PUBLISHER"], "Indie Label", "{pj}");
+
+    // deliver --lang: picks the tagged dub as pack audio
+    let o = dir.path().join("pack_jpn.mp4");
+    let j = run_json(&[
+        "deliver",
+        multi.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--platform",
+        "youtube",
+        "--lang",
+        "jpn",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", o.to_str().unwrap()]);
+    let lang = pj["probe"]["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["kind"] == "audio")
+        .and_then(|s| s["language"].as_str());
+    assert_eq!(lang, Some("jpn"), "{pj}");
+
+    for p in [
+        "zenodo",
+        "figshare",
+        "jove",
+        "slideshare",
+        "speakerdeck",
+        "instructables",
+        "hackster",
+        "thingiverse",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
+    }
+
+    // refusals
+    let out = ffkit()
+        .args([
+            "dash",
+            multi.to_str().unwrap(),
+            "-o",
+            dir.path().join("dr").to_str().unwrap(),
+            "--var-map",
+            "id=0,streams=v",
+            "--ladder",
+            "720,360",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "dash --var-map conflicts --ladder");
+    let out = ffkit()
+        .args([
+            "dash",
+            multi.to_str().unwrap(),
+            "-o",
+            dir.path().join("dr2").to_str().unwrap(),
+            "--var-map",
+            "bogus",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "dash --var-map needs a spec");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("rm.mp4").to_str().unwrap(),
+            "--mux-delay",
+            "2",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--mux-delay is .ts only");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("rnf.mp4").to_str().unwrap(),
+            "--frag",
+            "--no-faststart",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--no-faststart conflicts --frag");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("rx.mp4").to_str().unwrap(),
+            "--no-xing",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--no-xing is .mp3 only");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("rf.mp4").to_str().unwrap(),
+            "--flv-index",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--flv-index is .flv only");
+    let out = ffkit()
+        .args([
+            "deliver",
+            multi.to_str().unwrap(),
+            "-o",
+            dir.path().join("dl.mp4").to_str().unwrap(),
+            "--lang",
+            "fra",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--lang needs a tagged track");
+}

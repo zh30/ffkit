@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.376.0] — 2026-09-26
+
+### Added
+
+- `dash --var-map "id=0,streams=0 id=1,streams=1 id=2,streams=2"` — multi-rendition DASH straight from ffmpeg's `-adaptation_sets` spec: every elementary stream mapped and grouped per spec, so several dubbed audio tracks land as separate AdaptationSets (multi-language ABR); `streams=v`/`streams=a` group whole kinds; conflicts with `--copy`/`--ladder`/`--streaming`/`--video-only`/`--audio-only`/`--program`/`--webm`
+- `remux --mux-preload SEC` / `--mux-delay SEC` — transport-stream lead-in buffer and start_time shift (`-muxpreload`/`-muxdelay` — broadcast ingest lip-sync clock placement; .ts/.m2ts only)
+- `remux --no-faststart` — keeps the moov index at file end instead of rewriting it to the front (append-friendly capture outputs and mux-layout editors; mp4/mov/m4a only, conflicts with `--frag`)
+- `remux --no-xing` — drops the Xing/Info VBR header on .mp3 outputs (`-write_xing 0` — firmware/players that misread duration with it, and fixed-rate jobs that don't need it)
+- `remux --flv-index` — embeds the onMetaData keyframes table on .flv outputs (`-flvflags add_keyframe_index` — the scrub index Flash-era players and RTMP ingest tools read)
+- `meta --isrc` / `--license` / `--publisher` — music-release tags (ISRC recording ID, license/rights text, label name — land on mp3/flac/mkv/ogg; the mp4-family whitelist drops them, documented in gotchas)
+- `deliver --lang XXX` — picks the audio track tagged with that ISO-639-2 language as the pack audio (multi-language masters → one deliverable per dub; `probe.streams[].language` lists the tags)
+- `deliver --platform` +8 research/maker upload targets: `zenodo`, `figshare`, `jove`, `slideshare`, `speakerdeck`, `instructables`, `hackster`, `thingiverse` — research-data archives, deck hosts, maker projects, all 16:9 1920x1080 → 575 platforms
+
 ## [0.375.0] — 2026-09-26
 
 ### Added

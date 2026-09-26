@@ -1685,6 +1685,11 @@ pub struct DeliverArgs {
     /// ingest specs like "IDR at least every 2s" / seek granularity)
     #[arg(long)]
     pub gop: Option<u32>,
+    /// Pick the audio track with this ISO-639-2 language for the pack
+    /// (`--lang jpn` — multi-language masters make one pack per dub:
+    /// the language-tagged track becomes the pack's audio)
+    #[arg(long)]
+    pub lang: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -2840,6 +2845,23 @@ pub enum DeliverPlatform {
     Qqmusic,
     /// Kugou Music artist uploads
     Kugou,
+    /// Zenodo research-data uploads (video abstracts, data supplements
+    /// with DOI archiving)
+    Zenodo,
+    /// Figshare research figure/poster video uploads
+    Figshare,
+    /// JoVE visualized-experiments video journal submissions
+    Jove,
+    /// SlideShare deck-attached video uploads
+    Slideshare,
+    /// SpeakerDeck talk/deck video uploads
+    Speakerdeck,
+    /// Instructables maker project video
+    Instructables,
+    /// Hackster.io hardware/maker project video
+    Hackster,
+    /// Thingiverse maker/design video
+    Thingiverse,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4530,6 +4552,18 @@ pub struct MetaArgs {
     /// (`--title-video "Main,Angle-2"` — multi-cam files label each angle)
     #[arg(long)]
     pub title_video: Option<String>,
+    /// ISRC recording code (`USRC17607839` — the international standard
+    /// ID streaming services/distributors match royalties on)
+    #[arg(long)]
+    pub isrc: Option<String>,
+    /// License / rights text (Creative Commons URL, rights statement —
+    /// lands on mp3/flac/mkv/ogg; mp4-family containers drop it)
+    #[arg(long)]
+    pub license: Option<String>,
+    /// Publisher / label name (record label, imprint, or publishing
+    /// house — lands on mp3/flac/mkv/ogg; mp4-family drops it)
+    #[arg(long)]
+    pub publisher: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6028,6 +6062,31 @@ pub struct RemuxArgs {
     /// --timecode, mp4/mov only)
     #[arg(long)]
     pub tmcd: bool,
+    /// Transport-stream lead-in buffer in seconds (-muxpreload —
+    /// buffering headroom the mux keeps before data lands; broadcast
+    /// ingest lip-sync specs, .ts/.m2ts only)
+    #[arg(long)]
+    pub mux_preload: Option<f64>,
+    /// Delay every stream by SEC seconds on mux (-muxdelay — shifts
+    /// start_time so audio/video land on the broadcast clock;
+    /// .ts/.m2ts only)
+    #[arg(long)]
+    pub mux_delay: Option<f64>,
+    /// Keep the moov index at the END of the file (skip +faststart —
+    /// append-friendly capture outputs and editors that mux-track
+    /// layout; mp4/mov/m4a only, conflicts --frag)
+    #[arg(long)]
+    pub no_faststart: bool,
+    /// Omit the Xing/Info VBR header on .mp3 outputs (-write_xing 0 —
+    /// some firmware/players misread duration with it, and fixed
+    /// bitrate jobs don't need it)
+    #[arg(long)]
+    pub no_xing: bool,
+    /// Embed a keyframe index in the FLV metadata (-flvflags
+    /// add_keyframe_index — the onMetaData keyframes table Flash-era
+    /// players and some RTMP ingest tools read for scrubbing)
+    #[arg(long)]
+    pub flv_index: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -7158,6 +7217,15 @@ pub struct DashArgs {
     /// get a plain SegmentTemplate index instead)
     #[arg(long)]
     pub no_timeline: bool,
+    /// Raw -adaptation_sets spec for multi-rendition packs
+    /// (`id=0,streams=0 id=1,streams=1 id=2,streams=2` — maps every
+    /// video/audio stream (0:v then 0:a in file order) and groups
+    /// them per spec, so several dubbed tracks land as separate
+    /// AdaptationSets: multi-language ABR. `streams=v`/`streams=a`
+    /// group whole types. Conflicts --ladder/--streaming/--video-only/
+    /// --audio-only/--copy/--program/--webm)
+    #[arg(long)]
+    pub var_map: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

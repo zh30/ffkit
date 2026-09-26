@@ -512,6 +512,35 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             ));
         }
     }
+    if (args.mux_preload.is_some() || args.mux_delay.is_some())
+        && !matches!(ext.as_str(), "ts" | "m2ts" | "mts")
+    {
+        return Err(Error::input(
+            "remux --mux-preload/--mux-delay are transport-stream options — .ts/.m2ts targets only",
+        ));
+    }
+    if args.no_faststart {
+        if args.frag {
+            return Err(Error::input(
+                "remux --no-faststart conflicts --frag (the moov index lives in fragments)",
+            ));
+        }
+        if !matches!(ext.as_str(), "mp4" | "m4a" | "mov") {
+            return Err(Error::input(
+                "remux --no-faststart moves the moov index — .mp4/.m4a/.mov targets only",
+            ));
+        }
+    }
+    if args.no_xing && ext != "mp3" {
+        return Err(Error::input(
+            "remux --no-xing drops the Xing/Info VBR header — .mp3 targets only",
+        ));
+    }
+    if args.flv_index && ext != "flv" {
+        return Err(Error::input(
+            "remux --flv-index writes the onMetaData keyframes table — .flv targets only",
+        ));
+    }
     // --also: the tee muxer writes the same mapped streams to a second
     // container in the same pass (social .mp4 + broadcast .ts). Slaves
     // share the encode but each pick their own format — and any flag that
@@ -597,9 +626,14 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             || args.delay_moov
             || args.separate_moof
             || args.tmcd
+            || args.mux_preload.is_some()
+            || args.mux_delay.is_some()
+            || args.no_faststart
+            || args.no_xing
+            || args.flv_index
         {
             return Err(Error::input(
-                "remux --also shares one pass between two outputs — container-family flags can't target both (frag/prft/colr/timescale/timecode/program/service-*/tsid/network-id/*-pid/muxrate/movflags/brand/bitexact/encrypt/cluster/id3/bext/peak/rf64/delay-moov/separate-moof/tmcd); run a second pass for those",
+                "remux --also shares one pass between two outputs — container-family flags can't target both (frag/prft/colr/timescale/timecode/program/service-*/tsid/network-id/*-pid/muxrate/muxpreload/muxdelay/movflags/brand/bitexact/encrypt/cluster/id3/bext/peak/rf64/delay-moov/separate-moof/tmcd/no-faststart/no-xing/flv-index); run a second pass for those",
             ));
         }
         Some((f1, f2, a, aext))
@@ -1461,7 +1495,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(fs) = args.frag_size {
             argv.extend(["-frag_size".to_string(), fs.to_string()]);
         }
-    } else if matches!(ext.as_str(), "mp4" | "m4a" | "mov") {
+    } else if matches!(ext.as_str(), "mp4" | "m4a" | "mov") && !args.no_faststart {
         argv.extend(["-movflags", "+faststart"]);
     }
     // --bsf: codec-level bitstream surgery on the copy path — retimed
@@ -1564,6 +1598,22 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(r) = &args.muxrate {
         argv.extend(["-muxrate", r]);
+    }
+    if let Some(p) = args.mux_preload {
+        // mpegts lead-in buffer — broadcast ingest lip-sync headroom
+        argv.extend(["-muxpreload".to_string(), format!("{p:.3}")]);
+    }
+    if let Some(d) = args.mux_delay {
+        // mpegts start_time shift — lands the pack on the broadcast clock
+        argv.extend(["-muxdelay".to_string(), format!("{d:.3}")]);
+    }
+    if args.no_xing {
+        // strip the Xing/Info VBR header — fixed-rate jobs don't need it
+        argv.extend(["-write_xing".to_string(), "0".to_string()]);
+    }
+    if args.flv_index {
+        // onMetaData keyframes table — scrub index Flash-era/RTMP tools read
+        argv.extend(["-flvflags".to_string(), "add_keyframe_index".to_string()]);
     }
     if let Some(n) = &args.service_name {
         argv.extend(["-metadata".to_string(), format!("service_name={n}")]);
@@ -1696,6 +1746,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["delay_moov"] = json!(args.delay_moov);
     extra["separate_moof"] = json!(args.separate_moof);
     extra["tmcd"] = json!(args.tmcd);
+    extra["mux_preload"] = json!(args.mux_preload);
+    extra["mux_delay"] = json!(args.mux_delay);
+    extra["no_faststart"] = json!(args.no_faststart);
+    extra["no_xing"] = json!(args.no_xing);
+    extra["flv_index"] = json!(args.flv_index);
     if let Some((key, kid)) = enc_kv {
         extra["encrypted"] = json!(true);
         extra["key"] = json!(key);
