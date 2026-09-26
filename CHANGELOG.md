@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.383.0] — 2026-09-26
+
+### Added
+
+- `remux --ignore-editlist` — read the source past its mov/mp4 edit list (`-ignore_editlist 1` — a wrong `elst` shifts A/V sync on ingest; stripping it exposes the raw timestamps; mp4/mov/m4a/3gp-family sources only)
+- `remux --empty-moov` — init-style mp4 (`+empty_moov` — empty sample tables at the head, payload in inline moof/mdat pairs without `default_base_moof`: the self-contained CMAF init+fragment layout; mp4/mov/m4a only, refused with `--also`)
+- `split --start N` — number the first part N (`-segment_start_number` — keep appending parts onto an existing numbered series instead of restarting at 0; refused with `--black`)
+- `transcode --preset pcm64` — 64-bit float WAV audio-only (pcm_f64le — double-precision mastering/DSP intermediate)
+- `deliver --platform` +8 print-on-demand merch sites: printful / printify / spring / redbubble / society6 / zazzle / spreadshirt / displate merch listing videos 16:9 1920x1080 (631 platform targets)
+
 ## [0.382.0] — 2026-09-26
 
 ### Added

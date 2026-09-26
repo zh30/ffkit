@@ -33,9 +33,10 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             || args.fade.is_some()
             || args.copy
             || args.manifest.is_some()
+            || args.start.is_some()
         {
             return Err(Error::input(
-                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest)",
+                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest/--start)",
             ));
         }
         engine::need_video(&probe, "split --black")?;
@@ -296,6 +297,10 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
     if !times.is_empty() {
         argv.extend(["-segment_times", &times]);
     }
+    if let Some(n) = args.start {
+        // continue a numbered series — parts start at N, not 0
+        argv.extend(["-segment_start_number".to_string(), n.to_string()]);
+    }
     if let Some(m) = &args.manifest {
         // name,start,end CSV rows — audit trail next to the part files
         argv.extend([
@@ -361,6 +366,7 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             "every": args.every,
             "copy": args.copy,
             "manifest": args.manifest.is_some(),
+            "start": args.start.unwrap_or(0),
             "cuts": cuts,
             "parts": names,
             "count": parts.len(),

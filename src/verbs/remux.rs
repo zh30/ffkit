@@ -223,6 +223,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         // advancing the shifted track = delaying everything else instead
         argv.extend(["-itsoffset".into(), neg_shift.to_string()]);
     }
+    if args.ignore_editlist {
+        // demuxer option — applies to the input it precedes (and each
+        // re-read of the same file below)
+        argv.extend(["-ignore_editlist".to_string(), "1".to_string()]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     let mut ni = 1u32;
@@ -233,12 +238,18 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
                 argv.extend(["-ss".into(), f.to_string()]);
             }
             argv.extend(["-itsoffset".into(), d.to_string()]);
+            if args.ignore_editlist {
+                argv.extend(["-ignore_editlist".to_string(), "1".to_string()]);
+            }
             argv.push("-i");
             argv.push(&args.input);
             ni += 1;
         } else {
             if let Some(f) = args.from {
                 argv.extend(["-ss".into(), f.to_string()]);
+            }
+            if args.ignore_editlist {
+                argv.extend(["-ignore_editlist".to_string(), "1".to_string()]);
             }
             argv.push("-i");
             argv.push(&args.input);
@@ -600,6 +611,27 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --no-editlist drops the elst atom — .mp4/.m4v/.mov/.m4a targets only",
         ));
     }
+    if args.ignore_editlist {
+        let in_ext = args
+            .input
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        if !matches!(
+            in_ext.as_str(),
+            "mp4" | "m4v" | "mov" | "m4a" | "3gp" | "3g2"
+        ) {
+            return Err(Error::input(
+                "remux --ignore-editlist reads past a mov/mp4 edit list — .mp4/.mov/.m4a/.3gp sources only",
+            ));
+        }
+    }
+    if args.empty_moov && !matches!(ext.as_str(), "mp4" | "m4v" | "mov" | "m4a") {
+        return Err(Error::input(
+            "remux --empty-moov writes an init-style moov — .mp4/.m4v/.mov/.m4a targets only",
+        ));
+    }
     if args.frag_index.is_some() && !args.frag {
         return Err(Error::input(
             "remux --frag-index numbers fragments — needs --frag (mp4/mov only)",
@@ -760,6 +792,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             || args.ts_copyts
             || args.empty_hdlr_name
             || args.no_editlist
+            || args.empty_moov
             || args.flv_live
             || args.no_flv_meta
             || args.m2ts
@@ -802,7 +835,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             || args.peak_format.is_some()
         {
             return Err(Error::input(
-                "remux --also shares one pass between two outputs — container-family flags can't target both (frag/prft/colr/timescale/timecode/program/service-*/tsid/network-id/*-pid/muxrate/muxpreload/muxdelay/movflags/brand/bitexact/encrypt/cluster/id3/bext/peak/rf64/delay-moov/separate-moof/tmcd/no-faststart/no-xing/flv-index); run a second pass for those",
+                "remux --also shares one pass between two outputs — container-family flags can't target both (frag/prft/colr/timescale/timecode/program/service-*/tsid/network-id/*-pid/muxrate/muxpreload/muxdelay/movflags/brand/bitexact/encrypt/cluster/id3/bext/peak/rf64/delay-moov/separate-moof/tmcd/no-faststart/no-xing/flv-index/empty-moov); run a second pass for those",
             ));
         }
         Some((f1, f2, a, aext))
@@ -1924,6 +1957,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if args.separate_moof {
             mf.push_str("+separate_moof");
         }
+        if args.empty_moov {
+            mf.push_str("+empty_moov");
+        }
         if !mf.is_empty() {
             argv.extend(["-movflags".to_string(), mf]);
         }
@@ -2029,6 +2065,8 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["ts_copyts"] = json!(args.ts_copyts);
     extra["empty_hdlr_name"] = json!(args.empty_hdlr_name);
     extra["no_editlist"] = json!(args.no_editlist);
+    extra["ignore_editlist"] = json!(args.ignore_editlist);
+    extra["empty_moov"] = json!(args.empty_moov);
     extra["silent_audio"] = json!(args.silent_audio);
     if let Some((key, kid)) = enc_kv {
         extra["encrypted"] = json!(true);

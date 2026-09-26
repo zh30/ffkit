@@ -553,6 +553,10 @@ pub struct SplitArgs {
     /// audit trail / manifest next to the split files)
     #[arg(long)]
     pub manifest: Option<PathBuf>,
+    /// Number the first part N (-segment_start_number — keep appending
+    /// parts to an existing numbered series instead of restarting at 0)
+    #[arg(long)]
+    pub start: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1459,6 +1463,10 @@ pub enum TranscodePreset {
     /// 32-bit float WAV audio-only in .wav (DAW interchange)
     #[value(name = "pcm32f")]
     Pcm32f,
+    /// 64-bit float WAV audio-only in .wav (DSP/archival intermediate —
+    /// double-precision mastering)
+    #[value(name = "pcm64")]
+    Pcm64,
     /// G.711 mu-law audio-only in .au, pinned 8kHz mono (telephony/IVR spec)
     #[value(name = "mulaw")]
     Mulaw,
@@ -2979,6 +2987,22 @@ pub enum DeliverPlatform {
     Poizon,
     /// Stadium Goods consignor video 16:9
     Stadiumgoods,
+    /// Printful merch listing video 16:9
+    Printful,
+    /// Printify merch listing video 16:9
+    Printify,
+    /// Spring (Teespring) merch listing video 16:9
+    Spring,
+    /// Redbubble merch listing video 16:9
+    Redbubble,
+    /// Society6 merch listing video 16:9
+    Society6,
+    /// Zazzle merch listing video 16:9
+    Zazzle,
+    /// Spreadshirt merch listing video 16:9
+    Spreadshirt,
+    /// Displate merch listing video 16:9
+    Displate,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6241,6 +6265,16 @@ pub struct RemuxArgs {
     /// timestamps, which strict chains prefer)
     #[arg(long = "no-editlist")]
     pub no_editlist: bool,
+    /// Read the source ignoring its edit list (-ignore_editlist 1 — a
+    /// wrong elst shifts A/V sync on ingest; stripping it exposes the
+    /// raw timestamps; mp4/mov/m4a/3gp sources only)
+    #[arg(long = "ignore-editlist")]
+    pub ignore_editlist: bool,
+    /// Write an init-style mp4 (-movflags +empty_moov — empty sample
+    /// tables at the head, payload in inline moof/mdat pairs: a
+    /// self-contained CMAF init+fragment stream; mp4/mov/m4a only)
+    #[arg(long = "empty-moov")]
+    pub empty_moov: bool,
     /// Mid-broadcast FLV capture (-flvflags
     /// no_duration_filesize+no_sequence_end — zero-length duration
     /// metadata and no end marker while the stream is still recording;

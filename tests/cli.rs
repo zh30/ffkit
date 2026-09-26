@@ -46759,3 +46759,150 @@ fn r355_manifest_noeditlist_probefields_platforms() {
         assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
     }
 }
+
+#[test]
+fn r356_ignoreeditlist_emptymoov_start_pcm64_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // remux --ignore-editlist: reads past the mov edit list, shifting the
+    // exposed start timestamps (fixture carries an elst that zeroes audio)
+    let ie = dir.path().join("ie.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        ie.to_str().unwrap(),
+        "--ignore-editlist",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["ignore_editlist"], true);
+    let pj = run_json(&["probe", ie.to_str().unwrap()]);
+    let v_start = pj["probe"]["streams"][0]["start_time"].as_f64().unwrap();
+    assert!(
+        v_start > 0.0,
+        "edit list ignored — video start_time should expose the raw offset, got {v_start}"
+    );
+    // gate: input must be mov/mp4-family (mkv input is refused)
+    let mkv = dir.path().join("in.mkv");
+    let j = run_json(&["remux", f.to_str().unwrap(), "-o", mkv.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    let out = ffkit()
+        .args([
+            "remux",
+            mkv.to_str().unwrap(),
+            "-o",
+            dir.path().join("x.mp4").to_str().unwrap(),
+            "--ignore-editlist",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        !out.status.success(),
+        "--ignore-editlist on mkv input refused"
+    );
+
+    // remux --empty-moov: empty sample tables at the head, moof/mdat payload
+    let em = dir.path().join("em.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        em.to_str().unwrap(),
+        "--empty-moov",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["empty_moov"], true);
+    let d = std::fs::read(&em).unwrap();
+    let i = d
+        .windows(4)
+        .position(|w| w == b"stts")
+        .expect("stts atom present");
+    let entries = u32::from_be_bytes([d[i + 8], d[i + 9], d[i + 10], d[i + 11]]);
+    assert_eq!(entries, 0, "empty_moov leaves stts empty at the head");
+    assert!(d.windows(4).any(|w| w == b"moof"), "moof boxes present");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("em.ts").to_str().unwrap(),
+            "--empty-moov",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--empty-moov is mp4/mov-only output");
+
+    // split --start N continues a numbered series instead of restarting at 0
+    let pat = dir.path().join("sp_%03d.mp4");
+    let j = run_json(&[
+        "split",
+        f.to_str().unwrap(),
+        "-o",
+        pat.to_str().unwrap(),
+        "--every",
+        "0.5",
+        "--start",
+        "7",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert!(
+        dir.path().join("sp_007.mp4").exists(),
+        "first part numbered 7"
+    );
+    assert!(!dir.path().join("sp_000.mp4").exists());
+    let out = ffkit()
+        .args([
+            "split",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("bk_%03d.mp4").to_str().unwrap(),
+            "--black",
+            "--start",
+            "7",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--start refused with --black");
+
+    // transcode --preset pcm64: double-precision float WAV
+    let w = dir.path().join("p64.wav");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        w.to_str().unwrap(),
+        "--preset",
+        "pcm64",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let pj = run_json(&["probe", w.to_str().unwrap()]);
+    let s = &pj["probe"]["streams"][0];
+    assert_eq!(s["codec"], "pcm_f64le");
+    assert_eq!(s["sample_fmt"], "dbl");
+
+    // +8 platforms: print-on-demand merch listings, 16:9 1920x1080
+    for p in [
+        "printful",
+        "printify",
+        "spring",
+        "redbubble",
+        "society6",
+        "zazzle",
+        "spreadshirt",
+        "displate",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
+    }
+}

@@ -29,6 +29,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                         | TranscodePreset::Aiff
                         | TranscodePreset::Pcm24
                         | TranscodePreset::Pcm32f
+                        | TranscodePreset::Pcm64
                         | TranscodePreset::Mulaw
                         | TranscodePreset::Adx
                         | TranscodePreset::Adpcm
@@ -126,6 +127,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Aiff
                 | TranscodePreset::Pcm24
                 | TranscodePreset::Pcm32f
+                | TranscodePreset::Pcm64
                 | TranscodePreset::Mulaw
                 | TranscodePreset::Adx
                 | TranscodePreset::Adpcm
@@ -173,6 +175,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Aiff
                 | TranscodePreset::Pcm24
                 | TranscodePreset::Pcm32f
+                | TranscodePreset::Pcm64
                 | TranscodePreset::Mulaw
                 | TranscodePreset::Adx
                 | TranscodePreset::Adpcm
@@ -214,6 +217,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Aiff
                 | TranscodePreset::Pcm24
                 | TranscodePreset::Pcm32f
+                | TranscodePreset::Pcm64
                 | TranscodePreset::Mulaw
                 | TranscodePreset::Adx
                 | TranscodePreset::Adpcm
@@ -261,6 +265,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                     | TranscodePreset::Aiff
                     | TranscodePreset::Pcm24
                     | TranscodePreset::Pcm32f
+                    | TranscodePreset::Pcm64
                     | TranscodePreset::Mulaw
                     | TranscodePreset::Adx
                     | TranscodePreset::Adpcm
@@ -315,6 +320,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         | TranscodePreset::Aiff
         | TranscodePreset::Pcm24
         | TranscodePreset::Pcm32f
+        | TranscodePreset::Pcm64
         | TranscodePreset::Mulaw
         | TranscodePreset::Adx
         | TranscodePreset::Adpcm
@@ -843,6 +849,7 @@ fn audio_only(
             TranscodePreset::Aiff => argv.extend(["-c:a", "pcm_s16be"]),
             TranscodePreset::Pcm24 => argv.extend(["-c:a", "pcm_s24le"]),
             TranscodePreset::Pcm32f => argv.extend(["-c:a", "pcm_f32le"]),
+            TranscodePreset::Pcm64 => argv.extend(["-c:a", "pcm_f64le"]),
             TranscodePreset::Mulaw => argv.extend(["-c:a", "pcm_mulaw", "-ar", "8000", "-ac", "1"]),
             TranscodePreset::Adx => argv.extend(["-c:a", "adpcm_adx"]),
             TranscodePreset::Adpcm => argv.extend(["-c:a", "adpcm_ima_wav"]),

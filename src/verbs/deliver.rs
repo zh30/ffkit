@@ -789,7 +789,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Stockx
         | DeliverPlatform::Goat
         | DeliverPlatform::Poizon
-        | DeliverPlatform::Stadiumgoods => (1920, 1080),
+        | DeliverPlatform::Stadiumgoods
+        | DeliverPlatform::Printful
+        | DeliverPlatform::Printify
+        | DeliverPlatform::Spring
+        | DeliverPlatform::Redbubble
+        | DeliverPlatform::Society6
+        | DeliverPlatform::Zazzle
+        | DeliverPlatform::Spreadshirt
+        | DeliverPlatform::Displate => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1580,6 +1588,14 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Goat => "goat",
         DeliverPlatform::Poizon => "poizon",
         DeliverPlatform::Stadiumgoods => "stadiumgoods",
+        DeliverPlatform::Printful => "printful",
+        DeliverPlatform::Printify => "printify",
+        DeliverPlatform::Spring => "spring",
+        DeliverPlatform::Redbubble => "redbubble",
+        DeliverPlatform::Society6 => "society6",
+        DeliverPlatform::Zazzle => "zazzle",
+        DeliverPlatform::Spreadshirt => "spreadshirt",
+        DeliverPlatform::Displate => "displate",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",
