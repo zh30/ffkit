@@ -2824,6 +2824,22 @@ pub enum DeliverPlatform {
     Kayako,
     /// Crisp chat / helpdesk video
     Crisp,
+    /// UnitedMasters artist video uploads
+    Unitedmasters,
+    /// Anghami MENA streaming artist uploads
+    Anghami,
+    /// JioSaavn India streaming artist uploads
+    Jiosaavn,
+    /// Gaana India streaming artist uploads
+    Gaana,
+    /// Wynk India streaming artist uploads
+    Wynk,
+    /// NetEase Cloud Music artist uploads
+    Netease,
+    /// QQ Music artist uploads
+    Qqmusic,
+    /// Kugou Music artist uploads
+    Kugou,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5997,6 +6013,21 @@ pub struct RemuxArgs {
     /// — strict broadcast specs that want RF64 from the first byte)
     #[arg(long)]
     pub rf64: bool,
+    /// Delay the moov atom until the first fragment flushes (-movflags
+    /// +delay_moov — live/simulcast ingest that needs stream headers
+    /// before any media lands; needs --frag, mp4/mov only)
+    #[arg(long)]
+    pub delay_moov: bool,
+    /// Write each moof as a separate atom per stream fragment
+    /// (-movflags +separate_moof — CDN/origin ingest specs that want
+    /// strict moof/mdat alternation; needs --frag, mp4/mov only)
+    #[arg(long)]
+    pub separate_moof: bool,
+    /// Force a tmcd timecode data track (-write_tmcd 1 — broadcast
+    /// 2-pop/dailies that must carry an explicit TC track; needs
+    /// --timecode, mp4/mov only)
+    #[arg(long)]
+    pub tmcd: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6937,6 +6968,17 @@ pub struct HlsArgs {
     /// rewriting key.info between segments; needs --encrypt/--key)
     #[arg(long)]
     pub rekey: bool,
+    /// Pin the AES-128 IV (32 hex chars — deterministic encrypted
+    /// packages for reproducible builds/dedup; needs --encrypt/--key)
+    #[arg(long)]
+    pub enc_iv: Option<String>,
+    /// Custom variant stream map, e.g.
+    /// "v:0,agroup:aud a:0,agroup:aud,default:yes a:1,agroup:aud" —
+    /// multi-language audio renditions / hand-shaped ABR groups
+    /// (-var_stream_map raw spec over the input's v:/a: streams;
+    /// output -o must be a directory; conflicts --ladder/--subs/--single/--live/--program)
+    #[arg(long)]
+    pub var_map: Option<String>,
     /// Write each segment + playlist to a tmp file and rename when
     /// complete (-hls_flags temp_file — live readers/nginx never see a
     /// half-written .ts or m3u8 while the packager is still writing)

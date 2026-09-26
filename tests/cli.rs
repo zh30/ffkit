@@ -44892,3 +44892,260 @@ fn r347_meta_chapters_from_wav_id3_cluster() {
         assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
     }
 }
+
+#[test]
+fn r348_varmap_enciv_moof_tmcd() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // multi-audio source: 1 video + 2 audio tracks for --var-map
+    let multi = dir.path().join("multi.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=1:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=660:duration=1",
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-map",
+            "2:a",
+            "-c:v",
+            "libx264",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&multi)
+        .status()
+        .unwrap();
+    assert!(st.success(), "multi-audio fixture failed");
+
+    // --var-map: video + two audio renditions in one group
+    let hlsdir = dir.path().join("vm");
+    let j = run_json(&[
+        "hls",
+        multi.to_str().unwrap(),
+        "-o",
+        hlsdir.to_str().unwrap(),
+        "--var-map",
+        "v:0,agroup:aud a:0,agroup:aud,default:yes a:1,agroup:aud",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["master"], "master.m3u8", "{j}");
+    let master = std::fs::read_to_string(hlsdir.join("master.m3u8")).unwrap();
+    assert_eq!(
+        master.matches("TYPE=AUDIO,GROUP-ID=\"group_aud\"").count(),
+        2,
+        "{master}"
+    );
+    assert!(master.contains("AUDIO=\"group_aud\""), "{master}");
+
+    // --enc-iv: deterministic IV lands in the playlist
+    let encdir = dir.path().join("enc");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        encdir.to_str().unwrap(),
+        "--encrypt",
+        "--enc-iv",
+        "0123456789abcdef0123456789abcdef",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pl = std::fs::read_to_string(encdir.join("index.m3u8")).unwrap();
+    assert!(pl.contains("IV=0x0123456789abcdef0123456789abcdef"), "{pl}");
+
+    // keyframe-dense source so --frag produces several moofs
+    let many = dir.path().join("many.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            f.to_str().unwrap(),
+            "-c:v",
+            "libx264",
+            "-g",
+            "5",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&many)
+        .status()
+        .unwrap();
+    assert!(st.success());
+
+    let moofs = |p: &Path| -> usize {
+        let d = std::fs::read(p).unwrap();
+        d.windows(4).filter(|w| *w == b"moof").count()
+    };
+    let base = dir.path().join("base.mp4");
+    let j = run_json(&[
+        "remux",
+        many.to_str().unwrap(),
+        "-o",
+        base.to_str().unwrap(),
+        "--frag",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let sep = dir.path().join("sep.mp4");
+    let j = run_json(&[
+        "remux",
+        many.to_str().unwrap(),
+        "-o",
+        sep.to_str().unwrap(),
+        "--frag",
+        "--separate-moof",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(moofs(&sep) > moofs(&base), "separate_moof doubles moofs");
+
+    let dm = dir.path().join("dm.mp4");
+    let j = run_json(&[
+        "remux",
+        many.to_str().unwrap(),
+        "-o",
+        dm.to_str().unwrap(),
+        "--frag",
+        "--delay-moov",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(moofs(&dm) >= moofs(&base), "delay_moov fragments too");
+
+    // --tmcd: explicit tmcd track alongside --timecode
+    let tc = dir.path().join("tc.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        tc.to_str().unwrap(),
+        "--timecode",
+        "01:00:00:00",
+        "--tmcd",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", tc.to_str().unwrap()]);
+    let tags = pj["probe"]["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|s| s["codec_tag"].as_str())
+        .collect::<Vec<_>>();
+    assert!(tags.contains(&"tmcd"), "{pj}");
+
+    // refusals
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r1.mp4").to_str().unwrap(),
+            "--delay-moov",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--delay-moov needs --frag");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r2.mp4").to_str().unwrap(),
+            "--tmcd",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--tmcd needs --timecode");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r3.mkv").to_str().unwrap(),
+            "--timecode",
+            "01:00:00:00",
+            "--tmcd",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--tmcd is mov-family only");
+    let out = ffkit()
+        .args([
+            "hls",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r4.m3u8").to_str().unwrap(),
+            "--var-map",
+            "v:0 a:0",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--var-map needs a directory -o");
+    let out = ffkit()
+        .args([
+            "hls",
+            multi.to_str().unwrap(),
+            "-o",
+            dir.path().join("r5").to_str().unwrap(),
+            "--var-map",
+            "v:0",
+            "--ladder",
+            "720,360",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--var-map conflicts --ladder");
+    let out = ffkit()
+        .args([
+            "hls",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r6").to_str().unwrap(),
+            "--enc-iv",
+            "0123456789abcdef0123456789abcdef",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--enc-iv needs --encrypt/--key");
+
+    for p in [
+        "unitedmasters",
+        "anghami",
+        "jiosaavn",
+        "gaana",
+        "wynk",
+        "netease",
+        "qqmusic",
+        "kugou",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
+    }
+}

@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.375.0] — 2026-09-26
+
+### Added
+
+- `hls --var-map "v:0,agroup:aud a:0,agroup:aud,default:yes"` — multi-rendition HLS straight from ffmpeg's `-var_stream_map` spec: several audio renditions under one `GROUP-ID` for multi-language ABR (dub switching in the player), `default:yes` marks the primary track; `-o` must be a directory, conflicts with `--ladder`/`--single`/`--live`/`--program`/`--subs`
+- `hls --enc-iv HEX` — pin the AES-128 IV printed in the playlist (32-hex, `0x` optional; deterministic keys for QA harnesses; routed through `key.info` line 3 because the `-hls_enc_iv` option writes zeros on this ffmpeg)
+- `remux --delay-moov`/`--separate-moof` — fragmented-mp4 layout tuning (`+delay_moov` defers the moov until first frame data, `+separate_moof` writes one moof per fragment; both need `--frag`, mp4/mov only)
+- `remux --tmcd` — writes a tmcd timecode track (`-write_tmcd` — pro-master/NLE ingest reads the TC stripe; requires `--timecode`, mp4/mov only)
+- `deliver --platform` +8 music-streaming artist-upload targets: `unitedmasters`, `anghami`, `jiosaavn`, `gaana`, `wynk`, `netease`, `qqmusic`, `kugou` — regional DSP artist video/visualizer uploads, all 16:9 1920x1080 → 567 platforms
+
+
 ## [0.374.0] — 2026-09-26
 
 ### Added

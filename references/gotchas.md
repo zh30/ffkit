@@ -968,3 +968,8 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - `-write_id3v1` writes the trailing `TAG` block only when the file has metadata to carry — on an untagged .mp3 it's a silent no-op. Tag first (`meta --title/--artist`), then `--id3v1`.
 - A `.wav` target holds ONLY audio — remux of a video input fails inside ffmpeg's header write; ffkit refuses early unless `--no-video`/`--audio` narrows the map.
 - `-write_peak on` appends a `levl` peak-envelope chunk at END of file (not PPKT) — DAWs/ingest QC read it for instant waveform/loudness display.
+- `-movflags` args **accumulate** across repeats (each `-movflags` value `+`-joins onto the set — `frag_keyframe+empty_moov` and a later `+write_colr` both land), unlike `-mpegts_flags`/`-hls_flags` which are single-valued.
+- `-write_tmcd` is a standalone mov muxer option, **not** a movflag (`+write_tmcd` fails "Undefined constant") — and it only writes the tmcd track when `-timecode` is also set; without one the track is absent, so `remux --tmcd` requires `--timecode`.
+- `-hls_enc_iv` is a dead flag on 4.4 (accepted, but playlists show `IV=0x00…0`). The working path is the **key.info third line** (`uri\nkey-path\nIV\n`) — `hls --enc-iv` writes it there.
+- `-var_stream_map` builds multi-rendition HLS in one pass — per-spec `-map 0:v?`/`-map 0:a?` indices plus group metadata (`agroup:aud`, `default:yes`); output needs `%v` in both playlist and segment names.
+- Frag-only input needs several keyframes to actually fragment — a 1-keyframe file writes ftyp+moov+mdat+mfra with zero moofs under `frag_keyframe`. Check `--frag` layouts on a `-g 10` source.

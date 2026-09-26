@@ -495,6 +495,23 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --skip-trailer only drops the mfra trailer of a fragmented mp4 — needs --frag",
         ));
     }
+    if (args.delay_moov || args.separate_moof) && !args.frag {
+        return Err(Error::input(
+            "remux --delay-moov/--separate-moof shape fragment layout — needs --frag (mp4/mov only)",
+        ));
+    }
+    if args.tmcd {
+        if args.timecode.is_none() {
+            return Err(Error::input(
+                "remux --tmcd forces a tmcd timecode track — needs --timecode to give it a start value",
+            ));
+        }
+        if !matches!(ext.as_str(), "mp4" | "mov") {
+            return Err(Error::input(
+                "remux --tmcd writes a mov-family tmcd track — .mp4/.mov targets only",
+            ));
+        }
+    }
     // --also: the tee muxer writes the same mapped streams to a second
     // container in the same pass (social .mp4 + broadcast .ts). Slaves
     // share the encode but each pick their own format — and any flag that
@@ -577,9 +594,12 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             || args.bext
             || args.peak
             || args.rf64
+            || args.delay_moov
+            || args.separate_moof
+            || args.tmcd
         {
             return Err(Error::input(
-                "remux --also shares one pass between two outputs — container-family flags can't target both (frag/prft/colr/timescale/timecode/program/service-*/tsid/network-id/*-pid/muxrate/movflags/brand/bitexact/encrypt/cluster/id3/bext/peak/rf64); run a second pass for those",
+                "remux --also shares one pass between two outputs — container-family flags can't target both (frag/prft/colr/timescale/timecode/program/service-*/tsid/network-id/*-pid/muxrate/movflags/brand/bitexact/encrypt/cluster/id3/bext/peak/rf64/delay-moov/separate-moof/tmcd); run a second pass for those",
             ));
         }
         Some((f1, f2, a, aext))
@@ -1599,9 +1619,18 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if args.colr {
             mf.push_str("+write_colr");
         }
+        if args.delay_moov {
+            mf.push_str("+delay_moov");
+        }
+        if args.separate_moof {
+            mf.push_str("+separate_moof");
+        }
         if !mf.is_empty() {
             argv.extend(["-movflags".to_string(), mf]);
         }
+    }
+    if args.tmcd {
+        argv.extend(["-write_tmcd".to_string(), "1".to_string()]);
     }
     if args.bitexact {
         argv.push("-bitexact");
@@ -1664,6 +1693,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["bext"] = json!(args.bext);
     extra["peak"] = json!(args.peak);
     extra["rf64"] = json!(args.rf64);
+    extra["delay_moov"] = json!(args.delay_moov);
+    extra["separate_moof"] = json!(args.separate_moof);
+    extra["tmcd"] = json!(args.tmcd);
     if let Some((key, kid)) = enc_kv {
         extra["encrypted"] = json!(true);
         extra["key"] = json!(key);

@@ -18,6 +18,44 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     }
     paths::ensure_input(&args.input)?;
 
+    if let Some(spec) = &args.var_map {
+        if spec.trim().is_empty() {
+            return Err(Error::input(
+                "hls --var-map needs a spec like \"v:0,agroup:aud a:0,agroup:aud\"",
+            ));
+        }
+        if args.output.extension().is_some() {
+            return Err(Error::input(
+                "hls --var-map writes one playlist per variant — -o must be a directory",
+            ));
+        }
+        if !args.ladder.is_empty() {
+            return Err(Error::input(
+                "hls --var-map shapes the variant spec by hand — drop --ladder",
+            ));
+        }
+        if args.subs.is_some() {
+            return Err(Error::input(
+                "hls --var-map shapes the spec by hand — name s: streams inside it instead of --subs",
+            ));
+        }
+        if args.single {
+            return Err(Error::input(
+                "hls --var-map writes several variant playlists — can't combine with --single",
+            ));
+        }
+        if args.live {
+            return Err(Error::input(
+                "hls --var-map doesn't combine with --live (hand-shaped variants + sliding window)",
+            ));
+        }
+        if args.program.is_some() {
+            return Err(Error::input(
+                "hls --var-map doesn't combine with --program (program members reorder stream indexes)",
+            ));
+        }
+    }
+
     // -o is the playlist name (or a directory → <dir>/index.m3u8).
     let (dir, playlist): (PathBuf, PathBuf) = if args.output.extension().is_some() {
         let dir = args
@@ -100,11 +138,14 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         // %% escapes to a literal % through strftime so second_level_segment_index
         // can substitute the ordinal after the clock expansion.
         let idx = if args.seg_index { "_%%03d" } else { "" };
+        let v = if args.var_map.is_some() { "%v_" } else { "" };
         if args.time_dirs {
-            dir.join(format!("{name_pfx}seg_%Y%m%d/%H%M%S{idx}.{seg_ext}"))
+            dir.join(format!("{name_pfx}seg_{v}%Y%m%d/%H%M%S{idx}.{seg_ext}"))
         } else {
-            dir.join(format!("{name_pfx}seg_%Y%m%d-%H%M%S{idx}.{seg_ext}"))
+            dir.join(format!("{name_pfx}seg_{v}%Y%m%d-%H%M%S{idx}.{seg_ext}"))
         }
+    } else if args.var_map.is_some() {
+        dir.join(format!("{name_pfx}seg_%v_%03d.{seg_ext}"))
     } else {
         dir.join(format!("{name_pfx}seg_%03d.{seg_ext}"))
     };
@@ -127,15 +168,30 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             .map_err(|e| Error::output(format!("write {}: {e}", paths::display(&key_path))))?;
         let info_path = dir.join("key.info");
         let uri = args.key_uri.as_deref().unwrap_or("key.bin");
+        // -hls_enc_iv is accepted but dead on ffmpeg 4.4 — the working
+        // path is key.info's third line.
+        let iv_line = if let Some(iv) = &args.enc_iv {
+            let iv = iv.trim().to_lowercase();
+            let iv = iv.strip_prefix("0x").unwrap_or(&iv).to_string();
+            if iv.len() != 32 || !iv.chars().all(|c| c.is_ascii_hexdigit()) {
+                return Err(Error::input("--enc-iv must be 32 hex chars"));
+            }
+            format!("{iv}\n")
+        } else {
+            String::new()
+        };
         std::fs::write(
             &info_path,
-            format!("{uri}\n{}\n", paths::display(&key_path)),
+            format!("{uri}\n{}\n{iv_line}", paths::display(&key_path)),
         )
         .map_err(|e| Error::output(format!("write {}: {e}", paths::display(&info_path))))?;
         Some((info_path, uri.to_string()))
     } else {
         if args.key_uri.is_some() {
             return Err(Error::input("--key-uri needs --encrypt or --key"));
+        }
+        if args.enc_iv.is_some() {
+            return Err(Error::input("--enc-iv needs --encrypt or --key"));
         }
         if args.rekey {
             return Err(Error::input(
@@ -234,6 +290,16 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-map".to_string(), format!("0:p:{n}")]);
         }
     }
+    // --var-map specs reference input stream ordinals (v:0/a:1...) — map
+    // the whole A/V set so every index the spec names exists.
+    if args.var_map.is_some() {
+        if !args.audio_only {
+            argv.extend(["-map".to_string(), "0:v?".to_string()]);
+        }
+        if !args.video_only {
+            argv.extend(["-map".to_string(), "0:a?".to_string()]);
+        }
+    }
     if args.audio_only {
         if args.copy || !args.ladder.is_empty() {
             return Err(Error::input(
@@ -252,9 +318,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--video-only needs a video stream"));
         }
     }
-    if args.master.is_some() && args.ladder.is_empty() {
+    if args.master.is_some() && args.ladder.is_empty() && args.var_map.is_none() {
         return Err(Error::input(
-            "--master names the --ladder master playlist — single playlists are already named by -o",
+            "--master names the multi-variant master playlist — it needs --ladder or --var-map (single playlists are already named by -o)",
         ));
     }
     if args.init.is_some() && !args.fmp4 {
@@ -596,8 +662,28 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "master.m3u8".to_string(),
         ]);
     }
+    // --var-map: caller-shaped variant spec (multi-language audio groups,
+    // hand-picked ABR sets) — needs %v in the output playlist name.
+    let mut master_name = String::new();
+    if let Some(spec) = &args.var_map {
+        master_name = args
+            .master
+            .clone()
+            .unwrap_or_else(|| "master.m3u8".to_string());
+        argv.extend([
+            "-var_stream_map".to_string(),
+            spec.trim().to_string(),
+            "-master_pl_name".to_string(),
+            master_name.clone(),
+        ]);
+    }
     argv.extend(key_args.iter().cloned());
-    argv.push(playlist.display().to_string());
+    let out_playlist = if args.var_map.is_some() {
+        dir.join("v%v.m3u8")
+    } else {
+        playlist.clone()
+    };
+    argv.push(out_playlist.display().to_string());
 
     if args.poster_at.is_some() && !args.poster {
         return Err(Error::input("--poster-at needs --poster"));
@@ -674,15 +760,20 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
                 .sum::<usize>()
         })
         .unwrap_or(0);
-    if nseg == 0 || !playlist.is_file() {
+    let main_playlist = if args.var_map.is_some() {
+        dir.join(&master_name)
+    } else {
+        playlist.clone()
+    };
+    if nseg == 0 || !main_playlist.is_file() {
         return Err(Error::verification(
             "hls finished but no segments/playlist were written",
         ));
     }
     let mut c = Contract::ok(
         "hls",
-        Some(paths::display(&playlist)),
-        crate::probe::probe(&playlist, std::time::Duration::from_secs(60)).ok(),
+        Some(paths::display(&main_playlist)),
+        crate::probe::probe(&main_playlist, std::time::Duration::from_secs(60)).ok(),
     )
     .with_commands(commands);
     let mut extra = json!({
@@ -715,10 +806,17 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         extra["subs_playlists"] = json!([format!("{stem}_vtt.m3u8")]);
         extra["master"] = json!("master.m3u8");
     }
+    if let Some(spec) = &args.var_map {
+        extra["var_map"] = json!(spec.trim());
+        extra["master"] = json!(master_name);
+    }
     if let Some((p, uri)) = &key_info {
         // with_extra replaces the whole object — merge, don't chain
         extra["key_uri"] = json!(uri);
         extra["key_info"] = json!(paths::display(p));
+        if args.enc_iv.is_some() {
+            extra["enc_iv"] = json!(args.enc_iv);
+        }
     }
     c = c.with_extra(extra);
     Ok(c)
