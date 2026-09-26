@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.384.0] — 2026-09-26
+
+### Added
+
+- `split --at-frames 10,20,30` — cut at frame indices (`-segment_frames` — VFX/review pipelines that address cuts by frame number; boundaries snap to the next keyframe on `--copy`, forced exact on the re-encode path)
+- `frames --start N` — number the first still N (`-start_number` — keep appending frames onto an existing numbered sequence)
+- `frames --clock` — name stills by wall-clock capture time (`-strftime` — output pattern takes `%Y-%m-%d_%H-%M-%S` codes for timelapse/surveillance stills; refuses `--at`)
+- `probe --frames` — dump per-decoded-frame detail (`-show_frames` → `probe.frames[]`: key_frame/pict_type/interlace flags/pts_time — forensic QC on masters)
+- `conform`/`deliver`/`transcode --timelimit SEC` — wall-clock encode cap (`-timelimit` — batch safety valve for runaway jobs)
+- `remux --discard-corrupt` — drop damaged packets on read (`-fflags +discardcorrupt` — salvage runs on corrupted captures/bad rips)
+- `deliver --platform` +8 music-licensing catalogs: songtradr / artlist / epidemicsound / musicbed / audiojungle / premiumbeat / soundstripe / marmoset catalog videos 16:9 1920x1080 (639 platform targets)
+
 ## [0.383.0] — 2026-09-26
 
 ### Added

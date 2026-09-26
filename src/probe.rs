@@ -115,6 +115,97 @@ pub struct Probe {
     /// picks one by `num`)
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub programs: Vec<ProbeProgram>,
+    /// Per-decoded-frame detail (`probe --frames` — forensic QC:
+    /// keyframe map, picture types, interlace flags frame by frame).
+    /// Empty unless --frames was passed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub frames: Vec<ProbeFrame>,
+}
+
+/// One decoded frame from `ffprobe -show_frames` — the forensic view of
+/// the bitstream: which frames are keyframes, their picture types, and
+/// the interlace flags as decoded.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ProbeFrame {
+    /// video | audio
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub media_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream_index: Option<u32>,
+    /// 1 = random-access point (keyframe map for edit-point QC)
+    pub key_frame: u32,
+    /// I/P/B/SI/SP picture type
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pict_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pts_time: Option<f64>,
+    pub interlaced_frame: u32,
+    pub top_field_first: u32,
+    pub repeat_pict: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color_range: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chroma_location: Option<String>,
+}
+
+/// ffprobe writes pts_time as a string — keep the raw shape private and
+/// surface seconds as a number in the contract.
+#[derive(Deserialize)]
+struct RawFrame {
+    media_type: Option<String>,
+    stream_index: Option<u32>,
+    #[serde(default)]
+    key_frame: u32,
+    pict_type: Option<String>,
+    pts_time: Option<String>,
+    /// ffmpeg ≤5.x wrote pkt_pts_time instead — accept both names
+    pkt_pts_time: Option<String>,
+    #[serde(default)]
+    interlaced_frame: u32,
+    #[serde(default)]
+    top_field_first: u32,
+    #[serde(default)]
+    repeat_pict: u32,
+    color_range: Option<String>,
+    chroma_location: Option<String>,
+}
+
+impl From<RawFrame> for ProbeFrame {
+    fn from(r: RawFrame) -> Self {
+        ProbeFrame {
+            media_type: r.media_type,
+            stream_index: r.stream_index,
+            key_frame: r.key_frame,
+            pict_type: r.pict_type,
+            pts_time: r.pts_time.or(r.pkt_pts_time).and_then(|s| s.parse().ok()),
+            interlaced_frame: r.interlaced_frame,
+            top_field_first: r.top_field_first,
+            repeat_pict: r.repeat_pict,
+            color_range: r.color_range,
+            chroma_location: r.chroma_location,
+        }
+    }
+}
+
+/// `ffprobe -show_frames` — per-decoded-frame dump for `probe --frames`.
+pub fn probe_frames(path: &Path, timeout: Duration) -> Result<Vec<ProbeFrame>, Error> {
+    if !path.to_string_lossy().contains("://") {
+        crate::paths::ensure_input(path)?;
+    }
+    let mut argv = Argv::ffprobe();
+    argv.extend(["-print_format", "json", "-show_frames", "-v", "error"]);
+    argv.push(path);
+    let spawned = spawn::run(&argv, timeout, false)?;
+    let spawned = spawn::require_ok(&argv, spawned)?;
+    let raw = spawn::stdout_str(&spawned)?;
+    #[derive(Deserialize)]
+    struct FramesOut {
+        #[serde(default)]
+        frames: Vec<RawFrame>,
+    }
+    let out: FramesOut = serde_json::from_str(raw)
+        .map_err(|e| Error::input(format!("probe --frames: bad ffprobe json: {e}")))?;
+    Ok(out.frames.into_iter().map(ProbeFrame::from).collect())
 }
 
 /// One line of the stream table — index matches `remux`/`extract`
@@ -892,6 +983,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 })
             })
             .collect(),
+        frames: Vec::new(),
     })
 }
 

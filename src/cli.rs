@@ -64,6 +64,10 @@ pub enum Cmd {
     Probe {
         /// Media file
         input: PathBuf,
+        /// Also dump per-frame detail (key_frame/pict_type/interlace
+        /// flags per decoded frame — forensic QC on masters)
+        #[arg(long)]
+        frames: bool,
     },
     /// Contact sheet or single frame — look at the picture
     Look(LookArgs),
@@ -557,6 +561,11 @@ pub struct SplitArgs {
     /// parts to an existing numbered series instead of restarting at 0)
     #[arg(long)]
     pub start: Option<u32>,
+    /// Cut at frame indices (-segment_frames — VFX/review pipelines that
+    /// address cuts by frame number; each boundary snaps to the next
+    /// keyframe on --copy, forced exact on the re-encode path)
+    #[arg(long, value_delimiter = ',')]
+    pub at_frames: Vec<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1216,6 +1225,11 @@ pub struct TranscodeArgs {
     /// --copy-video and the audio presets)
     #[arg(long)]
     pub gop: Option<u32>,
+    /// Abort the encode after SEC wall-clock seconds (-timelimit — batch
+    /// safety valve for runaway transcodes; exits non-zero so the
+    /// pipeline can retry or flag the source)
+    #[arg(long)]
+    pub timelimit: Option<f64>,
     /// x264 encode profile — device-compat ingest specs (baseline for old
     /// phones/car/kiosk players; h264/proxy encodes only, conflicts with
     /// --copy-video and every non-x264 preset)
@@ -1718,6 +1732,10 @@ pub struct DeliverArgs {
     /// the language-tagged track becomes the pack's audio)
     #[arg(long)]
     pub lang: Option<String>,
+    /// Abort the pack encode after SEC wall-clock seconds (-timelimit —
+    /// batch safety valve for runaway exports)
+    #[arg(long)]
+    pub timelimit: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -3003,6 +3021,22 @@ pub enum DeliverPlatform {
     Spreadshirt,
     /// Displate merch listing video 16:9
     Displate,
+    /// Songtradr music-licensing catalog video 16:9
+    Songtradr,
+    /// Artlist music-licensing catalog video 16:9
+    Artlist,
+    /// Epidemic Sound catalog video 16:9
+    Epidemicsound,
+    /// Musicbed music-licensing catalog video 16:9
+    Musicbed,
+    /// AudioJungle stock-audio listing video 16:9
+    Audiojungle,
+    /// PremiumBeat music-licensing catalog video 16:9
+    Premiumbeat,
+    /// Soundstripe music-licensing catalog video 16:9
+    Soundstripe,
+    /// Marmoset Music catalog video 16:9
+    Marmoset,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6053,6 +6087,11 @@ pub struct RemuxArgs {
     /// them seek badly or probe at zero duration
     #[arg(long)]
     pub genpts: bool,
+    /// Drop damaged packets on the way in (-fflags +discardcorrupt —
+    /// salvage runs on corrupted captures/bad rips: the corrupt packets
+    /// are skipped instead of poisoning the repack)
+    #[arg(long)]
+    pub discard_corrupt: bool,
 
     /// Codec bitstream repair during the copy, repeatable —
     /// annexb|hevc-annexb|adts|mp3-hdr|eac3-core|dca-core|mjpeg-jpg|
@@ -6910,6 +6949,16 @@ pub struct FramesArgs {
     /// map a still back to its exact position)
     #[arg(long = "pts-names")]
     pub pts_names: bool,
+    /// Number the first still N (image2 -start_number — keep appending
+    /// frames onto an existing numbered sequence)
+    #[arg(long)]
+    pub start: Option<u32>,
+    /// Name stills by wall-clock capture time (image2 -strftime —
+    /// the output pattern takes %Y-%m-%d_%H-%M-%S style codes for
+    /// timelapse/surveillance stills; pair with --update so
+    /// same-second frames don't collide)
+    #[arg(long)]
+    pub clock: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -7664,6 +7713,10 @@ pub struct ConformArgs {
     /// broadcast ingest specs like "IDR at least every 2s")
     #[arg(long)]
     pub gop: Option<u32>,
+    /// Abort the spec pass after SEC wall-clock seconds (-timelimit —
+    /// batch safety valve for runaway conform jobs)
+    #[arg(long)]
+    pub timelimit: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

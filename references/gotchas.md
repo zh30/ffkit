@@ -1012,3 +1012,9 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - Raw `g726` needs the whole spec to mux (`-ar 8000 -ac 1 -b:a` plus explicit `-f g726` since the muxer has no extension mapping) and ffprobe then **misdetects** the output as mp3 — no clean round-trip on 4.4, not exposed.
 - The mov muxer's `-prefer_icc` writes an `icc` profile atom only when a stream actually carries ICC data — byte-invisible on ordinary h264 sources, so no observable gain; not exposed. `frag_lookahead`, `interleave_only` and the `pcbc` mpegts flag don't exist on 4.4 at all.
 - `probe` has no `--count` flag on purpose — `scan --packets` already runs `-count_packets` (and the frame counters land in `streams_counted`); duplicating it under probe would be a second name for the same thing.
+
+- `hls --live` already ships the rolling window (`-hls_list_size` + `+delete_segments` + `+omit_endlist`) — a standalone `--list-size`/`--delete` pair would just rename the same machinery, not exposed.
+- `-segment_frames` takes a **list of frame cut-points** (`10,20,30` → 10/10/10/30-frame parts), not an interval grid — `split --at-frames` is the ffkit shape for it.
+- ffprobe's `-show_frames` JSON writes `pts_time` as a **string** (`"0.000000"`), not a number — `probe --frames` parses it back to f64 before reporting.
+- The mov demuxer options `-use_mfra_for`/`use_tfdt` (fMP4 timestamp recovery) and `-export_all`/`export_xmp` (aux metadata streams) have no observable effect on the standard fixture set — byte-identical in/out, not exposed.
+- `frames --at`/`--number` stills are named per-capture inside ffkit (`stem_NNN`) — the image2 sequence options `-start_number` (`--start`) and `-strftime` (`--clock`) only exist on the `--every`/`--nth`/sequence path, so those two refuse with `--at`.

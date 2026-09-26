@@ -184,8 +184,21 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if args.copy_ts {
         argv.extend(["-copyts".to_string()]);
     }
+    let mut fflags: Vec<&str> = Vec::new();
     if args.genpts {
-        argv.extend(["-fflags".to_string(), "+genpts".to_string()]);
+        fflags.push("genpts");
+    }
+    if args.discard_corrupt {
+        fflags.push("discardcorrupt");
+    }
+    if !fflags.is_empty() {
+        // -fflags is one bitfield — +join every flag into a single arg
+        let joined = fflags
+            .iter()
+            .map(|f| format!("+{f}"))
+            .collect::<Vec<_>>()
+            .join("");
+        argv.extend(["-fflags".to_string(), joined]);
     }
     if let Some(k) = &args.decrypt {
         argv.extend(["-decryption_key".to_string(), k.trim().to_lowercase()]);
@@ -2002,7 +2015,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         let _ = std::fs::remove_file(tmp);
     }
     let c = run?;
-    let mut extra = json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "no_video": args.no_video, "no_audio": args.no_audio, "no_attachments": args.no_attachments, "keep": args.keep, "drop": args.drop, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts, "no_chapters": args.no_chapters, "muxrate": args.muxrate, "brand": args.brand, "sdh": args.sdh, "commentary": args.commentary, "audio_desc": args.audio_desc, "dub": args.dub, "original": args.original });
+    let mut extra = json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "no_video": args.no_video, "no_audio": args.no_audio, "no_attachments": args.no_attachments, "keep": args.keep, "drop": args.drop, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts, "discard_corrupt": args.discard_corrupt, "no_chapters": args.no_chapters, "muxrate": args.muxrate, "brand": args.brand, "sdh": args.sdh, "commentary": args.commentary, "audio_desc": args.audio_desc, "dub": args.dub, "original": args.original });
     extra["service_name"] = json!(args.service_name);
     extra["provider"] = json!(args.provider);
     extra["service_id"] = json!(args.service_id);

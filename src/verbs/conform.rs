@@ -255,6 +255,13 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
     vf.push("format=yuv420p".into());
 
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
     // raw member maps — with --blur the video member feeds the filter
     // graph instead ([0:{vi}] label), so only map it directly otherwise
@@ -379,6 +386,7 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         "level": args.level,
         "bf": args.bf,
         "timescale": args.timescale,
+        "timelimit": args.timelimit,
         "sar": args.sar,
         "dar": args.dar,
         "colr": args.colr,

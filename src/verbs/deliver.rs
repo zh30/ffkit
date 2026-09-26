@@ -797,7 +797,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Society6
         | DeliverPlatform::Zazzle
         | DeliverPlatform::Spreadshirt
-        | DeliverPlatform::Displate => (1920, 1080),
+        | DeliverPlatform::Displate
+        | DeliverPlatform::Songtradr
+        | DeliverPlatform::Artlist
+        | DeliverPlatform::Epidemicsound
+        | DeliverPlatform::Musicbed
+        | DeliverPlatform::Audiojungle
+        | DeliverPlatform::Premiumbeat
+        | DeliverPlatform::Soundstripe
+        | DeliverPlatform::Marmoset => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -820,6 +828,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     let platform = platform_name(args.platform);
 
     let mut apply = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        apply.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     apply.push("-i");
     apply.push(&args.input);
     let mut ni = 1u32;
@@ -1177,6 +1192,7 @@ fn finish(
         "colr": args.colr,
         "gop": args.gop,
         "lang": args.lang,
+        "timelimit": args.timelimit,
     }))
 }
 
@@ -1596,6 +1612,14 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Zazzle => "zazzle",
         DeliverPlatform::Spreadshirt => "spreadshirt",
         DeliverPlatform::Displate => "displate",
+        DeliverPlatform::Songtradr => "songtradr",
+        DeliverPlatform::Artlist => "artlist",
+        DeliverPlatform::Epidemicsound => "epidemicsound",
+        DeliverPlatform::Musicbed => "musicbed",
+        DeliverPlatform::Audiojungle => "audiojungle",
+        DeliverPlatform::Premiumbeat => "premiumbeat",
+        DeliverPlatform::Soundstripe => "soundstripe",
+        DeliverPlatform::Marmoset => "marmoset",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",
@@ -1866,6 +1890,13 @@ fn podcast(
     }
     let podcast_i = args.lufs.unwrap_or(PODCAST_I);
     let mut apply = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        apply.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     apply.push("-i");
     apply.push(&args.input);
     let mut ni = 1u32;

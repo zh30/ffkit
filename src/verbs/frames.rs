@@ -19,7 +19,8 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
     paths::ensure_input(&args.input)?;
 
     let out_s = args.output.to_string_lossy().into_owned();
-    let template: PathBuf = if out_s.contains('%') || args.update {
+    let has_pct = out_s.contains('%');
+    let template: PathBuf = if has_pct || args.update {
         PathBuf::from(out_s)
     } else {
         let ext = args
@@ -57,6 +58,16 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
     if args.pts_names && args.update {
         return Err(Error::input(
             "--pts-names names each still by its source pts — drop --update (one always-latest still)",
+        ));
+    }
+    if (args.start.is_some() || args.clock) && !args.at.is_empty() {
+        return Err(Error::input(
+            "frames --start/--clock name the frame sequence — drop --at (its stills are named per-capture)",
+        ));
+    }
+    if args.clock && !has_pct {
+        return Err(Error::input(
+            "frames --clock wants strftime codes in -o (e.g. shot_%Y-%m-%d_%H-%M-%S.png)",
         ));
     }
     let mut first_only = false;
@@ -222,6 +233,12 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if args.atomic {
         argv.extend(["-atomic_writing", "1"]);
+    }
+    if let Some(n) = args.start {
+        argv.extend(["-start_number", &n.to_string()]);
+    }
+    if args.clock {
+        argv.extend(["-strftime", "1"]);
     }
     if args.pts_names {
         argv.extend(["-frame_pts", "1"]);

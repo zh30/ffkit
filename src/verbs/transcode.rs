@@ -496,6 +496,13 @@ fn proxy(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     let crf = args.crf.unwrap_or(28);
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     if args.copy_video {
@@ -582,6 +589,13 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     let crf = args.crf.unwrap_or(23);
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     if probe.has_video {
@@ -629,6 +643,13 @@ fn hevc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     let crf = args.crf.unwrap_or(28);
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     if probe.has_video {
@@ -675,6 +696,13 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     let crf = args.crf.unwrap_or(32);
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     if probe.has_video {
@@ -721,6 +749,13 @@ fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     let crf = args.crf.unwrap_or(35).to_string();
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     if probe.has_video {
@@ -770,6 +805,13 @@ fn gif(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let width = args.width.unwrap_or(480).clamp(16, 1920);
     let scale = format!("fps={fps},scale={width}:-2:flags=lanczos");
     let mut gen = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        gen.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     gen.push("-i");
     gen.push(&args.input);
     let max_colors = args.colors.unwrap_or(256).clamp(2, 256);
@@ -780,6 +822,13 @@ fn gif(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     gen.push(&palette_path);
 
     let mut use_p = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        use_p.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     use_p.push("-i");
     use_p.push(&args.input);
     use_p.push("-i");
@@ -816,6 +865,13 @@ fn audio_only(
         ));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.push("-vn");
@@ -900,6 +956,13 @@ fn prores(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         ));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     if probe.has_video {
@@ -969,6 +1032,13 @@ fn dnxhd(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         ));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     if probe.has_video {
@@ -1032,6 +1102,13 @@ fn hap(args: &TranscodeArgs, g: &Globals, format: &str) -> Result<Contract, Erro
         return Err(Error::input(format!("{format} preset: input has no video")));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1065,7 +1142,7 @@ fn hap(args: &TranscodeArgs, g: &Globals, format: &str) -> Result<Contract, Erro
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": format }));
+    c = c.with_extra(json!({ "preset": format, "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1109,6 +1186,13 @@ fn raw_telecom(
         .copied()
         .unwrap();
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1128,7 +1212,7 @@ fn raw_telecom(
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": codec }));
+    c = c.with_extra(json!({ "preset": codec, "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1171,6 +1255,13 @@ fn framemd5(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         ));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?", "-map", "0:a?"]);
@@ -1178,7 +1269,7 @@ fn framemd5(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
     // a framemd5 listing is text, not media — ffprobe can't read it back
     let mut c = engine::write_job_raw("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "framemd5" }));
+    c = c.with_extra(json!({ "preset": "framemd5", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1215,6 +1306,13 @@ fn y4m(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("y4m preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1227,7 +1325,7 @@ fn y4m(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "y4m" }));
+    c = c.with_extra(json!({ "preset": "y4m", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1262,6 +1360,13 @@ fn avui(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("avui preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1287,7 +1392,7 @@ fn avui(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "avui" }));
+    c = c.with_extra(json!({ "preset": "avui", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1317,6 +1422,13 @@ fn mxf(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("mxf preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1338,7 +1450,7 @@ fn mxf(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "mxf" }));
+    c = c.with_extra(json!({ "preset": "mxf", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1390,6 +1502,13 @@ fn gxf(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         (720, 480, "30000/1001")
     };
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1411,7 +1530,7 @@ fn gxf(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "gxf" }));
+    c = c.with_extra(json!({ "preset": "gxf", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1466,6 +1585,13 @@ fn ffv1_container(
         )));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1484,7 +1610,7 @@ fn ffv1_container(
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": preset }));
+    c = c.with_extra(json!({ "preset": preset, "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1507,6 +1633,13 @@ fn mpeg2(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("mpeg2 preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1525,7 +1658,7 @@ fn mpeg2(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "mpeg2" }));
+    c = c.with_extra(json!({ "preset": "mpeg2", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1548,6 +1681,13 @@ fn mpeg1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("mpeg1 preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1566,7 +1706,7 @@ fn mpeg1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "mpeg1" }));
+    c = c.with_extra(json!({ "preset": "mpeg1", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1589,6 +1729,13 @@ fn xvid(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("xvid preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1607,7 +1754,7 @@ fn xvid(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "xvid" }));
+    c = c.with_extra(json!({ "preset": "xvid", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1635,6 +1782,13 @@ fn flv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("flv preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1653,7 +1807,7 @@ fn flv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "flv" }));
+    c = c.with_extra(json!({ "preset": "flv", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1676,6 +1830,13 @@ fn theora(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("theora preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1694,7 +1855,7 @@ fn theora(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "theora" }));
+    c = c.with_extra(json!({ "preset": "theora", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1724,6 +1885,13 @@ fn gpp(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         .copied()
         .unwrap();
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1746,7 +1914,7 @@ fn gpp(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "gpp" }));
+    c = c.with_extra(json!({ "preset": "gpp", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1790,6 +1958,13 @@ fn dv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("dv preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1806,7 +1981,7 @@ fn dv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "dv" }));
+    c = c.with_extra(json!({ "preset": "dv", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1830,6 +2005,13 @@ fn mjpeg(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("mjpeg preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1857,7 +2039,7 @@ fn mjpeg(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "mjpeg" }));
+    c = c.with_extra(json!({ "preset": "mjpeg", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1901,6 +2083,13 @@ fn amv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("amv preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1920,7 +2109,7 @@ fn amv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "amv" }));
+    c = c.with_extra(json!({ "preset": "amv", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1941,6 +2130,13 @@ fn msmpeg4(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("msmpeg4 preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -1962,7 +2158,7 @@ fn msmpeg4(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "msmpeg4" }));
+    c = c.with_extra(json!({ "preset": "msmpeg4", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -1986,6 +2182,13 @@ fn mpeg4(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("mpeg4 preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -2007,7 +2210,7 @@ fn mpeg4(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "mpeg4" }));
+    c = c.with_extra(json!({ "preset": "mpeg4", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -2030,6 +2233,13 @@ fn wmv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("wmv preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -2048,7 +2258,7 @@ fn wmv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "wmv" }));
+    c = c.with_extra(json!({ "preset": "wmv", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -2071,6 +2281,13 @@ fn apng(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("apng preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?", "-f", "apng", "-plays", "0"]);
@@ -2079,7 +2296,7 @@ fn apng(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "apng", "loop": "forever" }));
+    c = c.with_extra(json!({ "preset": "apng", "loop": "forever", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -2165,6 +2382,13 @@ fn qtrle(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("qtrle preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -2190,7 +2414,7 @@ fn qtrle(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "qtrle" }));
+    c = c.with_extra(json!({ "preset": "qtrle", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -2224,6 +2448,13 @@ fn v210(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("v210 preset: input has no video"));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -2245,7 +2476,7 @@ fn v210(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "v210" }));
+    c = c.with_extra(json!({ "preset": "v210", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -2284,6 +2515,13 @@ fn lossless(
         return Err(Error::input(format!("{codec} preset: input has no video")));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -2311,7 +2549,7 @@ fn lossless(
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": codec }));
+    c = c.with_extra(json!({ "preset": codec, "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -2364,6 +2602,13 @@ fn qt_era(
         return Err(Error::input(format!("{codec} preset: input has no video")));
     }
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -2416,7 +2661,7 @@ fn qt_era(
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": codec }));
+    c = c.with_extra(json!({ "preset": codec, "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -2465,6 +2710,13 @@ fn roq(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let w = pow2(probe.width.unwrap_or(256));
     let h = pow2(probe.height.unwrap_or(256));
     let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map", "0:v?"]);
@@ -2484,6 +2736,6 @@ fn roq(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "roq" }));
+    c = c.with_extra(json!({ "preset": "roq", "timelimit": args.timelimit }));
     Ok(c)
 }

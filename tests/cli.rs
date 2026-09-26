@@ -46906,3 +46906,227 @@ fn r356_ignoreeditlist_emptymoov_start_pcm64_platforms() {
         assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
     }
 }
+
+#[test]
+fn r357_atframes_frames_probe_timelimit_discardcorrupt_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // split --at-frames: frame-index cut points (re-encode path forces
+    // keyframes at n/fps so the muxer lands exactly)
+    let j = run_json(&[
+        "split",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("af.mp4").to_str().unwrap(),
+        "--at-frames",
+        "10,20",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["at_frames"], serde_json::json!([10, 20]));
+    assert_eq!(j["extra"]["parts"].as_array().unwrap().len(), 3);
+    // gate: stands alone
+    let out = ffkit()
+        .args([
+            "split",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("afg.mp4").to_str().unwrap(),
+            "--at-frames",
+            "10",
+            "--every",
+            "2",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // gate: --black refuses it
+    let out = ffkit()
+        .args([
+            "split",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("afg2.mp4").to_str().unwrap(),
+            "--at-frames",
+            "10",
+            "--black",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // frames --start: sequence numbering continues at N
+    let j = run_json(&[
+        "frames",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("sn.png").to_str().unwrap(),
+        "--every",
+        "0.3",
+        "--start",
+        "10",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let names: Vec<String> = std::fs::read_dir(dir.path())
+        .unwrap()
+        .filter_map(|e| {
+            let n = e.unwrap().file_name().to_string_lossy().into_owned();
+            n.starts_with("sn_").then_some(n)
+        })
+        .collect();
+    assert!(names.iter().any(|n| n == "sn_010.png"), "{names:?}");
+
+    // frames --clock: wall-clock strftime names
+    let j = run_json(&[
+        "frames",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("clk_%H-%M-%S.png").to_str().unwrap(),
+        "--every",
+        "0.4",
+        "--clock",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let clk: Vec<String> = std::fs::read_dir(dir.path())
+        .unwrap()
+        .filter_map(|e| {
+            let n = e.unwrap().file_name().to_string_lossy().into_owned();
+            n.starts_with("clk_").then_some(n)
+        })
+        .collect();
+    assert!(
+        clk.iter().all(|n| {
+            let b = &n[4..];
+            b.ends_with(".png") && b[..8].chars().all(|c| c.is_ascii_digit() || c == '-')
+        }),
+        "{clk:?}"
+    );
+    // gate: --clock/--start refuse --at
+    for extra in ["--clock", "--start"] {
+        let g = dir.path().join("g.png");
+        let mut a = vec![
+            "frames",
+            f.to_str().unwrap(),
+            "-o",
+            g.to_str().unwrap(),
+            "--at",
+            "0.5",
+        ];
+        a.push(extra);
+        if extra == "--start" {
+            a.push("3");
+        }
+        let out = ffkit().args(&a).output().unwrap();
+        assert!(!out.status.success(), "{extra}");
+    }
+    // gate: --clock wants strftime codes in -o
+    let out = ffkit()
+        .args([
+            "frames",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("plain.png").to_str().unwrap(),
+            "--every",
+            "0.4",
+            "--clock",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // probe --frames: per-decoded-frame forensic dump
+    let j = run_json(&["probe", f.to_str().unwrap(), "--frames"]);
+    assert_eq!(j["status"], "ok");
+    let frames = j["probe"]["frames"].as_array().unwrap();
+    assert!(frames.len() >= 25, "{}", frames.len());
+    let v0 = frames.iter().find(|x| x["media_type"] == "video").unwrap();
+    assert_eq!(v0["key_frame"], 1);
+    assert_eq!(v0["pict_type"], "I");
+    assert_eq!(v0["pts_time"], 0.0);
+    // without --frames the array stays out of the contract
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert!(j["probe"]["frames"].is_null());
+
+    // --timelimit lands on the encode argv (conform/transcode/deliver)
+    for (verb, extra) in [
+        ("conform", vec!["--fps", "30"]),
+        ("transcode", vec!["--preset", "h264"]),
+    ] {
+        let tl = dir.path().join(format!("tl_{verb}.mp4"));
+        let mut a = vec![
+            verb,
+            f.to_str().unwrap(),
+            "-o",
+            tl.to_str().unwrap(),
+            "--timelimit",
+            "30",
+        ];
+        a.extend(extra);
+        let j = run_json(&a);
+        assert_eq!(j["status"], "ok", "{verb}");
+        assert!(
+            j["commands"][0]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|x| x == "-timelimit"),
+            "{verb}"
+        );
+    }
+
+    // remux --discard-corrupt: corrupt packets dropped on read
+    let ts = dir.path().join("bad.ts");
+    run_json(&["remux", f.to_str().unwrap(), "-o", ts.to_str().unwrap()]);
+    let mut d = std::fs::read(&ts).unwrap();
+    let half = d.len() / 2;
+    for b in d.iter_mut().skip(half).take(3000) {
+        *b ^= 0xFF;
+    }
+    std::fs::write(&ts, &d).unwrap();
+    let j = run_json(&[
+        "remux",
+        ts.to_str().unwrap(),
+        "-o",
+        dir.path().join("dc.ts").to_str().unwrap(),
+        "--discard-corrupt",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["discard_corrupt"], true);
+    let j = run_json(&[
+        "remux",
+        ts.to_str().unwrap(),
+        "-o",
+        dir.path().join("plain.ts").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let dc = std::fs::metadata(dir.path().join("dc.ts")).unwrap().len();
+    let pl = std::fs::metadata(dir.path().join("plain.ts"))
+        .unwrap()
+        .len();
+    assert_ne!(dc, pl, "{dc} vs {pl}");
+
+    // +8 platforms: music-licensing catalogs, 16:9 1920x1080
+    for p in [
+        "songtradr",
+        "artlist",
+        "epidemicsound",
+        "musicbed",
+        "audiojungle",
+        "premiumbeat",
+        "soundstripe",
+        "marmoset",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
+    }
+}

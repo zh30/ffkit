@@ -33,8 +33,11 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
     let g = Globals::from(&cli);
     match cli.cmd {
         Cmd::Doctor => doctor::run(&g),
-        Cmd::Probe { input } => {
-            let p = probe::probe(&input, g.timeout)?;
+        Cmd::Probe { input, frames } => {
+            let mut p = probe::probe(&input, g.timeout)?;
+            if frames {
+                p.frames = probe::probe_frames(&input, g.timeout)?;
+            }
             Ok(Contract::ok("probe", Some(paths::display(&input)), Some(p)))
         }
         Cmd::Look(args) => look::run(args, &g),

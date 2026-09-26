@@ -34,9 +34,10 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             || args.copy
             || args.manifest.is_some()
             || args.start.is_some()
+            || !args.at_frames.is_empty()
         {
             return Err(Error::input(
-                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest/--start)",
+                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest/--start/--at-frames)",
             ));
         }
         engine::need_video(&probe, "split --black")?;
@@ -84,6 +85,40 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
     };
 
     let mut cuts: Vec<f64> = Vec::new();
+    if !args.at_frames.is_empty() {
+        // frame-indexed cuts: the muxer counts packets (-segment_frames)
+        // so boundaries land on exact frame numbers regardless of VFR;
+        // seconds equivalents also feed fade/subs and forced keyframes
+        if every.is_some()
+            || !args.at.is_empty()
+            || args.scenes.is_some()
+            || args.silence.is_some()
+            || args.chapters
+        {
+            return Err(Error::input(
+                "split --at-frames stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters)",
+            ));
+        }
+        engine::need_video(&probe, "split --at-frames")?;
+        let fps = probe
+            .fps
+            .ok_or_else(|| Error::input("split --at-frames: source reports no frame rate"))?;
+        for &f in &args.at_frames {
+            if f == 0 {
+                return Err(Error::input("--at-frames entries start at 1"));
+            }
+            let t = f as f64 / fps;
+            if t >= probe.duration - 0.05 {
+                return Err(Error::input(format!(
+                    "--at-frames {f} lands past the {:.2}s source",
+                    probe.duration
+                )));
+            }
+            cuts.push(t);
+        }
+        cuts.sort_by(|a, b| a.total_cmp(b));
+        cuts.dedup();
+    }
     if args.chapters {
         if every.is_some() || !args.at.is_empty() || args.scenes.is_some() || args.silence.is_some()
         {
@@ -168,9 +203,9 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("split takes --every or --at, not both"));
         }
         (None, true, None) => {
-            if args.silence.is_none() && !args.chapters {
+            if args.silence.is_none() && !args.chapters && args.at_frames.is_empty() {
                 return Err(Error::input(
-                    "split needs --every S, --at t1,t2,..., --scenes T, --silence dB or --chapters",
+                    "split needs --every S, --at t1,t2,..., --scenes T, --silence dB, --chapters or --at-frames",
                 ));
             }
         }
@@ -294,7 +329,15 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     argv.extend(["-f", "segment"]);
-    if !times.is_empty() {
+    if !args.at_frames.is_empty() {
+        let frames_list = args
+            .at_frames
+            .iter()
+            .map(|n| n.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        argv.extend(["-segment_frames", &frames_list]);
+    } else if !times.is_empty() {
         argv.extend(["-segment_times", &times]);
     }
     if let Some(n) = args.start {
@@ -367,6 +410,7 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             "copy": args.copy,
             "manifest": args.manifest.is_some(),
             "start": args.start.unwrap_or(0),
+            "at_frames": args.at_frames,
             "cuts": cuts,
             "parts": names,
             "count": parts.len(),
