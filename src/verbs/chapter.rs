@@ -139,13 +139,25 @@ fn parse_podcast_json(text: &str, path: &std::path::Path) -> Result<Vec<(f64, St
     })?;
     let mut out = Vec::new();
     for (i, ch) in arr.iter().enumerate() {
-        let t = ch["startTime"].as_f64().ok_or_else(|| {
-            Error::input(format!(
-                "--import: {}: chapter {} missing numeric startTime",
-                path.display(),
-                i + 1
-            ))
-        })?;
+        // numeric startTime (podcast JSON), or Podlove Simple Chapters
+        // "start" — a "HH:MM:SS.mmm" or plain-seconds string in .psc exports
+        let t = ch["startTime"]
+            .as_f64()
+            .or_else(|| {
+                ch["start"].as_str().and_then(|s| {
+                    crate::time::parse_time(s.trim())
+                        .ok()
+                        .or_else(|| s.trim().parse::<f64>().ok())
+                })
+            })
+            .or_else(|| ch["start"].as_f64())
+            .ok_or_else(|| {
+                Error::input(format!(
+                    "--import: {}: chapter {} missing numeric startTime (or Podlove \"start\")",
+                    path.display(),
+                    i + 1
+                ))
+            })?;
         let title = ch["title"].as_str().unwrap_or("").trim().to_string();
         out.push((t, title));
     }
@@ -569,7 +581,7 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             .and_then(|e| e.to_str())
             .unwrap_or("")
             .to_ascii_lowercase();
-        if kind == "json" {
+        if kind == "json" || kind == "psc" {
             marks.extend(parse_podcast_json(&text, path)?);
         } else if kind == "cue" {
             marks.extend(parse_cue_list(&text, path)?);

@@ -2698,6 +2698,20 @@ pub enum DeliverPlatform {
     Nintendo,
     /// EA app store trailers
     Ea,
+    /// OpenSea NFT listing videos
+    Opensea,
+    /// Rarible NFT listing videos
+    Rarible,
+    /// Foundation NFT listing videos
+    Foundation,
+    /// Zora NFT listing videos
+    Zora,
+    /// SuperRare NFT listing videos
+    Superrare,
+    /// MakersPlace NFT listing videos
+    Makersplace,
+    /// Objkt NFT listing videos
+    Objkt,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6745,6 +6759,11 @@ pub struct HlsArgs {
     /// recording across runs)
     #[arg(long)]
     pub append: bool,
+    /// Split at every --seg boundary even without a keyframe
+    /// (-hls_flags split_by_time — legacy players that need exact-length
+    /// segments regardless of GOP alignment)
+    #[arg(long)]
+    pub split_by_time: bool,
     /// First segment index (seg_NNN + MEDIA-SEQUENCE) — resume a numbered
     /// stream after a restart instead of starting over at 0
     #[arg(long)]
@@ -6766,6 +6785,11 @@ pub struct HlsArgs {
     /// recordings whose filenames say when they were captured; -strftime)
     #[arg(long)]
     pub time_names: bool,
+    /// Organize --time-names segments into a wall-clock directory per day
+    /// (-strftime_mkdir — a 24/7 archive stays browsable: seg_YYYYMMDD/
+    /// HHMMSS.ts instead of thousands of flat files)
+    #[arg(long)]
+    pub time_dirs: bool,
     /// Tag EXT-X-INDEPENDENT-SEGMENTS + force a keyframe at every segment
     /// boundary (seek/trick-play VOD; conflicts with --copy and --ladder)
     #[arg(long)]
@@ -6866,6 +6890,11 @@ pub struct DashArgs {
     /// -$RepresentationID$-$Number%05d$ appended; $ = raw template)
     #[arg(long)]
     pub seg_name: Option<String>,
+    /// Drop the <SegmentTimeline> element from the manifest
+    /// (-use_timeline 0 — older/basic DASH players that choke on it
+    /// get a plain SegmentTemplate index instead)
+    #[arg(long)]
+    pub no_timeline: bool,
 }
 
 #[derive(clap::Args, Debug)]

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.367.0] — 2026-09-26
+
+### Added
+- `hls --time-dirs` — organizes `--time-names` segments into a per-day wall-clock directory (`seg_YYYYMMDD/HHMMSS.ts`; `-strftime_mkdir` makes the muxer create it) — a 24/7 archive stays browsable instead of thousands of flat files
+- `hls --split-by-time` — `-hls_flags split_by_time` cuts at every `--seg` boundary even without a keyframe (exact-length segments for legacy players; default is to wait for the next IDR)
+- `dash --no-timeline` — `-use_timeline 0` drops the `<SegmentTimeline>` element: the manifest keeps a plain `SegmentTemplate` index for older/basic DASH players that can't parse timelines
+- `chapter --import` reads `.psc` — Podlove Simple Chapters (`{"chapters":[{"start":"HH:MM:SS.mmm","title":…}]}` — podcast chapter exports; numeric `startTime` and plain-seconds `start` also accepted)
+- `deliver --platform` +7: `opensea`/`rarible`/`foundation`/`zora`/`superrare`/`makersplace`/`objkt` NFT-marketplace listing videos — 16:9 1920x1080
+
 ## [0.366.0] — 2026-09-26
 
 ### Added

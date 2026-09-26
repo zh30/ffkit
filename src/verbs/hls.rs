@@ -37,6 +37,11 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "hls --time-names doesn't apply to --single (one file, no names)",
         ));
     }
+    if args.time_dirs && !args.time_names {
+        return Err(Error::input(
+            "hls --time-dirs needs --time-names (segments must be clock-named to be dir-organized)",
+        ));
+    }
     if args.independent && args.copy {
         return Err(Error::input(
             "hls --independent can't force keyframes on a --copy repack",
@@ -74,7 +79,11 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     let seg_tpl = if args.single {
         dir.join(format!("{name_pfx}seg.{seg_ext}"))
     } else if args.time_names {
-        dir.join(format!("{name_pfx}seg_%Y%m%d-%H%M%S.{seg_ext}"))
+        if args.time_dirs {
+            dir.join(format!("{name_pfx}seg_%Y%m%d/%H%M%S.{seg_ext}"))
+        } else {
+            dir.join(format!("{name_pfx}seg_%Y%m%d-%H%M%S.{seg_ext}"))
+        }
     } else {
         dir.join(format!("{name_pfx}seg_%03d.{seg_ext}"))
     };
@@ -462,11 +471,17 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.append {
         flags.push("append_list");
     }
+    if args.split_by_time {
+        flags.push("split_by_time");
+    }
     if !flags.is_empty() {
         argv.extend(["-hls_flags".to_string(), flags.join("+")]);
     }
     if args.time_names {
         argv.extend(["-strftime".to_string(), "1".to_string()]);
+        if args.time_dirs {
+            argv.extend(["-strftime_mkdir".to_string(), "1".to_string()]);
+        }
     }
     if args.independent {
         // every segment must start on a keyframe for the tag to be true
@@ -539,16 +554,37 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     let nseg = std::fs::read_dir(&dir)
         .map(|rd| {
             rd.filter_map(|e| e.ok())
-                .filter(|e| {
+                .map(|e| {
                     let n = e.file_name().to_string_lossy().into_owned();
-                    (n.starts_with(&format!("{name_pfx}seg_"))
+                    if args.time_dirs
+                        && e.path().is_dir()
+                        && n.starts_with(&format!("{name_pfx}seg_"))
+                    {
+                        // --time-dirs: segments live inside their dated dir
+                        std::fs::read_dir(e.path())
+                            .map(|sd| {
+                                sd.filter_map(|s| s.ok())
+                                    .filter(|s| {
+                                        s.path()
+                                            .extension()
+                                            .is_some_and(|x| x == "ts" || x == "m4s")
+                                    })
+                                    .count()
+                            })
+                            .unwrap_or(0)
+                    } else if (n.starts_with(&format!("{name_pfx}seg_"))
                         || n == format!("{name_pfx}seg.ts")
                         || n == format!("{name_pfx}seg.m4s"))
                         && e.path()
                             .extension()
                             .is_some_and(|x| x == "ts" || x == "m4s")
+                    {
+                        1
+                    } else {
+                        0
+                    }
                 })
-                .count()
+                .sum::<usize>()
         })
         .unwrap_or(0);
     if nseg == 0 || !playlist.is_file() {
@@ -572,6 +608,8 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "date": args.date,
         "discontinuity": args.discontinuity,
         "time_names": args.time_names,
+        "time_dirs": args.time_dirs,
+        "split_by_time": args.split_by_time,
         "independent": args.independent,
         "iframes": args.iframes,
         "video_only": args.video_only,

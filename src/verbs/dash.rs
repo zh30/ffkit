@@ -363,6 +363,9 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
     if args.dvb {
         argv.extend(["-mpd_profile", "dvb_dash"]);
     }
+    if args.no_timeline {
+        argv.extend(["-use_timeline", "0"]);
+    }
     if args.webm {
         argv.extend(["-dash_segment_type".to_string(), "webm".to_string()]);
     }
@@ -439,6 +442,7 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         "window": args.window.unwrap_or(0),
         "init_name": args.init,
         "seg_name": args.seg_name,
+        "no_timeline": args.no_timeline,
         "ladder": hs
             .iter()
             .map(|h| format!("{h}p"))

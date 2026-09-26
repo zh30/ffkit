@@ -630,6 +630,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Playstation
         | DeliverPlatform::Nintendo
         | DeliverPlatform::Ea
+        | DeliverPlatform::Opensea
+        | DeliverPlatform::Rarible
+        | DeliverPlatform::Foundation
+        | DeliverPlatform::Zora
+        | DeliverPlatform::Superrare
+        | DeliverPlatform::Makersplace
+        | DeliverPlatform::Objkt
         | DeliverPlatform::Indeed
         | DeliverPlatform::Glassdoor
         | DeliverPlatform::Ziprecruiter
@@ -1289,6 +1296,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Playstation => "playstation",
         DeliverPlatform::Nintendo => "nintendo",
         DeliverPlatform::Ea => "ea",
+        DeliverPlatform::Opensea => "opensea",
+        DeliverPlatform::Rarible => "rarible",
+        DeliverPlatform::Foundation => "foundation",
+        DeliverPlatform::Zora => "zora",
+        DeliverPlatform::Superrare => "superrare",
+        DeliverPlatform::Makersplace => "makersplace",
+        DeliverPlatform::Objkt => "objkt",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

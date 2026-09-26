@@ -43571,3 +43571,134 @@ fn r339_bitexact_append_dashnames_pjs_gamestores() {
         assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
     }
 }
+
+// Round 340 — hls --time-dirs + --split-by-time, dash --no-timeline,
+// chapter --import .psc (Podlove), +7 NFT-marketplace platforms.
+#[test]
+fn r340_time_dirs_split_notimeline_psc_nftstores() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // --time-dirs: the muxer creates a clock-named subdir holding that
+    // day's segments (24/7 archive stays browsable instead of flat sprawl)
+    let d = dir.path().join("d");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        d.to_str().unwrap(),
+        "--seg",
+        "1",
+        "--time-names",
+        "--time-dirs",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["time_dirs"], true);
+    assert!(j["extra"]["segments"].as_i64().unwrap() >= 1, "{j}");
+    let dated: Vec<_> = std::fs::read_dir(&d)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_dir() && e.file_name().to_string_lossy().starts_with("seg_"))
+        .collect();
+    assert_eq!(dated.len(), 1);
+    assert!(std::fs::read_dir(dated[0].path()).unwrap().any(|s| s
+        .unwrap()
+        .path()
+        .extension()
+        .is_some_and(|x| x == "ts")));
+    // --time-dirs alone is meaningless without clock names — gated
+    let g = dir.path().join("g");
+    let out = ffkit()
+        .args([
+            "hls",
+            f.to_str().unwrap(),
+            "-o",
+            g.to_str().unwrap(),
+            "--time-dirs",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // --split-by-time: exact-length segments even without a keyframe
+    let d2 = dir.path().join("d2");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        d2.to_str().unwrap(),
+        "--split-by-time",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["split_by_time"], true);
+    // --no-timeline: plain SegmentTemplate index for old DASH players —
+    // a multi-seg pack normally writes <SegmentTimeline>, this drops it
+    let d3 = dir.path().join("d3");
+    let j = run_json(&[
+        "dash",
+        f.to_str().unwrap(),
+        "-o",
+        d3.to_str().unwrap(),
+        "--seg",
+        "0.5",
+        "--no-timeline",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["no_timeline"], true);
+    let mpd = std::fs::read_to_string(d3.join("manifest.mpd")).unwrap();
+    assert!(mpd.contains("<SegmentTemplate"), "{mpd}");
+    assert!(!mpd.contains("SegmentTimeline"), "{mpd}");
+    let d3b = dir.path().join("d3b");
+    let j = run_json(&[
+        "dash",
+        f.to_str().unwrap(),
+        "-o",
+        d3b.to_str().unwrap(),
+        "--seg",
+        "0.5",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let mpd = std::fs::read_to_string(d3b.join("manifest.mpd")).unwrap();
+    assert!(mpd.contains("SegmentTimeline"), "{mpd}");
+    // .psc — Podlove Simple Chapters: "start" as HH:MM:SS.mmm or seconds
+    let psc = dir.path().join("t.psc");
+    std::fs::write(
+        &psc,
+        r#"{"version":"1.2.0","chapters":[{"start":"00:00:00.000","title":"PSC One"},{"start":"0.5","title":"Half"}]}"#,
+    )
+    .unwrap();
+    let ch_out = dir.path().join("chap.mp4");
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "-o",
+        ch_out.to_str().unwrap(),
+        "--import",
+        psc.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["chapters"].as_array().unwrap().len(), 2);
+    let pj = run_json(&["probe", ch_out.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["chapters"].as_array().unwrap().len(), 2);
+    // +7 NFT-marketplace targets — all 16:9 1920x1080
+    for p in [
+        "opensea",
+        "rarible",
+        "foundation",
+        "zora",
+        "superrare",
+        "makersplace",
+        "objkt",
+    ] {
+        let o = dir.path().join(format!("nft-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
+    }
+}
