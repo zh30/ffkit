@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.381.0] — 2026-09-26
+
+### Added
+
+- `frames --pts-names` — name each still by its source pts (`-frame_pts 1` — QC/audit stills that map back to their exact frame position; conflicts with `--update`)
+- `remux --pat-pmt-frames` — reemit PAT/PMT at each video frame (`-mpegts_flags pat_pmt_at_frames` — denser join-anywhere than `--resend-headers`; .ts/.m2ts only)
+- `remux --initial-discontinuity` — mark a capture appended onto a live mux (.ts/.m2ts only)
+- `remux --ts-copyts` — keep the transport stream's native pts/dts instead of re-basing (`-mpegts_copyts`; needs `--copy-ts`; .ts/.m2ts only)
+- `remux --empty-hdlr-name` — zero the mp4 handler name field for QT7-era ingest chains (mp4/mov/m4a only)
+- `remux --flv-live` — mid-broadcast FLV capture: unknown-duration metadata + no end-of-stream marker (.flv only)
+- `remux --no-flv-meta` — strip the onMetaData script block (.flv only)
+- `deliver --platform` +8 — `fenderplay`/`yousician`/`simplypiano`/`tonestro`/`flowkey`/`skoove`/`musora`/`drumeo` music-education lesson-upload videos (16:9 1920x1080; 615 platforms)
+
 ## [0.380.0] — 2026-09-26
 
 ### Added

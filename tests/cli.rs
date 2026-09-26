@@ -46439,3 +46439,217 @@ fn r353_update_atomic_service_tables_reserve_peak_wrap_platforms() {
         assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
     }
 }
+
+#[test]
+fn r354_ptsnames_tsbits_hdlr_flvlive_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // frames --pts-names: stills named by source pts (int-parseable names)
+    let pod = dir.path().join("pts");
+    std::fs::create_dir(&pod).unwrap();
+    let out_t = pod.join("still_%d.png");
+    let j = run_json(&[
+        "frames",
+        f.to_str().unwrap(),
+        "-o",
+        out_t.to_str().unwrap(),
+        "--count",
+        "3",
+        "--pts-names",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["pts_names"], true);
+    let names: Vec<String> = j["extra"]["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
+    assert!(!names.is_empty());
+    for n in &names {
+        let base = Path::new(n).file_stem().unwrap().to_str().unwrap();
+        let pts = base.trim_start_matches("still_");
+        assert!(
+            pts.chars().all(|c| c.is_ascii_digit()),
+            "pts-named still expected digits, got {n}"
+        );
+    }
+    // --pts-names conflicts with --update
+    let out = ffkit()
+        .args([
+            "frames",
+            f.to_str().unwrap(),
+            "-o",
+            out_t.to_str().unwrap(),
+            "--update",
+            "--pts-names",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--pts-names conflicts with --update");
+
+    // remux --pat-pmt-frames: PAT/PMT reemit per video frame
+    let base = dir.path().join("base.ts");
+    run_json(&["remux", f.to_str().unwrap(), "-o", base.to_str().unwrap()]);
+    let ppf = dir.path().join("ppf.ts");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        ppf.to_str().unwrap(),
+        "--pat-pmt-frames",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["pat_pmt_frames"], true);
+    let pat = |p: &Path| -> usize {
+        let d = std::fs::read(p).unwrap();
+        d.windows(5)
+            .filter(|w| *w == b"\x00\xb0\x0d\x00\x01")
+            .count()
+    };
+    assert!(
+        pat(&ppf) > pat(&base),
+        "pat_pmt_at_frames should increase PAT density"
+    );
+
+    // remux --initial-discontinuity: leading packets flagged
+    let idts = dir.path().join("id.ts");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        idts.to_str().unwrap(),
+        "--initial-discontinuity",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let d = std::fs::read(&idts).unwrap();
+    let disc = (0..d.len().saturating_sub(188))
+        .step_by(188)
+        .filter(|&o| d[o] == 0x47 && (d[o + 3] >> 4) & 3 > 1 && d[o + 5] & 0x80 != 0)
+        .count();
+    assert!(disc > 0, "expected discontinuity_indicator packets");
+
+    // remux --copy-ts --ts-copyts: TS-native timestamps (gated pair)
+    let ct = dir.path().join("ct.ts");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        ct.to_str().unwrap(),
+        "--copy-ts",
+        "--ts-copyts",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["ts_copyts"], true);
+    // --ts-copyts without --copy-ts refuses
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x.ts").to_str().unwrap(),
+            "--ts-copyts",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--ts-copyts needs --copy-ts");
+    // TS flags refuse non-TS targets
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x.mp4").to_str().unwrap(),
+            "--pat-pmt-frames",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--pat-pmt-frames is TS-only");
+
+    // remux --empty-hdlr-name: hdlr name field zeroed
+    let eh = dir.path().join("eh.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        eh.to_str().unwrap(),
+        "--empty-hdlr-name",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["empty_hdlr_name"], true);
+    let d = std::fs::read(&eh).unwrap();
+    assert!(
+        !d.windows(12).any(|w| w == b"VideoHandler"),
+        "handler name should be zeroed"
+    );
+
+    // remux --flv-live / --no-flv-meta
+    let flv0 = dir.path().join("b.flv");
+    run_json(&["remux", f.to_str().unwrap(), "-o", flv0.to_str().unwrap()]);
+    let flv1 = dir.path().join("live.flv");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        flv1.to_str().unwrap(),
+        "--flv-live",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["flv_live"], true);
+    assert!(
+        std::fs::metadata(&flv1).unwrap().len() < std::fs::metadata(&flv0).unwrap().len(),
+        "flv-live drops the sequence-end tag"
+    );
+    let flv2 = dir.path().join("nometa.flv");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        flv2.to_str().unwrap(),
+        "--no-flv-meta",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let d = std::fs::read(&flv2).unwrap();
+    assert!(
+        !d.windows(10).any(|w| w == b"onMetaData"),
+        "onMetaData should be stripped"
+    );
+    // flv flags refuse non-flv targets
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x2.mp4").to_str().unwrap(),
+            "--flv-live",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--flv-live is flv-only");
+
+    // +8 platforms: music-education targets, 16:9 1920x1080
+    for p in [
+        "fenderplay",
+        "yousician",
+        "simplypiano",
+        "tonestro",
+        "flowkey",
+        "skoove",
+        "musora",
+        "drumeo",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
+    }
+}

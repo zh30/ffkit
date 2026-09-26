@@ -81,6 +81,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --copy-ts keeps timestamps verbatim — drop the ts mutators (--offset/--itsscale/--audio-delay/--video-delay/--genpts)",
         ));
     }
+    if args.ts_copyts && !args.copy_ts {
+        return Err(Error::input(
+            "remux --ts-copyts tunes TS timestamp emission — needs --copy-ts",
+        ));
+    }
     // --keep 0,3: absolute stream indices — keeps ONLY the listed streams
     // (the escape hatch when per-type orders can't express the pick)
     let keep: Vec<usize> = match &args.keep {
@@ -434,11 +439,14 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         || args.pcr_period.is_some()
         || args.resend_headers
         || args.latm
+        || args.pat_pmt_frames
+        || args.initial_discontinuity
+        || args.ts_copyts
         || args.m2ts)
         && !matches!(ext.as_str(), "ts" | "m2ts" | "mts")
     {
         return Err(Error::input(
-            "remux transport-stream options (--service-name/--provider/--service-id/--service-type/--tsid/--network-id/--start-pid/--pmt-pid/--tables-version/--pat-period/--sdt-period/--pcr-period/--resend-headers/--latm/--m2ts) write TS SI tables and PID plans — .ts/.m2ts targets only",
+            "remux transport-stream options (--service-name/--provider/--service-id/--service-type/--tsid/--network-id/--start-pid/--pmt-pid/--tables-version/--pat-period/--sdt-period/--pcr-period/--resend-headers/--latm/--pat-pmt-frames/--initial-discontinuity/--ts-copyts/--m2ts) write TS SI tables and PID plans — .ts/.m2ts targets only",
         ));
     }
     if let Some(v) = args.tables_version {
@@ -582,6 +590,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --iods restores the mp4 iods atom — .mp4/.mov targets only",
         ));
     }
+    if args.empty_hdlr_name && !matches!(ext.as_str(), "mp4" | "m4v" | "mov" | "m4a") {
+        return Err(Error::input(
+            "remux --empty-hdlr-name clears the mp4 handler name — .mp4/.m4v/.mov/.m4a targets only",
+        ));
+    }
     if args.frag_index.is_some() && !args.frag {
         return Err(Error::input(
             "remux --frag-index numbers fragments — needs --frag (mp4/mov only)",
@@ -666,6 +679,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --flv-index writes the onMetaData keyframes table — .flv targets only",
         ));
     }
+    if (args.flv_live || args.no_flv_meta) && ext != "flv" {
+        return Err(Error::input(
+            "remux --flv-live/--no-flv-meta are FLV muxer flags — .flv targets only",
+        ));
+    }
     // --also: the tee muxer writes the same mapped streams to a second
     // container in the same pass (social .mp4 + broadcast .ts). Slaves
     // share the encode but each pick their own format — and any flag that
@@ -732,6 +750,12 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             || args.pmt_pid.is_some()
             || args.resend_headers
             || args.latm
+            || args.pat_pmt_frames
+            || args.initial_discontinuity
+            || args.ts_copyts
+            || args.empty_hdlr_name
+            || args.flv_live
+            || args.no_flv_meta
             || args.m2ts
             || args.muxrate.is_some()
             || args.cmaf
@@ -1785,9 +1809,21 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         // strip the Xing/Info VBR header — fixed-rate jobs don't need it
         argv.extend(["-write_xing".to_string(), "0".to_string()]);
     }
+    let mut flv_flags: Vec<&str> = Vec::new();
     if args.flv_index {
         // onMetaData keyframes table — scrub index Flash-era/RTMP tools read
-        argv.extend(["-flvflags".to_string(), "add_keyframe_index".to_string()]);
+        flv_flags.push("add_keyframe_index");
+    }
+    if args.flv_live {
+        // mid-broadcast capture: unknown duration, no end marker
+        flv_flags.push("no_duration_filesize");
+        flv_flags.push("no_sequence_end");
+    }
+    if args.no_flv_meta {
+        flv_flags.push("no_metadata");
+    }
+    if !flv_flags.is_empty() {
+        argv.extend(["-flvflags".to_string(), flv_flags.join("+")]);
     }
     if let Some(n) = &args.service_name {
         argv.extend(["-metadata".to_string(), format!("service_name={n}")]);
@@ -1832,11 +1868,24 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if args.latm {
         ts_flags.push("latm");
     }
+    if args.pat_pmt_frames {
+        ts_flags.push("pat_pmt_at_frames");
+    }
+    if args.initial_discontinuity {
+        ts_flags.push("initial_discontinuity");
+    }
     if !ts_flags.is_empty() {
         argv.extend(["-mpegts_flags".to_string(), ts_flags.join("+")]);
     }
     if args.m2ts {
         argv.extend(["-mpegts_m2ts_mode".to_string(), "1".to_string()]);
+    }
+    if args.ts_copyts {
+        argv.extend(["-mpegts_copyts".to_string(), "1".to_string()]);
+    }
+    if args.empty_hdlr_name {
+        // QT7-era ingest chains reject named handlers
+        argv.extend(["-empty_hdlr_name".to_string(), "1".to_string()]);
     }
     {
         let mut mf = String::new();
@@ -1962,6 +2011,12 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["no_faststart"] = json!(args.no_faststart);
     extra["no_xing"] = json!(args.no_xing);
     extra["flv_index"] = json!(args.flv_index);
+    extra["flv_live"] = json!(args.flv_live);
+    extra["no_flv_meta"] = json!(args.no_flv_meta);
+    extra["pat_pmt_frames"] = json!(args.pat_pmt_frames);
+    extra["initial_discontinuity"] = json!(args.initial_discontinuity);
+    extra["ts_copyts"] = json!(args.ts_copyts);
+    extra["empty_hdlr_name"] = json!(args.empty_hdlr_name);
     extra["silent_audio"] = json!(args.silent_audio);
     if let Some((key, kid)) = enc_kv {
         extra["encrypted"] = json!(true);

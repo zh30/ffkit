@@ -2943,6 +2943,22 @@ pub enum DeliverPlatform {
     Sitejabber,
     /// Gartner/analyst-colateral video 16:9
     Gartner,
+    /// Fender Play lesson video 16:9
+    Fenderplay,
+    /// Yousician lesson video 16:9
+    Yousician,
+    /// Simply Piano lesson video 16:9
+    Simplypiano,
+    /// Tonestro lesson video 16:9
+    Tonestro,
+    /// Flowkey lesson video 16:9
+    Flowkey,
+    /// Skoove lesson video 16:9
+    Skoove,
+    /// Musora lesson video 16:9
+    Musora,
+    /// Drumeo lesson video 16:9
+    Drumeo,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6178,6 +6194,38 @@ pub struct RemuxArgs {
     /// --peak; .wav only)
     #[arg(long = "peak-format")]
     pub peak_format: Option<u32>,
+    /// Reemit PAT/PMT at each video frame (-mpegts_flags
+    /// pat_pmt_at_frames — denser join-anywhere tables than
+    /// --resend-headers; .ts/.m2ts targets only)
+    #[arg(long = "pat-pmt-frames")]
+    pub pat_pmt_frames: bool,
+    /// Mark the leading packets discontinuous (-mpegts_flags
+    /// initial_discontinuity — a capture appended onto a live mux tells
+    /// downstream receivers the stream continues elsewhere;
+    /// .ts/.m2ts targets only)
+    #[arg(long = "initial-discontinuity")]
+    pub initial_discontinuity: bool,
+    /// TS-native timestamp mode (-mpegts_copyts — keep the transport
+    /// stream's own pts/dts instead of re-basing them; needs --copy-ts;
+    /// .ts/.m2ts targets only)
+    #[arg(long = "ts-copyts")]
+    pub ts_copyts: bool,
+    /// Zero the hdlr atom name field (-empty_hdlr_name — QuickTime
+    /// 7-era ingest chains that reject named handlers; mp4/mov/m4a
+    /// targets only)
+    #[arg(long = "empty-hdlr-name")]
+    pub empty_hdlr_name: bool,
+    /// Mid-broadcast FLV capture (-flvflags
+    /// no_duration_filesize+no_sequence_end — zero-length duration
+    /// metadata and no end marker while the stream is still recording;
+    /// .flv targets only)
+    #[arg(long = "flv-live")]
+    pub flv_live: bool,
+    /// Strip the onMetaData script block (-flvflags no_metadata —
+    /// minimal/private FLV outputs where the metadata object must not
+    /// ship; .flv targets only)
+    #[arg(long = "no-flv-meta")]
+    pub no_flv_meta: bool,
     /// Force an RF64 header on .wav outputs even under 4GB (-rf64 always
     /// — strict broadcast specs that want RF64 from the first byte)
     #[arg(long)]
@@ -6797,6 +6845,11 @@ pub struct FramesArgs {
     /// pairs with --update)
     #[arg(long)]
     pub atomic: bool,
+    /// Name each still by its source pts (-frame_pts 1 — the filename
+    /// is the decoded frame's timestamp slot, so QC/audit tools can
+    /// map a still back to its exact position)
+    #[arg(long = "pts-names")]
+    pub pts_names: bool,
 }
 
 #[derive(clap::Args, Debug)]

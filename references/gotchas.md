@@ -994,3 +994,10 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - `-omit_video_pes_length` shows no effect on mp4-family sources — video PES `packet_length` is already 0 by default; `-pes_payload_size` likewise left no observable byte change; not exposed.
 - matroska `-dash` errors "Invalid argument" on the stream-copy path, and `-default_mode infer/passthrough` only reshuffles dispositions ffkit already covers via `--sdh`/`--commentary`/`--dub`/`--original`; neither exposed.
 - `-hls_wrap N` on 4.4 collapses segment names to `seg_000` for every new segment past the wrap point (not a 0..N-1 cycle) — `hls --wrap` documents that behavior; it still caps a self-hosted live channel's file set.
+- `-metadata work/movement_name/movement_number/movement_count/category/long_description/podcast_url/episode_uid` are all silently dropped by the 4.4 mov muxer whitelist — zero atoms written (only `©lyr` lands, which is why `meta --lyrics` works).
+- `-ism_lookahead` is inert on file output (Smooth Streaming lookahead needs a live publishing point).
+- `-hls_start_number_source datetime` collapses every segment onto one wall-clock name on short files — all segments overwrite `seg_N` with the same N.
+- `-hls_ts_options` is rejected outright on 4.4 ("incorrect codec parameters").
+- `-cc_stream_map` embeds eia-608 captions as an HLS rendition but needs a source that actually carries 608 captions — no .srt/.vtt input converts, and a caption-less source errors at trailer write.
+- `mpegts_flags system_b` shows no SDT byte difference on typical sources; `skip_sidx` and `negative_cts_offsets` produce no byte diff on defaults (sidx isn't written anyway, elst appears either way).
+

@@ -773,7 +773,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Trustradius
         | DeliverPlatform::Trustpilot
         | DeliverPlatform::Sitejabber
-        | DeliverPlatform::Gartner => (1920, 1080),
+        | DeliverPlatform::Gartner
+        | DeliverPlatform::Fenderplay
+        | DeliverPlatform::Yousician
+        | DeliverPlatform::Simplypiano
+        | DeliverPlatform::Tonestro
+        | DeliverPlatform::Flowkey
+        | DeliverPlatform::Skoove
+        | DeliverPlatform::Musora
+        | DeliverPlatform::Drumeo => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1548,6 +1556,14 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Trustpilot => "trustpilot",
         DeliverPlatform::Sitejabber => "sitejabber",
         DeliverPlatform::Gartner => "gartner",
+        DeliverPlatform::Fenderplay => "fenderplay",
+        DeliverPlatform::Yousician => "yousician",
+        DeliverPlatform::Simplypiano => "simplypiano",
+        DeliverPlatform::Tonestro => "tonestro",
+        DeliverPlatform::Flowkey => "flowkey",
+        DeliverPlatform::Skoove => "skoove",
+        DeliverPlatform::Musora => "musora",
+        DeliverPlatform::Drumeo => "drumeo",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

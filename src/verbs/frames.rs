@@ -54,6 +54,11 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
             "--update keeps one always-latest still — drop --at/--count/--nth/--number/--untile",
         ));
     }
+    if args.pts_names && args.update {
+        return Err(Error::input(
+            "--pts-names names each still by its source pts — drop --update (one always-latest still)",
+        ));
+    }
     let mut first_only = false;
     let mut vf = match &args.untile {
         Some(u) => {
@@ -218,6 +223,9 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
     if args.atomic {
         argv.extend(["-atomic_writing", "1"]);
     }
+    if args.pts_names {
+        argv.extend(["-frame_pts", "1"]);
+    }
     argv.push(&template);
 
     let commands = engine::commands_of(std::slice::from_ref(&argv));
@@ -272,6 +280,7 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
             "files": names,
             "update": args.update,
             "atomic": args.atomic,
+            "pts_names": args.pts_names,
         }));
     Ok(c)
 }
