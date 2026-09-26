@@ -595,6 +595,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --empty-hdlr-name clears the mp4 handler name — .mp4/.m4v/.mov/.m4a targets only",
         ));
     }
+    if args.no_editlist && !matches!(ext.as_str(), "mp4" | "m4v" | "mov" | "m4a") {
+        return Err(Error::input(
+            "remux --no-editlist drops the elst atom — .mp4/.m4v/.mov/.m4a targets only",
+        ));
+    }
     if args.frag_index.is_some() && !args.frag {
         return Err(Error::input(
             "remux --frag-index numbers fragments — needs --frag (mp4/mov only)",
@@ -754,6 +759,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             || args.initial_discontinuity
             || args.ts_copyts
             || args.empty_hdlr_name
+            || args.no_editlist
             || args.flv_live
             || args.no_flv_meta
             || args.m2ts
@@ -1887,6 +1893,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         // QT7-era ingest chains reject named handlers
         argv.extend(["-empty_hdlr_name".to_string(), "1".to_string()]);
     }
+    if args.no_editlist {
+        // QT7-era decks and strict parsers reject elst atoms; dropping
+        // the edit list leaves the reorder shift on the timestamps alone
+        argv.extend(["-use_editlist".to_string(), "0".to_string()]);
+    }
     {
         let mut mf = String::new();
         if args.cmaf {
@@ -2017,6 +2028,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["initial_discontinuity"] = json!(args.initial_discontinuity);
     extra["ts_copyts"] = json!(args.ts_copyts);
     extra["empty_hdlr_name"] = json!(args.empty_hdlr_name);
+    extra["no_editlist"] = json!(args.no_editlist);
     extra["silent_audio"] = json!(args.silent_audio);
     if let Some((key, kid)) = enc_kv {
         extra["encrypted"] = json!(true);

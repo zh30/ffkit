@@ -32,9 +32,10 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             || args.subs.is_some()
             || args.fade.is_some()
             || args.copy
+            || args.manifest.is_some()
         {
             return Err(Error::input(
-                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy)",
+                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest)",
             ));
         }
         engine::need_video(&probe, "split --black")?;
@@ -295,6 +296,15 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
     if !times.is_empty() {
         argv.extend(["-segment_times", &times]);
     }
+    if let Some(m) = &args.manifest {
+        // name,start,end CSV rows — audit trail next to the part files
+        argv.extend([
+            "-segment_list".to_string(),
+            m.display().to_string(),
+            "-segment_list_type".to_string(),
+            "csv".to_string(),
+        ]);
+    }
     argv.extend(["-reset_timestamps", "1"]);
     argv.push(&template);
 
@@ -350,6 +360,7 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         .with_extra(json!({
             "every": args.every,
             "copy": args.copy,
+            "manifest": args.manifest.is_some(),
             "cuts": cuts,
             "parts": names,
             "count": parts.len(),

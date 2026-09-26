@@ -284,6 +284,18 @@ pub struct ProbeStream {
     /// >0 means decoder lookahead delay, QC for low-latency/mobile specs)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has_b_frames: Option<u32>,
+    /// Reference-frame count the encoder used (video — the encoder
+    /// complexity dial; QC for low-power decoders capping refs)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refs: Option<u32>,
+    /// Embedded CEA-608/708 captions in the video essence (broadcast
+    /// ingest QC — text-track deliverables still need subs separately)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub closed_captions: Option<bool>,
+    /// Full human-readable codec name (e.g. "H.264 / AVC / MPEG-4 AVC /
+    /// MPEG-4 part 10" — friendly label for manifests and QC reports)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub codec_long_name: Option<String>,
     /// Mux timescale (1/90000 mpegts vs 1/15360 mp4) — packet pts math
     /// QC: a remux that re-times without scaling shifts every stamp
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -422,6 +434,12 @@ struct FfprobeStream {
     bits_per_raw_sample: Option<String>,
     #[serde(default)]
     has_b_frames: Option<u32>,
+    #[serde(default)]
+    refs: Option<u32>,
+    #[serde(default)]
+    closed_captions: Option<u32>,
+    #[serde(default)]
+    codec_long_name: Option<String>,
     #[serde(default)]
     time_base: Option<String>,
     #[serde(default)]
@@ -785,6 +803,9 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                     .as_deref()
                     .and_then(|v| v.parse().ok()),
                 has_b_frames: s.has_b_frames,
+                refs: s.refs,
+                closed_captions: s.closed_captions.map(|v| v == 1),
+                codec_long_name: s.codec_long_name.clone(),
                 time_base: s.time_base.clone().filter(|t| t.as_str() != "N/A"),
                 forced: s
                     .disposition

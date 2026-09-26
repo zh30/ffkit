@@ -549,6 +549,10 @@ pub struct SplitArgs {
     /// forward to the next keyframe (not frame-exact). No --fade/--black.
     #[arg(long)]
     pub copy: bool,
+    /// Also write a CSV index of the parts (name,start,end rows —
+    /// audit trail / manifest next to the split files)
+    #[arg(long)]
+    pub manifest: Option<PathBuf>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2959,6 +2963,22 @@ pub enum DeliverPlatform {
     Musora,
     /// Drumeo lesson video 16:9
     Drumeo,
+    /// Heritage Auctions lot video 16:9
+    Heritage,
+    /// Invaluable auction lot video 16:9
+    Invaluable,
+    /// LiveAuctioneers lot video 16:9
+    Liveauctioneers,
+    /// Catawiki auction lot video 16:9
+    Catawiki,
+    /// StockX seller listing video 16:9
+    Stockx,
+    /// GOAT seller listing video 16:9
+    Goat,
+    /// Poizon (Dewu) seller video 16:9
+    Poizon,
+    /// Stadium Goods consignor video 16:9
+    Stadiumgoods,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6215,6 +6235,12 @@ pub struct RemuxArgs {
     /// targets only)
     #[arg(long = "empty-hdlr-name")]
     pub empty_hdlr_name: bool,
+    /// Drop the edit list (-use_editlist 0 — mp4/mov only: QT7-era
+    /// decks and simple parsers that reject elst atoms play the file
+    /// clean; the b-frame reorder shift then lives only in the
+    /// timestamps, which strict chains prefer)
+    #[arg(long = "no-editlist")]
+    pub no_editlist: bool,
     /// Mid-broadcast FLV capture (-flvflags
     /// no_duration_filesize+no_sequence_end — zero-length duration
     /// metadata and no end marker while the stream is still recording;

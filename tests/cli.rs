@@ -46653,3 +46653,109 @@ fn r354_ptsnames_tsbits_hdlr_flvlive_platforms() {
         assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
     }
 }
+
+#[test]
+fn r355_manifest_noeditlist_probefields_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // split --manifest writes a name,start,end CSV next to the parts
+    let ml = dir.path().join("ml.csv");
+    let j = run_json(&[
+        "split",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("sp_%03d.mp4").to_str().unwrap(),
+        "--every",
+        "0.5",
+        "--manifest",
+        ml.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let csv = std::fs::read_to_string(&ml).unwrap();
+    let row = csv.lines().next().unwrap_or("");
+    assert!(row.contains("sp_000.mp4,0.0"), "manifest row: {row}");
+    assert!(j["extra"]["manifest"].as_bool().unwrap_or(false));
+
+    // --manifest refuses --black (black path writes keeps individually)
+    let out = ffkit()
+        .args([
+            "split",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("bm_%02d.mp4").to_str().unwrap(),
+            "--black",
+            "--manifest",
+            dir.path().join("bm.csv").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--manifest is refused with --black");
+
+    // remux --no-editlist drops the elst atom the default file carries
+    let def = dir.path().join("d.mp4");
+    let j = run_json(&["remux", f.to_str().unwrap(), "-o", def.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok");
+    let ue = dir.path().join("ue.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        ue.to_str().unwrap(),
+        "--no-editlist",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["no_editlist"], true);
+    let d = std::fs::read(&ue).unwrap();
+    assert!(
+        !d.windows(4).any(|w| w == b"elst"),
+        "--no-editlist should drop the elst atom"
+    );
+    // gate: mp4-family only
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("ue2.ts").to_str().unwrap(),
+            "--no-editlist",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--no-editlist is mp4/mov-only");
+
+    // probe streams[]: refs / closed_captions / codec_long_name
+    let j = run_json(&["probe", def.to_str().unwrap()]);
+    let v = &j["probe"]["streams"][0];
+    assert_eq!(
+        v["codec_long_name"],
+        "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10"
+    );
+    assert!(v["refs"].as_u64().is_some(), "refs should read on h264");
+    assert_eq!(v["closed_captions"], false);
+
+    // +8 platforms: collectible/auction-marketplace listings, 16:9 1920x1080
+    for p in [
+        "heritage",
+        "invaluable",
+        "liveauctioneers",
+        "catawiki",
+        "stockx",
+        "goat",
+        "poizon",
+        "stadiumgoods",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
+    }
+}

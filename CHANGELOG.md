@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.382.0] — 2026-09-26
+
+### Added
+
+- `remux --no-editlist` — drop the elst atom (`-use_editlist 0`; QT7-era decks and strict parsers reject edit lists — the b-frame reorder shift stays on timestamps alone; mp4/mov/m4a/m4v only)
+- `split --manifest parts.csv` — write a `name,start,end` CSV index of the parts next to the files (`-segment_list`; works on every split path except `--black`)
+- `probe.streams[].refs` — reference-frame count (encoder-complexity QC)
+- `probe.streams[].closed_captions` — embedded CEA-608/708 captions in the video essence (broadcast-ingest QC)
+- `probe.streams[].codec_long_name` — full readable codec name for manifests/QC labels
+- `deliver --platform` +8 — `heritage`/`invaluable`/`liveauctioneers`/`catawiki`/`stockx`/`goat`/`poizon`/`stadiumgoods` collectible & auction-marketplace listing videos (16:9 1920x1080; 623 platforms)
+
 ## [0.381.0] — 2026-09-26
 
 ### Added

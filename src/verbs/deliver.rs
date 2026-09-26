@@ -781,7 +781,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Flowkey
         | DeliverPlatform::Skoove
         | DeliverPlatform::Musora
-        | DeliverPlatform::Drumeo => (1920, 1080),
+        | DeliverPlatform::Drumeo
+        | DeliverPlatform::Heritage
+        | DeliverPlatform::Invaluable
+        | DeliverPlatform::Liveauctioneers
+        | DeliverPlatform::Catawiki
+        | DeliverPlatform::Stockx
+        | DeliverPlatform::Goat
+        | DeliverPlatform::Poizon
+        | DeliverPlatform::Stadiumgoods => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1564,6 +1572,14 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Skoove => "skoove",
         DeliverPlatform::Musora => "musora",
         DeliverPlatform::Drumeo => "drumeo",
+        DeliverPlatform::Heritage => "heritage",
+        DeliverPlatform::Invaluable => "invaluable",
+        DeliverPlatform::Liveauctioneers => "liveauctioneers",
+        DeliverPlatform::Catawiki => "catawiki",
+        DeliverPlatform::Stockx => "stockx",
+        DeliverPlatform::Goat => "goat",
+        DeliverPlatform::Poizon => "poizon",
+        DeliverPlatform::Stadiumgoods => "stadiumgoods",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

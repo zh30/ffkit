@@ -1001,3 +1001,7 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - `-cc_stream_map` embeds eia-608 captions as an HLS rendition but needs a source that actually carries 608 captions — no .srt/.vtt input converts, and a caption-less source errors at trailer write.
 - `mpegts_flags system_b` shows no SDT byte difference on typical sources; `skip_sidx` and `negative_cts_offsets` produce no byte diff on defaults (sidx isn't written anyway, elst appears either way).
 
+- `hls_flags second_level_segment_duration` and `second_level_segment_size` error on 4.4 ("Cannot allocate memory" at header write) — only `second_level_segment_index` (`hls --seg-index`) works.
+- `-use_editlist 1` doesn't force an elst onto files that wouldn't get one — only the 0 direction (drop it, `remux --no-editlist`) has a byte effect.
+- `-strftime` clock names on the **segment** muxer (`split`) silently overwrite same-second segments — no index slot survives strftime, so clock-named `split` parts collapse; unsafe, not exposed (the HLS muxer handles it fine via `hls --time-names`).
+- `mpegts_flags` `nit`, `omit_rai`, `omit_video_pes_length` don't exist on 4.4 — "Undefined constant" errors (all the TS flags that do exist are shipped or noted).
