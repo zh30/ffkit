@@ -650,7 +650,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Apna
         | DeliverPlatform::Googleads
         | DeliverPlatform::Amazonads
-        | DeliverPlatform::Linkedinads => (1920, 1080),
+        | DeliverPlatform::Linkedinads
+        | DeliverPlatform::Libsyn
+        | DeliverPlatform::Megaphone
+        | DeliverPlatform::Simplecast
+        | DeliverPlatform::Fireside
+        | DeliverPlatform::Blubrry
+        | DeliverPlatform::Audioboom
+        | DeliverPlatform::Omny => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1317,6 +1324,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Amazonads => "amazonads",
         DeliverPlatform::Pinterestads => "pinterestads",
         DeliverPlatform::Linkedinads => "linkedinads",
+        DeliverPlatform::Libsyn => "libsyn",
+        DeliverPlatform::Megaphone => "megaphone",
+        DeliverPlatform::Simplecast => "simplecast",
+        DeliverPlatform::Fireside => "fireside",
+        DeliverPlatform::Blubrry => "blubrry",
+        DeliverPlatform::Audioboom => "audioboom",
+        DeliverPlatform::Omny => "omny",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.369.0] — 2026-09-26
+
+### Added
+
+- `conform --no-audio` — drops the audio track inside the spec pass (`-an` — muted spec packages / silent B-roll deliverables; conflicts with `--ar`/`--channels`/`--lufs`; counted in the nothing-to-conform gate)
+- `chapter --thresh dB` — sets the `--auto` silence floor (default -35 dB — quiet podcasts / ASMR rooms need -45 so their softer pauses still mark chapters; requires `--auto`)
+- `grade --shadows R,B` / `--highlights R,B` — two-zone colour-cast repair on the colorcorrect filter (`rl/bl` shadow + `rh/bh` highlight spots, -1..1 each — lift a cast out of the shadows without cooling the highlights: mixed-lighting WB repair; merges with `--split` into one filter pass)
+- `frames` honours every image2 encoder extension — write `stem_NNN.dpx`/`.exr`/`.j2c`/`.tiff` for VFX/film image sequences (the output extension picks dpx/jpeg2000/exr automatically)
+- `deliver --platform` +7 podcast-host targets: `libsyn`/`megaphone`/`simplecast`/`fireside`/`blubrry`/`audioboom`/`omny` video uploads — 16:9 1920x1080
+
 ## [0.368.0] — 2026-09-26
 
 ### Added

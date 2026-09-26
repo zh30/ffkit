@@ -2731,6 +2731,20 @@ pub enum DeliverPlatform {
     Pinterestads,
     /// LinkedIn video ad creatives
     Linkedinads,
+    /// Libsyn podcast host video uploads
+    Libsyn,
+    /// Megaphone podcast host video uploads
+    Megaphone,
+    /// Simplecast podcast host video uploads
+    Simplecast,
+    /// Fireside podcast host video uploads
+    Fireside,
+    /// Blubrry podcast host video uploads
+    Blubrry,
+    /// Audioboom podcast host video uploads
+    Audioboom,
+    /// Omny Studio podcast host video uploads
+    Omny,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5016,6 +5030,14 @@ pub struct GradeArgs {
     /// blockbuster grade); negative flips to warm shadows / cool highlights
     #[arg(long, allow_hyphen_values = true)]
     pub split: Option<f64>,
+    /// Shadow-zone colour spots R,B (-1..1 each — pull a cast out of the
+    /// shadows without cooling the highlights: mixed-lighting WB repair)
+    #[arg(long, allow_hyphen_values = true)]
+    pub shadows: Option<String>,
+    /// Highlight-zone colour spots R,B (-1..1 each — rh/bh of the same
+    /// two-zone repair; pairs with --shadows)
+    #[arg(long, allow_hyphen_values = true)]
+    pub highlights: Option<String>,
     /// Freeform master curve points "x/y x/y" (curves master): S-curve
     /// "0/0 0.25/0.18 0.75/0.82 1/1", matte "0/0.08 1/0.92"
     #[arg(long)]
@@ -7021,6 +7043,10 @@ pub struct ConformArgs {
     /// specs that lock the mp4 clock; mp4/mov targets only)
     #[arg(long)]
     pub timescale: Option<u32>,
+    /// Drop the audio track entirely (-an — muted spec packages / silent
+    /// B-roll deliverables; conflicts with --ar/--channels/--lufs)
+    #[arg(long)]
+    pub no_audio: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -8038,6 +8064,10 @@ pub struct ChapterArgs {
     /// NTSC EDLs; PAL exchange is 25)
     #[arg(long)]
     pub fps: Option<f64>,
+    /// Silence threshold for --auto in dB (default -35 — quiet podcasts /
+    /// ASMR rooms need -45 so their softer pauses still mark chapters)
+    #[arg(long, allow_hyphen_values = true)]
+    pub thresh: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

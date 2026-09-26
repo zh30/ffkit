@@ -522,9 +522,25 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("chapter --scenes needs a video input"));
         }
     }
+    if args.thresh.is_some() && args.auto.is_none() {
+        return Err(Error::input(
+            "--thresh only applies to --auto silence detection",
+        ));
+    }
+    if let Some(t) = args.thresh {
+        if !(-80.0..=-5.0).contains(&t) {
+            return Err(Error::input("--thresh must be -80..-5 dB (e.g. -45)"));
+        }
+    }
     let mut marks: Vec<(f64, String)> = Vec::new();
     if let Some(min_gap) = args.auto {
-        let silences = crate::silence::detect(&args.input, -35.0, min_gap, g.timeout, true)?;
+        let silences = crate::silence::detect(
+            &args.input,
+            args.thresh.unwrap_or(-35.0),
+            min_gap,
+            g.timeout,
+            true,
+        )?;
         for (i, (_s, e)) in silences.iter().enumerate() {
             let t = *e;
             if t < probe.duration - 0.2 {

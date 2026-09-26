@@ -43865,3 +43865,177 @@ fn r341_latm_m2ts_segindex_snap_noaudio_adplatforms() {
         assert_eq!(pj["probe"]["width"], w, "{p}: {pj}");
     }
 }
+
+#[test]
+fn r342_shadows_noaudio_thresh_dpx_podcast() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // grade --shadows/--highlights — two-zone colour spots (colorcorrect)
+    let o = dir.path().join("r342-spots.mp4");
+    let j = run_json(&[
+        "grade",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--shadows",
+        "0.2,-0.15",
+        "--highlights",
+        "-0.1,0.2",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["has_video"], true, "{pj}");
+    let out = ffkit()
+        .args([
+            "grade",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r342-x.mp4").to_str().unwrap(),
+            "--shadows",
+            "0.2",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // conform --no-audio drops the track inside the spec pass
+    let o = dir.path().join("r342-mute.mp4");
+    let j = run_json(&[
+        "conform",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--no-audio",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["no_audio"], true, "{j}");
+    let pj = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["has_audio"], false, "{pj}");
+    assert_eq!(pj["probe"]["has_video"], true, "{pj}");
+    let out = ffkit()
+        .args([
+            "conform",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r342-x.mp4").to_str().unwrap(),
+            "--no-audio",
+            "--lufs",
+            "-14",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // chapter --thresh: the quiet gap is silence at the default -35 but
+    // slips under a -60 floor (a stricter detect finds fewer marks)
+    let gap = dir.path().join("r342-gap.m4a");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=3,volume='if(between(t,0.8,1.8),0.01,1)':eval=frame",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&gap)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let marks = dir.path().join("r342-marks.ffmeta");
+    let j = run_json(&[
+        "chapter",
+        gap.to_str().unwrap(),
+        "-o",
+        marks.to_str().unwrap(),
+        "--auto",
+        "0.3",
+        "--export",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let body = std::fs::read_to_string(&marks).unwrap();
+    assert!(
+        body.contains("Part 2"),
+        "default -35 should catch the -40dB gap: {body}"
+    );
+    let marks2 = dir.path().join("r342-marks2.ffmeta");
+    let j = run_json(&[
+        "chapter",
+        gap.to_str().unwrap(),
+        "-o",
+        marks2.to_str().unwrap(),
+        "--auto",
+        "0.3",
+        "--thresh",
+        "-60",
+        "--export",
+    ]);
+    assert_eq!(j["status"], "failed", "-60 thresh should miss the gap: {j}");
+    assert!(
+        j["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("found no marks"),
+        "{j}"
+    );
+    let out = ffkit()
+        .args([
+            "chapter",
+            gap.to_str().unwrap(),
+            "-o",
+            dir.path().join("r342-x.ffmeta").to_str().unwrap(),
+            "--thresh",
+            "-60",
+            "--export",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--thresh without --auto must refuse");
+    // frames — .dpx extension infers the DPX encoder for VFX image sequences
+    let o = dir.path().join("r342-seq.dpx");
+    let j = run_json(&["frames", f.to_str().unwrap(), "-o", o.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let dpx = dir.path().join("r342-seq_001.dpx");
+    assert!(dpx.is_file(), "expected r342-seq_001.dpx");
+    let pf = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_name",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(&dpx)
+        .output()
+        .unwrap();
+    let codec = String::from_utf8_lossy(&pf.stdout);
+    assert_eq!(codec.trim(), "dpx", "{codec}");
+    // +7 podcast-host targets — all 16:9 1920x1080
+    for (p, w) in [
+        ("libsyn", 1920),
+        ("megaphone", 1920),
+        ("simplecast", 1920),
+        ("fireside", 1920),
+        ("blubrry", 1920),
+        ("audioboom", 1920),
+        ("omny", 1920),
+    ] {
+        let o = dir.path().join(format!("ph-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], w, "{p}: {pj}");
+    }
+}

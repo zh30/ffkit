@@ -70,10 +70,24 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         && args.bf.is_none()
         && args.rotate.is_none()
         && args.timescale.is_none()
+        && !args.no_audio
     {
         return Err(Error::input(
-            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf, --rotate DEG, --timescale N",
+            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf, --rotate DEG, --timescale N, --no-audio",
         ));
+    }
+    if args.no_audio {
+        if !has_audio {
+            return Err(Error::input("--no-audio: input has no audio to drop"));
+        }
+        if !has_video {
+            return Err(Error::input("--no-audio needs a video stream to keep"));
+        }
+        if args.ar.is_some() || args.channels.is_some() || args.lufs.is_some() {
+            return Err(Error::input(
+                "--no-audio conflicts with --ar / --channels / --lufs",
+            ));
+        }
     }
     if let Some(ts) = args.timescale {
         let ext = args
@@ -221,7 +235,12 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     if let Some(ai) = prog_audio {
-        argv.extend(["-map".to_string(), format!("0:{ai}")]);
+        if !args.no_audio {
+            argv.extend(["-map".to_string(), format!("0:{ai}")]);
+        }
+    }
+    if args.no_audio {
+        argv.push("-an");
     }
     if has_video {
         if let Some(fc) = blur_fc {
@@ -268,7 +287,7 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--crf must be 0..=51"));
         }
     }
-    if has_audio {
+    if has_audio && !args.no_audio {
         // loudnorm upsamples internally — resample back AFTER it.
         // --ar overrides the broadcast-48k default (44100 podcasts, 96000 masters)
         let rate = args.ar.unwrap_or(48000);
@@ -317,6 +336,7 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         "hold_start": args.hold_start,
         "ar": args.ar,
         "channels": args.channels,
+        "no_audio": args.no_audio,
         "program": args.program,
         "profile": args.profile.as_ref().map(|p| crate::verbs::transcode::transcode_profile_name(*p)),
         "level": args.level,

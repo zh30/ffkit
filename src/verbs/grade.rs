@@ -154,10 +154,46 @@ pub fn run(args: GradeArgs, g: &Globals) -> Result<Contract, Error> {
         }
         vf.push_str(&format!(",curves=master='{pts}'"));
     }
+    let spot = |s: &str, flag: &str| -> Result<(f64, f64), Error> {
+        let mut it = s.split(',');
+        let (r, b) = (
+            it.next()
+                .and_then(|v| v.trim().parse::<f64>().ok())
+                .ok_or_else(|| {
+                    Error::input(format!("{flag} needs R,B spots like \"0.2,-0.15\""))
+                })?,
+            it.next()
+                .and_then(|v| v.trim().parse::<f64>().ok())
+                .ok_or_else(|| {
+                    Error::input(format!("{flag} needs R,B spots like \"0.2,-0.15\""))
+                })?,
+        );
+        if it.next().is_some() {
+            return Err(Error::input(format!("{flag} takes exactly R,B")));
+        }
+        Ok((r.clamp(-1.0, 1.0), b.clamp(-1.0, 1.0)))
+    };
+    let (mut rl, mut bl, mut rh, mut bh) = (0.0, 0.0, 0.0, 0.0);
     if let Some(sp) = args.split {
         let sp = sp.clamp(-1.0, 1.0);
         // teal shadows + orange highlights; negative flips the pair
-        vf.push_str(&format!(",colorcorrect=bl={:.3}:rh={:.3}", sp, sp * 0.7));
+        bl += sp;
+        rh += sp * 0.7;
+    }
+    if let Some(s) = &args.shadows {
+        let (r, b) = spot(s, "--shadows")?;
+        rl += r;
+        bl += b;
+    }
+    if let Some(h) = &args.highlights {
+        let (r, b) = spot(h, "--highlights")?;
+        rh += r;
+        bh += b;
+    }
+    if rl != 0.0 || bl != 0.0 || rh != 0.0 || bh != 0.0 {
+        vf.push_str(&format!(
+            ",colorcorrect=rl={rl:.3}:bl={bl:.3}:rh={rh:.3}:bh={bh:.3}"
+        ));
     }
     if args.grain > 0.0 {
         vf.push_str(&format!(",noise=alls={}:allf=t+u", args.grain.min(30.0)));
