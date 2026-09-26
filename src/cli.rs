@@ -1676,6 +1676,11 @@ pub struct DeliverArgs {
     /// video packs only)
     #[arg(long)]
     pub timescale: Option<u32>,
+    /// Force a colr atom into the mp4 master (+write_colr — platform QC
+    /// that requires the atom even when color metadata is unspecified;
+    /// not for --to streaming)
+    #[arg(long)]
+    pub colr: bool,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -2773,6 +2778,20 @@ pub enum DeliverPlatform {
     Edpuzzle,
     /// PlayPosit interactive lesson videos
     Playposit,
+    /// Frame.io review-and-approve video uploads
+    Frameio,
+    /// Wipster video review uploads
+    Wipster,
+    /// Filestage creative review uploads
+    Filestage,
+    /// Ziflow marketing asset review uploads
+    Ziflow,
+    /// iconik media-asset-manager uploads
+    Iconik,
+    /// Latakoo broadcast field-upload video
+    Latakoo,
+    /// Wiredrive creative-showcase video
+    Wiredrive,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5884,6 +5903,22 @@ pub struct RemuxArgs {
     /// reproducibility / dedupe QC)
     #[arg(long)]
     pub bitexact: bool,
+    /// Second container written in the same pass via the tee muxer (e.g.
+    /// social .mp4 + broadcast .ts from one repack — the same streams land
+    /// in both outputs; mp4/mov/ts/m2ts/flv for video inputs, mp3/wav/aac/
+    /// flac/ogg/m4a for audio-only; mkv/webm can't be tee slaves)
+    #[arg(long)]
+    pub also: Option<PathBuf>,
+    /// Force a colr atom into mp4-family masters (-movflags +write_colr —
+    /// platform QC that requires the atom even when color metadata is
+    /// unspecified; mp4/mov/m4a targets only)
+    #[arg(long)]
+    pub colr: bool,
+    /// Write a Producer Reference Time box per fragment (-write_prft —
+    /// LL-DASH/CMAF ingest latency measurement; needs --frag; mp4/mov
+    /// targets only)
+    #[arg(long)]
+    pub prft: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -7104,6 +7139,11 @@ pub struct ConformArgs {
     /// file *shows* the shape; applied after --sar when both are given)
     #[arg(long)]
     pub dar: Option<String>,
+    /// Force a colr atom into mp4-family spec masters (-movflags +write_colr
+    /// — platform QC that requires the atom even when color metadata is
+    /// unspecified; mp4/mov/m4a targets only)
+    #[arg(long)]
+    pub colr: bool,
 }
 
 #[derive(clap::Args, Debug)]

@@ -394,11 +394,16 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
-    if (args.cmaf || args.mdta || args.skip_trailer || args.isml || args.rtphint)
-        && !matches!(ext.as_str(), "mp4" | "m4v" | "mov")
+    if (args.cmaf || args.mdta || args.skip_trailer || args.isml || args.rtphint || args.colr)
+        && !matches!(ext.as_str(), "mp4" | "m4v" | "m4a" | "mov")
     {
         return Err(Error::input(
-            "remux --cmaf/--mdta/--skip-trailer/--isml/--rtphint are mov/mp4 muxer flags — mp4/mov targets only",
+            "remux --cmaf/--mdta/--skip-trailer/--isml/--rtphint/--colr are mov/mp4 muxer flags — mp4/mov/m4a targets only",
+        ));
+    }
+    if args.prft && !args.frag {
+        return Err(Error::input(
+            "remux --prft stamps a producer-reference time on each fragment — needs --frag",
         ));
     }
     if args.skip_trailer && !args.frag {
@@ -406,6 +411,88 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --skip-trailer only drops the mfra trailer of a fragmented mp4 — needs --frag",
         ));
     }
+    // --also: the tee muxer writes the same mapped streams to a second
+    // container in the same pass (social .mp4 + broadcast .ts). Slaves
+    // share the encode but each pick their own format — and any flag that
+    // targets one container family can't run in a cross-family pass.
+    let also = if let Some(a) = &args.also {
+        let aext = a
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        let tee_fmt = |e: &str| -> Option<&'static str> {
+            Some(match e {
+                "mp4" | "m4v" | "m4a" => "mp4",
+                "mov" => "mov",
+                "ts" | "m2ts" => "mpegts",
+                "flv" => "flv",
+                "mp3" => "mp3",
+                "wav" => "wav",
+                "aac" => "adts",
+                "flac" => "flac",
+                "ogg" => "ogg",
+                _ => return None,
+            })
+        };
+        let f1 = tee_fmt(&ext).ok_or_else(|| {
+            Error::input(format!(
+                "remux --also: .{ext} can't be a tee output (mkv/webm can't be tee slaves) — pick mp4/mov/ts/m2ts/flv"
+            ))
+        })?;
+        let f2 = tee_fmt(&aext).ok_or_else(|| {
+            Error::input(format!(
+                "remux --also: .{aext} can't be a tee second output (mkv/webm can't be tee slaves) — pick mp4/mov/ts/m2ts/flv"
+            ))
+        })?;
+        if probe.has_video && matches!(aext.as_str(), "mp3" | "wav" | "aac" | "flac" | "ogg") {
+            return Err(Error::input(
+                "remux --also: the video can't land in an audio container — pick mp4/mov/ts/m2ts/flv",
+            ));
+        }
+        let picks_streams = !keep.is_empty() || !drop.is_empty();
+        if (probe.has_subs && !args.no_subs && !picks_streams)
+            || (probe.has_data && !args.no_data && !picks_streams)
+            || (probe.has_attachment && !args.no_attachments && !picks_streams)
+        {
+            return Err(Error::input(
+                "remux --also: subtitle/data/attachment streams can't land in every output — strip them first (--no-subs/--no-data/--no-attachments/--drop/--keep)",
+            ));
+        }
+        if args.frag
+            || args.prft
+            || args.colr
+            || args.timescale.is_some()
+            || args.timecode.is_some()
+            || args.program.is_some()
+            || args.service_name.is_some()
+            || args.provider.is_some()
+            || args.service_id.is_some()
+            || args.tsid.is_some()
+            || args.network_id.is_some()
+            || args.start_pid.is_some()
+            || args.pmt_pid.is_some()
+            || args.resend_headers
+            || args.latm
+            || args.m2ts
+            || args.muxrate.is_some()
+            || args.cmaf
+            || args.mdta
+            || args.skip_trailer
+            || args.isml
+            || args.rtphint
+            || args.brand.is_some()
+            || args.bitexact
+            || args.encrypt
+        {
+            return Err(Error::input(
+                "remux --also shares one pass between two outputs — container-family flags can't target both (frag/prft/colr/timescale/timecode/program/service-*/tsid/network-id/*-pid/muxrate/movflags/brand/bitexact/encrypt); run a second pass for those",
+            ));
+        }
+        Some((f1, f2, a, aext))
+    } else {
+        None
+    };
     if args.no_data {
         if !keep.is_empty() || !drop.is_empty() {
             return Err(Error::input(
@@ -1247,6 +1334,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         }
         // fragmented moov — the file plays/streamable while still being written
         argv.extend(["-movflags", "frag_keyframe+empty_moov+default_base_moof"]);
+        if args.prft {
+            // producer-reference-time box per fragment — LL-DASH/CMAF
+            // latency measurement on ingest
+            argv.extend(["-write_prft", "1"]);
+        }
     } else if matches!(ext.as_str(), "mp4" | "m4a" | "mov") {
         argv.extend(["-movflags", "+faststart"]);
     }
@@ -1381,6 +1473,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if args.rtphint {
             mf.push_str("+rtphint");
         }
+        if args.colr {
+            mf.push_str("+write_colr");
+        }
         if !mf.is_empty() {
             argv.extend(["-movflags".to_string(), mf]);
         }
@@ -1391,7 +1486,21 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if args.no_chapters {
         argv.extend(["-map_chapters", "-1"]);
     }
-    argv.push(&args.output);
+    if let Some((f1, f2, a, aext)) = &also {
+        let m2ts_opt = if aext == "m2ts" {
+            ":mpegts_m2ts_mode=1"
+        } else {
+            ""
+        };
+        argv.extend(["-f".to_string(), "tee".to_string()]);
+        argv.push(format!(
+            "[f={f1}]{}|[f={f2}{m2ts_opt}]{}",
+            args.output.display(),
+            a.display()
+        ));
+    } else {
+        argv.push(&args.output);
+    }
 
     let run = engine::write_job("remux", &[&args.input], &args.output, vec![argv], g);
     if let Some(tmp) = &chap_file {
@@ -1415,6 +1524,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["isml"] = json!(args.isml);
     extra["rtphint"] = json!(args.rtphint);
     extra["bitexact"] = json!(args.bitexact);
+    extra["also"] = json!(args.also.as_ref().map(|p| crate::paths::display(p)));
+    extra["colr"] = json!(args.colr);
+    extra["prft"] = json!(args.prft);
     if let Some((key, kid)) = enc_kv {
         extra["encrypted"] = json!(true);
         extra["key"] = json!(key);

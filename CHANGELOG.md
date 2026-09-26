@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.372.0] — 2026-09-26
+
+### Added
+
+- `remux --also FILE` — second container written in the same pass via the tee muxer (the social .mp4 + a broadcast .ts / archive .mkv-substitute in one repack; mp4/mov/ts/m2ts/flv slaves for video sources, mp3/wav/aac/flac/ogg/m4a on audio-only — mkv/webm can't be tee slaves on 4.4, and container-family flags that would forward to both slaves are refused up front)
+- `remux --colr` — force a `colr` atom into mp4-family masters (`-movflags +write_colr` — platform QC that requires the atom even when the colour metadata is fully unspecified)
+- `remux --prft` — Producer Reference Time box per fragment (`-write_prft 1`, LL-DASH/CMAF ingest latency measurement; needs `--frag` — the dash muxer's own `write_prft` is a dead flag on 4.4)
+- `conform --colr` + `deliver --colr` — the same forced `colr` atom on the spec pass and the platform pack (`--to` streams have no container to tag — refused)
+- `deliver --platform` +7 review-approval / MAM targets: `frameio`, `wipster`, `filestage`, `ziflow` (review-and-approval platforms) and `iconik`, `latakoo`, `wiredrive` (media-asset-management / broadcast delivery) — all 16:9 1920x1080 → 545 platforms
+
 ## [0.371.0] — 2026-09-26
 
 ### Added

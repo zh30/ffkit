@@ -671,7 +671,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Warpwire
         | DeliverPlatform::Ensemblevideo
         | DeliverPlatform::Edpuzzle
-        | DeliverPlatform::Playposit => (1920, 1080),
+        | DeliverPlatform::Playposit
+        | DeliverPlatform::Frameio
+        | DeliverPlatform::Wipster
+        | DeliverPlatform::Filestage
+        | DeliverPlatform::Ziflow
+        | DeliverPlatform::Iconik
+        | DeliverPlatform::Latakoo
+        | DeliverPlatform::Wiredrive => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -874,8 +881,17 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             "deliver --bufsize pairs with --maxrate (a buffer alone isn't a rate cap)",
         ));
     }
+    if args.colr && args.to.is_some() {
+        return Err(Error::input(
+            "deliver --colr tags an mp4 box — nothing to tag on a --to stream",
+        ));
+    }
     if args.to.is_none() {
-        apply.extend(["-movflags", "+faststart"]);
+        let mut mf = "+faststart".to_string();
+        if args.colr {
+            mf.push_str("+write_colr");
+        }
+        apply.extend(["-movflags", &mf]);
     }
     if let Some(ts) = args.timescale {
         apply.extend(["-video_track_timescale", &ts.to_string()]);
@@ -1033,6 +1049,7 @@ fn finish(
         "outro": args.outro.is_some(),
         "logo": args.logo.is_some(),
         "chapters": chapters,
+        "colr": args.colr,
     }))
 }
 
@@ -1359,6 +1376,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Ensemblevideo => "ensemblevideo",
         DeliverPlatform::Edpuzzle => "edpuzzle",
         DeliverPlatform::Playposit => "playposit",
+        DeliverPlatform::Frameio => "frameio",
+        DeliverPlatform::Wipster => "wipster",
+        DeliverPlatform::Filestage => "filestage",
+        DeliverPlatform::Ziflow => "ziflow",
+        DeliverPlatform::Iconik => "iconik",
+        DeliverPlatform::Latakoo => "latakoo",
+        DeliverPlatform::Wiredrive => "wiredrive",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

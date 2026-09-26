@@ -44307,3 +44307,126 @@ fn r344_conform_aspect_meta_media_subs_psb_jss_edu() {
         assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
     }
 }
+
+#[test]
+fn r345_remux_also_colr_prft_review_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // remux --also — the tee muxer writes the same mapped streams to a
+    // second container in the same pass (social .mp4 + broadcast .ts)
+    let mp4 = dir.path().join("r345-a.mp4");
+    let ts = dir.path().join("r345-a.ts");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        mp4.to_str().unwrap(),
+        "--also",
+        ts.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["also"], ts.to_str().unwrap(), "{j}");
+    for o in [&mp4, &ts] {
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        let codecs: Vec<&str> = pj["probe"]["streams"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s["codec"].as_str().unwrap_or(""))
+            .collect();
+        assert!(
+            codecs.contains(&"h264") && codecs.contains(&"aac"),
+            "{o:?}: {pj}"
+        );
+    }
+    // refused: mkv can't be a tee slave; the video can't land in an audio
+    // container; container-family flags can't target both outputs
+    let xmp4 = dir.path().join("x.mp4");
+    let xmkv = dir.path().join("x.mkv");
+    let xmp3 = dir.path().join("x.mp3");
+    let xts = dir.path().join("x.ts");
+    for extra in [
+        vec!["--also", xmkv.to_str().unwrap()],
+        vec!["--also", xmp3.to_str().unwrap()],
+        vec!["--also", xts.to_str().unwrap(), "--frag"],
+        vec!["--prft"],
+    ] {
+        let mut a = vec!["remux", f.to_str().unwrap(), "-o", xmp4.to_str().unwrap()];
+        a.extend(extra);
+        let out = ffkit().args(&a).output().unwrap();
+        assert!(!out.status.success(), "{a:?}");
+    }
+    // remux --colr — a colr box lands even on untagged masters (platform
+    // QC that requires the atom regardless of color metadata)
+    let co = dir.path().join("r345-colr.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        co.to_str().unwrap(),
+        "--colr",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let d = std::fs::read(&co).unwrap();
+    assert!(d.windows(4).any(|w| w == b"colr"), "no colr box");
+    // remux --prft — producer-reference-time box per fragment (LL-DASH /
+    // CMAF ingest latency measurement); needs --frag
+    let po = dir.path().join("r345-prft.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        po.to_str().unwrap(),
+        "--frag",
+        "--prft",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let d = std::fs::read(&po).unwrap();
+    assert!(d.windows(4).any(|w| w == b"prft"), "no prft box");
+    // conform/deliver --colr — the same atom on the spec/delivery passes
+    let cc = dir.path().join("r345-conf.mp4");
+    let j = run_json(&[
+        "conform",
+        f.to_str().unwrap(),
+        "-o",
+        cc.to_str().unwrap(),
+        "--colr",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let d = std::fs::read(&cc).unwrap();
+    assert!(d.windows(4).any(|w| w == b"colr"), "conform: no colr box");
+    let dc = dir.path().join("r345-del.mp4");
+    let j = run_json(&[
+        "deliver",
+        f.to_str().unwrap(),
+        "-o",
+        dc.to_str().unwrap(),
+        "--colr",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let d = std::fs::read(&dc).unwrap();
+    assert!(d.windows(4).any(|w| w == b"colr"), "deliver: no colr box");
+    // +7 review/MAM targets — all 16:9 1920x1080
+    for p in [
+        "frameio",
+        "wipster",
+        "filestage",
+        "ziflow",
+        "iconik",
+        "latakoo",
+        "wiredrive",
+    ] {
+        let o = dir.path().join(format!("r345-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
+    }
+}

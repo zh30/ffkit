@@ -73,9 +73,10 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         && !args.no_audio
         && args.sar.is_none()
         && args.dar.is_none()
+        && !args.colr
     {
         return Err(Error::input(
-            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf, --rotate DEG, --timescale N, --no-audio, --sar/--dar N:D",
+            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf, --rotate DEG, --timescale N, --no-audio, --sar/--dar N:D, --colr",
         ));
     }
     if args.no_audio {
@@ -106,20 +107,22 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         }
         Ok(frac)
     };
-    if let Some(ts) = args.timescale {
+    if args.timescale.is_some() || args.colr {
         let ext = args
             .output
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or_default()
             .to_lowercase();
-        if !matches!(ext.as_str(), "mp4" | "m4v" | "mov") {
+        if !matches!(ext.as_str(), "mp4" | "m4v" | "m4a" | "mov") {
             return Err(Error::input(
-                "conform --timescale pins the mp4 video clock — .mp4/.m4v/.mov targets only",
+                "conform --timescale/--colr write mp4-family boxes — .mp4/.m4v/.m4a/.mov targets only",
             ));
         }
-        if ts == 0 {
-            return Err(Error::input("conform --timescale must be >= 1"));
+        if let Some(ts) = args.timescale {
+            if ts == 0 {
+                return Err(Error::input("conform --timescale must be >= 1"));
+            }
         }
     }
     if let Some(r) = args.ar {
@@ -347,6 +350,11 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(ts) = args.timescale {
         argv.extend(["-video_track_timescale".to_string(), ts.to_string()]);
     }
+    if args.colr {
+        // platform QC that insists the colr box exists even when the
+        // color metadata is fully unspecified
+        argv.extend(["-movflags".to_string(), "+write_colr".to_string()]);
+    }
     argv.push(args.output.display().to_string());
 
     let inputs: Vec<&Path> = vec![&args.input];
@@ -369,6 +377,7 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         "timescale": args.timescale,
         "sar": args.sar,
         "dar": args.dar,
+        "colr": args.colr,
     }));
     Ok(c)
 }
