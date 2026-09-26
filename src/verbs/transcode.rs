@@ -462,6 +462,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Ivf => qt_era(&args, g, "libvpx-vp9", &["ivf"], None, None),
         TranscodePreset::Gxf => gxf(&args, g),
         TranscodePreset::Wtv => qt_era(&args, g, "mpeg2video", &["wtv"], None, Some("mp2")),
+        TranscodePreset::Smjpeg => qt_era(&args, g, "mjpeg", &["smjpg"], None, Some("pcm_s16le")),
         TranscodePreset::Raw => lossless(&args, g, "rawvideo", &["avi", "mkv"], None),
     }
 }
@@ -2224,6 +2225,10 @@ fn qt_era(
     }
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
+    }
+    // smjpeg declares no extension mapping — .smjpg needs -f
+    if ext == "smjpg" {
+        argv.extend(["-f", "smjpeg"]);
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;

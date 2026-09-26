@@ -42923,3 +42923,110 @@ fn r334_gxf_wtv_hlsflags_channels_timescale_platforms() {
         assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
     }
 }
+
+#[test]
+fn r335_smjpeg_service_meta_conform_timescale_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // smjpeg — mjpeg + pcm_s16le in .smjpg (needs -f smjpeg, ext unmapped)
+    let o = dir.path().join("r335.smjpg");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "smjpeg",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["vcodec"], "mjpeg", "{j}");
+    assert_eq!(j["probe"]["acodec"], "pcm_s16le", "{j}");
+    // wrong target refuses
+    let out = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            "smjpeg",
+            "-o",
+            dir.path().join("r335-x.avi").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // remux service metadata — SDT labels + PAT program number land
+    let o = dir.path().join("r335.ts");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--service-name",
+        "Channel7",
+        "--provider",
+        "Net7",
+        "--service-id",
+        "4",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    let p = &j["probe"]["programs"][0];
+    assert_eq!(p["num"], 4, "{p}");
+    assert_eq!(p["service_name"], "Channel7", "{p}");
+    assert_eq!(p["service_provider"], "Net7", "{p}");
+    // service flags on mp4 refuse
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r335-x.mp4").to_str().unwrap(),
+            "--service-name",
+            "X",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // conform --timescale pins the mp4 video clock
+    let o = dir.path().join("r335-cf.mp4");
+    let j = run_json(&[
+        "conform",
+        f.to_str().unwrap(),
+        "--timescale",
+        "90000",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["streams"][0]["time_base"], "1/90000", "{j}");
+    // non-mp4 target refuses
+    let out = ffkit()
+        .args([
+            "conform",
+            f.to_str().unwrap(),
+            "--timescale",
+            "90000",
+            "-o",
+            dir.path().join("r335-x.mkv").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // sports-league platforms — 16:9 1920x1080
+    for p in ["pga", "atp", "wta", "icc", "f1", "motogp", "nascar"] {
+        let o = dir.path().join(format!("r335-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
+    }
+}

@@ -69,10 +69,27 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         && args.level.is_none()
         && args.bf.is_none()
         && args.rotate.is_none()
+        && args.timescale.is_none()
     {
         return Err(Error::input(
-            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf, --rotate DEG",
+            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf, --rotate DEG, --timescale N",
         ));
+    }
+    if let Some(ts) = args.timescale {
+        let ext = args
+            .output
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or_default()
+            .to_lowercase();
+        if !matches!(ext.as_str(), "mp4" | "m4v" | "mov") {
+            return Err(Error::input(
+                "conform --timescale pins the mp4 video clock — .mp4/.m4v/.mov targets only",
+            ));
+        }
+        if ts == 0 {
+            return Err(Error::input("conform --timescale must be >= 1"));
+        }
     }
     if let Some(r) = args.ar {
         if !(8000..=192000).contains(&r) {
@@ -283,6 +300,9 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
             "192k".to_string(),
         ]);
     }
+    if let Some(ts) = args.timescale {
+        argv.extend(["-video_track_timescale".to_string(), ts.to_string()]);
+    }
     argv.push(args.output.display().to_string());
 
     let inputs: Vec<&Path> = vec![&args.input];
@@ -301,6 +321,7 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         "profile": args.profile.as_ref().map(|p| crate::verbs::transcode::transcode_profile_name(*p)),
         "level": args.level,
         "bf": args.bf,
+        "timescale": args.timescale,
     }));
     Ok(c)
 }

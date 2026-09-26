@@ -173,7 +173,7 @@ pub enum Cmd {
     Tempo(TempoArgs),
     Silence(SilenceArgs),
     Vocal(VocalArgs),
-    Remux(RemuxArgs),
+    Remux(Box<RemuxArgs>),
     Meme(MemeArgs),
     Voice(VoiceArgs),
     Deinterlace(DeinterlaceArgs),
@@ -1553,6 +1553,9 @@ pub enum TranscodePreset {
     /// MPEG-2 + MP2 in .wtv — Windows Media Center recordings
     /// (WMC-era TV archives playable on Windows Media Player)
     Wtv,
+    /// MJPEG + PCM in .smjpg — Loki/SDL-game video
+    /// (smpeg-era open-source game FMV)
+    Smjpeg,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2616,6 +2619,20 @@ pub enum DeliverPlatform {
     Skybet,
     /// Paddy Power promo video (IE/UK)
     Paddypower,
+    /// PGA Tour golf highlights (global)
+    Pga,
+    /// ATP tennis tour highlights (global)
+    Atp,
+    /// WTA tennis tour highlights (global)
+    Wta,
+    /// ICC cricket highlights (global)
+    Icc,
+    /// Formula 1 highlights (global)
+    F1,
+    /// MotoGP motorcycle-racing highlights (global)
+    Motogp,
+    /// NASCAR stock-car highlights (US)
+    Nascar,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5632,6 +5649,26 @@ pub struct RemuxArgs {
     /// service at once; conflicts with the stream-pick flags)
     #[arg(long)]
     pub program: Option<u32>,
+    /// Service name in the .ts SDT table (-metadata service_name —
+    /// the channel label broadcast/IPTV ingest reads; .ts/.m2ts only)
+    #[arg(long)]
+    pub service_name: Option<String>,
+    /// Service provider in the .ts SDT table (-metadata
+    /// service_provider — the network label; .ts/.m2ts only)
+    #[arg(long)]
+    pub provider: Option<String>,
+    /// Service ID in the .ts PAT (-mpegts_service_id — the program
+    /// number the service lists under; .ts/.m2ts only)
+    #[arg(long)]
+    pub service_id: Option<u32>,
+    /// Transport stream ID (-mpegts_transport_stream_id — multiplex
+    /// identity for DVB ingest; .ts/.m2ts only)
+    #[arg(long)]
+    pub tsid: Option<u32>,
+    /// Original network ID (-mpegts_original_network_id — network
+    /// identity for DVB ingest; .ts/.m2ts only)
+    #[arg(long)]
+    pub network_id: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6783,6 +6820,10 @@ pub struct ConformArgs {
     /// portrait phone footage → landscape spec in one encode)
     #[arg(long)]
     pub rotate: Option<u32>,
+    /// Pin the video track timescale (-video_track_timescale N — ingest
+    /// specs that lock the mp4 clock; mp4/mov targets only)
+    #[arg(long)]
+    pub timescale: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.362.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset smjpeg` — MJPEG + PCM Loki/SDL-game FMV in `.smjpg` (smpeg-era open-source engine video; emits `-f smjpeg` since the muxer maps no extension)
+- `remux --service-name X`/`--provider Y`/`--service-id N`/`--tsid N`/`--network-id N` — transport-stream SI metadata on `.ts`/`.m2ts` targets (DVB/IPTV ingest: SDT channel+network labels, PAT program number, multiplex IDs — `probe.programs[]` reads name/provider/id back)
+- `conform --timescale N` — pin the mp4 video-track timescale on the spec pass (mp4/mov targets — ingest specs that lock the movie clock; parity with `deliver`/`remux`)
+- `probe.programs[]` `service_provider` — the SDT network label round-trips alongside `service_name`
+- `deliver --platform` +7: pga, atp, wta, icc, f1, motogp, nascar (sports-league + motorsport highlight posts; 16:9 1920x1080 — 475 targets)
+
 ## [0.361.0] — 2026-09-25
 
 ### Added

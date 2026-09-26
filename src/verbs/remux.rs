@@ -369,6 +369,17 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --muxrate is a transport-stream option — .ts/.m2ts targets only",
         ));
     }
+    if (args.service_name.is_some()
+        || args.provider.is_some()
+        || args.service_id.is_some()
+        || args.tsid.is_some()
+        || args.network_id.is_some())
+        && !matches!(ext.as_str(), "ts" | "m2ts" | "mts")
+    {
+        return Err(Error::input(
+            "remux service metadata (--service-name/--provider/--service-id/--tsid/--network-id) writes transport-stream SI tables — .ts/.m2ts targets only",
+        ));
+    }
     if args.no_data {
         if !keep.is_empty() || !drop.is_empty() {
             return Err(Error::input(
@@ -1293,6 +1304,21 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(r) = &args.muxrate {
         argv.extend(["-muxrate", r]);
     }
+    if let Some(n) = &args.service_name {
+        argv.extend(["-metadata".to_string(), format!("service_name={n}")]);
+    }
+    if let Some(p) = &args.provider {
+        argv.extend(["-metadata".to_string(), format!("service_provider={p}")]);
+    }
+    if let Some(id) = args.service_id {
+        argv.extend(["-mpegts_service_id".to_string(), id.to_string()]);
+    }
+    if let Some(id) = args.tsid {
+        argv.extend(["-mpegts_transport_stream_id".to_string(), id.to_string()]);
+    }
+    if let Some(id) = args.network_id {
+        argv.extend(["-mpegts_original_network_id".to_string(), id.to_string()]);
+    }
     if args.no_chapters {
         argv.extend(["-map_chapters", "-1"]);
     }
@@ -1303,11 +1329,17 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         let _ = std::fs::remove_file(tmp);
     }
     let c = run?;
-    let mut c = c.with_extra(
-        json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "no_video": args.no_video, "no_audio": args.no_audio, "no_attachments": args.no_attachments, "keep": args.keep, "drop": args.drop, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts, "no_chapters": args.no_chapters, "muxrate": args.muxrate, "brand": args.brand, "sdh": args.sdh, "commentary": args.commentary, "audio_desc": args.audio_desc, "dub": args.dub, "original": args.original }),
-    );
+    let mut extra = json!({ "container": ext, "audio_only": args.audio, "video_only": args.video, "fragmented": args.frag, "no_subs": args.no_subs, "from": args.from, "to": args.to, "lang": args.lang, "default_audio": args.default_audio, "cover": args.cover.is_some(), "no_cover": args.no_cover, "chapters": chap_n, "tags": tag_n, "audio_delay": args.audio_delay, "video_delay": args.video_delay, "tag": args.tag, "attached": args.attach.len(), "timecode": args.timecode, "default_sub": args.default_sub, "itsscale": args.itsscale, "offset": args.offset, "sub_order": args.sub_order, "video_order": args.video_order, "forced_sub": args.forced_sub, "default_video": args.default_video, "no_video": args.no_video, "no_audio": args.no_audio, "no_attachments": args.no_attachments, "keep": args.keep, "drop": args.drop, "decrypt": args.decrypt.is_some(), "copy_ts": args.copy_ts, "no_chapters": args.no_chapters, "muxrate": args.muxrate, "brand": args.brand, "sdh": args.sdh, "commentary": args.commentary, "audio_desc": args.audio_desc, "dub": args.dub, "original": args.original });
+    extra["service_name"] = json!(args.service_name);
+    extra["provider"] = json!(args.provider);
+    extra["service_id"] = json!(args.service_id);
+    extra["tsid"] = json!(args.tsid);
+    extra["network_id"] = json!(args.network_id);
     if let Some((key, kid)) = enc_kv {
-        c = c.with_extra(json!({"encrypted": true, "key": key, "kid": kid}));
+        extra["encrypted"] = json!(true);
+        extra["key"] = json!(key);
+        extra["kid"] = json!(kid);
     }
+    let c = c.with_extra(extra);
     Ok(c)
 }

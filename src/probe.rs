@@ -386,6 +386,9 @@ pub struct ProbeProgram {
     /// Broadcaster service name (which channel this program is)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub service_name: Option<String>,
+    /// Broadcaster service provider (which network feeds the program)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub service_provider: Option<String>,
     /// Member stream indices (positions in `streams[]`)
     pub streams: Vec<u32>,
 }
@@ -860,6 +863,10 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 p.program_num.map(|num| ProbeProgram {
                     num,
                     service_name: p.tags.as_ref().and_then(|t| t.get("service_name").cloned()),
+                    service_provider: p
+                        .tags
+                        .as_ref()
+                        .and_then(|t| t.get("service_provider").cloned()),
                     streams: p.streams.iter().filter_map(|s| s.index).collect(),
                 })
             })
