@@ -8,6 +8,24 @@ use crate::engine;
 use crate::error::Error;
 use crate::paths;
 
+/// Plain --init/--seg names must stay unique per representation, so ffkit
+/// appends the template variables itself; a value containing $ is already
+/// a raw DASH template and passes through untouched.
+fn dash_tpl(name: &str, seg_ext: &str, numbered: bool) -> String {
+    if name.contains('$') {
+        return name.to_string();
+    }
+    let (stem, ext) = name
+        .rsplit_once('.')
+        .map(|(s, e)| (s.to_string(), e.to_string()))
+        .unwrap_or((name.to_string(), seg_ext.to_string()));
+    if numbered {
+        format!("{stem}-$RepresentationID$-$Number%05d$.{ext}")
+    } else {
+        format!("{stem}-$RepresentationID$.{ext}")
+    }
+}
+
 pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_video && !probe.has_audio {
@@ -313,12 +331,20 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         // segment names are resolved against the manifest's dir by the
         // muxer — bare filenames, no path prefix
         "-init_seg_name".to_string(),
-        format!("{p}init-$RepresentationID$.{seg_ext}", p = name_pfx),
+        args.init
+            .as_ref()
+            .map(|n| dash_tpl(n, seg_ext, false))
+            .unwrap_or_else(|| format!("{p}init-$RepresentationID$.{seg_ext}", p = name_pfx)),
         "-media_seg_name".to_string(),
-        format!(
-            "{p}seg-$RepresentationID$-$Number%05d$.{seg_ext}",
-            p = name_pfx
-        ),
+        args.seg_name
+            .as_ref()
+            .map(|n| dash_tpl(n, seg_ext, true))
+            .unwrap_or_else(|| {
+                format!(
+                    "{p}seg-$RepresentationID$-$Number%05d$.{seg_ext}",
+                    p = name_pfx
+                )
+            }),
     ]);
     if args.single {
         argv.extend([
@@ -367,13 +393,19 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
     if let Err(e) = engine::run_argvs(&argvs, g) {
         return Ok(Contract::failed("dash", &e).with_commands(commands));
     }
+    let seg_stem = args
+        .seg_name
+        .as_deref()
+        .map(|n| n.rsplit_once('.').map(|(s, _)| s).unwrap_or(n))
+        .unwrap_or("");
     let nseg = std::fs::read_dir(&dir)
         .map(|rd| {
             rd.filter_map(|e| e.ok())
                 .filter(|e| {
                     let n = e.file_name().to_string_lossy().into_owned();
                     (n.starts_with(&format!("{name_pfx}seg-"))
-                        || n.starts_with(&format!("{name_pfx}stream-")))
+                        || n.starts_with(&format!("{name_pfx}stream-"))
+                        || (!seg_stem.is_empty() && n.starts_with(seg_stem)))
                         && e.path()
                             .extension()
                             .is_some_and(|x| x == "m4s" || x == "webm" || x == "mp4")
@@ -405,6 +437,8 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         "dvb": args.dvb,
         "webm": args.webm,
         "window": args.window.unwrap_or(0),
+        "init_name": args.init,
+        "seg_name": args.seg_name,
         "ladder": hs
             .iter()
             .map(|h| format!("{h}p"))

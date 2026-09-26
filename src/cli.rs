@@ -2684,6 +2684,20 @@ pub enum DeliverPlatform {
     Appgallery,
     /// F-Droid repo listing videos
     Fdroid,
+    /// Epic Games Store trailer uploads
+    Epic,
+    /// GOG store listing videos
+    Gog,
+    /// Battle.net launcher feature videos
+    Battlenet,
+    /// Xbox Store game trailers
+    Xbox,
+    /// PlayStation Store game trailers
+    Playstation,
+    /// Nintendo eShop listing videos
+    Nintendo,
+    /// EA app store trailers
+    Ea,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5754,6 +5768,11 @@ pub struct RemuxArgs {
     /// live555/Darwin Streaming ingest prep; mp4/mov targets only)
     #[arg(long)]
     pub rtphint: bool,
+    /// -bitexact deterministic muxing — normalized encoder tag + headers:
+    /// same input + same ffkit version → byte-identical output (archival
+    /// reproducibility / dedupe QC)
+    #[arg(long)]
+    pub bitexact: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6721,6 +6740,11 @@ pub struct HlsArgs {
     /// init.mp4 — CDN pathing for fMP4 packs; needs --fmp4)
     #[arg(long)]
     pub init: Option<String>,
+    /// Append to an existing playlist instead of truncating it
+    /// (-hls_flags append_list — crash-resume / accumulate a long
+    /// recording across runs)
+    #[arg(long)]
+    pub append: bool,
     /// First segment index (seg_NNN + MEDIA-SEQUENCE) — resume a numbered
     /// stream after a restart instead of starting over at 0
     #[arg(long)]
@@ -6833,6 +6857,15 @@ pub struct DashArgs {
     /// ingest that requires the DVB profile instead of plain MPEG-DASH)
     #[arg(long)]
     pub dvb: bool,
+    /// Init-segment filename (-init_seg_name — a plain name gets
+    /// -$RepresentationID$ appended so streams can't collide; values
+    /// containing $ pass through as raw DASH templates)
+    #[arg(long)]
+    pub init: Option<String>,
+    /// Media-segment filename (-media_seg_name — a plain name gets
+    /// -$RepresentationID$-$Number%05d$ appended; $ = raw template)
+    #[arg(long)]
+    pub seg_name: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

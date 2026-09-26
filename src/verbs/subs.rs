@@ -1187,9 +1187,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "mpl"
         && out_ext != "smi"
         && out_ext != "sub"
+        && out_ext != "pjs"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb/.jss input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi/.sub output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb/.jss input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi/.sub/.pjs output",
         ));
     }
     let raw = if in_ext == "scc" || in_ext == "stl" || in_ext == "rt" || in_ext == "mps" {
@@ -1453,6 +1454,19 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
                 (c.start * fps).round() as i64,
                 (c.end * fps).round() as i64,
                 c.text.replace('\n', "|")
+            ));
+        }
+        s
+    } else if out_ext == "pjs" {
+        // Phoenix Subtitle — `start,end,"text"` rows in DECISECONDS
+        // (20 = 2.0s); completes the .pjs read/write pair, | folds lines
+        let mut s = String::new();
+        for c in &cues {
+            s.push_str(&format!(
+                "{},{},\"{}\"\n",
+                (c.start * 10.0).round() as i64,
+                (c.end * 10.0).round() as i64,
+                c.text.replace('\n', "|").replace('"', "'")
             ));
         }
         s

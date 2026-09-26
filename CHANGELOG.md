@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.366.0] — 2026-09-26
+
+### Added
+- `remux --bitexact` — `-bitexact` deterministic muxing: normalized encoder tag + headers so the same input + same ffkit version produces byte-identical output (archival reproducibility / dedupe QC)
+- `hls --append` — `-hls_flags append_list` appends the new run's EXTINF rows to an existing playlist instead of truncating it (crash-resume / accumulate a long recording across runs; pair `--start` to keep segment names distinct)
+- `dash --init NAME`/`--seg-name NAME` — `-init_seg_name`/`-media_seg_name` rename init/media segments for CDN pathing (a plain name gains the `-$RepresentationID$`/…`-$Number%05d$` template so streams can't collide; a value containing `$` passes through as a raw DASH template)
+- `subs --convert` writes `.pjs` — Phoenix `start,end,"text"` decisecond rows (`|` folds lines, inner quotes soften to `'`): completes the .pjs read/write pair for legacy fansub archives
+- `deliver --platform` +7: `epic`/`gog`/`battlenet`/`xbox`/`playstation`/`nintendo`/`ea` game-store trailers + listing videos — 16:9 1920x1080
+
 ## [0.365.0] — 2026-09-26
 
 ### Added

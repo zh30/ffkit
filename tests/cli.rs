@@ -43439,3 +43439,135 @@ fn r338_framemd5_y4m_jss_hls_init_appstores() {
         assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
     }
 }
+
+#[test]
+fn r339_bitexact_append_dashnames_pjs_gamestores() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // remux --bitexact — deterministic bytes across runs
+    let b1 = dir.path().join("r339-b1.mp4");
+    let b2 = dir.path().join("r339-b2.mp4");
+    for out in [&b1, &b2] {
+        let j = run_json(&[
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            out.to_str().unwrap(),
+            "--bitexact",
+        ]);
+        assert_eq!(j["status"], "ok", "{j}");
+        assert_eq!(j["extra"]["bitexact"], true, "{j}");
+    }
+    assert_eq!(
+        std::fs::read(&b1).unwrap(),
+        std::fs::read(&b2).unwrap(),
+        "bitexact outputs differ"
+    );
+    // hls --append — second run appends EXTINF rows to the playlist
+    let hd = dir.path().join("r339-hls");
+    let pl_path = hd.join("i.m3u8");
+    let j = run_json(&["hls", f.to_str().unwrap(), "-o", pl_path.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        pl_path.to_str().unwrap(),
+        "--append",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["append"], true, "{j}");
+    let pl = std::fs::read_to_string(&pl_path).unwrap();
+    let n_extinf = pl.matches("#EXTINF").count();
+    assert_eq!(n_extinf, 2, "{pl}");
+    // dash --init/--seg-name — plain names gain rep templates
+    let dd = dir.path().join("r339-dash");
+    let j = run_json(&[
+        "dash",
+        f.to_str().unwrap(),
+        "-o",
+        dd.join("o.mpd").to_str().unwrap(),
+        "--init",
+        "boot.m4s",
+        "--seg-name",
+        "chunk.m4s",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(dd.join("o.mpd").is_file(), "mpd missing");
+    assert!(
+        dd.join("boot-0.m4s").is_file() || dd.join("boot-1.m4s").is_file(),
+        "init names missing: {:?}",
+        std::fs::read_dir(&dd)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().into_string().unwrap())
+            .collect::<Vec<_>>()
+    );
+    let names: Vec<String> = std::fs::read_dir(&dd)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().into_string().unwrap())
+        .collect();
+    assert!(
+        names
+            .iter()
+            .any(|n| n.starts_with("chunk-") && n.ends_with(".m4s")),
+        "{names:?}"
+    );
+    let mpd = std::fs::read_to_string(dd.join("o.mpd")).unwrap();
+    assert!(mpd.contains("boot-"), "{mpd}");
+    // subs --convert .pjs — Phoenix decisecond rows, read/write round-trip
+    let srt = dir.path().join("r339.srt");
+    std::fs::write(
+        &srt,
+        "1\n00:00:01,000 --> 00:00:03,000\nHello pjs\n\n2\n00:00:04,000 --> 00:00:05,000\nSecond|fold\n\n",
+    )
+    .unwrap();
+    let pjs = dir.path().join("r339.pjs");
+    let j = run_json(&[
+        "subs",
+        srt.to_str().unwrap(),
+        "--convert",
+        "-o",
+        pjs.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let text = std::fs::read_to_string(&pjs).unwrap();
+    assert!(text.contains("10,30,\"Hello pjs\""), "{text}");
+    assert!(text.contains("40,50,\"Second|fold\""), "{text}");
+    // pjs -> srt round-trip keeps text
+    let back = dir.path().join("r339-back.srt");
+    let j = run_json(&[
+        "subs",
+        pjs.to_str().unwrap(),
+        "--convert",
+        "-o",
+        back.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let text = std::fs::read_to_string(&back).unwrap();
+    assert!(text.contains("00:00:01,000 --> 00:00:03,000"), "{text}");
+    assert!(text.contains("Hello pjs"), "{text}");
+    // game-store platforms — 16:9 1920x1080
+    for p in [
+        "epic",
+        "gog",
+        "battlenet",
+        "xbox",
+        "playstation",
+        "nintendo",
+        "ea",
+    ] {
+        let o = dir.path().join(format!("r339-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
+    }
+}

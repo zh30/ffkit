@@ -623,6 +623,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Galaxystore
         | DeliverPlatform::Appgallery
         | DeliverPlatform::Fdroid
+        | DeliverPlatform::Epic
+        | DeliverPlatform::Gog
+        | DeliverPlatform::Battlenet
+        | DeliverPlatform::Xbox
+        | DeliverPlatform::Playstation
+        | DeliverPlatform::Nintendo
+        | DeliverPlatform::Ea
         | DeliverPlatform::Indeed
         | DeliverPlatform::Glassdoor
         | DeliverPlatform::Ziprecruiter
@@ -1275,6 +1282,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Galaxystore => "galaxystore",
         DeliverPlatform::Appgallery => "appgallery",
         DeliverPlatform::Fdroid => "fdroid",
+        DeliverPlatform::Epic => "epic",
+        DeliverPlatform::Gog => "gog",
+        DeliverPlatform::Battlenet => "battlenet",
+        DeliverPlatform::Xbox => "xbox",
+        DeliverPlatform::Playstation => "playstation",
+        DeliverPlatform::Nintendo => "nintendo",
+        DeliverPlatform::Ea => "ea",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

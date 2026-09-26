@@ -459,6 +459,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.round_durations {
         flags.push("round_durations");
     }
+    if args.append {
+        flags.push("append_list");
+    }
     if !flags.is_empty() {
         argv.extend(["-hls_flags".to_string(), flags.join("+")]);
     }
@@ -574,6 +577,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "video_only": args.video_only,
         "base_url": args.base_url,
         "live_window": if args.live { args.live_window.unwrap_or(6) } else { 0 },
+        "append": args.append,
     }));
     if let Some((p, uri)) = &key_info {
         c = c.with_extra(json!({"key_uri": uri, "key_info": paths::display(p)}));

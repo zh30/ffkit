@@ -1373,6 +1373,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-movflags".to_string(), mf]);
         }
     }
+    if args.bitexact {
+        argv.push("-bitexact");
+    }
     if args.no_chapters {
         argv.extend(["-map_chapters", "-1"]);
     }
@@ -1397,6 +1400,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["skip_trailer"] = json!(args.skip_trailer);
     extra["isml"] = json!(args.isml);
     extra["rtphint"] = json!(args.rtphint);
+    extra["bitexact"] = json!(args.bitexact);
     if let Some((key, kid)) = enc_kv {
         extra["encrypted"] = json!(true);
         extra["key"] = json!(key);
