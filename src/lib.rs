@@ -33,10 +33,17 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
     let g = Globals::from(&cli);
     match cli.cmd {
         Cmd::Doctor => doctor::run(&g),
-        Cmd::Probe { input, frames } => {
+        Cmd::Probe {
+            input,
+            frames,
+            packets,
+        } => {
             let mut p = probe::probe(&input, g.timeout)?;
             if frames {
                 p.frames = probe::probe_frames(&input, g.timeout)?;
+            }
+            if packets {
+                p.packets = probe::probe_packets(&input, g.timeout)?;
             }
             Ok(Contract::ok("probe", Some(paths::display(&input)), Some(p)))
         }

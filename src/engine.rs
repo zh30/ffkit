@@ -172,6 +172,12 @@ pub fn probe_or_err(path: &Path, g: &Globals) -> Result<Probe, Error> {
     probe::probe(path, g.timeout.min(Duration::from_secs(120)))
 }
 
+/// Probe with extra demuxer options (e.g. `-skip_initial_bytes N` ahead of
+/// a junk-prefixed input so ffprobe still reaches the moov atom).
+pub fn probe_or_err_opts(path: &Path, g: &Globals, opts: &[String]) -> Result<Probe, Error> {
+    probe::probe_with_opts(path, g.timeout.min(Duration::from_secs(120)), opts)
+}
+
 /// Audio window for filters that lack timeline `enable` (ffmpeg 4.4 applies
 /// it to most audio FX): dry feed is ducked to 0 inside [at, end), the FX
 /// chain runs on the whole input and its window is trimmed/delayed into place.

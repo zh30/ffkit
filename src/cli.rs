@@ -68,6 +68,10 @@ pub enum Cmd {
         /// flags per decoded frame — forensic QC on masters)
         #[arg(long)]
         frames: bool,
+        /// Also dump per-packet detail (pts/dts/size/key flags per muxed
+        /// packet — timestamp + interleave forensics without decoding)
+        #[arg(long)]
+        packets: bool,
     },
     /// Contact sheet or single frame — look at the picture
     Look(LookArgs),
@@ -553,14 +557,27 @@ pub struct SplitArgs {
     /// forward to the next keyframe (not frame-exact). No --fade/--black.
     #[arg(long)]
     pub copy: bool,
-    /// Also write a CSV index of the parts (name,start,end rows —
-    /// audit trail / manifest next to the split files)
+    /// Also write an index of the parts next to them — format follows the
+    /// extension: .csv → name,start,end rows (audit trail), .m3u8 → an HLS
+    /// playlist index, .ffconcat → a concat-demuxer list you can rejoin
+    /// with `concat --list`, anything else → flat name list
     #[arg(long)]
     pub manifest: Option<PathBuf>,
     /// Number the first part N (-segment_start_number — keep appending
     /// parts to an existing numbered series instead of restarting at 0)
     #[arg(long)]
     pub start: Option<u32>,
+    /// Reuse part filenames after N parts (-segment_wrap — a rolling
+    /// window keeps only the newest N part files on disk: archive
+    /// recordings bounded to a fixed footprint)
+    #[arg(long)]
+    pub wrap: Option<u32>,
+    /// Cut-tolerance window in seconds (-segment_time_delta — a boundary
+    /// may land up to SEC early inside the window, so VFR/frame-aligned
+    /// sources split where their timeline naturally allows instead of
+    /// forcing a count that lands mid-tolerance)
+    #[arg(long)]
+    pub slack: Option<f64>,
     /// Cut at frame indices (-segment_frames — VFX/review pipelines that
     /// address cuts by frame number; each boundary snaps to the next
     /// keyframe on --copy, forced exact on the re-encode path)
@@ -1593,6 +1610,12 @@ pub enum TranscodePreset {
     /// Per-frame MD5 checksum manifest (-f framemd5 — archival
     /// decode-fidelity verification: every decoded frame's hash in text)
     Framemd5,
+    /// Whole-stream checksum receipt (-f hash — one digest line over the
+    /// muxed payload: ingest/transfer verification that the file that
+    /// arrived is the file that left; algorithm by extension —
+    /// .md5→MD5, .sha256→SHA256, .sha512→SHA512, .txt/.hash→SHA256)
+    #[value(name = "hash")]
+    Hash,
     /// YUV4MPEG2 elementary video in .y4m (Avisynth/VapourSynth/x264-CLI
     /// era interchange — raw uncompressed, video only)
     Y4m,
@@ -3037,6 +3060,22 @@ pub enum DeliverPlatform {
     Soundstripe,
     /// Marmoset Music catalog video 16:9
     Marmoset,
+    /// Jira issue attachment / ticket demo video 16:9
+    Jira,
+    /// Asana task attachment / project update video 16:9
+    Asana,
+    /// Trello card attachment video 16:9
+    Trello,
+    /// monday.com board update video 16:9
+    Monday,
+    /// ClickUp task attachment video 16:9
+    Clickup,
+    /// Basecamp message/project attachment video 16:9
+    Basecamp,
+    /// Linear issue attachment video 16:9
+    Linear,
+    /// Shortcut story attachment video 16:9
+    Shortcut,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6092,6 +6131,17 @@ pub struct RemuxArgs {
     /// are skipped instead of poisoning the repack)
     #[arg(long)]
     pub discard_corrupt: bool,
+    /// Shift negative timestamps up so nothing starts before zero
+    /// (-avoid_negative_ts make_zero — salvages captures that cut
+    /// mid-GOP or grab broadcast chunks whose audio/video tracks start
+    /// negative; refuses --copy-ts, which exists to keep stamps verbatim)
+    #[arg(long)]
+    pub fix_negative_ts: bool,
+    /// Skip N leading bytes before demuxing (-skip_initial_bytes —
+    /// damaged captures with garbage/padding prepended ahead of the
+    /// real container header)
+    #[arg(long)]
+    pub skip_init: Option<u64>,
 
     /// Codec bitstream repair during the copy, repeatable —
     /// annexb|hevc-annexb|adts|mp3-hdr|eac3-core|dca-core|mjpeg-jpg|
@@ -8640,8 +8690,13 @@ pub struct ChapterArgs {
     #[arg(short, long)]
     pub output: PathBuf,
     /// Chapter as TIME|TITLE, repeatable (time: h:mm:ss or seconds)
-    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "csv", "srt", "edl", "fcpxml", "list", "remove", "spread", "scenes"])]
+    #[arg(long = "at", required_unless_present_any = ["auto", "import", "export", "yt", "cue", "lrc", "podcast", "vtt", "csv", "srt", "edl", "fcpxml", "list", "remove", "spread", "scenes", "at_frames"])]
     pub at: Vec<String>,
+    /// Chapter as FRAME|TITLE (comma list — VFX/review pipelines that
+    /// address marks by frame number; converted through the input's fps
+    /// so they land exactly where `split --at-frames` cuts)
+    #[arg(long, value_delimiter = ',')]
+    pub at_frames: Vec<String>,
     /// Auto-place chapters after each silence >= N seconds (podcast segments)
     #[arg(long)]
     pub auto: Option<f64>,

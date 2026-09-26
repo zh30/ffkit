@@ -482,6 +482,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Smjpeg => qt_era(&args, g, "mjpeg", &["smjpg"], None, Some("pcm_s16le")),
         TranscodePreset::Nut => ffv1_container(&args, g, "nut", "nut"),
         TranscodePreset::Framemd5 => framemd5(&args, g),
+        TranscodePreset::Hash => hash_receipt(&args, g),
         TranscodePreset::Y4m => y4m(&args, g),
         TranscodePreset::Raw => lossless(&args, g, "rawvideo", &["avi", "mkv"], None),
     }
@@ -1270,6 +1271,69 @@ fn framemd5(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     // a framemd5 listing is text, not media — ffprobe can't read it back
     let mut c = engine::write_job_raw("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "framemd5", "timelimit": args.timelimit }));
+    Ok(c)
+}
+
+/// Whole-stream checksum receipt (-f hash — one `ALGO=hex` line over the
+/// muxed payload: the ingest/transfer receipt proving the file that
+/// arrived is the file that left. Algorithm follows the extension:
+/// .md5→md5, .sha256→sha256, .sha512→sha512, .txt/.hash→sha256).
+/// The output is a text line, not media — codec/rate flags refuse.
+fn hash_receipt(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    let algo = match ext.as_str() {
+        "md5" => "md5",
+        "sha256" | "txt" | "hash" => "sha256",
+        "sha512" => "sha512",
+        _ => {
+            return Err(Error::input(format!(
+                "transcode --preset hash needs a .md5/.sha256/.sha512/.txt/.hash target, not .{ext}"
+            )))
+        }
+    };
+    if args.crf.is_some()
+        || args.fps.is_some()
+        || args.width.is_some()
+        || args.copy_audio
+        || args.copy_video
+        || args.alpha
+        || args.vbitrate.is_some()
+        || args.abitrate.is_some()
+        || args.ar.is_some()
+        || args.channels.is_some()
+        || args.gop.is_some()
+    {
+        return Err(Error::input(
+            "transcode --preset hash writes a checksum receipt — codec/rate flags don't apply",
+        ));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video && !probe.has_audio {
+        return Err(Error::input(
+            "hash preset: input has no media streams to checksum",
+        ));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        // wall-clock encode cap — batch safety valve for runaway jobs
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0", "-c", "copy"]);
+    argv.extend(["-f", "hash", "-hash", algo]);
+    argv.push(&args.output);
+    // a hash receipt is a text line, not media — ffprobe can't read it back
+    let mut c = engine::write_job_raw("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "hash", "algo": algo, "timelimit": args.timelimit }));
     Ok(c)
 }
 

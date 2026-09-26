@@ -34,10 +34,12 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             || args.copy
             || args.manifest.is_some()
             || args.start.is_some()
+            || args.wrap.is_some()
+            || args.slack.is_some()
             || !args.at_frames.is_empty()
         {
             return Err(Error::input(
-                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest/--start/--at-frames)",
+                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest/--start/--wrap/--slack/--at-frames)",
             ));
         }
         engine::need_video(&probe, "split --black")?;
@@ -345,13 +347,40 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-segment_start_number".to_string(), n.to_string()]);
     }
     if let Some(m) = &args.manifest {
-        // name,start,end CSV rows — audit trail next to the part files
+        // index format follows the manifest extension: .csv rows, .m3u8
+        // playlist, .ffconcat rejoin list, else a flat name list
+        let kind = match m
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase()
+            .as_str()
+        {
+            "m3u8" => "m3u8",
+            "ffconcat" => "ffconcat",
+            "csv" => "csv",
+            _ => "flat",
+        };
         argv.extend([
             "-segment_list".to_string(),
             m.display().to_string(),
             "-segment_list_type".to_string(),
-            "csv".to_string(),
+            kind.to_string(),
         ]);
+    }
+    if let Some(w) = args.wrap {
+        if w == 0 {
+            return Err(Error::input("split --wrap needs N >= 1"));
+        }
+        // rolling window — only the newest N part files stay on disk
+        argv.extend(["-segment_wrap".to_string(), w.to_string()]);
+    }
+    if let Some(s) = args.slack {
+        if !(s.is_finite() && s >= 0.0) {
+            return Err(Error::input("split --slack needs a non-negative duration"));
+        }
+        // boundaries may land up to SEC early inside the window
+        argv.extend(["-segment_time_delta".to_string(), s.to_string()]);
     }
     argv.extend(["-reset_timestamps", "1"]);
     argv.push(&template);
@@ -410,6 +439,8 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             "copy": args.copy,
             "manifest": args.manifest.is_some(),
             "start": args.start.unwrap_or(0),
+            "wrap": args.wrap,
+            "slack": args.slack,
             "at_frames": args.at_frames,
             "cuts": cuts,
             "parts": names,

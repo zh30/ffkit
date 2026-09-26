@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.385.0] — 2026-09-26
+
+### Added
+
+- `probe --packets` — dump per-muxed-packet detail (`-show_packets` → `probe.packets[]`: pts/dts/duration/size/key flags per packet — timestamp + interleave forensics without decoding; 4.4 string fields normalized to numbers)
+- `split --wrap N` — reuse part filenames after N parts (`-segment_wrap` — rolling window keeps only the newest N part files on disk)
+- `split --slack SEC` — cut-tolerance window (`-segment_time_delta` — a boundary may land early inside the window; dense-keyframe sources split finer)
+- `split --manifest` extension-driven formats — `.csv` name,start,end rows / `.m3u8` index / `.ffconcat` rejoin list / else flat name list (`-segment_list_type`)
+- `remux --fix-negative-ts` — shift negative capture timestamps up to zero (`-avoid_negative_ts make_zero` — matroska carries real negative start_time; conflicts `--copy-ts`)
+- `remux --skip-init N` — read the input past a N-byte junk prefix (`-skip_initial_bytes` — the ffprobe pre-flight gets the same flag)
+- `transcode --preset hash` — whole-stream checksum receipt (`-f hash` — one `ALGO=hex` line over the muxed payload for ingest/transfer verification; algorithm by extension: .md5/.sha256/.sha512/.txt/.hash)
+- `chapter --at-frames F|TITLE` — chapter marks by frame number (comma list, converted through the input's fps — lands where `split --at-frames` cuts)
+- `deliver --platform` +8 PM & issue-attachment targets: jira / asana / trello / monday / clickup / basecamp / linear / shortcut videos 16:9 1920x1080 (647 platform targets)
+
 ## [0.384.0] — 2026-09-26
 
 ### Added

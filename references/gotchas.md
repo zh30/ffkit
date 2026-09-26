@@ -1018,3 +1018,10 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - ffprobe's `-show_frames` JSON writes `pts_time` as a **string** (`"0.000000"`), not a number — `probe --frames` parses it back to f64 before reporting.
 - The mov demuxer options `-use_mfra_for`/`use_tfdt` (fMP4 timestamp recovery) and `-export_all`/`export_xmp` (aux metadata streams) have no observable effect on the standard fixture set — byte-identical in/out, not exposed.
 - `frames --at`/`--number` stills are named per-capture inside ffkit (`stem_NNN`) — the image2 sequence options `-start_number` (`--start`) and `-strftime` (`--clock`) only exist on the `--every`/`--nth`/sequence path, so those two refuse with `--at`.
+
+- `-segment_time_delta SEC` (`split --slack`) lets a boundary land **earlier** inside the window — dense-keyframe sources end up with more parts, not fewer. It's a tolerance for the muxer's keyframe pick, not a fuzzier `--every`.
+- `freezedetect` only reports a freeze once it **ends** — a freeze that runs to EOF never surfaces a `freeze_start`. To QC a suspected tail-frozen file, trim the tail first or check `probe --frames` deltas.
+- `-skip_initial_bytes N` is a **demuxer-side** read option — it goes ahead of `-i`, and `ffprobe` needs the same flag or a junk-prefixed file still fails the pre-flight probe (moov never reached). That's `remux --skip-init`.
+- mp4-family muxers normalize a negative `-output_ts_offset` through the edit list — only mkv/webm carry a real negative `start_time`, so `--fix-negative-ts` salvage applies to matroska captures, not mp4 ones.
+- mp4 chapters must start at time 0 — a first mark sitting >0.05s in gets pulled to 0. `chapter --at-frames` lists should carry a `0|title` mark (same rule as `--at`).
+- `-hls_version` / `hls_playlist_type vod|event` are not in the 4.4 HLS muxer option set (and `EXT-X-PLAYLIST-TYPE` is already VOD on static packs / EVENT under `--live`); `negative_cts_offsets` writes `elst` on standard fixtures either way — unobservable, not exposed.

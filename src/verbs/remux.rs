@@ -4,6 +4,7 @@ use crate::cli::{Globals, RemuxArgs};
 use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
+use crate::spawn::Argv;
 
 pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     let ext = args
@@ -17,7 +18,14 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "output needs an extension (mp4, mkv, mov, m4a…)",
         ));
     }
-    let probe = engine::probe_or_err(&args.input, g)?;
+    let probe = match args.skip_init {
+        Some(n) => engine::probe_or_err_opts(
+            &args.input,
+            g,
+            &["-skip_initial_bytes".to_string(), n.to_string()],
+        )?,
+        None => engine::probe_or_err(&args.input, g)?,
+    };
     if !probe.has_video && !probe.has_audio {
         return Err(Error::input("remux: input has no media streams"));
     }
@@ -236,11 +244,25 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         // advancing the shifted track = delaying everything else instead
         argv.extend(["-itsoffset".into(), neg_shift.to_string()]);
     }
-    if args.ignore_editlist {
-        // demuxer option — applies to the input it precedes (and each
-        // re-read of the same file below)
-        argv.extend(["-ignore_editlist".to_string(), "1".to_string()]);
+    if args.copy_ts && args.fix_negative_ts {
+        return Err(Error::input(
+            "pick one: --copy-ts keeps timestamps verbatim, --fix-negative-ts shifts them",
+        ));
     }
+    let salvage_input = |argv: &mut Argv| {
+        // demuxer options apply to the -i they precede (each read of the
+        // same file below needs them too)
+        if args.ignore_editlist {
+            argv.extend(["-ignore_editlist".to_string(), "1".to_string()]);
+        }
+        if args.fix_negative_ts {
+            argv.extend(["-avoid_negative_ts".to_string(), "make_zero".to_string()]);
+        }
+        if let Some(n) = args.skip_init {
+            argv.extend(["-skip_initial_bytes".to_string(), n.to_string()]);
+        }
+    };
+    salvage_input(&mut argv);
     argv.push("-i");
     argv.push(&args.input);
     let mut ni = 1u32;
@@ -251,9 +273,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
                 argv.extend(["-ss".into(), f.to_string()]);
             }
             argv.extend(["-itsoffset".into(), d.to_string()]);
-            if args.ignore_editlist {
-                argv.extend(["-ignore_editlist".to_string(), "1".to_string()]);
-            }
+            salvage_input(&mut argv);
             argv.push("-i");
             argv.push(&args.input);
             ni += 1;
@@ -261,9 +281,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             if let Some(f) = args.from {
                 argv.extend(["-ss".into(), f.to_string()]);
             }
-            if args.ignore_editlist {
-                argv.extend(["-ignore_editlist".to_string(), "1".to_string()]);
-            }
+            salvage_input(&mut argv);
             argv.push("-i");
             argv.push(&args.input);
             ni += 1;
@@ -2079,6 +2097,8 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["empty_hdlr_name"] = json!(args.empty_hdlr_name);
     extra["no_editlist"] = json!(args.no_editlist);
     extra["ignore_editlist"] = json!(args.ignore_editlist);
+    extra["fix_negative_ts"] = json!(args.fix_negative_ts);
+    extra["skip_init"] = json!(args.skip_init);
     extra["empty_moov"] = json!(args.empty_moov);
     extra["silent_audio"] = json!(args.silent_audio);
     if let Some((key, kid)) = enc_kv {

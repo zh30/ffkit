@@ -695,6 +695,24 @@ pub fn run(args: ChapterArgs, g: &Globals) -> Result<Contract, Error> {
         }
         marks.push((secs, title));
     }
+    if !args.at_frames.is_empty() {
+        let fps = probe.fps.filter(|f| *f > 0.0).ok_or_else(|| {
+            Error::input("chapter --at-frames needs a video input with a known fps")
+        })?;
+        for raw in &args.at_frames {
+            let (t, title) = raw.split_once('|').ok_or_else(|| {
+                Error::input(format!("--at-frames wants FRAME|TITLE, got '{raw}'"))
+            })?;
+            let frame: f64 = t.trim().parse().map_err(|_| {
+                Error::input(format!("--at-frames: bad frame number '{}'", t.trim()))
+            })?;
+            let title = title.trim().to_string();
+            if title.is_empty() {
+                return Err(Error::input("chapter title must not be empty"));
+            }
+            marks.push((frame / fps, title));
+        }
+    }
     if let Some(rate) = args.rate {
         if rate <= 0.0 {
             return Err(Error::input("chapter --rate must be positive"));

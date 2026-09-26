@@ -47130,3 +47130,293 @@ fn r357_atframes_frames_probe_timelimit_discardcorrupt_platforms() {
         assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
     }
 }
+
+#[test]
+fn r358_packets_wrap_slack_manifest_negts_skipinit_hash_atframes_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // probe --packets: per-muxed-packet forensic dump
+    let j = run_json(&["probe", f.to_str().unwrap(), "--packets"]);
+    assert_eq!(j["status"], "ok");
+    let pkts = j["probe"]["packets"].as_array().unwrap();
+    assert!(pkts.len() >= 30, "{}", pkts.len());
+    let v0 = pkts.iter().find(|x| x["media_type"] == "video").unwrap();
+    assert_eq!(v0["flags"], "K_");
+    assert_eq!(v0["pts_time"], 0.0);
+    assert!(v0["size"].as_u64().unwrap() > 0);
+    assert!(pkts.iter().any(|x| x["media_type"] == "audio"));
+    // without --packets the array stays out of the contract
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert!(j["probe"]["packets"].is_null());
+
+    // split --wrap: rolling filename window keeps only the newest N parts
+    // (5 cut parts cycling 0..1 -> exactly 2 files left on disk)
+    let j = run_json(&[
+        "split",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("wp.mp4").to_str().unwrap(),
+        "--at-frames",
+        "6,12,18,24",
+        "--wrap",
+        "2",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["wrap"], 2);
+    let parts: Vec<String> = std::fs::read_dir(dir.path())
+        .unwrap()
+        .filter_map(|e| {
+            let n = e.unwrap().file_name().to_string_lossy().into_owned();
+            n.starts_with("wp_").then_some(n)
+        })
+        .collect();
+    assert_eq!(parts.len(), 2, "{parts:?}");
+    // gates: zero wrap + --black refuse
+    let out = ffkit()
+        .args([
+            "split",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("wpg.mp4").to_str().unwrap(),
+            "--every",
+            "0.5",
+            "--wrap",
+            "0",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let out = ffkit()
+        .args([
+            "split",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("wpg2.mp4").to_str().unwrap(),
+            "--every",
+            "0.5",
+            "--wrap",
+            "2",
+            "--black",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // split --slack: cut-tolerance window recorded on extras
+    let j = run_json(&[
+        "split",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("sk.mp4").to_str().unwrap(),
+        "--every",
+        "0.5",
+        "--slack",
+        "0.2",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["slack"], 0.2);
+    assert!(j["extra"]["parts"].as_array().unwrap().len() >= 2);
+    let out = ffkit()
+        .args([
+            "split",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("skg.mp4").to_str().unwrap(),
+            "--every",
+            "0.5",
+            "--slack",
+            "-1",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // split --manifest kinds by extension: csv rows / ffconcat header
+    let j = run_json(&[
+        "split",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("mc.mp4").to_str().unwrap(),
+        "--every",
+        "0.5",
+        "--manifest",
+        dir.path().join("mc.csv").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let csv = std::fs::read_to_string(dir.path().join("mc.csv")).unwrap();
+    assert!(csv.contains("mc_00.mp4,0.000000"), "{csv}");
+    let j = run_json(&[
+        "split",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("mf.mp4").to_str().unwrap(),
+        "--every",
+        "0.5",
+        "--manifest",
+        dir.path().join("mf.ffconcat").to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok");
+    let cat = std::fs::read_to_string(dir.path().join("mf.ffconcat")).unwrap();
+    assert!(cat.starts_with("ffconcat version 1.0"), "{cat}");
+
+    // remux --fix-negative-ts: -avoid_negative_ts make_zero pulls a
+    // negative-start audio track up to zero
+    let neg = dir.path().join("neg.mkv");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            f.to_str().unwrap(),
+            "-c",
+            "copy",
+            "-output_ts_offset",
+            "-0.023",
+        ])
+        .arg(&neg)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let pj = run_json(&["probe", neg.to_str().unwrap()]);
+    let a_start = pj["probe"]["streams"][1]["start_time"].as_f64().unwrap();
+    assert!(a_start < -0.001, "{a_start}");
+    let j = run_json(&[
+        "remux",
+        neg.to_str().unwrap(),
+        "-o",
+        dir.path().join("negfixed.mp4").to_str().unwrap(),
+        "--fix-negative-ts",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["fix_negative_ts"], true);
+    let pj = run_json(&["probe", dir.path().join("negfixed.mp4").to_str().unwrap()]);
+    let a_start = pj["probe"]["streams"][1]["start_time"].as_f64().unwrap();
+    assert!(a_start >= -0.001, "{a_start}");
+    // gate: --copy-ts refuses
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("ngg.mp4").to_str().unwrap(),
+            "--fix-negative-ts",
+            "--copy-ts",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // remux --skip-init: junk-prefixed file salvaged past the prefix
+    let junk = dir.path().join("junk.mp4");
+    let mut d = vec![0xAB; 2048];
+    d.extend(std::fs::read(&f).unwrap());
+    std::fs::write(&junk, &d).unwrap();
+    let j = run_json(&[
+        "remux",
+        junk.to_str().unwrap(),
+        "-o",
+        dir.path().join("salv.mp4").to_str().unwrap(),
+        "--skip-init",
+        "2048",
+    ]);
+    assert_eq!(j["status"], "ok");
+    assert_eq!(j["extra"]["skip_init"], 2048);
+    let pj = run_json(&["probe", dir.path().join("salv.mp4").to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][0]["codec"], "h264");
+
+    // transcode --preset hash: whole-stream checksum receipt
+    for (out_name, algo) in [
+        ("r.md5", "MD5"),
+        ("r.sha256", "SHA256"),
+        ("r.sha512", "SHA512"),
+    ] {
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join(out_name).to_str().unwrap(),
+            "--preset",
+            "hash",
+        ]);
+        assert_eq!(j["status"], "ok", "{out_name}");
+        let body = std::fs::read_to_string(dir.path().join(out_name)).unwrap();
+        assert!(body.starts_with(&format!("{algo}=")), "{body}");
+    }
+    // gates: media target refuses, codec flags refuse
+    let out = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r.mp4").to_str().unwrap(),
+            "--preset",
+            "hash",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let out = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r2.md5").to_str().unwrap(),
+            "--preset",
+            "hash",
+            "--crf",
+            "20",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // chapter --at-frames: frame-number marks converted through fps
+    let j = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("chf.mp4").to_str().unwrap(),
+        "--at-frames",
+        "0|open,15|mid",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let pj = run_json(&["probe", dir.path().join("chf.mp4").to_str().unwrap()]);
+    let chs = pj["probe"]["chapters"].as_array().unwrap();
+    assert_eq!(chs.len(), 2);
+    assert_eq!(chs[0]["title"], "open");
+    assert_eq!(chs[1]["start"], 0.5);
+    assert_eq!(chs[1]["title"], "mid");
+    let out = ffkit()
+        .args([
+            "chapter",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("chg.mp4").to_str().unwrap(),
+            "--at-frames",
+            "abc",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // +8 platforms: PM/collaboration issue attachments, 16:9 1920x1080
+    for p in [
+        "jira", "asana", "trello", "monday", "clickup", "basecamp", "linear", "shortcut",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
+    }
+}

@@ -120,6 +120,12 @@ pub struct Probe {
     /// Empty unless --frames was passed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub frames: Vec<ProbeFrame>,
+    /// Per-packet detail (`probe --packets` — the container-level view
+    /// below decoded frames: interleave order, packet sizes, key flags,
+    /// pts/dts for timestamp forensics on damaged captures).
+    /// Empty unless --packets was passed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub packets: Vec<ProbePacket>,
 }
 
 /// One decoded frame from `ffprobe -show_frames` — the forensic view of
@@ -185,6 +191,83 @@ impl From<RawFrame> for ProbeFrame {
             chroma_location: r.chroma_location,
         }
     }
+}
+
+/// One packet from `ffprobe -show_packets` — the mux-level view under
+/// decoded frames: which stream wrote which chunk, in what interleave
+/// order, at which pts/dts, with the keyframe flag attached.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ProbePacket {
+    /// video | audio | subtitle | data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub media_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream_index: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pts_time: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dts_time: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration_time: Option<f64>,
+    /// Packet payload bytes — bitrate interleave forensics
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u64>,
+    /// K_ = keyframe packet (the no-decode GOP/seek map)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flags: Option<String>,
+}
+
+/// ffprobe writes pts/dts/duration/size as strings — keep the raw shape
+/// private and surface numbers in the contract.
+#[derive(Deserialize)]
+struct RawPacket {
+    codec_type: Option<String>,
+    stream_index: Option<u32>,
+    pts_time: Option<String>,
+    /// ffmpeg ≤5.x wrote pkt_pts_time instead — accept both names
+    pkt_pts_time: Option<String>,
+    dts_time: Option<String>,
+    pkt_dts_time: Option<String>,
+    duration_time: Option<String>,
+    pkt_duration_time: Option<String>,
+    size: Option<String>,
+    flags: Option<String>,
+}
+
+impl From<RawPacket> for ProbePacket {
+    fn from(r: RawPacket) -> Self {
+        let num = |s: Option<String>| s.and_then(|v| v.parse::<f64>().ok());
+        ProbePacket {
+            media_type: r.codec_type,
+            stream_index: r.stream_index,
+            pts_time: num(r.pts_time.or(r.pkt_pts_time)),
+            dts_time: num(r.dts_time.or(r.pkt_dts_time)),
+            duration_time: num(r.duration_time.or(r.pkt_duration_time)),
+            size: r.size.and_then(|s| s.parse().ok()),
+            flags: r.flags,
+        }
+    }
+}
+
+/// `ffprobe -show_packets` — per-packet dump for `probe --packets`.
+pub fn probe_packets(path: &Path, timeout: Duration) -> Result<Vec<ProbePacket>, Error> {
+    if !path.to_string_lossy().contains("://") {
+        crate::paths::ensure_input(path)?;
+    }
+    let mut argv = Argv::ffprobe();
+    argv.extend(["-print_format", "json", "-show_packets", "-v", "error"]);
+    argv.push(path);
+    let spawned = spawn::run(&argv, timeout, false)?;
+    let spawned = spawn::require_ok(&argv, spawned)?;
+    let raw = spawn::stdout_str(&spawned)?;
+    #[derive(Deserialize)]
+    struct PacketsOut {
+        #[serde(default)]
+        packets: Vec<RawPacket>,
+    }
+    let out: PacketsOut = serde_json::from_str(raw)
+        .map_err(|e| Error::input(format!("probe --packets: bad ffprobe json: {e}")))?;
+    Ok(out.packets.into_iter().map(ProbePacket::from).collect())
 }
 
 /// `ffprobe -show_frames` — per-decoded-frame dump for `probe --frames`.
@@ -605,6 +688,12 @@ struct FfprobeFormat {
 }
 
 pub fn probe(path: &Path, timeout: Duration) -> Result<Probe, Error> {
+    probe_with_opts(path, timeout, &[])
+}
+
+/// Probe with extra demuxer options prepended ahead of `-show_*` (e.g.
+/// `-skip_initial_bytes N` so a junk-prefixed file still parses).
+pub fn probe_with_opts(path: &Path, timeout: Duration, opts: &[String]) -> Result<Probe, Error> {
     // URL inputs (rtmp/srt/udp/http/tcp) aren't files — ffprobe opens them
     if !path.to_string_lossy().contains("://") {
         crate::paths::ensure_input(path)?;
@@ -620,6 +709,9 @@ pub fn probe(path: &Path, timeout: Duration) -> Result<Probe, Error> {
         "-v",
         "error",
     ]);
+    for o in opts {
+        argv.push(o);
+    }
     argv.push(path);
     let spawned = spawn::run(&argv, timeout, false)?;
     let spawned = spawn::require_ok(&argv, spawned)?;
@@ -984,6 +1076,7 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
             })
             .collect(),
         frames: Vec::new(),
+        packets: Vec::new(),
     })
 }
 
