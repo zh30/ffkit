@@ -580,7 +580,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Smugmug
         | DeliverPlatform::Zenfolio
         | DeliverPlatform::Ninenow
-        | DeliverPlatform::Sevenplus => (1920, 1080),
+        | DeliverPlatform::Sevenplus
+        | DeliverPlatform::Plutotv
+        | DeliverPlatform::Freevee
+        | DeliverPlatform::Fubotv
+        | DeliverPlatform::Globo
+        | DeliverPlatform::Pbskids
+        | DeliverPlatform::Boomerang
+        | DeliverPlatform::Cartoonito => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1188,6 +1195,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Zenfolio => "zenfolio",
         DeliverPlatform::Ninenow => "9now",
         DeliverPlatform::Sevenplus => "7plus",
+        DeliverPlatform::Plutotv => "plutotv",
+        DeliverPlatform::Freevee => "freevee",
+        DeliverPlatform::Fubotv => "fubotv",
+        DeliverPlatform::Globo => "globo",
+        DeliverPlatform::Pbskids => "pbskids",
+        DeliverPlatform::Boomerang => "boomerang",
+        DeliverPlatform::Cartoonito => "cartoonito",
         DeliverPlatform::Brightcove => "brightcove",
         DeliverPlatform::Jwplayer => "jwplayer",
         DeliverPlatform::Kaltura => "kaltura",

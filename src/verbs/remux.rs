@@ -354,6 +354,16 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --brand sets the major_brand atom — mp4/mov targets only, not .{ext}"
         )));
     }
+    if let Some(ts) = args.timescale {
+        if !matches!(ext.as_str(), "mp4" | "m4v" | "mov") {
+            return Err(Error::input(
+                "remux --timescale only applies to .mp4/.m4v/.mov targets (-video_track_timescale)",
+            ));
+        }
+        if ts == 0 {
+            return Err(Error::input("remux --timescale must be >= 1"));
+        }
+    }
     if args.muxrate.is_some() && !matches!(ext.as_str(), "ts" | "m2ts" | "mts") {
         return Err(Error::input(
             "remux --muxrate is a transport-stream option — .ts/.m2ts targets only",
@@ -1276,6 +1286,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(b) = &args.brand {
         argv.extend(["-brand", b]);
+    }
+    if let Some(ts) = args.timescale {
+        argv.extend(["-video_track_timescale".to_string(), ts.to_string()]);
     }
     if let Some(r) = &args.muxrate {
         argv.extend(["-muxrate", r]);

@@ -966,6 +966,10 @@ pub struct CompressArgs {
     /// under a messaging cap)
     #[arg(long)]
     pub fps: Option<u32>,
+    /// Resample audio to this rate (voice notes fit a tighter budget at
+    /// 22050/16000 — pair with --size on speech content)
+    #[arg(long)]
+    pub ar: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1535,6 +1539,9 @@ pub enum TranscodePreset {
     /// MPEG-2 4:2:2 + 48kHz stereo PCM in .mxf — XDCAM/OP1a broadcast
     /// master (the interchange file decks and QC rooms hand around)
     Mxf,
+    /// VP9 in .ivf elementary stream (no audio — MSE/Shaka test
+    /// vectors and the raw stream WebRTC tooling expects)
+    Ivf,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2565,6 +2572,20 @@ pub enum DeliverPlatform {
     /// 7plus — Australian Seven OTT 16:9
     #[value(name = "7plus")]
     Sevenplus,
+    /// Pluto TV FAST channel clips (global)
+    Plutotv,
+    /// Amazon Freevee AVOD clips (US)
+    Freevee,
+    /// fuboTV sports-streaming clips (US)
+    Fubotv,
+    /// Globo/Globoplay promo video (BR)
+    Globo,
+    /// PBS Kids clips/promos (US)
+    Pbskids,
+    /// Boomerang classic-cartoon clips (global)
+    Boomerang,
+    /// Cartoonito preschool-block clips (global)
+    Cartoonito,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5570,6 +5591,12 @@ pub struct RemuxArgs {
     #[arg(long, value_enum)]
     pub bsf: Vec<RemuxBsf>,
 
+    /// Video track timescale on .mp4/.m4v/.mov outputs
+    /// (-video_track_timescale) — ingest specs that pin the movie
+    /// clock (600 for old QuickTime, 90000/30000 for broadcast)
+    #[arg(long)]
+    pub timescale: Option<u32>,
+
     /// Keep only program N's streams from a multi-service transport
     /// stream (program number from `probe.programs[]` — the whole
     /// service at once; conflicts with the stream-pick flags)
@@ -6510,6 +6537,11 @@ pub struct HlsArgs {
     /// URI written into the playlist for the key (default key.bin; use a CDN/auth URL for real deployments)
     #[arg(long)]
     pub key_uri: Option<String>,
+    /// Reload the key file after every segment (-hls_flags
+    /// periodic_rekey — rotate key material on a live packager by
+    /// rewriting key.info between segments; needs --encrypt/--key)
+    #[arg(long)]
+    pub rekey: bool,
     /// Sliding-window live playlist: keeps only the newest --live-window
     /// segments (delete_segments + omit_endlist) — self-hosted live channel
     /// fed while the input is still being written

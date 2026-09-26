@@ -42645,3 +42645,133 @@ fn r332_broadcast_containers_bsf_microdvd_platforms() {
         assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
     }
 }
+
+#[test]
+fn r333_ivf_timescale_rekey_ar_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // ivf preset — VP9 elementary stream, video-only, --crf is true CQ
+    let o = dir.path().join("r333.ivf");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "ivf",
+        "--crf",
+        "30",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "ivf: {j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["vcodec"], "vp9", "ivf: {j}");
+    assert!(j["probe"]["acodec"].is_null(), "ivf has no audio: {j}");
+    // ivf refuses audio knobs (elementary stream has no audio)
+    let bad = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "ivf",
+        "--ar",
+        "44100",
+        "-o",
+        dir.path().join("r333-bad.ivf").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "ivf --ar: {bad}");
+    let bad = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "ivf",
+        "-o",
+        dir.path().join("r333-bad.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "ivf .mp4: {bad}");
+    // remux --timescale — pinned video track clock lands on the mp4
+    let o = dir.path().join("r333-ts.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "--timescale",
+        "90000",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "timescale: {j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(
+        j["probe"]["streams"][0]["time_base"], "1/90000",
+        "timescale: {j}"
+    );
+    let bad = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "--timescale",
+        "90000",
+        "-o",
+        dir.path().join("r333-bad.ts").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "timescale .ts: {bad}");
+    // hls --rekey — key rotation needs key material
+    let bad = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "--rekey",
+        "-o",
+        dir.path().join("r333-hls").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "rekey sans encrypt: {bad}");
+    let o = dir.path().join("r333-hls2");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "--encrypt",
+        "--rekey",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "rekey: {j}");
+    let cmd = j["commands"][0].to_string();
+    assert!(cmd.contains("periodic_rekey"), "rekey flag: {cmd}");
+    // compress --ar — resample lands on the two-pass audio path
+    let o = dir.path().join("r333-small.mp4");
+    let j = run_json(&[
+        "compress",
+        f.to_str().unwrap(),
+        "--size",
+        "1MB",
+        "--ar",
+        "22050",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "compress --ar: {j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(
+        j["probe"]["streams"][1]["sample_rate"], 22050,
+        "compress --ar: {j}"
+    );
+    // FAST/AVOD + kids platforms — 16:9 canvas
+    for p in [
+        "plutotv",
+        "freevee",
+        "fubotv",
+        "globo",
+        "pbskids",
+        "boomerang",
+        "cartoonito",
+    ] {
+        let o = dir.path().join(format!("r333-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
+    }
+}

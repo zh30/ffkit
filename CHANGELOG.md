@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.360.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset ivf` — VP9 in `.ivf` elementary stream (video-only MSE/Shaka/WebRTC test vectors; `--crf` runs true constant-quality — `-b:v 0` auto when no `--vbitrate`; audio knobs refuse up front)
+- `remux --timescale N` — `-video_track_timescale` on `.mp4`/`.m4v`/`.mov` outputs (ingest specs that pin the movie clock: 600 QuickTime-era, 90000/30000 broadcast)
+- `hls --rekey` — `periodic_rekey`: re-reads the key file after every segment so a live packager rotates AES-128 keys by rewriting `key.info` (needs `--encrypt`/`--key`)
+- `compress --ar R` — resample audio inside the budget pass (voice notes/speech fit tighter caps at 22050/16000; lands on single-pass, two-pass, and audio-only paths)
+- `deliver --platform` +7: plutotv, freevee, fubotv (FAST/AVOD broadcasters), globo (Brazilian OTT), pbskids, boomerang, cartoonito (kids networks) — all 16:9 1920x1080
+
 ## [0.359.0] — 2026-09-25
 
 ### Added

@@ -459,6 +459,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Avui => avui(&args, g),
         TranscodePreset::Ts => qt_era(&args, g, "libx264", &["ts", "m2ts"], None, Some("aac")),
         TranscodePreset::Mxf => mxf(&args, g),
+        TranscodePreset::Ivf => qt_era(&args, g, "libvpx-vp9", &["ivf"], None, None),
         TranscodePreset::Raw => lossless(&args, g, "rawvideo", &["avi", "mkv"], None),
     }
 }
@@ -2081,7 +2082,7 @@ fn qt_era(
                 .join("/")
         )));
     }
-    if (args.crf.is_some() && codec != "libx264")
+    if (args.crf.is_some() && !matches!(codec, "libx264" | "libvpx-vp9"))
         || (args.abitrate.is_some() && !matches!(acodec, Some("libmp3lame") | Some("aac")))
     {
         return Err(Error::input(format!(
@@ -2092,6 +2093,11 @@ fn qt_era(
         return Err(Error::input(
             "RealAudio 1.0 is the 8kHz mono dial-up spec — drop --ar/--channels",
         ));
+    }
+    if acodec.is_none() && (args.ar.is_some() || args.channels.is_some()) {
+        return Err(Error::input(format!(
+            "transcode --preset {codec} is a video-only elementary stream — drop --ar/--channels"
+        )));
     }
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_video {
@@ -2113,6 +2119,10 @@ fn qt_era(
     }
     if let Some(c) = args.crf {
         argv.extend(["-crf", &c.to_string()]);
+        // vp9 CQ mode: -b:v 0 makes -crf the target quality, not a cap
+        if codec == "libvpx-vp9" && args.vbitrate.is_none() {
+            argv.extend(["-b:v", "0"]);
+        }
     }
     if let Some(n) = args.gop {
         argv.extend(["-g", &n.to_string()]);

@@ -14,6 +14,14 @@ const PCM_EXTS: &[&str] = &["wav", "aif", "aiff", "caf", "flac"];
 
 pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
+    if let Some(r) = args.ar {
+        if !(4000..=192000).contains(&r) {
+            return Err(Error::input("--ar must be 4000-192000"));
+        }
+        if !probe.has_audio {
+            return Err(Error::input("compress --ar needs audio"));
+        }
+    }
     if let Some(crf) = args.crf {
         if crf > 51 {
             return Err(Error::input("--crf must be 0..=51"));
@@ -46,6 +54,9 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
                 "-b:a",
                 &format!("{:.0}", args.audio_kbps * 1_000.0),
             ]);
+            if let Some(r) = args.ar {
+                argv.extend(["-ar", &r.to_string()]);
+            }
         } else {
             argv.push("-an");
         }
@@ -167,6 +178,9 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         }
         if probe.has_audio {
             pass2.extend(["-c:a", "aac", "-b:a", &format!("{:.0}", audio_bps)]);
+            if let Some(r) = args.ar {
+                pass2.extend(["-ar", &r.to_string()]);
+            }
         } else {
             pass2.push("-an");
         }
@@ -181,6 +195,9 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push("-i");
         argv.push(&args.input);
         argv.extend(["-vn", "-b:a", &format!("{audio_bps:.0}")]);
+        if let Some(r) = args.ar {
+            argv.extend(["-ar", &r.to_string()]);
+        }
         argv.push(&args.output);
         argvs.push(argv);
     }

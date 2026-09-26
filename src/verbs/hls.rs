@@ -107,6 +107,11 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         if args.key_uri.is_some() {
             return Err(Error::input("--key-uri needs --encrypt or --key"));
         }
+        if args.rekey {
+            return Err(Error::input(
+                "hls --rekey rotates key material — it needs --encrypt or --key",
+            ));
+        }
         None
     };
     let key_args: Vec<String> = key_info
@@ -427,6 +432,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if args.iframes {
         flags.push("iframes_only");
+    }
+    if args.rekey {
+        flags.push("periodic_rekey");
     }
     if !flags.is_empty() {
         argv.extend(["-hls_flags".to_string(), flags.join("+")]);

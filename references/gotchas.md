@@ -918,4 +918,7 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - **The mpegts muxer auto-Annex-B's avcC H.264** — `remux x.mp4 -o x.ts` already writes valid TS without a filter; `--bsf annexb` is for the cases where it matters elsewhere (elementary `.h264` streams, some picky muxer/decoder pairings).
 - **`remux --bsf` is per stream kind, comma-joined** — several same-stream filters collapse into one `-bsf:v a,b` (that's ffmpeg's list syntax). Stream-kind gates refuse `adts` on a video-only input and `annexb` on an audio-only one.
 - **`.sub` is two formats** — MicroDVD frame numbers `{10}{25}text` (ffkit writes this back out at `--fps`, default 25) vs SubViewer timestamps; the reader splits on the first non-empty line's shape.
+- **VP9 `-crf` alone is a cap, `-b:v 0` makes it true CQ** — `--preset ivf --crf N` emits `-b:v 0` automatically when `--vbitrate` isn't given; pass `--vbitrate` too for constrained-quality mode.
+- **`-video_track_timescale` is a mov/mp4 muxer option only** — `remux --timescale` refuses `.ts`/`.mxf`/etc. up front; probe `streams[].time_base` reads it back (`1/90000`).
+- **`periodic_rekey` re-reads key.info per segment** — `hls --rekey` rotates AES-128 keys on a live packager by rewriting `key.info` between segments; it needs `--encrypt`/`--key` (no key file exists otherwise).
 - **MXF on 4.4 pins 48kHz stereo PCM** — the muxer refuses other audio rates ("only 48khz is implemented"), so `transcode --preset mxf` rejects `--ar`/`--channels` rather than letting ffmpeg fail mid-write.
