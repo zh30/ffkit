@@ -463,6 +463,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Gxf => gxf(&args, g),
         TranscodePreset::Wtv => qt_era(&args, g, "mpeg2video", &["wtv"], None, Some("mp2")),
         TranscodePreset::Smjpeg => qt_era(&args, g, "mjpeg", &["smjpg"], None, Some("pcm_s16le")),
+        TranscodePreset::Nut => ffv1_container(&args, g, "nut", "nut"),
         TranscodePreset::Raw => lossless(&args, g, "rawvideo", &["avi", "mkv"], None),
     }
 }
@@ -1312,20 +1313,34 @@ fn ar_ac(argv: &mut Argv, args: &TranscodeArgs) {
 /// FFV1 lossless archival master — mathematically lossless video + flac
 /// audio in .mkv (the museum/NLE-safe intermediate; only mkv carries ffv1).
 fn ffv1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
-    let ext = args
+    ffv1_container(args, g, "ffv1", "mkv")
+}
+
+/// FFV1 + FLAC — ffv1 preset in .mkv, nut preset in ffmpeg's native
+/// lossless swap container .nut; same codec pair, container is the only
+/// difference.
+fn ffv1_container(
+    args: &TranscodeArgs,
+    g: &Globals,
+    preset: &str,
+    ext: &str,
+) -> Result<Contract, Error> {
+    let got = args
         .output
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
-    if ext != "mkv" {
+    if got != ext {
         return Err(Error::input(format!(
-            "transcode --preset ffv1 needs a .mkv target (only mkv carries ffv1), not .{ext}"
+            "transcode --preset {preset} needs a .{ext} target, not .{got}"
         )));
     }
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_video {
-        return Err(Error::input("ffv1 preset: input has no video"));
+        return Err(Error::input(format!(
+            "transcode --preset {preset}: input has no video"
+        )));
     }
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
@@ -1346,7 +1361,7 @@ fn ffv1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    c = c.with_extra(json!({ "preset": "ffv1" }));
+    c = c.with_extra(json!({ "preset": preset }));
     Ok(c)
 }
 

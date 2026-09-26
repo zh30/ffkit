@@ -615,7 +615,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Proximus
         | DeliverPlatform::Swisscom
         | DeliverPlatform::Telstra
-        | DeliverPlatform::Kpn => (1920, 1080),
+        | DeliverPlatform::Kpn
+        | DeliverPlatform::Indeed
+        | DeliverPlatform::Glassdoor
+        | DeliverPlatform::Ziprecruiter
+        | DeliverPlatform::Seek
+        | DeliverPlatform::Monster
+        | DeliverPlatform::Naukri
+        | DeliverPlatform::Apna => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1254,6 +1261,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Swisscom => "swisscom",
         DeliverPlatform::Telstra => "telstra",
         DeliverPlatform::Kpn => "kpn",
+        DeliverPlatform::Indeed => "indeed",
+        DeliverPlatform::Glassdoor => "glassdoor",
+        DeliverPlatform::Ziprecruiter => "ziprecruiter",
+        DeliverPlatform::Seek => "seek",
+        DeliverPlatform::Monster => "monster",
+        DeliverPlatform::Naukri => "naukri",
+        DeliverPlatform::Apna => "apna",
         DeliverPlatform::Brightcove => "brightcove",
         DeliverPlatform::Jwplayer => "jwplayer",
         DeliverPlatform::Kaltura => "kaltura",

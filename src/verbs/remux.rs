@@ -392,11 +392,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             }
         }
     }
-    if (args.cmaf || args.mdta || args.skip_trailer)
+    if (args.cmaf || args.mdta || args.skip_trailer || args.isml || args.rtphint)
         && !matches!(ext.as_str(), "mp4" | "m4v" | "mov")
     {
         return Err(Error::input(
-            "remux --cmaf/--mdta/--skip-trailer are mov/mp4 muxer flags — mp4/mov targets only",
+            "remux --cmaf/--mdta/--skip-trailer/--isml/--rtphint are mov/mp4 muxer flags — mp4/mov targets only",
         ));
     }
     if args.skip_trailer && !args.frag {
@@ -1363,6 +1363,12 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if args.skip_trailer {
             mf.push_str("+skip_trailer");
         }
+        if args.isml {
+            mf.push_str("+isml");
+        }
+        if args.rtphint {
+            mf.push_str("+rtphint");
+        }
         if !mf.is_empty() {
             argv.extend(["-movflags".to_string(), mf]);
         }
@@ -1389,6 +1395,8 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["cmaf"] = json!(args.cmaf);
     extra["mdta"] = json!(args.mdta);
     extra["skip_trailer"] = json!(args.skip_trailer);
+    extra["isml"] = json!(args.isml);
+    extra["rtphint"] = json!(args.rtphint);
     if let Some((key, kid)) = enc_kv {
         extra["encrypted"] = json!(true);
         extra["key"] = json!(key);

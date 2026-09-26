@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.364.0] — 2026-09-26
+
+### Added
+- `transcode --preset nut` — FFV1 + FLAC in ffmpeg's own `.nut` lossless swap container (intermediate/archive-grade: everything ffmpeg writes it reads back)
+- `remux --isml`/`--rtphint` — mov/mp4 muxer flags: Smooth Streaming piif/uuid prologue (`+isml`, IIS ingest prologues), RTP hint tracks per media stream (`+rtphint`, live555/Darwin Streaming ingest prep)
+- `hls --master NAME` — `-master_pl_name` renames the `--ladder` master playlist (multi-channel ABR output dirs each get their own master)
+- `deliver --platform` +7: `indeed`/`glassdoor`/`ziprecruiter`/`seek`/`monster`/`naukri`/`apna` job-board + employer-brand listing videos — 16:9 1920x1080
+
 ## [0.363.0] — 2026-09-25
 
 ### Added

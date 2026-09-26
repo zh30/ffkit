@@ -207,6 +207,11 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("--video-only needs a video stream"));
         }
     }
+    if args.master.is_some() && args.ladder.is_empty() {
+        return Err(Error::input(
+            "--master names the --ladder master playlist — single playlists are already named by -o",
+        ));
+    }
     if !args.ladder.is_empty() {
         // ABR ladder: N variants at tiered bitrates, one audio, master.m3u8.
         if args.copy || args.single {
@@ -302,6 +307,10 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
                 .collect::<Vec<_>>()
                 .join(" ")
         };
+        let master_name = args
+            .master
+            .clone()
+            .unwrap_or_else(|| "master.m3u8".to_string());
         argv.extend([
             "-f".to_string(),
             "hls".to_string(),
@@ -314,7 +323,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
                 .display()
                 .to_string(),
             "-master_pl_name".to_string(),
-            "master.m3u8".to_string(),
+            master_name.clone(),
             "-var_stream_map".to_string(),
             varmap,
         ]);
@@ -325,7 +334,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         if g.dry_run {
             return Ok(Contract::dry_run(
                 "hls",
-                Some(paths::display(&dir.join("master.m3u8"))),
+                Some(paths::display(&dir.join(&master_name))),
                 Some(probe),
             )
             .with_commands(commands));
@@ -333,11 +342,11 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         if let Err(e) = engine::run_argvs(&[argv], g) {
             return Ok(Contract::failed("hls", &e).with_commands(commands));
         }
-        let master = dir.join("master.m3u8");
+        let master = dir.join(&master_name);
         if !master.is_file() {
-            return Err(Error::verification(
-                "hls --ladder finished but master.m3u8 is missing",
-            ));
+            return Err(Error::verification(format!(
+                "hls --ladder finished but {master_name} is missing"
+            )));
         }
         let variants = hs
             .iter()
@@ -350,14 +359,17 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             crate::probe::probe(&master, std::time::Duration::from_secs(60)).ok(),
         )
         .with_commands(commands);
-        c = c.with_extra(json!({
+        let mut extra = json!({
             "playlist": paths::display(&master),
             "variants": variants,
             "segment_seconds": args.seg,
-        }));
+            "master": master_name,
+        });
         if let Some((p, uri)) = &key_info {
-            c = c.with_extra(json!({"key_uri": uri, "key_info": paths::display(p)}));
+            extra["key_uri"] = json!(uri);
+            extra["key_info"] = json!(paths::display(p));
         }
+        c = c.with_extra(extra);
         return Ok(c);
     }
     if args.copy {

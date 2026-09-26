@@ -1556,6 +1556,9 @@ pub enum TranscodePreset {
     /// MJPEG + PCM in .smjpg — Loki/SDL-game video
     /// (smpeg-era open-source game FMV)
     Smjpeg,
+    /// FFV1 + FLAC in .nut — ffmpeg's own lossless swap container
+    /// (intermediate/archive grade, everything ffmpeg reads back)
+    Nut,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2647,6 +2650,20 @@ pub enum DeliverPlatform {
     Telstra,
     /// KPN iTV telecom-OTT clips (Netherlands set-top)
     Kpn,
+    /// Indeed job-board listing videos (employer-brand posts)
+    Indeed,
+    /// Glassdoor employer-profile video uploads
+    Glassdoor,
+    /// ZipRecruiter job-listing video posts
+    Ziprecruiter,
+    /// SEEK job-board listing clips (AU/NZ)
+    Seek,
+    /// Monster job-listing video uploads
+    Monster,
+    /// Naukri recruiter video posts (India job board)
+    Naukri,
+    /// Apna job-card video posts (India blue-collar)
+    Apna,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5709,6 +5726,14 @@ pub struct RemuxArgs {
     /// access trailer; needs --frag; mp4/mov targets only)
     #[arg(long)]
     pub skip_trailer: bool,
+    /// Write the Smooth Streaming prologue (-movflags +isml — piif/uuid
+    /// boxes IIS Smooth Streaming ingest looks for; mp4/mov targets only)
+    #[arg(long)]
+    pub isml: bool,
+    /// Add an RTP hint track per media stream (-movflags +rtphint —
+    /// live555/Darwin Streaming ingest prep; mp4/mov targets only)
+    #[arg(long)]
+    pub rtphint: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6667,6 +6692,11 @@ pub struct HlsArgs {
     /// Segments kept in a --live playlist (default 6)
     #[arg(long)]
     pub live_window: Option<u32>,
+    /// Master playlist filename inside a --ladder output dir
+    /// (-master_pl_name, default master.m3u8 — multi-channel ABR dirs
+    /// each get their own master)
+    #[arg(long)]
+    pub master: Option<String>,
     /// First segment index (seg_NNN + MEDIA-SEQUENCE) — resume a numbered
     /// stream after a restart instead of starting over at 0
     #[arg(long)]

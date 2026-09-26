@@ -43166,3 +43166,142 @@ fn r336_remux_ts_pids_movflags_dash_dvb_platforms() {
         assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
     }
 }
+
+#[test]
+fn r337_nut_isml_rtphint_hls_master_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // transcode --preset nut → FFV1+FLAC in ffmpeg's native lossless container
+    let o = dir.path().join("r337.nut");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "nut",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["preset"], "nut", "{j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    let v = j["probe"]["streams"].as_array().unwrap();
+    assert_eq!(v[0]["codec"], "ffv1", "{j}");
+    assert_eq!(v[1]["codec"], "flac", "{j}");
+    // nut preset on a non-.nut target refuses
+    let out = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            "nut",
+            "-o",
+            dir.path().join("r337-x.mp4").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // remux --isml → Smooth Streaming uuid/piif prologue on the mp4
+    let o = dir.path().join("r337-isml.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--isml",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["isml"], true, "{j}");
+    let bytes = std::fs::read(&o).unwrap();
+    assert!(
+        bytes.windows(4).any(|w| w == b"uuid"),
+        "isml uuid box missing"
+    );
+    // remux --rtphint → one data hint track per media stream
+    let o = dir.path().join("r337-rtp.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--rtphint",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["rtphint"], true, "{j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    let kinds: Vec<&str> = j["probe"]["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["kind"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        kinds.iter().filter(|k| **k == "data").count(),
+        2,
+        "{kinds:?}"
+    );
+    // movflags on .ts refuse
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r337-x.ts").to_str().unwrap(),
+            "--isml",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // hls --master names the ladder's master playlist
+    let d = dir.path().join("r337-hls");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        d.to_str().unwrap(),
+        "--ladder",
+        "480,240",
+        "--master",
+        "ch7.m3u8",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["master"], "ch7.m3u8", "{j}");
+    assert!(d.join("ch7.m3u8").is_file(), "master file missing");
+    let mpd = std::fs::read_to_string(d.join("ch7.m3u8")).unwrap();
+    assert!(mpd.contains("#EXT-X-STREAM-INF"), "{mpd}");
+    // --master without --ladder refuses
+    let out = ffkit()
+        .args([
+            "hls",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r337-h2").to_str().unwrap(),
+            "--master",
+            "ch7.m3u8",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // job-board platforms — 16:9 1920x1080
+    for p in [
+        "indeed",
+        "glassdoor",
+        "ziprecruiter",
+        "seek",
+        "monster",
+        "naukri",
+        "apna",
+    ] {
+        let o = dir.path().join(format!("r337-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
+    }
+}
