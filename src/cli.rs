@@ -2745,6 +2745,20 @@ pub enum DeliverPlatform {
     Audioboom,
     /// Omny Studio podcast host video uploads
     Omny,
+    /// Google Classroom lesson video posts
+    Googleclassroom,
+    /// Moodle LMS course video uploads
+    Moodle,
+    /// Blackboard Learn course video uploads
+    Blackboard,
+    /// Canvas LMS course video uploads
+    Canvaslms,
+    /// Schoology course video uploads
+    Schoology,
+    /// Seesaw classroom portfolio videos
+    Seesaw,
+    /// ClassDojo classroom story videos
+    Classdojo,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4338,10 +4352,14 @@ pub struct MetaArgs {
     /// Composer / songwriter tag (music metadata)
     #[arg(long)]
     pub composer: Option<String>,
-    /// BPM tempo tag (DJ mixes, beat packs) — lands in mp3/mkv/flac;
-    /// mp4-family containers drop it (ffmpeg muxer whitelist)
+    /// BPM tempo tag (DJ mixes, beat packs) — writes `bpm` for
+    /// mp3/mkv/flac plus the iTunes `tmpo` atom so mp4/m4a/mov land it too
     #[arg(long)]
     pub bpm: Option<u32>,
+    /// iTunes compilation flag (cpil atom — "Various Artists" albums in
+    /// Apple Music/Books libraries; mp4-family)
+    #[arg(long)]
+    pub compilation: bool,
     /// Embed unsynced lyrics from a .lrc/.txt file — LRC timestamps
     /// are stripped so players show plain lines
     #[arg(long)]
@@ -6872,6 +6890,12 @@ pub struct HlsArgs {
     /// ingest: one channel of a captured mux, incl. --ladder ABR)
     #[arg(long)]
     pub program: Option<u32>,
+    /// Mux a text subtitle file as a WebVTT sidecar rendition (captioned
+    /// HLS packs — master gains EXT-X-MEDIA:TYPE=SUBTITLES and every
+    /// variant gets SUBTITLES="subtitle"; .srt/.vtt/.ass all decode to
+    /// webvtt; conflicts with --single/--program)
+    #[arg(long)]
+    pub subs: Option<PathBuf>,
 }
 
 #[derive(clap::Args, Debug)]

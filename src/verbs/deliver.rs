@@ -657,7 +657,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Fireside
         | DeliverPlatform::Blubrry
         | DeliverPlatform::Audioboom
-        | DeliverPlatform::Omny => (1920, 1080),
+        | DeliverPlatform::Omny
+        | DeliverPlatform::Googleclassroom
+        | DeliverPlatform::Moodle
+        | DeliverPlatform::Blackboard
+        | DeliverPlatform::Canvaslms
+        | DeliverPlatform::Schoology
+        | DeliverPlatform::Seesaw
+        | DeliverPlatform::Classdojo => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1331,6 +1338,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Blubrry => "blubrry",
         DeliverPlatform::Audioboom => "audioboom",
         DeliverPlatform::Omny => "omny",
+        DeliverPlatform::Googleclassroom => "googleclassroom",
+        DeliverPlatform::Moodle => "moodle",
+        DeliverPlatform::Blackboard => "blackboard",
+        DeliverPlatform::Canvaslms => "canvaslms",
+        DeliverPlatform::Schoology => "schoology",
+        DeliverPlatform::Seesaw => "seesaw",
+        DeliverPlatform::Classdojo => "classdojo",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

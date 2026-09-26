@@ -57,6 +57,19 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "hls --independent doesn't apply to --ladder (per-rung GOPs)",
         ));
     }
+    if let Some(s) = &args.subs {
+        paths::ensure_input(s)?;
+        if args.single {
+            return Err(Error::input(
+                "hls --subs writes a sidecar WebVTT rendition — doesn't combine with --single",
+            ));
+        }
+        if args.program.is_some() {
+            return Err(Error::input(
+                "hls --subs doesn't combine with --program (program members reorder stream indexes)",
+            ));
+        }
+    }
     if let Some(u) = &args.base_url {
         let u = u.trim();
         if u.is_empty() || u.contains(char::is_whitespace) {
@@ -163,6 +176,21 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
 
     let mut argv = ffmpeg_base(g.progress);
     argv.extend(["-i".to_string(), args.input.display().to_string()]);
+    if let Some(s) = &args.subs {
+        argv.extend(["-i".to_string(), s.display().to_string()]);
+    }
+    // --subs: anchor the map so the external file is deterministically
+    // s:0 in the variant descriptors — an input carrying its own embedded
+    // subs would otherwise shift the index (ladder maps its own below).
+    if args.subs.is_some() && args.ladder.is_empty() {
+        if !args.audio_only {
+            argv.extend(["-map".to_string(), "0:v:0?".to_string()]);
+        }
+        if !args.video_only {
+            argv.extend(["-map".to_string(), "0:a:0?".to_string()]);
+        }
+        argv.extend(["-map".to_string(), "1:s:0".to_string()]);
+    }
     // --program N: package one service out of a multi-program transport
     // stream. Members come from probe.programs[] — stream presence is
     // then scoped to the service, not the file (a radio service has no
@@ -318,9 +346,28 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
                 ]);
             }
         }
+        // --subs on a ladder: one output subtitle stream per variant
+        // (s:{i}) so every rung links its own rendition playlist.
+        if args.subs.is_some() {
+            for _ in 0..n {
+                argv.extend(["-map".to_string(), "1:s:0".to_string()]);
+            }
+        }
         let varmap = if sel_has_audio && !args.video_only {
+            if args.subs.is_some() {
+                (0..n)
+                    .map(|i| format!("v:{i},a:{i},s:{i},sgroup:subtitle"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            } else {
+                (0..n)
+                    .map(|i| format!("v:{i},a:{i}"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            }
+        } else if args.subs.is_some() {
             (0..n)
-                .map(|i| format!("v:{i},a:{i}"))
+                .map(|i| format!("v:{i},s:{i},sgroup:subtitle"))
                 .collect::<Vec<_>>()
                 .join(" ")
         } else {
@@ -387,6 +434,11 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "segment_seconds": args.seg,
             "master": master_name,
         });
+        if let Some(s) = &args.subs {
+            extra["subs"] = json!(paths::display(s));
+            extra["subs_playlists"] =
+                json!((0..n).map(|i| format!("v{i}_vtt.m3u8")).collect::<Vec<_>>());
+        }
         if let Some((p, uri)) = &key_info {
             extra["key_uri"] = json!(uri);
             extra["key_info"] = json!(paths::display(p));
@@ -433,6 +485,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if args.video_only {
         argv.extend(["-an".to_string()]);
+    }
+    if args.subs.is_some() {
+        argv.extend(["-c:s".to_string(), "webvtt".to_string()]);
     }
     argv.extend([
         "-f".to_string(),
@@ -519,6 +574,27 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(u) = &args.base_url {
         argv.extend(["-hls_base_url".to_string(), u.trim().to_string()]);
+    }
+    // --subs needs a master playlist for the EXT-X-MEDIA link even on a
+    // single-variant pack; ladder already names its own.
+    if args.subs.is_some() && args.ladder.is_empty() {
+        let mut desc = String::new();
+        if sel_has_video && !args.audio_only {
+            desc.push_str("v:0");
+        }
+        if sel_has_audio && !args.video_only {
+            if !desc.is_empty() {
+                desc.push(',');
+            }
+            desc.push_str("a:0");
+        }
+        desc.push_str(",s:0,sgroup:subtitle");
+        argv.extend([
+            "-var_stream_map".to_string(),
+            desc,
+            "-master_pl_name".to_string(),
+            "master.m3u8".to_string(),
+        ]);
     }
     argv.extend(key_args.iter().cloned());
     argv.push(playlist.display().to_string());
@@ -609,7 +685,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         crate::probe::probe(&playlist, std::time::Duration::from_secs(60)).ok(),
     )
     .with_commands(commands);
-    c = c.with_extra(json!({
+    let mut extra = json!({
         "playlist": paths::display(&playlist),
         "segments": nseg,
         "segment_seconds": args.seg,
@@ -628,10 +704,23 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "base_url": args.base_url,
         "live_window": if args.live { args.live_window.unwrap_or(6) } else { 0 },
         "append": args.append,
-    }));
-    if let Some((p, uri)) = &key_info {
-        c = c.with_extra(json!({"key_uri": uri, "key_info": paths::display(p)}));
+    });
+    if let Some(s) = &args.subs {
+        // ffmpeg names the sidecar rendition after the variant playlist.
+        let stem = playlist
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("index");
+        extra["subs"] = json!(paths::display(s));
+        extra["subs_playlists"] = json!([format!("{stem}_vtt.m3u8")]);
+        extra["master"] = json!("master.m3u8");
     }
+    if let Some((p, uri)) = &key_info {
+        // with_extra replaces the whole object — merge, don't chain
+        extra["key_uri"] = json!(uri);
+        extra["key_info"] = json!(paths::display(p));
+    }
+    c = c.with_extra(extra);
     Ok(c)
 }
 

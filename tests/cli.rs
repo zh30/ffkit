@@ -44039,3 +44039,134 @@ fn r342_shadows_noaudio_thresh_dpx_podcast() {
         assert_eq!(pj["probe"]["width"], w, "{p}: {pj}");
     }
 }
+
+#[test]
+fn r343_hls_subs_meta_compilation_lms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    let caps = dir.path().join("caps.vtt");
+    std::fs::write(&caps, "WEBVTT\n\n00:00.000 --> 00:01.000\nhello\n").unwrap();
+    // hls --subs — WebVTT sidecar rendition linked from the master playlist
+    let hd = dir.path().join("r343-hls");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        hd.to_str().unwrap(),
+        "--subs",
+        caps.to_str().unwrap(),
+        "--seg",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["subs_playlists"][0], "index_vtt.m3u8", "{j}");
+    let master = std::fs::read_to_string(hd.join("master.m3u8")).unwrap();
+    assert!(
+        master.contains("EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID=\"subtitle\""),
+        "{master}"
+    );
+    assert!(hd.join("index_vtt.m3u8").is_file());
+    // --subs + --ladder: each rung carries its own rendition playlist
+    let lad = dir.path().join("r343-lad");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        lad.to_str().unwrap(),
+        "--ladder",
+        "240,120",
+        "--subs",
+        caps.to_str().unwrap(),
+        "--seg",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let lm = std::fs::read_to_string(lad.join("master.m3u8")).unwrap();
+    assert!(lm.contains("URI=\"v0_vtt.m3u8\""), "{lm}");
+    assert!(lm.contains("URI=\"v1_vtt.m3u8\""), "{lm}");
+    // --subs refuses combos that reorder stream indexes or skip the master
+    for extra in [["--single"].as_slice(), ["--program", "1"].as_slice()] {
+        let out = ffkit()
+            .args(
+                [
+                    "hls",
+                    f.to_str().unwrap(),
+                    "-o",
+                    dir.path().join("x").to_str().unwrap(),
+                    "--subs",
+                    caps.to_str().unwrap(),
+                ]
+                .iter()
+                .chain(extra.iter())
+                .copied()
+                .collect::<Vec<_>>(),
+            )
+            .output()
+            .unwrap();
+        assert!(!out.status.success(), "{extra:?}");
+    }
+    // meta --compilation → iTunes cpil atom, readable back by ffprobe
+    let mo = dir.path().join("r343-comp.m4a");
+    let j = run_json(&[
+        "meta",
+        f.to_str().unwrap(),
+        "-o",
+        mo.to_str().unwrap(),
+        "--compilation",
+        "--bpm",
+        "128",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pf = Command::new("ffprobe")
+        .args(["-v", "error", "-show_entries", "format_tags", "-of", "json"])
+        .arg(&mo)
+        .output()
+        .unwrap();
+    let tags: serde_json::Value =
+        serde_json::from_slice(&pf.stdout).unwrap_or(serde_json::json!({}));
+    assert_eq!(tags["format"]["tags"]["compilation"], "1", "{tags}");
+    // --bpm must land the iTunes tmpo atom on mp4-family (bpm key is dropped)
+    let bytes = std::fs::read(&mo).unwrap();
+    let tmpo = bytes.windows(4).any(|w| w == b"tmpo");
+    assert!(tmpo, "tmpo atom missing");
+    // +7 LMS targets — all 16:9 1920x1080
+    for (p, w) in [
+        ("googleclassroom", 1920),
+        ("moodle", 1920),
+        ("blackboard", 1920),
+        ("canvaslms", 1920),
+        ("schoology", 1920),
+        ("seesaw", 1920),
+        ("classdojo", 1920),
+    ] {
+        let o = dir.path().join(format!("lms-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], w, "{p}: {pj}");
+    }
+    // with_extra regression: --encrypt must not wipe the hls extras
+    let en = dir.path().join("r343-enc");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        en.to_str().unwrap(),
+        "--encrypt",
+        "--seg",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(j["extra"]["segments"].as_i64().unwrap_or(0) > 0, "{j}");
+    assert!(j["extra"]["key_uri"].is_string(), "{j}");
+}

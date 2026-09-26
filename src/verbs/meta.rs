@@ -42,6 +42,7 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         }
     };
     let gapless_text = if args.gapless { Some("1") } else { None };
+    let comp_text = if args.compilation { Some("1") } else { None };
     let hd_text = if args.hd { Some("1") } else { None };
     let tags: Vec<(&str, &str)> = [
         ("title", args.title.as_deref()),
@@ -53,6 +54,10 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         ("disc", args.disc.as_deref()),
         ("composer", args.composer.as_deref()),
         ("bpm", bpm_text.as_deref()),
+        // `bpm` lands on mp3/flac/mkv but the mp4 muxer whitelist drops it —
+        // the iTunes tmpo atom needs the `tmpo` key, so emit both.
+        ("tmpo", bpm_text.as_deref()),
+        ("compilation", comp_text),
         ("lyrics", lyrics_text.as_deref()),
         ("copyright", args.copyright.as_deref()),
         ("album_artist", args.album_artist.as_deref()),

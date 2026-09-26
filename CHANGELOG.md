@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.370.0] — 2026-09-26
+
+### Added
+
+- `hls --subs FILE` — mux a text subtitle file as a WebVTT sidecar rendition: the master gains `EXT-X-MEDIA:TYPE=SUBTITLES` and every variant links `SUBTITLES="subtitle"` (works with `--ladder` — each rung gets its own .vtt playlist; conflicts with `--single`/`--program`)
+- `meta --compilation` — iTunes `cpil` atom (the "Various Artists" album flag, readable back via `probe` tags)
+- `meta --bpm` now also writes the iTunes `tmpo` atom — mp4/m4a/mov files keep the tempo (the bare `bpm` key was silently dropped by the mp4 muxer whitelist)
+- `deliver --platform` +7 LMS targets: `googleclassroom`, `moodle`, `blackboard`, `canvaslms`, `schoology`, `seesaw`, `classdojo` — course-video uploads 16:9 1920x1080 → 531 platforms
+
+### Fixed
+
+- `hls` extras lost `playlist`/`segments`/flag fields whenever `--encrypt`/`--key` was set — a chained `with_extra` replaced the whole object; extras are now merged into one `extra` value so encrypted packs report the key fields *and* the segment counts
+
 ## [0.369.0] — 2026-09-26
 
 ### Added

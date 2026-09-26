@@ -948,3 +948,7 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 
 - **`-lhls` (low-latency HLS on the dash muxer) is a live-ingest flag.** On a file it writes a normal static MPD — no EXT-X-PREFETCH appears without a live edge, so ffkit does not expose it. It also requires `-strict experimental` on 4.4.
 
+
+- **HLS subtitle renditions ride *inside* the AV variant descriptor** — `-var_stream_map "v:0,a:0,s:0,sgroup:subtitle"` is what links the WebVTT playlist into the master via EXT-X-MEDIA. A standalone `s:0` variant writes the vtt playlist but no master link (players never see it), and `sgroup` on a standalone subtitle — or on the video variant — fails with "No streams to mux". The muxer names the rendition after the variant playlist stem (`index.m3u8` → `index_vtt.m3u8` + `index0.vtt` segments), and a master playlist is required even for single-variant packs.
+- **mp4-family containers silently drop `-metadata bpm=`** — the muxer's iTunes-atom whitelist keeps only named keys, so `meta --bpm` emits `tmpo` alongside `bpm` (the tempo atom Apple Music reads). ffprobe never *displays* `tmpo` even when written — byte-grep the file to verify. `-metadata compilation=1` is the one that reads back cleanly (cpil → `format_tags.compilation`).
+- **`with_extra` replaces the whole extras object, never merges** — two chained calls leave only the second's fields (hls `--encrypt` used to wipe `playlist`/`segments`). Build one `json!` object, set extra keys on it (`extra["k"]=v`), then a single `with_extra`.
