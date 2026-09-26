@@ -515,6 +515,23 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --delay-moov/--separate-moof shape fragment layout — needs --frag (mp4/mov only)",
         ));
     }
+    if args.frag_frame {
+        if !args.frag {
+            return Err(Error::input(
+                "remux --frag-frame fragments at every frame — needs --frag (mp4/mov only)",
+            ));
+        }
+        if args.frag_duration.is_some() || args.frag_size.is_some() {
+            return Err(Error::input(
+                "remux --frag-frame sets its own frame-boundary cadence — drop --frag-duration/--frag-size",
+            ));
+        }
+    }
+    if args.track_ids && !matches!(ext.as_str(), "mp4" | "m4v" | "mov" | "m4a") {
+        return Err(Error::input(
+            "remux --track-ids stamps mp4 track ids — .mp4/.mov targets only",
+        ));
+    }
     if args.tmcd {
         if args.timecode.is_none() {
             return Err(Error::input(
@@ -674,6 +691,8 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             || args.delay_moov
             || args.separate_moof
             || args.tmcd
+            || args.frag_frame
+            || args.track_ids
             || args.mux_preload.is_some()
             || args.mux_delay.is_some()
             || args.no_faststart
@@ -1534,8 +1553,13 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if !matches!(ext.as_str(), "mp4" | "mov") {
             return Err(Error::input("remux --frag needs an mp4/mov output"));
         }
-        // fragmented moov — the file plays/streamable while still being written
-        argv.extend(["-movflags", "frag_keyframe+empty_moov+default_base_moof"]);
+        // fragmented moov — the file plays/streamable while still being written;
+        // --frag-frame turns every frame into its own moof (LL ingest cadence)
+        let mut mf = "frag_keyframe+empty_moov+default_base_moof".to_string();
+        if args.frag_frame {
+            mf.push_str("+frag_every_frame");
+        }
+        argv.extend(["-movflags", mf.as_str()]);
         if args.prft {
             // producer-reference-time box per fragment — LL-DASH/CMAF
             // latency measurement on ingest
@@ -1737,6 +1761,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if args.tmcd {
         argv.extend(["-write_tmcd".to_string(), "1".to_string()]);
     }
+    if args.track_ids {
+        argv.extend(["-use_stream_ids_as_track_ids".to_string(), "1".to_string()]);
+    }
     if args.bitexact {
         argv.push("-bitexact");
     }
@@ -1800,6 +1827,8 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["rf64"] = json!(args.rf64);
     extra["delay_moov"] = json!(args.delay_moov);
     extra["separate_moof"] = json!(args.separate_moof);
+    extra["frag_frame"] = json!(args.frag_frame);
+    extra["track_ids"] = json!(args.track_ids);
     extra["tmcd"] = json!(args.tmcd);
     extra["mux_preload"] = json!(args.mux_preload);
     extra["mux_delay"] = json!(args.mux_delay);

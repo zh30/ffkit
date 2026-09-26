@@ -1190,9 +1190,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && in_ext != "pjs"
         && in_ext != "psb"
         && in_ext != "jss"
+        && in_ext != "ssa"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb/.jss input",
+            "subs --convert takes .srt/.vtt/.ass/.ssa/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb/.jss input",
         ));
     }
     if out_ext != "srt"
@@ -1210,16 +1211,23 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "pjs"
         && out_ext != "psb"
         && out_ext != "jss"
+        && out_ext != "ssa"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb/.jss input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi/.sub/.pjs/.psb/.jss output",
+            "subs --convert takes .srt/.vtt/.ass/.ssa/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb/.jss input and .srt/.vtt/.txt/.ass/.ssa/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi/.sub/.pjs/.psb/.jss output",
         ));
     }
-    let raw = if in_ext == "scc" || in_ext == "stl" || in_ext == "rt" || in_ext == "mps" {
+    let raw = if in_ext == "scc"
+        || in_ext == "stl"
+        || in_ext == "rt"
+        || in_ext == "mps"
+        || in_ext == "ssa"
+    {
         // .scc carries CEA-608 captions as hex pairs, .stl is the Spruce
         // broadcast format, .rt is RealPlayer captions, .mps is MPlayer's
-        // start+duration lines — all four decode through ffmpeg demuxers;
-        // parse the srt each emits
+        // start+duration lines, .ssa is SubStation v4 (the pre-ASS
+        // dialect — its decoder reads the Marked=0 event fields) — all
+        // decode through ffmpeg demuxers; parse the srt each emits
         let mut av = crate::spawn::Argv::ffmpeg();
         av.extend(["-loglevel", "error", "-i"]);
         av.push(&args.input);
@@ -1365,9 +1373,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
             .join(" ");
         s.push('\n');
         s
-    } else if out_ext == "ass" {
+    } else if out_ext == "ass" || out_ext == "ssa" {
         // minimal styled ASS: Default style + one Dialogue line per cue —
-        // hand to Aegisub/anime-style pipelines for heavy styling
+        // hand to Aegisub/anime-style pipelines for heavy styling; .ssa
+        // gets the same v4.00+ body (what ffmpeg's own .ssa muxer writes)
         let mut s = String::from(
             "[Script Info]\nTitle: ffkit subs convert\nScriptType: v4.00+\n\n\
              [V4+ Styles]\n\

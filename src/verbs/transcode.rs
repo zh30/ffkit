@@ -334,6 +334,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         | TranscodePreset::Sbc
         | TranscodePreset::G723
         | TranscodePreset::Amr
+        | TranscodePreset::Wma
         | TranscodePreset::Truehd
         | TranscodePreset::Mlp => audio_only(&args, g, preset),
         TranscodePreset::Gif => gif(&args, g),
@@ -865,6 +866,7 @@ fn audio_only(
             TranscodePreset::Amr => {
                 argv.extend(["-c:a", "libopencore_amrnb", "-ar", "8000", "-ac", "1"])
             }
+            TranscodePreset::Wma => argv.extend(["-c:a", "wmav2", "-b:a", abitrate(args, "192k")]),
             TranscodePreset::Truehd => argv.extend(["-c:a", "truehd", "-strict", "-2"]),
             TranscodePreset::Mlp => argv.extend(["-c:a", "mlp", "-strict", "-2"]),
             _ => argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "192k")]),

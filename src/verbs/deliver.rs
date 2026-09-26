@@ -749,7 +749,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Betalist
         | DeliverPlatform::Alternativeto
         | DeliverPlatform::Devto
-        | DeliverPlatform::Hashnode => (1920, 1080),
+        | DeliverPlatform::Hashnode
+        | DeliverPlatform::Theknot
+        | DeliverPlatform::Weddingwire
+        | DeliverPlatform::Zola
+        | DeliverPlatform::Joy
+        | DeliverPlatform::Minted
+        | DeliverPlatform::Shutterfly
+        | DeliverPlatform::Mixbook
+        | DeliverPlatform::Artifactuprising => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1500,6 +1508,14 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Alternativeto => "alternativeto",
         DeliverPlatform::Devto => "devto",
         DeliverPlatform::Hashnode => "hashnode",
+        DeliverPlatform::Theknot => "theknot",
+        DeliverPlatform::Weddingwire => "weddingwire",
+        DeliverPlatform::Zola => "zola",
+        DeliverPlatform::Joy => "joy",
+        DeliverPlatform::Minted => "minted",
+        DeliverPlatform::Shutterfly => "shutterfly",
+        DeliverPlatform::Mixbook => "mixbook",
+        DeliverPlatform::Artifactuprising => "artifactuprising",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

@@ -1582,6 +1582,10 @@ pub enum TranscodePreset {
     /// notes, ringtone-era uploads; audio only)
     #[value(name = "amr")]
     Amr,
+    /// WMA v2 audio in .wma/.asf (Windows Media Audio — old Windows
+    /// libraries, Zune/iRiver-era player uploads; audio only)
+    #[value(name = "wma")]
+    Wma,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2890,6 +2894,22 @@ pub enum DeliverPlatform {
     Devto,
     /// Hashnode blog post video 16:9
     Hashnode,
+    /// The Knot wedding-vendor portfolio video 16:9
+    Theknot,
+    /// WeddingWire vendor/portfolio video 16:9
+    Weddingwire,
+    /// Zola wedding-registry video 16:9
+    Zola,
+    /// Joy wedding-website video 16:9
+    Joy,
+    /// Minted announcement/photo-card video 16:9
+    Minted,
+    /// Shutterfly photo/video print-gallery video 16:9
+    Shutterfly,
+    /// Mixbook photo-book project video 16:9
+    Mixbook,
+    /// Artifact Uprising print/photo project video 16:9
+    Artifactuprising,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6129,6 +6149,18 @@ pub struct RemuxArgs {
     /// .mkv/.ts targets only, refuses when the source already has audio)
     #[arg(long)]
     pub silent_audio: bool,
+    /// Fragment every frame instead of every keyframe (-movflags
+    /// +frag_every_frame — frame-granular fragments for low-latency
+    /// ingest where players append at frame cadence; needs --frag,
+    /// mp4/mov only, conflicts --frag-duration/--frag-size)
+    #[arg(long)]
+    pub frag_frame: bool,
+    /// Write each output stream's own index as its mp4 track id
+    /// (-use_stream_ids_as_track_ids — ingest pipelines that correlate
+    /// track ids with source stream order instead of 1..N; .mp4/.mov
+    /// targets only)
+    #[arg(long)]
+    pub track_ids: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -7273,6 +7305,16 @@ pub struct DashArgs {
     /// DASH players that can't expand template vars)
     #[arg(long)]
     pub segment_list: bool,
+    /// Also write HLS playlists (master.m3u8 + media_N.m3u8) pointing
+    /// at the same segments (-hls_playlist — one pack serves both
+    /// DASH and HLS players; with --single the playlists carry
+    /// EXT-X-BYTERANGE into the single CMAF file; conflicts --webm)
+    #[arg(long)]
+    pub hls: bool,
+    /// Rename the HLS master playlist (-hls_master_name — several
+    /// packs sharing a dir get distinct masters; needs --hls)
+    #[arg(long = "hls-name", value_name = "NAME")]
+    pub hls_name: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]

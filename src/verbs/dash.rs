@@ -106,6 +106,16 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
     if args.sidx && args.webm {
         return Err(Error::input("--sidx needs the mp4 package (drop --webm)"));
     }
+    if args.hls && args.webm {
+        return Err(Error::input(
+            "--hls serves the CMAF pack to HLS players — webm segments can't play in HLS",
+        ));
+    }
+    if args.hls_name.is_some() && !args.hls {
+        return Err(Error::input(
+            "--hls-name names the HLS master — pass --hls too",
+        ));
+    }
     paths::ensure_input(&args.input)?;
     if args.webm && args.copy {
         let v = probe.vcodec.as_deref().unwrap_or("");
@@ -418,6 +428,14 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         // index old/basic DASH players that can't expand templates read
         argv.extend(["-use_template", "0"]);
     }
+    if args.hls {
+        // media_N.m3u8 + master.m3u8 alongside the MPD — same segments
+        // serve both protocol families (CMAF dual-manifest packing)
+        argv.extend(["-hls_playlist".to_string(), "1".to_string()]);
+        if let Some(n) = &args.hls_name {
+            argv.extend(["-hls_master_name".to_string(), n.clone()]);
+        }
+    }
     if args.webm {
         argv.extend(["-dash_segment_type".to_string(), "webm".to_string()]);
     }
@@ -497,6 +515,7 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         "no_timeline": args.no_timeline,
         "var_map": args.var_map,
         "segment_list": args.segment_list,
+        "hls": args.hls,
         "ladder": hs
             .iter()
             .map(|h| format!("{h}p"))

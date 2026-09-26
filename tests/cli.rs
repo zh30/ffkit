@@ -45623,3 +45623,223 @@ fn r350_mpeg4_vp8_amr_dashseg_silent_meta_deliver() {
         assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
     }
 }
+
+#[test]
+fn r351_wma_fragframe_trackids_dashhls_ssa_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // transcode --preset wma: wmav2 audio-only in .wma
+    let wma = dir.path().join("t.wma");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        wma.to_str().unwrap(),
+        "--preset",
+        "wma",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", wma.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["acodec"], "wmav2", "{pj}");
+
+    // remux --frag --frag-frame: every frame its own moof (vs keyframe
+    // cadence — a -g 5 source gives 6 moofs, frame mode gives ~75)
+    let g5 = dir.path().join("g5.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            f.to_str().unwrap(),
+            "-c:v",
+            "libx264",
+            "-g",
+            "5",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&g5)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let base = dir.path().join("fb.mp4");
+    run_json(&[
+        "remux",
+        g5.to_str().unwrap(),
+        "-o",
+        base.to_str().unwrap(),
+        "--frag",
+    ]);
+    let tf = dir.path().join("tf.mp4");
+    let j = run_json(&[
+        "remux",
+        g5.to_str().unwrap(),
+        "-o",
+        tf.to_str().unwrap(),
+        "--frag",
+        "--frag-frame",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["frag_frame"], true, "{j}");
+    let count_moof = |p: &Path| -> usize {
+        let d = std::fs::read(p).unwrap();
+        d.windows(4).filter(|w| *w == b"moof").count()
+    };
+    let n_base = count_moof(&base);
+    let n_frame = count_moof(&tf);
+    assert!(
+        n_frame > n_base * 5,
+        "frag_every_frame should explode moof count ({n_base} -> {n_frame})"
+    );
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("nf.mp4").to_str().unwrap(),
+            "--frag-frame",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--frag-frame needs --frag");
+
+    // remux --track-ids: mp4 track ids become stream indices [0,0]
+    // instead of the muxer's default 1..N
+    let tid = dir.path().join("tid.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        tid.to_str().unwrap(),
+        "--track-ids",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["track_ids"], true, "{j}");
+    let track_ids = |p: &Path| -> Vec<u32> {
+        let d = std::fs::read(p).unwrap();
+        let mut out = Vec::new();
+        let mut i = 0usize;
+        while let Some(k) = d[i..].windows(4).position(|w| w == b"tkhd") {
+            let pos = i + k;
+            let ver = d[pos + 4];
+            let off = if ver == 0 { 16 } else { 28 };
+            out.push(u32::from_be_bytes(
+                d[pos + off..pos + off + 4].try_into().unwrap(),
+            ));
+            i = pos + 4;
+            if i + 40 > d.len() {
+                break;
+            }
+        }
+        out
+    };
+    assert_eq!(track_ids(&tid), vec![0, 0], "stream ids as track ids");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("tid.mkv").to_str().unwrap(),
+            "--track-ids",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--track-ids is mp4-family only");
+
+    // dash --hls: dual-manifest pack — master.m3u8 + media_N.m3u8
+    // alongside the MPD on shared CMAF segments
+    let pk = dir.path().join("pk");
+    let j = run_json(&[
+        "dash",
+        f.to_str().unwrap(),
+        "-o",
+        pk.to_str().unwrap(),
+        "--hls",
+        "--hls-name",
+        "big.m3u8",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["hls"], true, "{j}");
+    assert!(pk.join("big.m3u8").exists(), "named HLS master");
+    assert!(pk.join("media_0.m3u8").exists(), "media playlist");
+    let m3u8 = std::fs::read_to_string(pk.join("media_0.m3u8")).unwrap();
+    assert!(m3u8.contains("#EXT-X-MAP"), "init map in media playlist");
+    let out = ffkit()
+        .args([
+            "dash",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("pw").to_str().unwrap(),
+            "--hls",
+            "--webm",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--hls refuses --webm");
+    let out = ffkit()
+        .args([
+            "dash",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("pn").to_str().unwrap(),
+            "--hls-name",
+            "x.m3u8",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--hls-name needs --hls");
+
+    // subs --convert .ssa round-trip: srt -> ssa (V4+ script) -> srt
+    let srt_in = dir.path().join("t.srt");
+    std::fs::write(&srt_in, "1\n00:00:00,000 --> 00:00:00,900\nhello sub\n").unwrap();
+    let ssa = dir.path().join("t.ssa");
+    let j = run_json(&[
+        "subs",
+        srt_in.to_str().unwrap(),
+        "--convert",
+        "-o",
+        ssa.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let head = std::fs::read_to_string(&ssa).unwrap();
+    assert!(head.contains("ScriptType: v4.00+"), "{head}");
+    let srt_out = dir.path().join("back.srt");
+    let j = run_json(&[
+        "subs",
+        ssa.to_str().unwrap(),
+        "--convert",
+        "-o",
+        srt_out.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let back = std::fs::read_to_string(&srt_out).unwrap();
+    assert!(back.contains("hello sub"), "{back}");
+
+    // +8 platforms: wedding & photo-print creator targets, 1920x1080
+    for p in [
+        "theknot",
+        "weddingwire",
+        "zola",
+        "joy",
+        "minted",
+        "shutterfly",
+        "mixbook",
+        "artifactuprising",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
+    }
+}

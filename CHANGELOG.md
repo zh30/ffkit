@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.378.0] — 2026-09-26
+
+### Added
+
+- `transcode --preset wma` — WMA v2 audio-only in `.wma`/`.asf` (Windows Media Audio — old Windows libraries, Zune/iRiver-era player uploads)
+- `dash --hls` / `--hls-name NAME` — mirror the DASH pack into HLS playlists (`-hls_playlist` — one CMAF segment set serves both the MPD and `master.m3u8` + `media_N.m3u8` manifests; `--hls-name` renames the master; conflicts with `--webm`)
+- `remux --frag-frame` — one moof per frame (`+frag_every_frame` — the densest fragment interleave for frame-accurate CMAF slicing; requires `--frag`, conflicts with `--frag-duration`/`--frag-size`, mp4/mov only)
+- `remux --track-ids` — stream indices become the mp4 track ids (`-use_stream_ids_as_track_ids` — deterministic `tkhd` ids 0..N for player pipelines keyed on track 0; mp4/mov/m4a only)
+- `subs --convert` both directions for `.ssa` — SubStation Alpha input (demuxer path) and output (the `.ass` writer's `.ssa` extension, same `v4.00+` script body)
+- `deliver --platform` +8 wedding & photo-print targets: `theknot`, `weddingwire`, `zola`, `joy`, `minted`, `shutterfly`, `mixbook`, `artifactuprising` — vendor portfolios, registry sites, card/print project videos, all 16:9 1920x1080 → 591 platforms
+
 ## [0.377.0] — 2026-09-26
 
 ### Added
