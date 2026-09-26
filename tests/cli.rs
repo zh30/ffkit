@@ -21789,8 +21789,7 @@ fn deblock_chromashift_lumakey() {
     let bg = dir.path().join("bg.mp4");
     let st = Command::new("ffmpeg")
         .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
-        .arg("gradients=size=128x128:seed=2")
-        .args(["-t", "1"])
+        .arg("color=c=red:size=128x128:d=1")
         .arg(&bg)
         .status()
         .unwrap();
