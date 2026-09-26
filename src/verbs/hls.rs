@@ -80,6 +80,16 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "hls --time-dirs needs --time-names (segments must be clock-named to be dir-organized)",
         ));
     }
+    if args.wrap.is_some() && args.single {
+        return Err(Error::input(
+            "hls --wrap reuses segment filenames — doesn't apply to --single (one file)",
+        ));
+    }
+    if args.wrap.is_some() && args.time_names {
+        return Err(Error::input(
+            "hls --wrap cycles numbered filenames — clock-named segments never reuse a name",
+        ));
+    }
     if args.seg_index && !args.time_names {
         return Err(Error::input(
             "hls --seg-index needs --time-names (the index appends to clock-named segments)",
@@ -468,6 +478,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(it) = args.init_time {
             argv.extend(["-hls_init_time".to_string(), format!("{:.3}", it)]);
         }
+        if let Some(w) = args.wrap {
+            argv.extend(["-hls_wrap".to_string(), w.to_string()]);
+        }
         argv.extend(key_args.iter().cloned());
         argv.push(dir.join("v%v.m3u8").display().to_string());
 
@@ -624,6 +637,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         // first segment gets its own duration — a longer first seg
         // pre-buffers instantly for click-to-play starts
         argv.extend(["-hls_init_time".to_string(), format!("{:.3}", it)]);
+    }
+    if let Some(w) = args.wrap {
+        argv.extend(["-hls_wrap".to_string(), w.to_string()]);
     }
     if args.time_names {
         argv.extend(["-strftime".to_string(), "1".to_string()]);
@@ -813,6 +829,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "append": args.append,
         "no_cache": args.no_cache,
         "init_time": args.init_time,
+        "wrap": args.wrap,
     });
     if let Some(s) = &args.subs {
         // ffmpeg names the sidecar rendition after the variant playlist.

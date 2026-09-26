@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.380.0] — 2026-09-26
+
+### Added
+
+- `frames --update` — keep overwriting the same `-o` file with the latest still (image2 `-update 1` — an always-fresh preview frame for dashboards/OBS overlays/watch folders; plain `-o` path, refuses the multi-still selectors)
+- `frames --atomic` — write each still to a temp file then rename (image2 `-atomic_writing` — watch-folder readers never see a half-written frame; pairs with `--update`)
+- `remux --service-type X` — stamp the .ts SDT service type (`-mpegts_service_type` — 0x19 HDTV, 0x02 digital radio, hex or decimal; .ts/.m2ts only)
+- `remux --tables-version N` — set the PAT/PMT/SDT table version_number (0-31 — mark a table-set revision ingest monitors notice; .ts/.m2ts only)
+- `remux --pat-period SEC`/`--sdt-period SEC`/`--pcr-period MS` — tighten the SI-table and program-clock rebroadcast cadence (denser PAT/SDT/PCR for strict broadcast ingest; .ts/.m2ts only)
+- `remux --reserve-index BYTES` — reserve cues-index space near the mkv/webm head (`-reserve_index_space` — mkvpropedit rewrites the seek table later without shifting media; archive masters)
+- `remux --peak-ppv N`/`--peak-block-size BYTES`/`--peak-format N` — tune the .wav `levl` peak-envelope chunk (peaks-per-value, block size, sample vs frame counting; needs `--peak`)
+- `hls --wrap N` — cycle segment filenames after N segments (`-hls_wrap` — a self-hosted live channel reuses a bounded name set instead of filling the disk; refuses `--single`/`--time-names`)
+- `deliver --platform` +8 — `g2`/`capterra`/`getapp`/`softwareadvice`/`trustradius`/`trustpilot`/`sitejabber`/`gartner` B2B software-review & trust-site listing videos (16:9 1920x1080; 607 platforms)
+
 ## [0.379.0] — 2026-09-26
 
 ### Added

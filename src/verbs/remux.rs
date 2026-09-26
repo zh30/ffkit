@@ -423,18 +423,30 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if (args.service_name.is_some()
         || args.provider.is_some()
         || args.service_id.is_some()
+        || args.service_type.is_some()
         || args.tsid.is_some()
         || args.network_id.is_some()
         || args.start_pid.is_some()
         || args.pmt_pid.is_some()
+        || args.tables_version.is_some()
+        || args.pat_period.is_some()
+        || args.sdt_period.is_some()
+        || args.pcr_period.is_some()
         || args.resend_headers
         || args.latm
         || args.m2ts)
         && !matches!(ext.as_str(), "ts" | "m2ts" | "mts")
     {
         return Err(Error::input(
-            "remux transport-stream options (--service-name/--provider/--service-id/--tsid/--network-id/--start-pid/--pmt-pid/--resend-headers/--latm/--m2ts) write TS SI tables and PID plans — .ts/.m2ts targets only",
+            "remux transport-stream options (--service-name/--provider/--service-id/--service-type/--tsid/--network-id/--start-pid/--pmt-pid/--tables-version/--pat-period/--sdt-period/--pcr-period/--resend-headers/--latm/--m2ts) write TS SI tables and PID plans — .ts/.m2ts targets only",
         ));
+    }
+    if let Some(v) = args.tables_version {
+        if v > 31 {
+            return Err(Error::input(format!(
+                "remux --tables-version is a 5-bit SI field: 0-31 (got {v})"
+            )));
+        }
     }
     for (pid, flag) in [(args.start_pid, "--start-pid"), (args.pmt_pid, "--pmt-pid")] {
         if let Some(p) = pid {
@@ -472,6 +484,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --cluster-size caps matroska/webm cluster bytes — .mkv/.webm targets only",
         ));
     }
+    if args.reserve_index.is_some() && !matches!(ext.as_str(), "mkv" | "webm") {
+        return Err(Error::input(
+            "remux --reserve-index reserves matroska/webm cues space — .mkv/.webm targets only",
+        ));
+    }
     if let Some(v) = args.id3v2 {
         if v != 3 && v != 4 {
             return Err(Error::input(
@@ -489,10 +506,38 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --id3v1 appends a legacy MP3 tag — .mp3 targets only",
         ));
     }
-    if (args.bext || args.peak || args.rf64) && ext != "wav" {
+    if (args.bext
+        || args.peak
+        || args.rf64
+        || args.peak_ppv.is_some()
+        || args.peak_block_size.is_some()
+        || args.peak_format.is_some())
+        && ext != "wav"
+    {
         return Err(Error::input(
-            "remux --bext/--peak/--rf64 are broadcast-WAV chunks — .wav targets only",
+            "remux --bext/--peak/--rf64/--peak-ppv/--peak-block-size/--peak-format are broadcast-WAV chunks — .wav targets only",
         ));
+    }
+    if (args.peak_ppv.is_some() || args.peak_block_size.is_some() || args.peak_format.is_some())
+        && !args.peak
+    {
+        return Err(Error::input(
+            "remux --peak-ppv/--peak-block-size/--peak-format tune the levl envelope — needs --peak",
+        ));
+    }
+    if let Some(v) = args.peak_ppv {
+        if !(1..=2).contains(&v) {
+            return Err(Error::input(format!(
+                "remux --peak-ppv stores 1 or 2 peaks per value (1|2 — got {v})"
+            )));
+        }
+    }
+    if let Some(v) = args.peak_format {
+        if v > 1 {
+            return Err(Error::input(format!(
+                "remux --peak-format is 0 (sample-counted) or 1 (frame-counted) — got {v}"
+            )));
+        }
     }
     if ext == "wav"
         && probe.has_video
@@ -716,6 +761,15 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             || args.no_faststart
             || args.no_xing
             || args.flv_index
+            || args.service_type.is_some()
+            || args.tables_version.is_some()
+            || args.pat_period.is_some()
+            || args.sdt_period.is_some()
+            || args.pcr_period.is_some()
+            || args.reserve_index.is_some()
+            || args.peak_ppv.is_some()
+            || args.peak_block_size.is_some()
+            || args.peak_format.is_some()
         {
             return Err(Error::input(
                 "remux --also shares one pass between two outputs — container-family flags can't target both (frag/prft/colr/timescale/timecode/program/service-*/tsid/network-id/*-pid/muxrate/muxpreload/muxdelay/movflags/brand/bitexact/encrypt/cluster/id3/bext/peak/rf64/delay-moov/separate-moof/tmcd/no-faststart/no-xing/flv-index); run a second pass for those",
@@ -1689,6 +1743,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(cs) = args.cluster_size {
         argv.extend(["-cluster_size_limit".to_string(), cs.to_string()]);
     }
+    if let Some(ri) = args.reserve_index {
+        argv.extend(["-reserve_index_space".to_string(), ri.to_string()]);
+    }
     if let Some(v) = args.id3v2 {
         argv.extend(["-id3v2_version".to_string(), v.to_string()]);
     }
@@ -1700,6 +1757,15 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if args.peak {
         argv.extend(["-write_peak".to_string(), "on".to_string()]);
+    }
+    if let Some(v) = args.peak_ppv {
+        argv.extend(["-peak_ppv".to_string(), v.to_string()]);
+    }
+    if let Some(v) = args.peak_block_size {
+        argv.extend(["-peak_block_size".to_string(), v.to_string()]);
+    }
+    if let Some(v) = args.peak_format {
+        argv.extend(["-peak_format".to_string(), v.to_string()]);
     }
     if args.rf64 {
         argv.extend(["-rf64".to_string(), "always".to_string()]);
@@ -1732,6 +1798,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(id) = args.service_id {
         argv.extend(["-mpegts_service_id".to_string(), id.to_string()]);
     }
+    if let Some(t) = &args.service_type {
+        argv.extend(["-mpegts_service_type".to_string(), t.clone()]);
+    }
     if let Some(id) = args.tsid {
         argv.extend(["-mpegts_transport_stream_id".to_string(), id.to_string()]);
     }
@@ -1743,6 +1812,18 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(p) = args.pmt_pid {
         argv.extend(["-mpegts_pmt_start_pid".to_string(), p.to_string()]);
+    }
+    if let Some(v) = args.tables_version {
+        argv.extend(["-tables_version".to_string(), v.to_string()]);
+    }
+    if let Some(v) = args.pat_period {
+        argv.extend(["-pat_period".to_string(), format!("{v:.3}")]);
+    }
+    if let Some(v) = args.sdt_period {
+        argv.extend(["-sdt_period".to_string(), format!("{v:.3}")]);
+    }
+    if let Some(v) = args.pcr_period {
+        argv.extend(["-pcr_period".to_string(), v.to_string()]);
     }
     let mut ts_flags: Vec<&str> = Vec::new();
     if args.resend_headers {
@@ -1866,6 +1947,15 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["iods"] = json!(args.iods);
     extra["frag_index"] = json!(args.frag_index);
     extra["min_frag"] = json!(args.min_frag);
+    extra["service_type"] = json!(args.service_type);
+    extra["tables_version"] = json!(args.tables_version);
+    extra["pat_period"] = json!(args.pat_period);
+    extra["sdt_period"] = json!(args.sdt_period);
+    extra["pcr_period"] = json!(args.pcr_period);
+    extra["reserve_index"] = json!(args.reserve_index);
+    extra["peak_ppv"] = json!(args.peak_ppv);
+    extra["peak_block_size"] = json!(args.peak_block_size);
+    extra["peak_format"] = json!(args.peak_format);
     extra["tmcd"] = json!(args.tmcd);
     extra["mux_preload"] = json!(args.mux_preload);
     extra["mux_delay"] = json!(args.mux_delay);
