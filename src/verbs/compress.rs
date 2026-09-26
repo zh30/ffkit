@@ -22,6 +22,14 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
             return Err(Error::input("compress --ar needs audio"));
         }
     }
+    if let Some(ch) = args.channels {
+        if !(1..=8).contains(&ch) {
+            return Err(Error::input("--channels must be 1-8"));
+        }
+        if !probe.has_audio {
+            return Err(Error::input("compress --channels needs audio"));
+        }
+    }
     if let Some(crf) = args.crf {
         if crf > 51 {
             return Err(Error::input("--crf must be 0..=51"));
@@ -56,6 +64,9 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
             ]);
             if let Some(r) = args.ar {
                 argv.extend(["-ar", &r.to_string()]);
+            }
+            if let Some(c) = args.channels {
+                argv.extend(["-ac", &c.to_string()]);
             }
         } else {
             argv.push("-an");
@@ -181,6 +192,9 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
             if let Some(r) = args.ar {
                 pass2.extend(["-ar", &r.to_string()]);
             }
+            if let Some(c) = args.channels {
+                pass2.extend(["-ac", &c.to_string()]);
+            }
         } else {
             pass2.push("-an");
         }
@@ -197,6 +211,9 @@ pub fn run(args: CompressArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-vn", "-b:a", &format!("{audio_bps:.0}")]);
         if let Some(r) = args.ar {
             argv.extend(["-ar", &r.to_string()]);
+        }
+        if let Some(c) = args.channels {
+            argv.extend(["-ac", &c.to_string()]);
         }
         argv.push(&args.output);
         argvs.push(argv);

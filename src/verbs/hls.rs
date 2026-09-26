@@ -436,6 +436,12 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.rekey {
         flags.push("periodic_rekey");
     }
+    if args.temp {
+        flags.push("temp_file");
+    }
+    if args.round_durations {
+        flags.push("round_durations");
+    }
     if !flags.is_empty() {
         argv.extend(["-hls_flags".to_string(), flags.join("+")]);
     }

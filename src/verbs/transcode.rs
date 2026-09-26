@@ -460,6 +460,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Ts => qt_era(&args, g, "libx264", &["ts", "m2ts"], None, Some("aac")),
         TranscodePreset::Mxf => mxf(&args, g),
         TranscodePreset::Ivf => qt_era(&args, g, "libvpx-vp9", &["ivf"], None, None),
+        TranscodePreset::Gxf => gxf(&args, g),
+        TranscodePreset::Wtv => qt_era(&args, g, "mpeg2video", &["wtv"], None, Some("mp2")),
         TranscodePreset::Raw => lossless(&args, g, "rawvideo", &["avi", "mkv"], None),
     }
 }
@@ -1212,6 +1214,79 @@ fn mxf(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "mxf" }));
+    Ok(c)
+}
+
+/// MPEG-2 4:2:2 + PCM in .gxf — General eXchange Format, the Grass
+/// Valley broadcast-server interchange spec. The muxer only accepts
+/// PAL or NTSC canvases, so the source rate picks the spec (PAL at
+/// 25fps, NTSC otherwise) and pads to it; audio is pinned 48kHz mono
+/// (the container only carries mono tracks).
+fn gxf(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != "gxf" {
+        return Err(Error::input(format!(
+            "transcode --preset gxf needs a .gxf target, not .{ext}"
+        )));
+    }
+    if args.fps.is_some()
+        || args.gop.is_some()
+        || args.range.is_some()
+        || args.field_order.is_some()
+        || args.interlace_mode.is_some()
+        || args.interlaced
+        || args.ar.is_some()
+        || args.channels.is_some()
+        || args.abitrate.is_some()
+        || args.crf.is_some()
+        || args.width.is_some()
+        || args.colors.is_some()
+    {
+        return Err(Error::input(
+            "transcode --preset gxf is a fixed spec (PAL 720x576@25 or NTSC 720x480@30000/1001 + PCM 48kHz mono) — tuning flags don't apply",
+        ));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("gxf preset: input has no video"));
+    }
+    let pal = probe
+        .fps
+        .map(|f| (f - 25.0).abs() <= (f - 29.97).abs())
+        .unwrap_or(true);
+    let (w, h, rate) = if pal {
+        (720, 576, "25")
+    } else {
+        (720, 480, "30000/1001")
+    };
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend([
+        "-vf",
+        &format!(
+            "scale=w={w}:h={h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,fps={rate}"
+        ),
+    ]);
+    argv.extend(["-c:v", "mpeg2video", "-pix_fmt", "yuv422p"]);
+    if let Some(b) = &args.vbitrate {
+        argv.extend(["-b:v", b]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "pcm_s16le", "-ar", "48000", "-ac", "1"]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "gxf" }));
     Ok(c)
 }
 

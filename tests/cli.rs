@@ -42775,3 +42775,151 @@ fn r333_ivf_timescale_rekey_ar_platforms() {
         assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
     }
 }
+
+#[test]
+fn r334_gxf_wtv_hlsflags_channels_timescale_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // gxf — NTSC snap (30fps source → 720x480), mpeg2video + mono PCM
+    let o = dir.path().join("r334.gxf");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "gxf",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "gxf: {j}");
+    assert_eq!(j["probe"]["vcodec"], "mpeg2video", "gxf: {j}");
+    assert_eq!(j["probe"]["width"], 720, "gxf: {j}");
+    assert_eq!(j["probe"]["height"], 480, "gxf: {j}");
+    assert_eq!(j["probe"]["acodec"], "pcm_s16le", "gxf: {j}");
+    assert_eq!(j["probe"]["channels"], 1, "gxf: {j}");
+    assert_eq!(j["probe"]["sample_rate"], 48000, "gxf: {j}");
+    let bad = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "gxf",
+        "--fps",
+        "24",
+        "-o",
+        dir.path().join("r334-x.gxf").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "gxf tuning refused: {bad}");
+    let bad = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "gxf",
+        "-o",
+        dir.path().join("r334-x.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "gxf .mp4 refused: {bad}");
+    // wtv — Windows Media Center container (mpeg2 + mp2)
+    let o = dir.path().join("r334.wtv");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "wtv",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "wtv: {j}");
+    assert_eq!(j["probe"]["vcodec"], "mpeg2video", "wtv: {j}");
+    assert_eq!(j["probe"]["acodec"], "mp2", "wtv: {j}");
+    // hls --temp/--round-durations — atomic rename + whole-second EXTINF
+    let o = dir.path().join("r334-hls");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "--temp",
+        "--round-durations",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "hls flags: {j}");
+    let cmd = j["commands"][0].to_string();
+    assert!(cmd.contains("temp_file"), "temp flag: {cmd}");
+    assert!(cmd.contains("round_durations"), "round flag: {cmd}");
+    // compress --channels — mono speech under a size budget
+    let o = dir.path().join("r334-small.mp4");
+    let j = run_json(&[
+        "compress",
+        f.to_str().unwrap(),
+        "--size",
+        "1MB",
+        "--channels",
+        "1",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "compress --channels: {j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["channels"], 1, "compress --channels: {j}");
+    let bad = run_json(&[
+        "compress",
+        f.to_str().unwrap(),
+        "--size",
+        "1MB",
+        "--channels",
+        "9",
+        "-o",
+        dir.path().join("r334-x2.mp4").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "channels 9 refused: {bad}");
+    // deliver --timescale — broadcast-pickup clock pin
+    let o = dir.path().join("r334-d.mp4");
+    let j = run_json(&[
+        "deliver",
+        f.to_str().unwrap(),
+        "--platform",
+        "bet365",
+        "--timescale",
+        "90000",
+        "-o",
+        o.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "deliver --timescale: {j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(
+        j["probe"]["streams"][0]["time_base"], "1/90000",
+        "deliver timescale: {j}"
+    );
+    let bad = run_json(&[
+        "deliver",
+        f.to_str().unwrap(),
+        "--platform",
+        "podcast",
+        "--timescale",
+        "90000",
+        "-o",
+        dir.path().join("r334-x.m4a").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "podcast timescale refused: {bad}");
+    // sportsbook platforms — 16:9 canvas
+    for p in [
+        "draftkings",
+        "fanduel",
+        "bet365",
+        "williamhill",
+        "betfair",
+        "skybet",
+        "paddypower",
+    ] {
+        let o = dir.path().join(format!("r334-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
+    }
+}

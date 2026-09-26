@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.361.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset gxf` — Grass Valley GXF broadcast-server interchange in `.gxf` (mpeg2video 4:2:2 + 48kHz mono PCM — the muxer only accepts PAL/NTSC canvases and mono tracks: source rate snaps 720x576@25 vs 720x480@30000/1001 letterboxed; spec-pinned, refuses tuning flags)
+- `transcode --preset wtv` — Windows Media Center recording in `.wtv` (mpeg2video+mp2 — WMC-era TV archives playable on Windows Media Player)
+- `hls --temp` — `temp_file`: writes each segment + playlist to a tmp file and renames when complete (live readers never see a half-written .ts/.m3u8)
+- `hls --round-durations` — `round_durations`: rounds EXTINF to whole seconds (old players and strict HLS validators)
+- `compress --channels N` — audio channel count inside the budget pass (`--channels 1` mono voice notes halve the speech share; lands on single-pass, two-pass, and audio-only paths)
+- `deliver --timescale N` — `-video_track_timescale` on video packs (broadcast pickup specs that lock the mp4 clock to 90000/30000; podcast/audiobook packs refuse up front)
+- `deliver --platform` +7: draftkings, fanduel, bet365, williamhill, betfair, skybet, paddypower (sportsbook promos) — all 16:9 1920x1080
+
 ## [0.360.0] — 2026-09-25
 
 ### Added

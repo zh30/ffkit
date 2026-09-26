@@ -81,6 +81,13 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         args.platform,
         DeliverPlatform::Podcast | DeliverPlatform::Audiobook
     );
+    if let Some(ts) = args.timescale {
+        if ts == 0 || audio_pack {
+            return Err(Error::input(
+                "deliver --timescale pins the mp4 video clock (1-INT_MAX) — it needs a video pack",
+            ));
+        }
+    }
     if args.cover.is_some() && !audio_pack {
         return Err(Error::input(
             "deliver --cover only applies to --platform podcast/audiobook (feed art)",
@@ -587,7 +594,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Globo
         | DeliverPlatform::Pbskids
         | DeliverPlatform::Boomerang
-        | DeliverPlatform::Cartoonito => (1920, 1080),
+        | DeliverPlatform::Cartoonito
+        | DeliverPlatform::Draftkings
+        | DeliverPlatform::Fanduel
+        | DeliverPlatform::Bet365
+        | DeliverPlatform::Williamhill
+        | DeliverPlatform::Betfair
+        | DeliverPlatform::Skybet
+        | DeliverPlatform::Paddypower => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -792,6 +806,9 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if args.to.is_none() {
         apply.extend(["-movflags", "+faststart"]);
+    }
+    if let Some(ts) = args.timescale {
+        apply.extend(["-video_track_timescale", &ts.to_string()]);
     }
     if let Some(ci) = chap_i {
         apply.extend(["-map_chapters", &ci.to_string()]);
@@ -1202,6 +1219,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Pbskids => "pbskids",
         DeliverPlatform::Boomerang => "boomerang",
         DeliverPlatform::Cartoonito => "cartoonito",
+        DeliverPlatform::Draftkings => "draftkings",
+        DeliverPlatform::Fanduel => "fanduel",
+        DeliverPlatform::Bet365 => "bet365",
+        DeliverPlatform::Williamhill => "williamhill",
+        DeliverPlatform::Betfair => "betfair",
+        DeliverPlatform::Skybet => "skybet",
+        DeliverPlatform::Paddypower => "paddypower",
         DeliverPlatform::Brightcove => "brightcove",
         DeliverPlatform::Jwplayer => "jwplayer",
         DeliverPlatform::Kaltura => "kaltura",

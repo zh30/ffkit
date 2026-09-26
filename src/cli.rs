@@ -970,6 +970,10 @@ pub struct CompressArgs {
     /// 22050/16000 — pair with --size on speech content)
     #[arg(long)]
     pub ar: Option<u32>,
+    /// Audio channel count — 1 mono halves the speech bitrate share
+    /// (podcast/voice notes under a messaging cap)
+    #[arg(long)]
+    pub channels: Option<u8>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1542,6 +1546,13 @@ pub enum TranscodePreset {
     /// VP9 in .ivf elementary stream (no audio — MSE/Shaka test
     /// vectors and the raw stream WebRTC tooling expects)
     Ivf,
+    /// MPEG-2 4:2:2 + 48kHz stereo PCM in .gxf — General eXchange
+    /// Format, the Grass Valley broadcast-server interchange spec
+    /// (fixed PAL/NTSC canvas, auto-snapped by source rate)
+    Gxf,
+    /// MPEG-2 + MP2 in .wtv — Windows Media Center recordings
+    /// (WMC-era TV archives playable on Windows Media Player)
+    Wtv,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1643,6 +1654,11 @@ pub struct DeliverArgs {
     /// service's first video/audio member)
     #[arg(long)]
     pub program: Option<u32>,
+    /// Pin the video track timescale (-video_track_timescale N —
+    /// broadcast pickup specs that lock the mp4 clock to 90000/30000;
+    /// video packs only)
+    #[arg(long)]
+    pub timescale: Option<u32>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -2586,6 +2602,20 @@ pub enum DeliverPlatform {
     Boomerang,
     /// Cartoonito preschool-block clips (global)
     Cartoonito,
+    /// DraftKings sportsbook promo video (US)
+    Draftkings,
+    /// FanDuel sportsbook promo video (US)
+    Fanduel,
+    /// bet365 sportsbook promo video (global)
+    Bet365,
+    /// William Hill sportsbook promo video (UK)
+    Williamhill,
+    /// Betfair betting-exchange promo video (UK)
+    Betfair,
+    /// Sky Bet promo video (UK)
+    Skybet,
+    /// Paddy Power promo video (IE/UK)
+    Paddypower,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6542,6 +6572,16 @@ pub struct HlsArgs {
     /// rewriting key.info between segments; needs --encrypt/--key)
     #[arg(long)]
     pub rekey: bool,
+    /// Write each segment + playlist to a tmp file and rename when
+    /// complete (-hls_flags temp_file — live readers/nginx never see a
+    /// half-written .ts or m3u8 while the packager is still writing)
+    #[arg(long)]
+    pub temp: bool,
+    /// Round each segment duration in the playlist to whole seconds
+    /// (-hls_flags round_durations — old players and strict HLS
+    /// validators that reject fractional EXTINF)
+    #[arg(long)]
+    pub round_durations: bool,
     /// Sliding-window live playlist: keeps only the newest --live-window
     /// segments (delete_segments + omit_endlist) — self-hosted live channel
     /// fed while the input is still being written
