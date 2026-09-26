@@ -757,7 +757,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Minted
         | DeliverPlatform::Shutterfly
         | DeliverPlatform::Mixbook
-        | DeliverPlatform::Artifactuprising => (1920, 1080),
+        | DeliverPlatform::Artifactuprising
+        | DeliverPlatform::Fiverr
+        | DeliverPlatform::Upwork
+        | DeliverPlatform::Freelancer
+        | DeliverPlatform::Thumbtack
+        | DeliverPlatform::Taskrabbit
+        | DeliverPlatform::Peopleperhour
+        | DeliverPlatform::Toptal
+        | DeliverPlatform::Designs99 => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1516,6 +1524,14 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Shutterfly => "shutterfly",
         DeliverPlatform::Mixbook => "mixbook",
         DeliverPlatform::Artifactuprising => "artifactuprising",
+        DeliverPlatform::Fiverr => "fiverr",
+        DeliverPlatform::Upwork => "upwork",
+        DeliverPlatform::Freelancer => "freelancer",
+        DeliverPlatform::Thumbtack => "thumbtack",
+        DeliverPlatform::Taskrabbit => "taskrabbit",
+        DeliverPlatform::Peopleperhour => "peopleperhour",
+        DeliverPlatform::Toptal => "toptal",
+        DeliverPlatform::Designs99 => "99designs",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

@@ -116,6 +116,11 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
             "--hls-name names the HLS master — pass --hls too",
         ));
     }
+    if args.extra_window.is_some() && args.window.is_none() {
+        return Err(Error::input(
+            "--extra-window keeps segment files past the manifest window — pass --window too",
+        ));
+    }
     paths::ensure_input(&args.input)?;
     if args.webm && args.copy {
         let v = probe.vcodec.as_deref().unwrap_or("");
@@ -414,6 +419,11 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(n) = args.window {
         argv.extend(["-window_size".to_string(), n.to_string()]);
     }
+    if let Some(n) = args.extra_window {
+        // trailing file archive behind a rolling manifest window —
+        // segments out of the manifest stay on disk (reachable by URL)
+        argv.extend(["-extra_window_size".to_string(), n.to_string()]);
+    }
     if let Some(u) = &args.utc {
         argv.extend(["-utc_timing_url".to_string(), u.clone()]);
     }
@@ -510,6 +520,7 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         "dvb": args.dvb,
         "webm": args.webm,
         "window": args.window.unwrap_or(0),
+        "extra_window": args.extra_window.unwrap_or(0),
         "init_name": args.init,
         "seg_name": args.seg_name,
         "no_timeline": args.no_timeline,

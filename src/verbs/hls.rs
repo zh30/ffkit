@@ -462,6 +462,12 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "-var_stream_map".to_string(),
             varmap,
         ]);
+        if args.no_cache {
+            argv.extend(["-hls_allow_cache".to_string(), "0".to_string()]);
+        }
+        if let Some(it) = args.init_time {
+            argv.extend(["-hls_init_time".to_string(), format!("{:.3}", it)]);
+        }
         argv.extend(key_args.iter().cloned());
         argv.push(dir.join("v%v.m3u8").display().to_string());
 
@@ -608,6 +614,16 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if !flags.is_empty() {
         argv.extend(["-hls_flags".to_string(), flags.join("+")]);
+    }
+    if args.no_cache {
+        // EXT-X-ALLOW-CACHE:NO — old-player cache hint for preview/draft
+        // packs (advisory only; edge protection needs signed URLs)
+        argv.extend(["-hls_allow_cache".to_string(), "0".to_string()]);
+    }
+    if let Some(it) = args.init_time {
+        // first segment gets its own duration — a longer first seg
+        // pre-buffers instantly for click-to-play starts
+        argv.extend(["-hls_init_time".to_string(), format!("{:.3}", it)]);
     }
     if args.time_names {
         argv.extend(["-strftime".to_string(), "1".to_string()]);
@@ -795,6 +811,8 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "base_url": args.base_url,
         "live_window": if args.live { args.live_window.unwrap_or(6) } else { 0 },
         "append": args.append,
+        "no_cache": args.no_cache,
+        "init_time": args.init_time,
     });
     if let Some(s) = &args.subs {
         // ffmpeg names the sidecar rendition after the variant playlist.

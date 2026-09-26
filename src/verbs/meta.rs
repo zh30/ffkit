@@ -64,6 +64,8 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         ("lyrics", lyrics_text.as_deref()),
         ("copyright", args.copyright.as_deref()),
         ("album_artist", args.album_artist.as_deref()),
+        // ©grp on mp4/m4a/mov — classical works/DJ-set/multi-part grouping
+        ("grouping", args.grouping.as_deref()),
         ("show", args.show.as_deref()),
         ("season_number", args.season.as_deref()),
         ("episode_id", args.episode.as_deref()),

@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.379.0] — 2026-09-26
+
+### Added
+
+- `remux --iods` — restore the iods object-descriptor atom (`-skip_iods 0` — QuickTime 7-era decks and old MPEG-4 ingest chains that require it; mp4/mov/m4a only)
+- `remux --frag-index N` — number the first fragment N instead of 1 (`-fragment_index` — continued fMP4 capture: append a remux to an existing fragment sequence without colliding numbers; needs `--frag`)
+- `remux --min-frag SEC` — floor fragment spacing (`-min_frag_duration` — a moof density cap so dense-keyframe/`--frag-frame` sources don't interleave every frame; needs `--frag`)
+- `dash --extra-window N` — keep N more segment files on disk than the `--window` manifest lists (`-extra_window_size` — a trailing archive behind the rolling window; needs `--window`)
+- `hls --no-cache` — tag `EXT-X-ALLOW-CACHE:NO` in every playlist (`-hls_allow_cache 0` — preview/draft packs edge caches must not keep; advisory only)
+- `hls --init-time SEC` — give the first segment its own duration (`-hls_init_time` — a longer first segment pre-buffers instantly for click-to-play starts)
+- `meta --grouping` — iTunes ©grp work/set grouping tag (classical works, DJ sets, multi-part tracks — ©grp atom on mp4/m4a/mov, `grouping` tag on mp3/flac/mkv/ogg)
+- `deliver --platform` +8 gig-marketplace creator targets: `fiverr`, `upwork`, `freelancer`, `thumbtack`, `taskrabbit`, `peopleperhour`, `toptal`, `99designs` (creator profile & deliverable-upload videos — 16:9 1920x1080; 599 platforms)
+
 ## [0.378.0] — 2026-09-26
 
 ### Added

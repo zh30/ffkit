@@ -532,6 +532,21 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --track-ids stamps mp4 track ids — .mp4/.mov targets only",
         ));
     }
+    if args.iods && !matches!(ext.as_str(), "mp4" | "m4v" | "mov" | "m4a") {
+        return Err(Error::input(
+            "remux --iods restores the mp4 iods atom — .mp4/.mov targets only",
+        ));
+    }
+    if args.frag_index.is_some() && !args.frag {
+        return Err(Error::input(
+            "remux --frag-index numbers fragments — needs --frag (mp4/mov only)",
+        ));
+    }
+    if args.min_frag.is_some() && !args.frag {
+        return Err(Error::input(
+            "remux --min-frag floors fragment spacing — needs --frag (mp4/mov only)",
+        ));
+    }
     if args.tmcd {
         if args.timecode.is_none() {
             return Err(Error::input(
@@ -693,6 +708,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             || args.tmcd
             || args.frag_frame
             || args.track_ids
+            || args.iods
+            || args.frag_index.is_some()
+            || args.min_frag.is_some()
             || args.mux_preload.is_some()
             || args.mux_delay.is_some()
             || args.no_faststart
@@ -1574,6 +1592,17 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(fs) = args.frag_size {
             argv.extend(["-frag_size".to_string(), fs.to_string()]);
         }
+        if let Some(fi) = args.frag_index {
+            // continue an existing fragment sequence — mfhd starts at N
+            argv.extend(["-fragment_index".to_string(), fi.to_string()]);
+        }
+        if let Some(mf2) = args.min_frag {
+            // moof density floor: skip fragment boundaries closer than SEC
+            argv.extend([
+                "-min_frag_duration".to_string(),
+                ((mf2 * 1e6).round() as u64).to_string(),
+            ]);
+        }
     } else if matches!(ext.as_str(), "mp4" | "m4a" | "mov") && !args.no_faststart {
         argv.extend(["-movflags", "+faststart"]);
     }
@@ -1764,6 +1793,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if args.track_ids {
         argv.extend(["-use_stream_ids_as_track_ids".to_string(), "1".to_string()]);
     }
+    if args.iods {
+        // ffmpeg skips iods by default since it wrote it "for years for
+        // no reason" — QT7-era ingest chains still require it
+        argv.extend(["-skip_iods".to_string(), "0".to_string()]);
+    }
     if args.bitexact {
         argv.push("-bitexact");
     }
@@ -1829,6 +1863,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["separate_moof"] = json!(args.separate_moof);
     extra["frag_frame"] = json!(args.frag_frame);
     extra["track_ids"] = json!(args.track_ids);
+    extra["iods"] = json!(args.iods);
+    extra["frag_index"] = json!(args.frag_index);
+    extra["min_frag"] = json!(args.min_frag);
     extra["tmcd"] = json!(args.tmcd);
     extra["mux_preload"] = json!(args.mux_preload);
     extra["mux_delay"] = json!(args.mux_delay);

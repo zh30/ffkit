@@ -45843,3 +45843,293 @@ fn r351_wma_fragframe_trackids_dashhls_ssa_platforms() {
         assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
     }
 }
+
+/// Round 352: remux --iods (restored iods atom), remux --frag-index
+/// (mfhd sequence continuation), remux --min-frag (moof density floor),
+/// dash --extra-window (segment retention behind a rolling window),
+/// hls --no-cache (EXT-X-ALLOW-CACHE:NO), hls --init-time (first-segment
+/// duration), meta --grouping (©grp), +8 gig-marketplace platforms.
+#[test]
+fn r352_iods_fragindex_minfrag_extrawindow_nocache_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // remux --iods: ffmpeg skips the object-descriptor atom by default;
+    // -skip_iods 0 restores it for QuickTime 7-era decks
+    let io = dir.path().join("io.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        io.to_str().unwrap(),
+        "--iods",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["iods"], true, "{j}");
+    let d = std::fs::read(&io).unwrap();
+    assert!(d.windows(4).any(|w| w == b"iods"), "iods atom should land");
+    let d0 = std::fs::read(&f).unwrap();
+    assert!(!d0.windows(4).any(|w| w == b"iods"), "baseline has no iods");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("io.mkv").to_str().unwrap(),
+            "--iods",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--iods is mp4-family only");
+
+    // remux --frag --frag-index N: mfhd sequence_number continues at N
+    // (appending a remux to an existing fragment sequence)
+    let fi = dir.path().join("fi.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        fi.to_str().unwrap(),
+        "--frag",
+        "--frag-index",
+        "7",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["frag_index"], 7, "{j}");
+    let d = std::fs::read(&fi).unwrap();
+    let i = d
+        .windows(4)
+        .position(|w| w == b"mfhd")
+        .expect("mfhd present");
+    let seq = u32::from_be_bytes(d[i + 8..i + 12].try_into().unwrap());
+    assert_eq!(seq, 7, "first fragment numbered 7, got {seq}");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("fi2.mp4").to_str().unwrap(),
+            "--frag-index",
+            "7",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--frag-index needs --frag");
+
+    // remux --frag --min-frag SEC: moof density floor on a frame-fragmented
+    // source — one moof per floor instead of one per frame
+    let g5 = dir.path().join("g5.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            f.to_str().unwrap(),
+            "-c:v",
+            "libx264",
+            "-g",
+            "5",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&g5)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let dense = dir.path().join("dense.mp4");
+    run_json(&[
+        "remux",
+        g5.to_str().unwrap(),
+        "-o",
+        dense.to_str().unwrap(),
+        "--frag",
+        "--frag-frame",
+    ]);
+    let floored = dir.path().join("floored.mp4");
+    let j = run_json(&[
+        "remux",
+        g5.to_str().unwrap(),
+        "-o",
+        floored.to_str().unwrap(),
+        "--frag",
+        "--frag-frame",
+        "--min-frag",
+        "0.4",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["min_frag"], 0.4, "{j}");
+    let count_moof = |p: &Path| -> usize {
+        let d = std::fs::read(p).unwrap();
+        d.windows(4).filter(|w| *w == b"moof").count()
+    };
+    let n_dense = count_moof(&dense);
+    let n_floor = count_moof(&floored);
+    assert!(
+        n_floor * 5 < n_dense,
+        "floor should collapse moof count ({n_dense} -> {n_floor})"
+    );
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("mf.mp4").to_str().unwrap(),
+            "--min-frag",
+            "0.4",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--min-frag needs --frag");
+
+    // dash --extra-window 0: delete segments once they fall out of the
+    // rolling manifest window (vs the muxer's default 5-segment archive)
+    let pk_big = dir.path().join("pk_big");
+    let j = run_json(&[
+        "dash",
+        f.to_str().unwrap(),
+        "-o",
+        pk_big.to_str().unwrap(),
+        "--seg",
+        "0.5",
+        "--window",
+        "2",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pk_trim = dir.path().join("pk_trim");
+    let j = run_json(&[
+        "dash",
+        f.to_str().unwrap(),
+        "-o",
+        pk_trim.to_str().unwrap(),
+        "--seg",
+        "0.5",
+        "--window",
+        "2",
+        "--extra-window",
+        "0",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["extra_window"], 0, "{j}");
+    let media = |p: &Path| -> usize {
+        std::fs::read_dir(p)
+            .unwrap()
+            .filter(|e| {
+                e.as_ref()
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("seg-")
+            })
+            .count()
+    };
+    assert!(
+        media(&pk_trim) < media(&pk_big),
+        "extra_window 0 trims kept segments: {} vs {}",
+        media(&pk_trim),
+        media(&pk_big)
+    );
+    let out = ffkit()
+        .args([
+            "dash",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("pk_now").to_str().unwrap(),
+            "--extra-window",
+            "0",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--extra-window needs --window");
+
+    // hls --no-cache: EXT-X-ALLOW-CACHE:NO lands in the playlist
+    let nc = dir.path().join("nc");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        nc.to_str().unwrap(),
+        "--no-cache",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["no_cache"], true, "{j}");
+    let pl = std::fs::read_to_string(nc.join("index.m3u8")).unwrap();
+    assert!(pl.contains("#EXT-X-ALLOW-CACHE:NO"), "{pl}");
+
+    // hls --init-time SEC: -hls_init_time reaches the muxer
+    let it = dir.path().join("it");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        it.to_str().unwrap(),
+        "--init-time",
+        "2",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["init_time"], 2.0, "{j}");
+    let cmd = j["commands"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(cmd.contains("-hls_init_time"), "{cmd}");
+
+    // meta --grouping: iTunes ©grp atom on mp4-family targets
+    // (ffprobe doesn't display it — byte-checked, same as tmpo)
+    let m4a = dir.path().join("g.m4a");
+    let j = run_json(&[
+        "meta",
+        f.to_str().unwrap(),
+        "-o",
+        m4a.to_str().unwrap(),
+        "--grouping",
+        "Part 1",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let d = std::fs::read(&m4a).unwrap();
+    assert!(
+        d.windows(4).any(|w| w == b"\xa9grp"),
+        "©grp atom should land"
+    );
+    let mkv = dir.path().join("g.mkv");
+    let j = run_json(&[
+        "meta",
+        f.to_str().unwrap(),
+        "-o",
+        mkv.to_str().unwrap(),
+        "--grouping",
+        "Part 1",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", mkv.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["tags"]["format"]["GROUPING"], "Part 1", "{pj}");
+
+    // +8 platforms: gig-marketplace creator targets, 16:9 1920x1080
+    for p in [
+        "fiverr",
+        "upwork",
+        "freelancer",
+        "thumbtack",
+        "taskrabbit",
+        "peopleperhour",
+        "toptal",
+        "99designs",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
+    }
+}

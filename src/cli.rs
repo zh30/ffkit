@@ -2910,6 +2910,23 @@ pub enum DeliverPlatform {
     Mixbook,
     /// Artifact Uprising print/photo project video 16:9
     Artifactuprising,
+    /// Fiverr gig/portfolio video 16:9
+    Fiverr,
+    /// Upwork profile/portfolio video 16:9
+    Upwork,
+    /// Freelancer project/portfolio video 16:9
+    Freelancer,
+    /// Thumbtack pro-profile video 16:9
+    Thumbtack,
+    /// TaskRabbit tasker profile video 16:9
+    Taskrabbit,
+    /// PeoplePerHour offer/portfolio video 16:9
+    Peopleperhour,
+    /// Toptal portfolio video 16:9
+    Toptal,
+    /// 99designs contest/portfolio video 16:9
+    #[value(name = "99designs")]
+    Designs99,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4540,6 +4557,11 @@ pub struct MetaArgs {
     /// Album-artist tag (compilations, DJ mixes) — verified in m4a/mp4
     #[arg(long)]
     pub album_artist: Option<String>,
+    /// iTunes grouping atom (©grp) / grouping tag — classical works, DJ
+    /// sets and multi-part tracks that share one named section (lands
+    /// on mp4/m4a/mov byte-checked + mp3/flac/mkv/ogg tags)
+    #[arg(long)]
+    pub grouping: Option<String>,
     /// Show / podcast title tag (TV deliverables, podcast feeds)
     #[arg(long)]
     pub show: Option<String>,
@@ -6161,6 +6183,21 @@ pub struct RemuxArgs {
     /// targets only)
     #[arg(long)]
     pub track_ids: bool,
+    /// Restore the iods object-descriptor atom (-skip_iods 0 — QuickTime
+    /// 7-era decks and old MPEG-4 ingest chains that require it; ffmpeg
+    /// skips the atom by default; mp4/mov only)
+    #[arg(long)]
+    pub iods: bool,
+    /// Number the first fragment N instead of 1 (-fragment_index —
+    /// continued fMP4 capture: append a remux to an existing fragment
+    /// sequence without colliding numbers; needs --frag)
+    #[arg(long)]
+    pub frag_index: Option<u32>,
+    /// Minimum seconds between fragments (-min_frag_duration — a moof
+    /// density floor so dense-keyframe/--frag-frame sources don't
+    /// interleave every single frame; needs --frag, mp4/mov only)
+    #[arg(long)]
+    pub min_frag: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -7209,6 +7246,16 @@ pub struct HlsArgs {
     /// webvtt; conflicts with --single/--program)
     #[arg(long)]
     pub subs: Option<PathBuf>,
+    /// Tag EXT-X-ALLOW-CACHE:NO in every playlist (-hls_allow_cache 0 —
+    /// preview/draft packs edge-caches and players must not keep; the
+    /// tag is advisory — real protection still needs signed URLs)
+    #[arg(long)]
+    pub no_cache: bool,
+    /// Give the first segment its own duration (-hls_init_time — a
+    /// longer first segment pre-buffers instantly for click-to-play
+    /// starts; remaining segments follow --seg)
+    #[arg(long)]
+    pub init_time: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -7315,6 +7362,12 @@ pub struct DashArgs {
     /// packs sharing a dir get distinct masters; needs --hls)
     #[arg(long = "hls-name", value_name = "NAME")]
     pub hls_name: Option<String>,
+    /// Keep N more segment files on disk than the manifest lists
+    /// (-extra_window_size — trailing archive behind a rolling --window
+    /// manifest: old segments stay reachable by URL for a while; needs
+    /// --window)
+    #[arg(long)]
+    pub extra_window: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]

@@ -986,3 +986,7 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 
 - `anullsrc` is an infinite lavfi source — pair it with `-t <duration>` on the input read or the mux never ends. `remux --silent-audio` feeds it the probe duration so the silence track ends with the picture.
 - `-vtag DIVX` retags the fourcc inside the `.avi` (probe `codec_tag` reads `0x58564944`) — DivX-certified decks check the *tag*, not the codec name; `transcode --preset mpeg4` ships codec `mpeg4`+vtag `DIVX`, distinct from `xvid` (vtag XVID) and `msmpeg4` (codec msmpeg4v2, vtag MP42).
+- `-frag_interleave 1` repacks moof data interleaved, but on file output the moof count and box ordering are unchanged — no externally observable effect on 4.4, so `remux` doesn't expose it.
+- `-hls_segment_size BYTES` can't split segments below `-hls_time` boundaries even on multi-keyframe sources — boundaries stay time/keyframe-driven on 4.4; dropped.
+- `-iods_audio_profile`/`-iods_video_profile` tune the iods atom's OD profiles (see `remux --iods` for the atom itself) and `-moov_size` reserves moov padding — too niche to verify meaningfully; not exposed.
+- `-metadata grouping=` writes the `©grp` atom on mp4/m4a/mov — ffprobe doesn't display it (byte-check `b'\xa9grp'`, same family as `tmpo`); the same key lands as a plain `grouping`/`GROUPING` tag on mp3/flac/mkv/ogg.
