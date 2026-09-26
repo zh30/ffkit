@@ -44602,3 +44602,293 @@ fn r346_frag_tuning_cluster_gop_doc_platforms() {
         assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
     }
 }
+
+#[test]
+fn r347_meta_chapters_from_wav_id3_cluster() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // --meta-from: a tagged template's global tags graft onto the repack
+    let tpl0 = dir.path().join("tpl0.m4a");
+    let v = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        tpl0.to_str().unwrap(),
+        "--preset",
+        "aac",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let tpl = dir.path().join("tpl.m4a");
+    let v = run_json(&[
+        "meta",
+        tpl0.to_str().unwrap(),
+        "-o",
+        tpl.to_str().unwrap(),
+        "--title",
+        "TPL",
+        "--artist",
+        "Art",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let mm = dir.path().join("mm.mp4");
+    let v = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        mm.to_str().unwrap(),
+        "--meta-from",
+        tpl.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let pr = run_json(&["probe", mm.to_str().unwrap()]);
+    assert_eq!(pr["probe"]["tags"]["format"]["title"], "TPL", "{pr}");
+    assert_eq!(pr["probe"]["tags"]["format"]["artist"], "Art", "{pr}");
+    // --chapters-from: marks transplant from a chaptered file
+    let ch_txt = dir.path().join("ch.txt");
+    std::fs::write(&ch_txt, "0:00|Intro\n0.5|Body\n").unwrap();
+    let chsrc = dir.path().join("chsrc.mp4");
+    let v = run_json(&[
+        "chapter",
+        f.to_str().unwrap(),
+        "-o",
+        chsrc.to_str().unwrap(),
+        "--import",
+        ch_txt.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let mmch = dir.path().join("mmch.mp4");
+    let v = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        mmch.to_str().unwrap(),
+        "--chapters-from",
+        chsrc.to_str().unwrap(),
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let ch = std::process::Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_chapters",
+            "-of",
+            "json",
+            mmch.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    let ch: serde_json::Value = serde_json::from_slice(&ch.stdout).unwrap();
+    let chapters = ch["chapters"].as_array().unwrap();
+    assert_eq!(chapters.len(), 2, "{ch}");
+    assert_eq!(chapters[0]["tags"]["title"], "Intro");
+    assert_eq!(chapters[1]["tags"]["title"], "Body");
+    // broadcast-WAV chunks: BEXT + peak envelope + forced RF64 header
+    let wav = dir.path().join("a.wav");
+    let v = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        wav.to_str().unwrap(),
+        "--preset",
+        "wav",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let bw = dir.path().join("bw.wav");
+    let v = run_json(&[
+        "remux",
+        wav.to_str().unwrap(),
+        "-o",
+        bw.to_str().unwrap(),
+        "--bext",
+        "--peak",
+        "--rf64",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = std::fs::read(&bw).unwrap();
+    assert_eq!(&d[0..4], b"RF64", "--rf64 forces an RF64 header");
+    assert!(d.windows(4).any(|w| w == b"bext"), "--bext missing");
+    assert!(d.windows(4).any(|w| w == b"levl"), "--peak levl missing");
+    // legacy MP3 tag pair: ID3v2.3 header + trailing ID3v1 block
+    let mp3 = dir.path().join("t.mp3");
+    let v = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        mp3.to_str().unwrap(),
+        "--preset",
+        "mp3",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let mp3t = dir.path().join("tt.mp3");
+    let v = run_json(&[
+        "meta",
+        mp3.to_str().unwrap(),
+        "-o",
+        mp3t.to_str().unwrap(),
+        "--title",
+        "My Track",
+        "--artist",
+        "Me",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let v1 = dir.path().join("v1.mp3");
+    let v = run_json(&[
+        "remux",
+        mp3t.to_str().unwrap(),
+        "-o",
+        v1.to_str().unwrap(),
+        "--id3v2",
+        "3",
+        "--id3v1",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = std::fs::read(&v1).unwrap();
+    assert_eq!(&d[0..4], b"ID3\x03", "--id3v2 3 header");
+    assert_eq!(&d[d.len() - 128..d.len() - 125], b"TAG", "--id3v1 block");
+    // --cluster-size: byte cap tightens matroska cluster boundaries
+    let cs = dir.path().join("cs.mkv");
+    let v = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        cs.to_str().unwrap(),
+        "--cluster-size",
+        "1500",
+    ]);
+    assert_eq!(v["status"], "ok", "{v}");
+    let d = std::fs::read(&cs).unwrap();
+    let n = d.windows(4).filter(|w| *w == b"\x1f\x43\xb6\x75").count();
+    assert!(
+        n >= 4,
+        "--cluster-size should cut tighter clusters, got {n}"
+    );
+    // refusals
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x.mp4").to_str().unwrap(),
+            "--id3v2",
+            "3",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--id3v2 on .mp4 must refuse");
+    let out = ffkit()
+        .args([
+            "remux",
+            mp3.to_str().unwrap(),
+            "-o",
+            dir.path().join("x2.mp3").to_str().unwrap(),
+            "--id3v2",
+            "9",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--id3v2 9 must refuse");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x3.mp4").to_str().unwrap(),
+            "--bext",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--bext on .mp4 must refuse");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x4.wav").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "video input on .wav must refuse");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x5.mp4").to_str().unwrap(),
+            "--meta-from",
+            tpl.to_str().unwrap(),
+            "--strip-meta",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        !out.status.success(),
+        "--meta-from + --strip-meta must refuse"
+    );
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x6.mp4").to_str().unwrap(),
+            "--chapters-from",
+            chsrc.to_str().unwrap(),
+            "--no-chapters",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        !out.status.success(),
+        "--chapters-from + --no-chapters must refuse"
+    );
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x7.mp4").to_str().unwrap(),
+            "--cluster-size",
+            "1000",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--cluster-size on .mp4 must refuse");
+    let out = ffkit()
+        .args([
+            "remux",
+            wav.to_str().unwrap(),
+            "-o",
+            dir.path().join("x8.wav").to_str().unwrap(),
+            "--also",
+            dir.path().join("x8.mp3").to_str().unwrap(),
+            "--bext",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--also + --bext must refuse");
+    // +7 helpdesk/support platforms (16:9 embeds)
+    for p in [
+        "zendesk",
+        "freshdesk",
+        "intercom",
+        "helpscout",
+        "zohodesk",
+        "kayako",
+        "crisp",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
+    }
+}

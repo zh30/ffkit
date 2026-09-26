@@ -2810,6 +2810,20 @@ pub enum DeliverPlatform {
     Canva,
     /// Internet Archive (archive.org) uploads
     Archiveorg,
+    /// Zendesk help-article / ticket video
+    Zendesk,
+    /// Freshdesk support-portal video
+    Freshdesk,
+    /// Intercom messenger / article video
+    Intercom,
+    /// Help Scout docs video
+    Helpscout,
+    /// Zoho Desk help-center video
+    Zohodesk,
+    /// Kayako helpdesk video
+    Kayako,
+    /// Crisp chat / helpdesk video
+    Crisp,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5951,6 +5965,38 @@ pub struct RemuxArgs {
     /// only)
     #[arg(long)]
     pub cluster: Option<u32>,
+    /// Matroska cluster byte cap (-cluster_size_limit — close a cluster
+    /// early when it exceeds N bytes; mkv/webm targets only)
+    #[arg(long = "cluster-size")]
+    pub cluster_size: Option<u64>,
+    /// Copy global metadata tags from FILE (-map_metadata — apply a
+    /// tagged template's title/artist/comment keys to the repack)
+    #[arg(long = "meta-from", value_name = "FILE")]
+    pub meta_from: Option<PathBuf>,
+    /// Copy chapter marks from FILE (-map_chapters — transplant the
+    /// chaptered mix's marks onto the master)
+    #[arg(long = "chapters-from", value_name = "FILE")]
+    pub chapters_from: Option<PathBuf>,
+    /// ID3v2 tag version 3 or 4 for .mp3 outputs (-id3v2_version — car
+    /// stereos and old feature phones only read v2.3)
+    #[arg(long = "id3v2", value_name = "VER")]
+    pub id3v2: Option<u32>,
+    /// Append a legacy ID3v1 tag on .mp3 outputs (-write_id3v1 —
+    /// ancient devices; carries title/artist/album when metadata exists)
+    #[arg(long)]
+    pub id3v1: bool,
+    /// Broadcast-WAV BEXT chunk on .wav outputs (-write_bext — loudness
+    /// and originator fields for broadcast ingest)
+    #[arg(long)]
+    pub bext: bool,
+    /// Peak-envelope chunk on .wav outputs (-write_peak on — the levl
+    /// chunk DAWs and ingest QC read for fast waveform/loudness display)
+    #[arg(long)]
+    pub peak: bool,
+    /// Force an RF64 header on .wav outputs even under 4GB (-rf64 always
+    /// — strict broadcast specs that want RF64 from the first byte)
+    #[arg(long)]
+    pub rf64: bool,
 }
 
 #[derive(clap::Args, Debug)]

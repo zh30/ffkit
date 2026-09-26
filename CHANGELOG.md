@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.374.0] — 2026-09-26
+
+### Added
+
+- `remux --meta-from FILE` — graft a tagged template's global metadata onto the repack (`-map_metadata` — apply a tagged mix's title/artist/comment set to the master; conflicts with `--strip-meta` and `--chapters`)
+- `remux --chapters-from FILE` — transplant chapter marks from a chaptered file (`-map_chapters` — the chaptered mix's TOC onto the master; conflicts with `--no-chapters` and `--chapters`)
+- `remux --id3v2 3|4` + `remux --id3v1` — legacy MP3 tag headers (`-id3v2_version`/`-write_id3v1` — car stereos and old feature players only read v2.3/ID3v1; .mp3 only, and ID3v1 only lands when the file has metadata to carry)
+- `remux --bext`/`--peak`/`--rf64` — broadcast-WAV chunks on .wav targets (`-write_bext` metadata, `-write_peak on` levl peak-envelope for DAW/ingest QC, `-rf64 always` forced RF64 header for strict broadcast specs); .wav holds no video — video inputs now refuse cleanly instead of dying in the header write
+- `remux --cluster-size BYTES` — matroska/webm cluster byte cap (`-cluster_size_limit` — the byte-side companion to `--cluster MS`; mkv/webm only)
+- `deliver --platform` +7 helpdesk / support-portal targets: `zendesk`, `freshdesk`, `intercom`, `helpscout`, `zohodesk`, `kayako`, `crisp` — help-article & ticket video embeds, all 16:9 1920x1080 → 559 platforms
+
 ## [0.373.0] — 2026-09-26
 
 ### Added

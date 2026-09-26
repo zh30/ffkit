@@ -274,6 +274,42 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-map_chapters", &ni.to_string()]);
         chap_file = Some(tmp);
     }
+    // --meta-from / --chapters-from: a second input whose global tags or
+    // chapter marks get grafted onto the repack (a tagged template's
+    // metadata set, the chaptered mix's marks on the master).
+    if args.meta_from.is_some() && args.strip_meta {
+        return Err(Error::input(
+            "remux --meta-from copies tags while --strip-meta drops them — pick one",
+        ));
+    }
+    if args.meta_from.is_some() && args.chapters.is_some() {
+        return Err(Error::input(
+            "remux --meta-from sets -map_metadata just like --chapters' metadata input — pick one",
+        ));
+    }
+    if args.chapters_from.is_some() && args.no_chapters {
+        return Err(Error::input(
+            "remux --chapters-from copies chapter marks while --no-chapters strips them — pick one",
+        ));
+    }
+    if args.chapters_from.is_some() && args.chapters.is_some() {
+        return Err(Error::input(
+            "remux --chapters-from sets -map_chapters just like --chapters — pick one",
+        ));
+    }
+    if let Some(mf) = &args.meta_from {
+        crate::paths::ensure_input(mf)?;
+        argv.push("-i");
+        argv.push(mf);
+        argv.extend(["-map_metadata", &ni.to_string()]);
+        ni += 1;
+    }
+    if let Some(cf) = &args.chapters_from {
+        crate::paths::ensure_input(cf)?;
+        argv.push("-i");
+        argv.push(cf);
+        argv.extend(["-map_chapters", &ni.to_string()]);
+    }
     if args.audio && args.video {
         return Err(Error::input("remux: --audio and --video are exclusive"));
     }
@@ -416,6 +452,44 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --cluster tunes matroska/webm cluster granularity — .mkv/.webm targets only",
         ));
     }
+    if args.cluster_size.is_some() && !matches!(ext.as_str(), "mkv" | "webm") {
+        return Err(Error::input(
+            "remux --cluster-size caps matroska/webm cluster bytes — .mkv/.webm targets only",
+        ));
+    }
+    if let Some(v) = args.id3v2 {
+        if v != 3 && v != 4 {
+            return Err(Error::input(
+                "remux --id3v2 takes a tag version: 3 (car stereos/old players) or 4",
+            ));
+        }
+        if ext != "mp3" {
+            return Err(Error::input(
+                "remux --id3v2 shapes MP3 tag headers — .mp3 targets only",
+            ));
+        }
+    }
+    if args.id3v1 && ext != "mp3" {
+        return Err(Error::input(
+            "remux --id3v1 appends a legacy MP3 tag — .mp3 targets only",
+        ));
+    }
+    if (args.bext || args.peak || args.rf64) && ext != "wav" {
+        return Err(Error::input(
+            "remux --bext/--peak/--rf64 are broadcast-WAV chunks — .wav targets only",
+        ));
+    }
+    if ext == "wav"
+        && probe.has_video
+        && !args.no_video
+        && !args.audio
+        && !args.video
+        && keep.is_empty()
+    {
+        return Err(Error::input(
+            "remux: a .wav holds only audio — drop the video track first (--no-video)",
+        ));
+    }
     if args.skip_trailer && !args.frag {
         return Err(Error::input(
             "remux --skip-trailer only drops the mfra trailer of a fragmented mp4 — needs --frag",
@@ -497,9 +571,15 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             || args.brand.is_some()
             || args.bitexact
             || args.encrypt
+            || args.cluster_size.is_some()
+            || args.id3v2.is_some()
+            || args.id3v1
+            || args.bext
+            || args.peak
+            || args.rf64
         {
             return Err(Error::input(
-                "remux --also shares one pass between two outputs — container-family flags can't target both (frag/prft/colr/timescale/timecode/program/service-*/tsid/network-id/*-pid/muxrate/movflags/brand/bitexact/encrypt); run a second pass for those",
+                "remux --also shares one pass between two outputs — container-family flags can't target both (frag/prft/colr/timescale/timecode/program/service-*/tsid/network-id/*-pid/muxrate/movflags/brand/bitexact/encrypt/cluster/id3/bext/peak/rf64); run a second pass for those",
             ));
         }
         Some((f1, f2, a, aext))
@@ -1444,6 +1524,24 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(cl) = args.cluster {
         argv.extend(["-cluster_time_limit".to_string(), cl.to_string()]);
     }
+    if let Some(cs) = args.cluster_size {
+        argv.extend(["-cluster_size_limit".to_string(), cs.to_string()]);
+    }
+    if let Some(v) = args.id3v2 {
+        argv.extend(["-id3v2_version".to_string(), v.to_string()]);
+    }
+    if args.id3v1 {
+        argv.extend(["-write_id3v1".to_string(), "1".to_string()]);
+    }
+    if args.bext {
+        argv.extend(["-write_bext".to_string(), "1".to_string()]);
+    }
+    if args.peak {
+        argv.extend(["-write_peak".to_string(), "on".to_string()]);
+    }
+    if args.rf64 {
+        argv.extend(["-rf64".to_string(), "always".to_string()]);
+    }
     if let Some(r) = &args.muxrate {
         argv.extend(["-muxrate", r]);
     }
@@ -1555,6 +1653,17 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["frag_duration"] = json!(args.frag_duration);
     extra["frag_size"] = json!(args.frag_size);
     extra["cluster"] = json!(args.cluster);
+    extra["cluster_size"] = json!(args.cluster_size);
+    extra["meta_from"] = json!(args.meta_from.as_ref().map(|p| crate::paths::display(p)));
+    extra["chapters_from"] = json!(args
+        .chapters_from
+        .as_ref()
+        .map(|p| crate::paths::display(p)));
+    extra["id3v2"] = json!(args.id3v2);
+    extra["id3v1"] = json!(args.id3v1);
+    extra["bext"] = json!(args.bext);
+    extra["peak"] = json!(args.peak);
+    extra["rf64"] = json!(args.rf64);
     if let Some((key, kid)) = enc_kv {
         extra["encrypted"] = json!(true);
         extra["key"] = json!(key);

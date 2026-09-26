@@ -690,7 +690,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Miro
         | DeliverPlatform::Figma
         | DeliverPlatform::Canva
-        | DeliverPlatform::Archiveorg => (1920, 1080),
+        | DeliverPlatform::Archiveorg
+        | DeliverPlatform::Zendesk
+        | DeliverPlatform::Freshdesk
+        | DeliverPlatform::Intercom
+        | DeliverPlatform::Helpscout
+        | DeliverPlatform::Zohodesk
+        | DeliverPlatform::Kayako
+        | DeliverPlatform::Crisp => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1406,6 +1413,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Figma => "figma",
         DeliverPlatform::Canva => "canva",
         DeliverPlatform::Archiveorg => "archiveorg",
+        DeliverPlatform::Zendesk => "zendesk",
+        DeliverPlatform::Freshdesk => "freshdesk",
+        DeliverPlatform::Intercom => "intercom",
+        DeliverPlatform::Helpscout => "helpscout",
+        DeliverPlatform::Zohodesk => "zohodesk",
+        DeliverPlatform::Kayako => "kayako",
+        DeliverPlatform::Crisp => "crisp",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

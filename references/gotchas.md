@@ -964,3 +964,7 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - `-hls_flags +iframes_only` writes `EXT-X-I-FRAMES-ONLY` into the playlist itself — already `hls --iframes`.
 - mkv dispositions `karaoke`/`dependent`/`descriptions`/`still_image`/`captions` are silently dropped by the 4.4 muxer — not exposed (`--dub`/`--original`/`--sdh`/`--commentary`/`--audio-desc`/`--forced-sub`/`--default-*` are the ones that land).
 - mp4 `work`/`movement`/`movement-count` metadata keys write no atom on 4.4 (dead); `rtng` likewise.
+- `-output_ts_offset` is the `-o`-level timestamp shift — already `remux --offset` (don't add a second flag for it).
+- `-write_id3v1` writes the trailing `TAG` block only when the file has metadata to carry — on an untagged .mp3 it's a silent no-op. Tag first (`meta --title/--artist`), then `--id3v1`.
+- A `.wav` target holds ONLY audio — remux of a video input fails inside ffmpeg's header write; ffkit refuses early unless `--no-video`/`--audio` narrows the map.
+- `-write_peak on` appends a `levl` peak-envelope chunk at END of file (not PPKT) — DAWs/ingest QC read it for instant waveform/loudness display.
