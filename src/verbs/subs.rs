@@ -1169,9 +1169,10 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && in_ext != "mps"
         && in_ext != "pjs"
         && in_ext != "psb"
+        && in_ext != "jss"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb input",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb/.jss input",
         ));
     }
     if out_ext != "srt"
@@ -1188,7 +1189,7 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         && out_ext != "sub"
     {
         return Err(Error::input(
-            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi/.sub output",
+            "subs --convert takes .srt/.vtt/.ass/.ttml/.dfxp/.sbv/.csv/.sub/.mpl/.smi/.scc/.stl/.rt/.mps/.pjs/.psb/.jss input and .srt/.vtt/.txt/.ass/.lrc/.ttml/.dfxp/.sbv/.csv/.mpl/.smi/.sub output",
         ));
     }
     let raw = if in_ext == "scc" || in_ext == "stl" || in_ext == "rt" || in_ext == "mps" {
@@ -1242,6 +1243,8 @@ fn convert(args: &SubsArgs, g: &Globals) -> Result<Contract, Error> {
         parse_pjs(&raw)?
     } else if in_ext == "psb" {
         parse_psb(&raw)?
+    } else if in_ext == "jss" {
+        parse_jss(&raw)?
     } else {
         // vtt → srt-shaped blocks: drop WEBVTT/NOTE/STYLE blocks and cue
         // settings.
@@ -2008,6 +2011,53 @@ fn parse_mpl2(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
     }
     if cues.is_empty() {
         return Err(Error::input("mpl: no cues found"));
+    }
+    Ok(cues)
+}
+
+/// JACOsub `.jss` — cue lines are `HH:MM:SS.CC HH:MM:SS.CC text`
+/// (centisecond precision). Lines that don't start with a digit are
+/// JACOsub directives/comments and are ignored. `{...}` event braces are
+/// stripped and `|` folds to a newline.
+fn parse_jss(raw: &str) -> Result<Vec<crate::srt::Cue>, Error> {
+    fn tc(t: &str) -> Option<f64> {
+        let (hm, cs) = t.split_once('.')?;
+        let mut p = hm.split(':');
+        let h: f64 = p.next()?.parse().ok()?;
+        let m: f64 = p.next()?.parse().ok()?;
+        let s: f64 = p.next()?.parse().ok()?;
+        Some(h * 3600.0 + m * 60.0 + s + cs.parse::<f64>().ok()? / 100.0)
+    }
+    let mut cues = Vec::new();
+    for (ln, line) in raw.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() || !line.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+            continue;
+        }
+        let mut parts = line.splitn(3, char::is_whitespace);
+        let (a, b, text) = (
+            parts.next(),
+            parts.next(),
+            parts.next().unwrap_or("").trim(),
+        );
+        match (a.and_then(tc), b.and_then(tc)) {
+            (Some(start), Some(end)) if end > start => {
+                let text = text
+                    .trim_start_matches('{')
+                    .trim_end_matches('}')
+                    .replace('|', "\n");
+                cues.push(crate::srt::Cue { start, end, text });
+            }
+            _ => {
+                return Err(Error::input(format!(
+                    "jss line {}: want HH:MM:SS.CC HH:MM:SS.CC text, got '{line}'",
+                    ln + 1
+                )));
+            }
+        }
+    }
+    if cues.is_empty() {
+        return Err(Error::input("jss: no cues found"));
     }
     Ok(cues)
 }

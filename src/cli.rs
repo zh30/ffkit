@@ -1559,6 +1559,12 @@ pub enum TranscodePreset {
     /// FFV1 + FLAC in .nut — ffmpeg's own lossless swap container
     /// (intermediate/archive grade, everything ffmpeg reads back)
     Nut,
+    /// Per-frame MD5 checksum manifest (-f framemd5 — archival
+    /// decode-fidelity verification: every decoded frame's hash in text)
+    Framemd5,
+    /// YUV4MPEG2 elementary video in .y4m (Avisynth/VapourSynth/x264-CLI
+    /// era interchange — raw uncompressed, video only)
+    Y4m,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2664,6 +2670,20 @@ pub enum DeliverPlatform {
     Naukri,
     /// Apna job-card video posts (India blue-collar)
     Apna,
+    /// App Store app-preview videos (iOS listing)
+    Appstore,
+    /// Google Play app-listing promo videos
+    Googleplay,
+    /// TestFlight beta-marketing clips
+    Testflight,
+    /// APKPure store listing videos
+    Apkpure,
+    /// Samsung Galaxy Store listing videos
+    Galaxystore,
+    /// Huawei AppGallery listing videos
+    Appgallery,
+    /// F-Droid repo listing videos
+    Fdroid,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6697,6 +6717,10 @@ pub struct HlsArgs {
     /// each get their own master)
     #[arg(long)]
     pub master: Option<String>,
+    /// fMP4 init-segment filename (-hls_fmp4_init_filename, default
+    /// init.mp4 — CDN pathing for fMP4 packs; needs --fmp4)
+    #[arg(long)]
+    pub init: Option<String>,
     /// First segment index (seg_NNN + MEDIA-SEQUENCE) — resume a numbered
     /// stream after a restart instead of starting over at 0
     #[arg(long)]

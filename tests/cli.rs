@@ -43305,3 +43305,137 @@ fn r337_nut_isml_rtphint_hls_master_platforms() {
         assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
     }
 }
+
+#[test]
+fn r338_framemd5_y4m_jss_hls_init_appstores() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // framemd5 — archival checksum manifest (not media: verify by content)
+    let m = dir.path().join("r338.framemd5");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "framemd5",
+        "-o",
+        m.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["preset"], "framemd5", "{j}");
+    let text = std::fs::read_to_string(&m).unwrap();
+    assert!(text.contains("#format: frame checksums"), "{text}");
+    assert!(text.contains("#hash: MD5"), "{text}");
+    assert!(text.lines().any(|l| l.starts_with("0,")), "{text}");
+    // media target refuses
+    let out = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            "framemd5",
+            "-o",
+            dir.path().join("r338.mp4").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // y4m — YUV4MPEG2 elementary video
+    let y = dir.path().join("r338.y4m");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "y4m",
+        "-o",
+        y.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["preset"], "y4m", "{j}");
+    assert_eq!(j["probe"]["format"], "yuv4mpegpipe", "{j}");
+    let head = std::fs::read(&y).unwrap();
+    assert!(head.starts_with(b"YUV4MPEG2"), "y4m magic");
+    // wrong container refuses
+    let out = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            "y4m",
+            "-o",
+            dir.path().join("r338.mkv").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // jss → srt — JACOsub centisecond cue lines
+    let jss = dir.path().join("r338.jss");
+    std::fs::write(
+        &jss,
+        "#\n0:00:00.00 0:00:01.00 {Hello jss}\n0:00:02.00 0:00:04.50 Second|line\n",
+    )
+    .unwrap();
+    let srt = dir.path().join("r338.srt");
+    let j = run_json(&[
+        "subs",
+        jss.to_str().unwrap(),
+        "--convert",
+        "-o",
+        srt.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let text = std::fs::read_to_string(&srt).unwrap();
+    assert!(text.contains("00:00:00,000 --> 00:00:01,000"), "{text}");
+    assert!(text.contains("Hello jss"), "{text}");
+    assert!(text.contains("Second\nline"), "{text}");
+    // hls --init names the fMP4 init segment
+    let d = dir.path().join("r338-hls");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        d.join("index.m3u8").to_str().unwrap(),
+        "--fmp4",
+        "--init",
+        "boot.mp4",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(d.join("boot.mp4").is_file(), "init segment missing");
+    let pl = std::fs::read_to_string(d.join("index.m3u8")).unwrap();
+    assert!(pl.contains("#EXT-X-MAP:URI=\"boot.mp4\""), "{pl}");
+    // --init without --fmp4 refuses
+    let out = ffkit()
+        .args([
+            "hls",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r338-h2").to_str().unwrap(),
+            "--init",
+            "x.mp4",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // app-store platforms — 16:9 1920x1080
+    for p in [
+        "appstore",
+        "googleplay",
+        "testflight",
+        "apkpure",
+        "galaxystore",
+        "appgallery",
+        "fdroid",
+    ] {
+        let o = dir.path().join(format!("r338-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
+    }
+}

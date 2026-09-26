@@ -212,6 +212,11 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "--master names the --ladder master playlist — single playlists are already named by -o",
         ));
     }
+    if args.init.is_some() && !args.fmp4 {
+        return Err(Error::input(
+            "--init names the fMP4 init segment — it needs --fmp4 (plain .ts segments have no init file)",
+        ));
+    }
     if !args.ladder.is_empty() {
         // ABR ladder: N variants at tiered bitrates, one audio, master.m3u8.
         if args.copy || args.single {
@@ -479,6 +484,9 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if args.fmp4 {
         argv.extend(["-hls_segment_type".to_string(), "fmp4".to_string()]);
+        if let Some(n) = &args.init {
+            argv.extend(["-hls_fmp4_init_filename".to_string(), n.clone()]);
+        }
     }
     if let Some(u) = &args.base_url {
         argv.extend(["-hls_base_url".to_string(), u.trim().to_string()]);

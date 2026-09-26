@@ -464,6 +464,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Wtv => qt_era(&args, g, "mpeg2video", &["wtv"], None, Some("mp2")),
         TranscodePreset::Smjpeg => qt_era(&args, g, "mjpeg", &["smjpg"], None, Some("pcm_s16le")),
         TranscodePreset::Nut => ffv1_container(&args, g, "nut", "nut"),
+        TranscodePreset::Framemd5 => framemd5(&args, g),
+        TranscodePreset::Y4m => y4m(&args, g),
         TranscodePreset::Raw => lossless(&args, g, "rawvideo", &["avi", "mkv"], None),
     }
 }
@@ -1105,6 +1107,105 @@ fn raw_telecom(
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": codec }));
+    Ok(c)
+}
+
+/// Per-frame MD5 manifest in .framemd5/.md5/.txt — every stream decoded
+/// and every frame hashed to a text listing (archival decode-fidelity
+/// QC: re-decode later and diff). The output isn't a media file — it
+/// can't be probed, and codec/rate flags don't apply.
+fn framemd5(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if !matches!(ext.as_str(), "framemd5" | "md5" | "txt") {
+        return Err(Error::input(format!(
+            "transcode --preset framemd5 needs a .framemd5/.md5/.txt target, not .{ext}"
+        )));
+    }
+    if args.crf.is_some()
+        || args.fps.is_some()
+        || args.width.is_some()
+        || args.copy_audio
+        || args.copy_video
+        || args.alpha
+        || args.vbitrate.is_some()
+        || args.abitrate.is_some()
+        || args.ar.is_some()
+        || args.channels.is_some()
+        || args.gop.is_some()
+    {
+        return Err(Error::input(
+            "transcode --preset framemd5 writes a hash manifest — codec/rate flags don't apply",
+        ));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video && !probe.has_audio {
+        return Err(Error::input(
+            "framemd5 preset: input has no media streams to checksum",
+        ));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?", "-map", "0:a?"]);
+    argv.extend(["-f", "framemd5"]);
+    argv.push(&args.output);
+    // a framemd5 listing is text, not media — ffprobe can't read it back
+    let mut c = engine::write_job_raw("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "framemd5" }));
+    Ok(c)
+}
+
+/// YUV4MPEG2 elementary video in .y4m — raw uncompressed frames in the
+/// Avisynth/VapourSynth/x264-CLI interchange format. The container
+/// carries no audio: --ar/--channels/--abitrate refuse.
+fn y4m(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != "y4m" {
+        return Err(Error::input(format!(
+            "transcode --preset y4m needs a .y4m target, not .{ext}"
+        )));
+    }
+    if args.vbitrate.is_some()
+        || args.crf.is_some()
+        || args.abitrate.is_some()
+        || args.ar.is_some()
+        || args.channels.is_some()
+        || args.copy_video
+        || args.copy_audio
+        || args.alpha
+    {
+        return Err(Error::input(
+            "transcode --preset y4m is raw video-only — bitrate/audio/copy flags don't apply",
+        ));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("y4m preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    argv.extend(["-f", "yuv4mpegpipe", "-pix_fmt", "yuv420p"]);
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "y4m" }));
     Ok(c)
 }
 

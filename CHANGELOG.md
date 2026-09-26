@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.365.0] — 2026-09-26
+
+### Added
+- `transcode --preset framemd5` — per-frame MD5 checksum manifest (`.framemd5`/`.md5`/`.txt`): every decoded frame hashed to a text listing — archival decode-fidelity QC you re-decode and diff later (a manifest, not media — reports via `write_job_raw`)
+- `transcode --preset y4m` — YUV4MPEG2 raw elementary video in `.y4m` (Avisynth/VapourSynth/x264-CLI interchange; video only — audio/bitrate/copy flags refuse)
+- `subs --convert` reads `.jss` — JACOsub `HH:MM:SS.CC HH:MM:SS.CC text` centisecond cue lines (`{...}` event braces stripped, `|` folds to a newline, directive lines ignored; parsed in ffkit — the 4.4 jacosub demuxer garbles real files)
+- `hls --init NAME` — `-hls_fmp4_init_filename` names the fMP4 init segment (CDN pathing for fMP4 packs; needs `--fmp4`)
+- `deliver --platform` +7: `appstore`/`googleplay`/`testflight`/`apkpure`/`galaxystore`/`appgallery`/`fdroid` app-store listing + beta-marketing videos — 16:9 1920x1080
+
 ## [0.364.0] — 2026-09-26
 
 ### Added
