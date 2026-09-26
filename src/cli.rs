@@ -1681,6 +1681,10 @@ pub struct DeliverArgs {
     /// not for --to streaming)
     #[arg(long)]
     pub colr: bool,
+    /// Keyframe interval in frames on the pack encode (-g N — platform
+    /// ingest specs like "IDR at least every 2s" / seek granularity)
+    #[arg(long)]
+    pub gop: Option<u32>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -2792,6 +2796,20 @@ pub enum DeliverPlatform {
     Latakoo,
     /// Wiredrive creative-showcase video
     Wiredrive,
+    /// Notion doc-embedded video
+    Notion,
+    /// Confluence wiki-embedded video
+    Confluence,
+    /// Coda doc-embedded video
+    Coda,
+    /// Miro board video
+    Miro,
+    /// Figma prototype/showcase video
+    Figma,
+    /// Canva design-platform video
+    Canva,
+    /// Internet Archive (archive.org) uploads
+    Archiveorg,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5919,6 +5937,20 @@ pub struct RemuxArgs {
     /// targets only)
     #[arg(long)]
     pub prft: bool,
+    /// Fragment granularity cap in seconds (-frag_duration — moof
+    /// boundaries at least this often, keyframe-aligned; needs --frag;
+    /// mp4/mov targets only)
+    #[arg(long)]
+    pub frag_duration: Option<f64>,
+    /// Fragment size cap in bytes (-frag_size — close a fragment early
+    /// when it exceeds N bytes; needs --frag; mp4/mov targets only)
+    #[arg(long)]
+    pub frag_size: Option<u64>,
+    /// Matroska cluster granularity in milliseconds (-cluster_time_limit
+    /// — tighter seek granularity on archive masters; mkv/webm targets
+    /// only)
+    #[arg(long)]
+    pub cluster: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -7144,6 +7176,10 @@ pub struct ConformArgs {
     /// unspecified; mp4/mov/m4a targets only)
     #[arg(long)]
     pub colr: bool,
+    /// Keyframe interval in frames on the spec-pass encode (-g N —
+    /// broadcast ingest specs like "IDR at least every 2s")
+    #[arg(long)]
+    pub gop: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]

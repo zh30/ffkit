@@ -74,9 +74,10 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         && args.sar.is_none()
         && args.dar.is_none()
         && !args.colr
+        && args.gop.is_none()
     {
         return Err(Error::input(
-            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf, --rotate DEG, --timescale N, --no-audio, --sar/--dar N:D, --colr",
+            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf, --rotate DEG, --timescale N, --no-audio, --sar/--dar N:D, --colr, --gop N",
         ));
     }
     if args.no_audio {
@@ -309,6 +310,9 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(b) = args.bf {
             argv.extend(["-bf".to_string(), b.to_string()]);
         }
+        if let Some(gp) = args.gop {
+            argv.extend(["-g".to_string(), gp.to_string()]);
+        }
     }
     if let Some(c) = args.crf {
         if c > 51 {
@@ -378,6 +382,7 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         "sar": args.sar,
         "dar": args.dar,
         "colr": args.colr,
+        "gop": args.gop,
     }));
     Ok(c)
 }

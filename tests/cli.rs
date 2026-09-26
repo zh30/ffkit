@@ -44430,3 +44430,175 @@ fn r345_remux_also_colr_prft_review_platforms() {
         assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
     }
 }
+
+#[test]
+fn r346_frag_tuning_cluster_gop_doc_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // remux --frag-duration/--frag-size — fragment-granularity tuning under
+    // --frag (LL-DASH/CMAF ingest: more, smaller moofs than the keyframe
+    // default)
+    let base = dir.path().join("r346-base.mp4");
+    run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        base.to_str().unwrap(),
+        "--frag",
+    ]);
+    let moof_base = std::fs::read(&base)
+        .unwrap()
+        .windows(4)
+        .filter(|w| *w == b"moof")
+        .count();
+    let fd = dir.path().join("r346-fd.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        fd.to_str().unwrap(),
+        "--frag",
+        "--frag-duration",
+        "0.15",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["frag_duration"], 0.15, "{j}");
+    let moof_fd = std::fs::read(&fd)
+        .unwrap()
+        .windows(4)
+        .filter(|w| *w == b"moof")
+        .count();
+    assert!(moof_fd > moof_base, "{moof_fd} <= {moof_base}");
+    let fs = dir.path().join("r346-fs.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        fs.to_str().unwrap(),
+        "--frag",
+        "--frag-size",
+        "4000",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let moof_fs = std::fs::read(&fs)
+        .unwrap()
+        .windows(4)
+        .filter(|w| *w == b"moof")
+        .count();
+    assert!(moof_fs > moof_base, "{moof_fs} <= {moof_base}");
+    // remux --cluster — matroska cluster granularity (seek density on
+    // archive masters); the 1F43B675 marker count jumps well past the
+    // single default cluster
+    let mkv = dir.path().join("r346.mkv");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        mkv.to_str().unwrap(),
+        "--cluster",
+        "200",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let cl = std::fs::read(&mkv)
+        .unwrap()
+        .windows(4)
+        .filter(|w| *w == b"\x1f\x43\xb6\x75")
+        .count();
+    assert!(cl >= 4, "clusters: {cl}");
+    // refused: frag tuning without --frag; mkv cluster tuning on a non-mkv
+    // target; --gop on an audio-only pack
+    let x = dir.path().join("x.mp4");
+    let m4a = dir.path().join("x.m4a");
+    for a in [
+        vec![
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            x.to_str().unwrap(),
+            "--frag-duration",
+            "0.2",
+        ],
+        vec![
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            x.to_str().unwrap(),
+            "--frag-size",
+            "1000",
+        ],
+        vec![
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            x.to_str().unwrap(),
+            "--cluster",
+            "200",
+        ],
+        vec![
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            m4a.to_str().unwrap(),
+            "--platform",
+            "podcast",
+            "--gop",
+            "30",
+        ],
+    ] {
+        let out = ffkit().args(&a).output().unwrap();
+        assert!(!out.status.success(), "{a:?}");
+    }
+    // conform/deliver --gop — keyframe interval on the spec/pack encodes
+    // (broadcast "IDR every ≤2s" ingest specs); scan --gop reads the gap
+    // straight from packet flags
+    let cg = dir.path().join("r346-cg.mp4");
+    let j = run_json(&[
+        "conform",
+        f.to_str().unwrap(),
+        "-o",
+        cg.to_str().unwrap(),
+        "--gop",
+        "5",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["gop"], 5, "{j}");
+    let sj = run_json(&["scan", cg.to_str().unwrap(), "--gop"]);
+    assert!(sj["extra"]["keyframes"].as_u64().unwrap_or(0) >= 4, "{sj}");
+    let dg = dir.path().join("r346-dg.mp4");
+    let j = run_json(&[
+        "deliver",
+        f.to_str().unwrap(),
+        "-o",
+        dg.to_str().unwrap(),
+        "--platform",
+        "youtube",
+        "--gop",
+        "5",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let sj = run_json(&["scan", dg.to_str().unwrap(), "--gop"]);
+    assert!(sj["extra"]["keyframes"].as_u64().unwrap_or(0) >= 4, "{sj}");
+    // +7 docs/design/archive targets — all 16:9 1920x1080
+    for p in [
+        "notion",
+        "confluence",
+        "coda",
+        "miro",
+        "figma",
+        "canva",
+        "archiveorg",
+    ] {
+        let o = dir.path().join(format!("r346-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
+    }
+}

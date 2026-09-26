@@ -406,6 +406,16 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             "remux --prft stamps a producer-reference time on each fragment — needs --frag",
         ));
     }
+    if (args.frag_duration.is_some() || args.frag_size.is_some()) && !args.frag {
+        return Err(Error::input(
+            "remux --frag-duration/--frag-size tune fragment boundaries — needs --frag (mp4/mov only)",
+        ));
+    }
+    if args.cluster.is_some() && !matches!(ext.as_str(), "mkv" | "webm") {
+        return Err(Error::input(
+            "remux --cluster tunes matroska/webm cluster granularity — .mkv/.webm targets only",
+        ));
+    }
     if args.skip_trailer && !args.frag {
         return Err(Error::input(
             "remux --skip-trailer only drops the mfra trailer of a fragmented mp4 — needs --frag",
@@ -462,6 +472,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if args.frag
             || args.prft
             || args.colr
+            || args.frag_duration.is_some()
+            || args.frag_size.is_some()
+            || args.cluster.is_some()
             || args.timescale.is_some()
             || args.timecode.is_some()
             || args.program.is_some()
@@ -1339,6 +1352,15 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             // latency measurement on ingest
             argv.extend(["-write_prft", "1"]);
         }
+        if let Some(fd) = args.frag_duration {
+            argv.extend([
+                "-frag_duration".to_string(),
+                ((fd * 1e6).round() as u64).to_string(),
+            ]);
+        }
+        if let Some(fs) = args.frag_size {
+            argv.extend(["-frag_size".to_string(), fs.to_string()]);
+        }
     } else if matches!(ext.as_str(), "mp4" | "m4a" | "mov") {
         argv.extend(["-movflags", "+faststart"]);
     }
@@ -1418,6 +1440,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(ts) = args.timescale {
         argv.extend(["-video_track_timescale".to_string(), ts.to_string()]);
+    }
+    if let Some(cl) = args.cluster {
+        argv.extend(["-cluster_time_limit".to_string(), cl.to_string()]);
     }
     if let Some(r) = &args.muxrate {
         argv.extend(["-muxrate", r]);
@@ -1527,6 +1552,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["also"] = json!(args.also.as_ref().map(|p| crate::paths::display(p)));
     extra["colr"] = json!(args.colr);
     extra["prft"] = json!(args.prft);
+    extra["frag_duration"] = json!(args.frag_duration);
+    extra["frag_size"] = json!(args.frag_size);
+    extra["cluster"] = json!(args.cluster);
     if let Some((key, kid)) = enc_kv {
         extra["encrypted"] = json!(true);
         extra["key"] = json!(key);

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.373.0] — 2026-09-26
+
+### Added
+
+- `remux --frag-duration SEC` / `--frag-size BYTES` — fragment-boundary tuning under `--frag` (`-frag_duration`/`-frag_size` — moof cadence caps for LL-DASH/CMAF ingest; keyframe-aligned, mp4/mov only)
+- `remux --cluster MS` — matroska/webm cluster-granularity tuning (`-cluster_time_limit` — tighter seek density on archive masters; the option is in milliseconds, not the µs other muxer duration opts take)
+- `conform --gop N` + `deliver --gop N` — keyframe interval on the spec pass / pack encode (`-g N` — "IDR every ≤2s" broadcast ingest specs and seek-granularity control; audio packs have no picture to space — refused)
+- `deliver --platform` +7 docs/design/archive targets: `notion`, `confluence`, `coda` (doc-embedded video), `miro`, `figma`, `canva` (design/collab boards), `archiveorg` (Internet Archive public uploads) — all 16:9 1920x1080 → 552 platforms
+
 ## [0.372.0] — 2026-09-26
 
 ### Added

@@ -88,6 +88,11 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
             ));
         }
     }
+    if args.gop.is_some() && audio_pack {
+        return Err(Error::input(
+            "deliver --gop spaces video keyframes — podcast/audiobook packs have no picture",
+        ));
+    }
     if args.cover.is_some() && !audio_pack {
         return Err(Error::input(
             "deliver --cover only applies to --platform podcast/audiobook (feed art)",
@@ -678,7 +683,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Ziflow
         | DeliverPlatform::Iconik
         | DeliverPlatform::Latakoo
-        | DeliverPlatform::Wiredrive => (1920, 1080),
+        | DeliverPlatform::Wiredrive
+        | DeliverPlatform::Notion
+        | DeliverPlatform::Confluence
+        | DeliverPlatform::Coda
+        | DeliverPlatform::Miro
+        | DeliverPlatform::Figma
+        | DeliverPlatform::Canva
+        | DeliverPlatform::Archiveorg => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -872,6 +884,9 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(b) = args.bf {
         apply.extend(["-bf", &b.to_string()]);
     }
+    if let Some(gp) = args.gop {
+        apply.extend(["-g", &gp.to_string()]);
+    }
     if let Some(m) = &args.maxrate {
         apply.extend(["-maxrate:v", m]);
         let buf = args.bufsize.clone().unwrap_or_else(|| double_rate(m));
@@ -1050,6 +1065,7 @@ fn finish(
         "logo": args.logo.is_some(),
         "chapters": chapters,
         "colr": args.colr,
+        "gop": args.gop,
     }))
 }
 
@@ -1383,6 +1399,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Iconik => "iconik",
         DeliverPlatform::Latakoo => "latakoo",
         DeliverPlatform::Wiredrive => "wiredrive",
+        DeliverPlatform::Notion => "notion",
+        DeliverPlatform::Confluence => "confluence",
+        DeliverPlatform::Coda => "coda",
+        DeliverPlatform::Miro => "miro",
+        DeliverPlatform::Figma => "figma",
+        DeliverPlatform::Canva => "canva",
+        DeliverPlatform::Archiveorg => "archiveorg",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",
