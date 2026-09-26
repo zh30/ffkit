@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.363.0] — 2026-09-25
+
+### Added
+- `remux --start-pid N`/`--pmt-pid N` — DVB/IPTV PID-plan allocation on .ts/.m2ts (`-mpegts_start_pid`/`-mpegts_pmt_start_pid`, 32-8186; `probe.streams[].stream_id` reads the PIDs back as hex)
+- `remux --resend-headers` — PAT/PMT re-emitted on every packet (`-mpegts_flags resend_headers`) for join-in-progress playback on mid-stream captures
+- `remux --cmaf`/`--mdta`/`--skip-trailer` — mp4/mov muxer flags: CMAF-interop fragmented chunks (HLS fMP4 + DASH from one pack), mdta-atom custom metadata keys, drop the mfra trailer (needs `--frag`)
+- `dash --dvb` — DVB-DASH broadcast profile (`-mpd_profile dvb_dash`; ingest specs that reject plain MPEG-DASH)
+- `deliver --platform` +7: `orange`/`sfr`/`free`/`proximus`/`swisscom`/`telstra`/`kpn` telecom-OTT/IPTV set-top clips — 16:9 1920x1080
+
 ## [0.362.0] — 2026-09-25
 
 ### Added

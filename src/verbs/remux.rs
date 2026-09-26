@@ -373,11 +373,35 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         || args.provider.is_some()
         || args.service_id.is_some()
         || args.tsid.is_some()
-        || args.network_id.is_some())
+        || args.network_id.is_some()
+        || args.start_pid.is_some()
+        || args.pmt_pid.is_some()
+        || args.resend_headers)
         && !matches!(ext.as_str(), "ts" | "m2ts" | "mts")
     {
         return Err(Error::input(
-            "remux service metadata (--service-name/--provider/--service-id/--tsid/--network-id) writes transport-stream SI tables — .ts/.m2ts targets only",
+            "remux transport-stream options (--service-name/--provider/--service-id/--tsid/--network-id/--start-pid/--pmt-pid/--resend-headers) write TS SI tables and PID plans — .ts/.m2ts targets only",
+        ));
+    }
+    for (pid, flag) in [(args.start_pid, "--start-pid"), (args.pmt_pid, "--pmt-pid")] {
+        if let Some(p) = pid {
+            if !(32..=8186).contains(&p) {
+                return Err(Error::input(format!(
+                    "remux {flag} needs a PID in 32-8186 (got {p})"
+                )));
+            }
+        }
+    }
+    if (args.cmaf || args.mdta || args.skip_trailer)
+        && !matches!(ext.as_str(), "mp4" | "m4v" | "mov")
+    {
+        return Err(Error::input(
+            "remux --cmaf/--mdta/--skip-trailer are mov/mp4 muxer flags — mp4/mov targets only",
+        ));
+    }
+    if args.skip_trailer && !args.frag {
+        return Err(Error::input(
+            "remux --skip-trailer only drops the mfra trailer of a fragmented mp4 — needs --frag",
         ));
     }
     if args.no_data {
@@ -1319,6 +1343,30 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(id) = args.network_id {
         argv.extend(["-mpegts_original_network_id".to_string(), id.to_string()]);
     }
+    if let Some(p) = args.start_pid {
+        argv.extend(["-mpegts_start_pid".to_string(), p.to_string()]);
+    }
+    if let Some(p) = args.pmt_pid {
+        argv.extend(["-mpegts_pmt_start_pid".to_string(), p.to_string()]);
+    }
+    if args.resend_headers {
+        argv.extend(["-mpegts_flags", "resend_headers"]);
+    }
+    {
+        let mut mf = String::new();
+        if args.cmaf {
+            mf.push_str("+cmaf");
+        }
+        if args.mdta {
+            mf.push_str("+use_metadata_tags");
+        }
+        if args.skip_trailer {
+            mf.push_str("+skip_trailer");
+        }
+        if !mf.is_empty() {
+            argv.extend(["-movflags".to_string(), mf]);
+        }
+    }
     if args.no_chapters {
         argv.extend(["-map_chapters", "-1"]);
     }
@@ -1335,6 +1383,12 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["service_id"] = json!(args.service_id);
     extra["tsid"] = json!(args.tsid);
     extra["network_id"] = json!(args.network_id);
+    extra["start_pid"] = json!(args.start_pid);
+    extra["pmt_pid"] = json!(args.pmt_pid);
+    extra["resend_headers"] = json!(args.resend_headers);
+    extra["cmaf"] = json!(args.cmaf);
+    extra["mdta"] = json!(args.mdta);
+    extra["skip_trailer"] = json!(args.skip_trailer);
     if let Some((key, kid)) = enc_kv {
         extra["encrypted"] = json!(true);
         extra["key"] = json!(key);

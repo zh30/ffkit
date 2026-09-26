@@ -608,7 +608,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Icc
         | DeliverPlatform::F1
         | DeliverPlatform::Motogp
-        | DeliverPlatform::Nascar => (1920, 1080),
+        | DeliverPlatform::Nascar
+        | DeliverPlatform::Orange
+        | DeliverPlatform::Sfr
+        | DeliverPlatform::Free
+        | DeliverPlatform::Proximus
+        | DeliverPlatform::Swisscom
+        | DeliverPlatform::Telstra
+        | DeliverPlatform::Kpn => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1240,6 +1247,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::F1 => "f1",
         DeliverPlatform::Motogp => "motogp",
         DeliverPlatform::Nascar => "nascar",
+        DeliverPlatform::Orange => "orange",
+        DeliverPlatform::Sfr => "sfr",
+        DeliverPlatform::Free => "free",
+        DeliverPlatform::Proximus => "proximus",
+        DeliverPlatform::Swisscom => "swisscom",
+        DeliverPlatform::Telstra => "telstra",
+        DeliverPlatform::Kpn => "kpn",
         DeliverPlatform::Brightcove => "brightcove",
         DeliverPlatform::Jwplayer => "jwplayer",
         DeliverPlatform::Kaltura => "kaltura",

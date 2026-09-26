@@ -43030,3 +43030,139 @@ fn r335_smjpeg_service_meta_conform_timescale_platforms() {
         assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
     }
 }
+
+#[test]
+fn r336_remux_ts_pids_movflags_dash_dvb_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // remux --start-pid/--pmt-pid allocate the PID plan — streams[].stream_id reads it back
+    let o = dir.path().join("r336.ts");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--service-id",
+        "8",
+        "--start-pid",
+        "512",
+        "--pmt-pid",
+        "4100",
+        "--resend-headers",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["start_pid"], 512, "{j}");
+    assert_eq!(j["extra"]["pmt_pid"], 4100, "{j}");
+    assert_eq!(j["extra"]["resend_headers"], true, "{j}");
+    let j = run_json(&["probe", o.to_str().unwrap()]);
+    assert_eq!(j["probe"]["streams"][0]["stream_id"], "0x200", "{j}");
+    assert_eq!(j["probe"]["streams"][1]["stream_id"], "0x201", "{j}");
+    assert_eq!(j["probe"]["programs"][0]["num"], 8, "{j}");
+    // PID outside 32-8186 refuses
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r336-x.ts").to_str().unwrap(),
+            "--start-pid",
+            "10",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // TS options on mp4 refuse
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r336-x.mp4").to_str().unwrap(),
+            "--resend-headers",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // remux --cmaf + --mdta → CMAF-interop frag + mdta atom keys on mp4
+    let o = dir.path().join("r336-cmaf.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--cmaf",
+        "--mdta",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["cmaf"], true, "{j}");
+    assert_eq!(j["extra"]["mdta"], true, "{j}");
+    // movflags on .ts refuse
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r336-x.ts").to_str().unwrap(),
+            "--cmaf",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // remux --frag --skip-trailer → fragmented mp4 without the mfra trailer
+    let o = dir.path().join("r336-skip.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--frag",
+        "--skip-trailer",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["skip_trailer"], true, "{j}");
+    let bytes = std::fs::read(&o).unwrap();
+    let mfra = bytes.windows(4).any(|w| w == b"mfra");
+    assert!(!mfra, "mfra trailer should be absent");
+    // --skip-trailer without --frag refuses
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r336-x.mp4").to_str().unwrap(),
+            "--skip-trailer",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // dash --dvb → DVB-DASH broadcast profile in the manifest
+    let d = dir.path().join("r336-dash");
+    let j = run_json(&[
+        "dash",
+        f.to_str().unwrap(),
+        "-o",
+        d.to_str().unwrap(),
+        "--dvb",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["dvb"], true, "{j}");
+    let mpd = std::fs::read_to_string(d.join("manifest.mpd")).unwrap();
+    assert!(mpd.contains("urn:dvb:dash:profile:dvb-dash"), "mpd: {mpd}");
+    // telecom-OTT platforms — 16:9 1920x1080
+    for p in [
+        "orange", "sfr", "free", "proximus", "swisscom", "telstra", "kpn",
+    ] {
+        let o = dir.path().join(format!("r336-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
+    }
+}

@@ -334,6 +334,9 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(u) = &args.utc {
         argv.extend(["-utc_timing_url".to_string(), u.clone()]);
     }
+    if args.dvb {
+        argv.extend(["-mpd_profile", "dvb_dash"]);
+    }
     if args.webm {
         argv.extend(["-dash_segment_type".to_string(), "webm".to_string()]);
     }
@@ -399,6 +402,7 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         "segment_seconds": args.seg,
         "single": args.single,
         "utc": args.utc,
+        "dvb": args.dvb,
         "webm": args.webm,
         "window": args.window.unwrap_or(0),
         "ladder": hs

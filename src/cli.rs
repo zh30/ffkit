@@ -2633,6 +2633,20 @@ pub enum DeliverPlatform {
     Motogp,
     /// NASCAR stock-car highlights (US)
     Nascar,
+    /// Orange TV telecom-OTT clips (France/Poland set-top)
+    Orange,
+    /// SFR telecom-OTT clips (France set-top)
+    Sfr,
+    /// Free/Freebox telecom-OTT clips (France set-top)
+    Free,
+    /// Proximus Pickx telecom-OTT clips (Belgium set-top)
+    Proximus,
+    /// Swisscom TV telecom-OTT clips (Switzerland set-top)
+    Swisscom,
+    /// Telstra TV telecom-OTT clips (Australia set-top)
+    Telstra,
+    /// KPN iTV telecom-OTT clips (Netherlands set-top)
+    Kpn,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5669,6 +5683,32 @@ pub struct RemuxArgs {
     /// identity for DVB ingest; .ts/.m2ts only)
     #[arg(long)]
     pub network_id: Option<u32>,
+    /// First elementary-stream PID (-mpegts_start_pid 32-8186 —
+    /// DVB/IPTV ingest PID plans allocate channels by PID; .ts/.m2ts only)
+    #[arg(long)]
+    pub start_pid: Option<u32>,
+    /// First PMT PID (-mpegts_pmt_start_pid 32-8186 — the PID plan's
+    /// program-map table slot; .ts/.m2ts only)
+    #[arg(long)]
+    pub pmt_pid: Option<u32>,
+    /// Reemit PAT/PMT with every packet (-mpegts_flags resend_headers —
+    /// join-in-progress playback on mid-stream captures; .ts/.m2ts only)
+    #[arg(long)]
+    pub resend_headers: bool,
+    /// CMAF-interoperable fragmented mp4 (-movflags +cmaf — one chunk
+    /// pack playable as both HLS fMP4 and DASH; mp4/mov targets only)
+    #[arg(long)]
+    pub cmaf: bool,
+    /// Write all metadata as mdta atom keys (-movflags +use_metadata_tags
+    /// — HandBrake-style custom tags the stock udta writer can't express;
+    /// mp4/mov targets only)
+    #[arg(long)]
+    pub mdta: bool,
+    /// Skip the mfra trailer on fragmented mp4 (-movflags +skip_trailer —
+    /// live ingest pipelines that never seek back don't need the random-
+    /// access trailer; needs --frag; mp4/mov targets only)
+    #[arg(long)]
+    pub skip_trailer: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6735,6 +6775,10 @@ pub struct DashArgs {
     /// players sync wall-clock to compute the live edge; pair --window)
     #[arg(long)]
     pub utc: Option<String>,
+    /// DVB-DASH broadcast profile (-mpd_profile dvb_dash — broadcast
+    /// ingest that requires the DVB profile instead of plain MPEG-DASH)
+    #[arg(long)]
+    pub dvb: bool,
 }
 
 #[derive(clap::Args, Debug)]
