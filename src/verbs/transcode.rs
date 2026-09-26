@@ -333,6 +333,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         | TranscodePreset::Aptx
         | TranscodePreset::Sbc
         | TranscodePreset::G723
+        | TranscodePreset::Amr
         | TranscodePreset::Truehd
         | TranscodePreset::Mlp => audio_only(&args, g, preset),
         TranscodePreset::Gif => gif(&args, g),
@@ -350,6 +351,15 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Xvid => xvid(&args, g),
         TranscodePreset::Wmv => wmv(&args, g),
         TranscodePreset::Msmpeg4 => msmpeg4(&args, g),
+        TranscodePreset::Mpeg4 => mpeg4(&args, g),
+        TranscodePreset::Vp8 => qt_era(
+            &args,
+            g,
+            "libvpx",
+            &["webm", "mkv"],
+            None,
+            Some("libvorbis"),
+        ),
         TranscodePreset::Gpp => gpp(&args, g),
         TranscodePreset::Flv => flv(&args, g),
         TranscodePreset::Theora => theora(&args, g),
@@ -852,6 +862,9 @@ fn audio_only(
             TranscodePreset::Aptx => argv.extend(["-c:a", "aptx"]),
             TranscodePreset::Sbc => argv.extend(["-c:a", "sbc"]),
             TranscodePreset::G723 => argv.extend(["-c:a", "g723_1", "-ar", "8000", "-ac", "1"]),
+            TranscodePreset::Amr => {
+                argv.extend(["-c:a", "libopencore_amrnb", "-ar", "8000", "-ac", "1"])
+            }
             TranscodePreset::Truehd => argv.extend(["-c:a", "truehd", "-strict", "-2"]),
             TranscodePreset::Mlp => argv.extend(["-c:a", "mlp", "-strict", "-2"]),
             _ => argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "192k")]),
@@ -1944,6 +1957,51 @@ fn msmpeg4(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c)
 }
 
+/// MPEG-4 Part 2 ASP + MP3 in .avi — DivX-certified-device era compat:
+/// the standalone players, DVD/DivX decks and old smart TVs that
+/// fourcc-check for `DIVX` (distinct from the xvid/msmpeg4 siblings).
+fn mpeg4(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != "avi" {
+        return Err(Error::input(format!(
+            "transcode --preset mpeg4 needs a .avi target, not .{ext}"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("mpeg4 preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend(["-c:v", "mpeg4", "-vtag", "DIVX"]);
+    if let Some(b) = &args.vbitrate {
+        argv.extend(["-b:v", b]);
+    }
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if probe.has_audio {
+        argv.extend(["-c:a", "libmp3lame"]);
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "mpeg4" }));
+    Ok(c)
+}
+
 /// WMV2 + WMA in .wmv/.asf — Windows Media-era master: corporate training
 /// archives, old PowerPoint-embedded video, Windows-only playback gear.
 fn wmv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
@@ -2274,8 +2332,9 @@ fn qt_era(
                 .join("/")
         )));
     }
-    if (args.crf.is_some() && !matches!(codec, "libx264" | "libvpx-vp9"))
-        || (args.abitrate.is_some() && !matches!(acodec, Some("libmp3lame") | Some("aac")))
+    if (args.crf.is_some() && !matches!(codec, "libx264" | "libvpx-vp9" | "libvpx"))
+        || (args.abitrate.is_some()
+            && !matches!(acodec, Some("libmp3lame") | Some("aac") | Some("libvorbis")))
     {
         return Err(Error::input(format!(
             "transcode --preset {codec} has no crf/abitrate knobs — use --vbitrate"
@@ -2311,8 +2370,8 @@ fn qt_era(
     }
     if let Some(c) = args.crf {
         argv.extend(["-crf", &c.to_string()]);
-        // vp9 CQ mode: -b:v 0 makes -crf the target quality, not a cap
-        if codec == "libvpx-vp9" && args.vbitrate.is_none() {
+        // vpx CQ mode: -b:v 0 makes -crf the target quality, not a cap
+        if matches!(codec, "libvpx-vp9" | "libvpx") && args.vbitrate.is_none() {
             argv.extend(["-b:v", "0"]);
         }
     }

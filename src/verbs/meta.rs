@@ -81,6 +81,8 @@ pub fn run(args: MetaArgs, g: &Globals) -> Result<Contract, Error> {
         ("isrc", args.isrc.as_deref()),
         ("license", args.license.as_deref()),
         ("publisher", args.publisher.as_deref()),
+        ("barcode", args.barcode.as_deref()),
+        ("catalognumber", args.catalog.as_deref()),
     ]
     .into_iter()
     .filter_map(|(k, v)| v.map(|v| (k, v)))

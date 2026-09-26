@@ -247,6 +247,21 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push(cover);
         ni += 1;
     }
+    // --silent-audio: a lavfi anullsrc supplying the silence track for
+    // sources with no audio (platform ingest rejects audio-less files)
+    let mut silent_idx: Option<u32> = None;
+    if args.silent_audio {
+        argv.extend([
+            "-f".to_string(),
+            "lavfi".to_string(),
+            "-t".to_string(),
+            format!("{:.3}", probe.duration.max(0.1)),
+        ]);
+        argv.push("-i");
+        argv.push("anullsrc=r=48000:cl=stereo");
+        silent_idx = Some(ni);
+        ni += 1;
+    }
     // --chapters: the same YouTube-format list deliver --chapters eats,
     // embedded as container chapters on the repack
     let mut chap_file: Option<std::path::PathBuf> = None;
@@ -535,6 +550,39 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input(
             "remux --no-xing drops the Xing/Info VBR header — .mp3 targets only",
         ));
+    }
+    if args.silent_audio {
+        if probe.has_audio {
+            return Err(Error::input(
+                "remux --silent-audio injects a silence track — the source already has audio",
+            ));
+        }
+        if !matches!(
+            ext.as_str(),
+            "mp4" | "m4v" | "mov" | "m4a" | "mkv" | "ts" | "m2ts"
+        ) {
+            return Err(Error::input(
+                "remux --silent-audio muxes an AAC silence track — .mp4/.mov/.m4a/.mkv/.ts targets only",
+            ));
+        }
+        if args.audio
+            || args.video
+            || args.no_audio
+            || args.no_video
+            || args.program.is_some()
+            || args.also.is_some()
+            || args.audio_delay.is_some()
+            || args.video_delay.is_some()
+            || args.lang.is_some()
+            || args.audio_order.is_some()
+            || args.encrypt
+            || !keep.is_empty()
+            || !drop.is_empty()
+        {
+            return Err(Error::input(
+                "remux --silent-audio is a full-file repack — drop the stream-pick, delay and --also flags",
+            ));
+        }
     }
     if args.flv_index && ext != "flv" {
         return Err(Error::input(
@@ -1070,6 +1118,13 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-map", "-0:s", "-map", "-0:d"]);
         }
         argv.extend(["-map", "1:v", "-c", "copy"]);
+    } else if args.silent_audio {
+        // every source stream + the injected silence track (audio encodes
+        // to aac since anullsrc is pcm; the rest copies through)
+        let si = silent_idx.unwrap_or(1);
+        argv.extend(["-map", "0"]);
+        argv.extend(["-map", format!("{si}:a").as_str()]);
+        argv.extend(["-c", "copy", "-c:a", "aac", "-ar", "48000", "-ac", "2"]);
     } else {
         if args.no_subs {
             // negative maps drop subtitle/data streams; attachments stay
@@ -1751,6 +1806,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["no_faststart"] = json!(args.no_faststart);
     extra["no_xing"] = json!(args.no_xing);
     extra["flv_index"] = json!(args.flv_index);
+    extra["silent_audio"] = json!(args.silent_audio);
     if let Some((key, kid)) = enc_kv {
         extra["encrypted"] = json!(true);
         extra["key"] = json!(key);

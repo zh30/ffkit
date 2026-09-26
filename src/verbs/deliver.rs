@@ -741,7 +741,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Speakerdeck
         | DeliverPlatform::Instructables
         | DeliverPlatform::Hackster
-        | DeliverPlatform::Thingiverse => (1920, 1080),
+        | DeliverPlatform::Thingiverse
+        | DeliverPlatform::Kickstarter
+        | DeliverPlatform::Indiegogo
+        | DeliverPlatform::Gofundme
+        | DeliverPlatform::Producthunt
+        | DeliverPlatform::Betalist
+        | DeliverPlatform::Alternativeto
+        | DeliverPlatform::Devto
+        | DeliverPlatform::Hashnode => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1484,6 +1492,14 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Instructables => "instructables",
         DeliverPlatform::Hackster => "hackster",
         DeliverPlatform::Thingiverse => "thingiverse",
+        DeliverPlatform::Kickstarter => "kickstarter",
+        DeliverPlatform::Indiegogo => "indiegogo",
+        DeliverPlatform::Gofundme => "gofundme",
+        DeliverPlatform::Producthunt => "producthunt",
+        DeliverPlatform::Betalist => "betalist",
+        DeliverPlatform::Alternativeto => "alternativeto",
+        DeliverPlatform::Devto => "devto",
+        DeliverPlatform::Hashnode => "hashnode",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

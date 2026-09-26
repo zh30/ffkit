@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.377.0] — 2026-09-26
+
+### Added
+
+- `transcode --preset mpeg4` — MPEG-4 Part 2 ASP + MP3 in `.avi` (vtag `DIVX` — DivX-certified decks, DVD players and old smart TVs that fourcc-check; sits beside `xvid`/MP42-era `msmpeg4`)
+- `transcode --preset vp8` — VP8 + Vorbis in `.webm`/`.mkv` (old Android/WebRTC ingest — the generation before VP9; `--crf` runs true constant-quality with `-b:v 0` auto-emitted)
+- `transcode --preset amr` — AMR-NB voice audio-only in `.amr` (8kHz mono telephony codec — old-phone voice notes, ringtone-era uploads)
+- `dash --segment-list` — writes a `<SegmentList>`+`<SegmentURL>` index instead of `<SegmentTemplate>` (`-use_template 0` — per-segment URL list for older/basic DASH players that can't expand `$Number$` templates)
+- `remux --silent-audio` — muxes a 48kHz stereo AAC silence track (lavfi `anullsrc` matched to source duration) when the source has no audio — platform ingest rejects audio-less files (silent screen recordings/B-roll); `.mp4`/`.mov`/`.m4a`/`.mkv`/`.ts` targets, refuses when audio exists
+- `meta --barcode` / `--catalog` — release-product tags (UPC/EAN barcode, label catalog number — land on mp3/flac/mkv/ogg; the mp4-family whitelist drops them, same as isrc)
+- `deliver --platform` +8 crowdfunding/launch/dev-blog targets: `kickstarter`, `indiegogo`, `gofundme`, `producthunt`, `betalist`, `alternativeto`, `devto`, `hashnode` — all 16:9 1920x1080 → 583 platforms
+
 ## [0.376.0] — 2026-09-26
 
 ### Added

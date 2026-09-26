@@ -1570,6 +1570,18 @@ pub enum TranscodePreset {
     /// YUV4MPEG2 elementary video in .y4m (Avisynth/VapourSynth/x264-CLI
     /// era interchange — raw uncompressed, video only)
     Y4m,
+    /// MPEG-4 Part 2 ASP + MP3 in .avi (DivX-era device compat —
+    /// vtag DIVX for the players that fourcc-check)
+    #[value(name = "mpeg4")]
+    Mpeg4,
+    /// VP8 + Vorbis in .webm (old Android/WebRTC ingest — the generation
+    /// before VP9)
+    #[value(name = "vp8")]
+    Vp8,
+    /// AMR-NB voice in .amr (8kHz mono telephony codec — old-phone voice
+    /// notes, ringtone-era uploads; audio only)
+    #[value(name = "amr")]
+    Amr,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2862,6 +2874,22 @@ pub enum DeliverPlatform {
     Hackster,
     /// Thingiverse maker/design video
     Thingiverse,
+    /// Kickstarter campaign video 16:9
+    Kickstarter,
+    /// Indiegogo campaign video 16:9
+    Indiegogo,
+    /// GoFundMe fundraiser video 16:9
+    Gofundme,
+    /// Product Hunt launch gallery video 16:9
+    Producthunt,
+    /// BetaList startup launch video 16:9
+    Betalist,
+    /// AlternativeTo app listing video 16:9
+    Alternativeto,
+    /// dev.to (DEV Community) post video 16:9
+    Devto,
+    /// Hashnode blog post video 16:9
+    Hashnode,
 }
 
 #[derive(clap::Args, Debug)]
@@ -4564,6 +4592,14 @@ pub struct MetaArgs {
     /// house — lands on mp3/flac/mkv/ogg; mp4-family drops it)
     #[arg(long)]
     pub publisher: Option<String>,
+    /// Barcode / UPC-EAN tag (release-product ID distributors index —
+    /// lands on mp3/flac/mkv/ogg; mp4-family drops it)
+    #[arg(long)]
+    pub barcode: Option<String>,
+    /// Catalog number (label-internal release ID — lands on
+    /// mp3/flac/mkv/ogg; mp4-family drops it)
+    #[arg(long)]
+    pub catalog: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6087,6 +6123,12 @@ pub struct RemuxArgs {
     /// players and some RTMP ingest tools read for scrubbing)
     #[arg(long)]
     pub flv_index: bool,
+    /// Mux a silent stereo AAC track when the source has no audio
+    /// (platform ingest rejects audio-less files — silent screen
+    /// recordings/B-roll get an explicit silence track; .mp4/.mov/.m4a/
+    /// .mkv/.ts targets only, refuses when the source already has audio)
+    #[arg(long)]
+    pub silent_audio: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -7226,6 +7268,11 @@ pub struct DashArgs {
     /// --audio-only/--copy/--program/--webm)
     #[arg(long)]
     pub var_map: Option<String>,
+    /// Write a SegmentList index instead of SegmentTemplate
+    /// (-use_template 0 — plain per-segment URL list for older/basic
+    /// DASH players that can't expand template vars)
+    #[arg(long)]
+    pub segment_list: bool,
 }
 
 #[derive(clap::Args, Debug)]

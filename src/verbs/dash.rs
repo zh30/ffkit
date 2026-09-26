@@ -413,6 +413,11 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
     if args.no_timeline {
         argv.extend(["-use_timeline", "0"]);
     }
+    if args.segment_list {
+        // per-segment URL list instead of a $Number$ template — the
+        // index old/basic DASH players that can't expand templates read
+        argv.extend(["-use_template", "0"]);
+    }
     if args.webm {
         argv.extend(["-dash_segment_type".to_string(), "webm".to_string()]);
     }
@@ -491,6 +496,7 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         "seg_name": args.seg_name,
         "no_timeline": args.no_timeline,
         "var_map": args.var_map,
+        "segment_list": args.segment_list,
         "ladder": hs
             .iter()
             .map(|h| format!("{h}p"))

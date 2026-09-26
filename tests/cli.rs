@@ -45452,3 +45452,174 @@ fn r349_dashvarmap_mux_no_xing_meta_deliver() {
         .unwrap();
     assert!(!out.status.success(), "--lang needs a tagged track");
 }
+
+#[test]
+fn r350_mpeg4_vp8_amr_dashseg_silent_meta_deliver() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // transcode --preset mpeg4: MPEG-4 ASP + DIVX vtag + mp3 audio in .avi
+    let avi = dir.path().join("m4.avi");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        avi.to_str().unwrap(),
+        "--preset",
+        "mpeg4",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let bytes = std::fs::read(&avi).unwrap();
+    assert!(
+        bytes.windows(4).any(|w| w == b"DIVX"),
+        "expected DIVX vtag in .avi"
+    );
+    let pj = run_json(&["probe", avi.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["vcodec"], "mpeg4", "{pj}");
+
+    // transcode --preset vp8: vp8 + vorbis in .webm (cq --crf honored)
+    let webm = dir.path().join("v8.webm");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        webm.to_str().unwrap(),
+        "--preset",
+        "vp8",
+        "--crf",
+        "30",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", webm.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["vcodec"], "vp8", "{pj}");
+    assert_eq!(pj["probe"]["acodec"], "vorbis", "{pj}");
+    let out = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("bad.mp4").to_str().unwrap(),
+            "--preset",
+            "vp8",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "vp8 refuses non-webm/mkv targets");
+
+    // transcode --preset amr: amr_nb 8kHz mono in .amr
+    let amr = dir.path().join("v.amr");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        amr.to_str().unwrap(),
+        "--preset",
+        "amr",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", amr.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["acodec"], "amr_nb", "{pj}");
+    let streams = pj["probe"]["streams"].as_array().unwrap();
+    let astream = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+    assert_eq!(astream["sample_rate"], 8000, "{pj}");
+    assert_eq!(astream["channels"], 1, "{pj}");
+
+    // dash --segment-list: SegmentList+SegmentURL index, no SegmentTemplate
+    let dd = dir.path().join("dseg");
+    let j = run_json(&[
+        "dash",
+        f.to_str().unwrap(),
+        "-o",
+        dd.to_str().unwrap(),
+        "--segment-list",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["segment_list"], true, "{j}");
+    let mpd = std::fs::read_to_string(dd.join("manifest.mpd")).unwrap();
+    assert!(mpd.contains("<SegmentList"), "{mpd}");
+    assert!(mpd.contains("<SegmentURL"), "{mpd}");
+    assert!(!mpd.contains("SegmentTemplate"), "{mpd}");
+
+    // remux --silent-audio: aac silence track on an audio-less repack
+    let noa = dir.path().join("noa.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        noa.to_str().unwrap(),
+        "--no-audio",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let sil = dir.path().join("sil.mp4");
+    let j = run_json(&[
+        "remux",
+        noa.to_str().unwrap(),
+        "-o",
+        sil.to_str().unwrap(),
+        "--silent-audio",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", sil.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["acodec"], "aac", "{pj}");
+    let streams = pj["probe"]["streams"].as_array().unwrap();
+    let astream = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+    assert_eq!(astream["sample_rate"], 48000, "{pj}");
+    assert_eq!(astream["channels"], 2, "{pj}");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("r.mp4").to_str().unwrap(),
+            "--silent-audio",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        !out.status.success(),
+        "--silent-audio refuses audio sources"
+    );
+
+    // meta --barcode/--catalog: release-product tags on mkv
+    let mkv = dir.path().join("bc.mkv");
+    let j = run_json(&[
+        "meta",
+        f.to_str().unwrap(),
+        "-o",
+        mkv.to_str().unwrap(),
+        "--barcode",
+        "012345678905",
+        "--catalog",
+        "CAT-001",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", mkv.to_str().unwrap()]);
+    let tags = &pj["probe"]["tags"]["format"];
+    assert_eq!(tags["BARCODE"], "012345678905", "{pj}");
+    assert_eq!(tags["CATALOGNUMBER"], "CAT-001", "{pj}");
+
+    // +8 platforms: crowdfunding / launch / dev-blog targets, 1920x1080
+    for p in [
+        "kickstarter",
+        "indiegogo",
+        "gofundme",
+        "producthunt",
+        "betalist",
+        "alternativeto",
+        "devto",
+        "hashnode",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
+    }
+}
