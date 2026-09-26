@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.355.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset alaw` — G.711 A-law audio-only in .au pinned 8kHz mono (Euro telephony — mulaw's sibling); `--preset speex` — libspeex in .spx (Ogg Speex — VoIP/podcast era); `--preset pcm8` — 8-bit unsigned PCM in .wav (retro micro-audio); `--preset adpcmms` — Microsoft ADPCM in .wav (classic Windows/game audio); `--preset g722` — G.722 ADPCM in .wav pinned 16kHz mono (wideband telephony); `--preset ra144` — RealAudio 1.0 in .rm pinned 8kHz mono (dial-up spec); `--preset nelly` — Nellymoser Asao in .flv (Flash-era voice)
+- `transcode --preset rv10`/`rv20` now carry RealAudio 1.0 audio — the .rm container does hold audio (real_144 pinned 8kHz mono); `--ar`/`--channels` refused on the pinned-rate telephony specs (mulaw/alaw/g722/ra144)
+- `deliver --platform` +7: ubereats, doordash, deliveroo, grubhub, swiggy, zomato, meituan (food-delivery listing videos 16:9 1920x1080)
+
 ## [0.354.0] — 2026-09-25
 
 ### Added

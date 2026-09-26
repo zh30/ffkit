@@ -1451,6 +1451,27 @@ pub enum TranscodePreset {
     /// IMA-ADPCM audio-only in .wav (classic game-engine audio)
     #[value(name = "adpcm")]
     Adpcm,
+    /// G.711 A-law audio-only in .au, pinned 8kHz mono (Euro telephony spec)
+    #[value(name = "alaw")]
+    Alaw,
+    /// Speex audio-only in .spx via libspeex (Ogg Speex — VoIP/podcast era)
+    #[value(name = "speex")]
+    Speex,
+    /// 8-bit unsigned PCM audio-only in .wav (retro micro-audio)
+    #[value(name = "pcm8")]
+    Pcm8,
+    /// Microsoft ADPCM audio-only in .wav (classic Windows/game audio)
+    #[value(name = "adpcmms")]
+    Adpcmms,
+    /// G.722 ADPCM audio-only in .wav, pinned 16kHz mono (wideband telephony)
+    #[value(name = "g722")]
+    G722,
+    /// RealAudio 1.0 audio-only in .rm, pinned 8kHz mono (dial-up era spec)
+    #[value(name = "ra144")]
+    Ra144,
+    /// Nellymoser Asao audio-only in .flv (Flash-era voice codec)
+    #[value(name = "nelly")]
+    Nelly,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2409,6 +2430,20 @@ pub enum DeliverPlatform {
     Agoda,
     /// Vrbo listing video
     Vrbo,
+    /// Uber Eats restaurant-listing video
+    Ubereats,
+    /// DoorDash restaurant-listing video
+    Doordash,
+    /// Deliveroo restaurant-listing video
+    Deliveroo,
+    /// Grubhub restaurant-listing video
+    Grubhub,
+    /// Swiggy restaurant-listing video (IN)
+    Swiggy,
+    /// Zomato restaurant-listing video (IN/global)
+    Zomato,
+    /// Meituan restaurant-listing video (CN)
+    Meituan,
 }
 
 #[derive(clap::Args, Debug)]

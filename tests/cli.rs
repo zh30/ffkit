@@ -41868,7 +41868,8 @@ fn r323_uncompressed_realvideo_webinar_platforms() {
         if preset == "v410" || preset == "ayuv" {
             assert_eq!(j["probe"]["acodec"], "pcm_s16le", "{preset}: {j}");
         } else {
-            assert_eq!(j["probe"]["has_audio"], false, "{preset}: {j}");
+            // rv10/rv20 carry RealAudio 1.0 — .rm does hold audio
+            assert_eq!(j["probe"]["acodec"], "ra_144", "{preset}: {j}");
         }
     }
     // uncompressed presets refuse bitrate flags
@@ -42183,6 +42184,88 @@ fn r327_lossless_telephony_audio_travel_platforms() {
         "vrbo",
     ] {
         let o = dir.path().join(format!("r327-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{p}: {j}");
+    }
+}
+
+#[test]
+fn r328_telephony_era_audio_food_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    for (preset, file, expect_a) in [
+        ("alaw", "r328.au", "pcm_alaw"),
+        ("speex", "r328.spx", "speex"),
+        ("pcm8", "r328-8.wav", "pcm_u8"),
+        ("adpcmms", "r328-ms.wav", "adpcm_ms"),
+        ("g722", "r328-g722.wav", "adpcm_g722"),
+        ("ra144", "r328.rm", "ra_144"),
+        ("nelly", "r328.flv", "nellymoser"),
+    ] {
+        let o = dir.path().join(file);
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            preset,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{preset}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["acodec"], expect_a, "{preset}: {j}");
+        assert_eq!(j["probe"]["has_video"], false, "{preset}: {j}");
+    }
+    // pinned-rate specs refuse overrides
+    for preset in ["alaw", "g722", "ra144"] {
+        let bad = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            preset,
+            "--channels",
+            "2",
+            "-o",
+            dir.path().join("r328-bad").to_str().unwrap(),
+        ]);
+        assert_eq!(bad["status"], "failed", "{preset} --channels: {bad}");
+    }
+    // rv10/rv20 now carry RealAudio — the .rm container does hold audio
+    for preset in ["rv10", "rv20"] {
+        let o = dir.path().join(format!("r328-{preset}.rm"));
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            preset,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{preset}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["vcodec"], preset, "{j}");
+        assert_eq!(j["probe"]["acodec"], "ra_144", "{j}");
+    }
+    for p in [
+        "ubereats",
+        "doordash",
+        "deliveroo",
+        "grubhub",
+        "swiggy",
+        "zomato",
+        "meituan",
+    ] {
+        let o = dir.path().join(format!("r328-{p}.mp4"));
         let j = run_json(&[
             "deliver",
             f.to_str().unwrap(),

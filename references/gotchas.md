@@ -904,3 +904,5 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - The `dca` (DTS) encoder is experimental on 4.4 — it refuses without `-strict -2`, which `--preset dca` ships. Same class of flag as `-vstrict -1` for AMV.
 - `transcode --preset raw` uses no `-pix_fmt`: rawvideo passes the SOURCE format through verbatim (yuv420p in → yuv420p out) — that's the point vs v308/v410 which upconvert to 4:4:4.
 - `mulaw` is a fixed-spec preset: G.711 IS 8kHz mono telephony — `--ar`/`--channels` are refused upfront (the `.au` muxer would accept other rates, but a "G.711" output that isn't 8k mono is a lie).
+- `.rm` DOES hold audio — real_144 (RealAudio 1.0, 8kHz mono only) is the one encoder the 4.4 rm muxer accepts; that's why rv10/rv20 ship ra_144 audio now. There is still no `.mp1` muxer on 4.4 (mp1 only lives inside .mpg).
+- Pinned-rate telephony presets (mulaw/alaw/g722/ra144) refuse `--ar`/`--channels` upfront — a "G.711" file that isn't 8kHz mono is a spec lie even though .au accepts other rates.

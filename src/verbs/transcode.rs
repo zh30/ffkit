@@ -32,6 +32,13 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                         | TranscodePreset::Mulaw
                         | TranscodePreset::Adx
                         | TranscodePreset::Adpcm
+                        | TranscodePreset::Alaw
+                        | TranscodePreset::Speex
+                        | TranscodePreset::Pcm8
+                        | TranscodePreset::Adpcmms
+                        | TranscodePreset::G722
+                        | TranscodePreset::Ra144
+                        | TranscodePreset::Nelly
                 )
         )
     {
@@ -40,10 +47,16 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         ));
     }
     if (args.ar.is_some() || args.channels.is_some())
-        && matches!(args.preset, Some(TranscodePreset::Mulaw))
+        && matches!(
+            args.preset,
+            Some(TranscodePreset::Mulaw)
+                | Some(TranscodePreset::Alaw)
+                | Some(TranscodePreset::G722)
+                | Some(TranscodePreset::Ra144)
+        )
     {
         return Err(Error::input(
-            "G.711 mu-law is the 8kHz mono telephony spec — drop --ar/--channels",
+            "G.711/G.722/RealAudio are pinned-rate telephony specs — drop --ar/--channels",
         ));
     }
     let ext = args
@@ -102,6 +115,13 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Mulaw
                 | TranscodePreset::Adx
                 | TranscodePreset::Adpcm
+                | TranscodePreset::Alaw
+                | TranscodePreset::Speex
+                | TranscodePreset::Pcm8
+                | TranscodePreset::Adpcmms
+                | TranscodePreset::G722
+                | TranscodePreset::Ra144
+                | TranscodePreset::Nelly
         )
     {
         return Err(Error::input("--range applies to video presets only"));
@@ -132,6 +152,13 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Mulaw
                 | TranscodePreset::Adx
                 | TranscodePreset::Adpcm
+                | TranscodePreset::Alaw
+                | TranscodePreset::Speex
+                | TranscodePreset::Pcm8
+                | TranscodePreset::Adpcmms
+                | TranscodePreset::G722
+                | TranscodePreset::Ra144
+                | TranscodePreset::Nelly
         )
     {
         return Err(Error::input("--field-order applies to video presets only"));
@@ -156,6 +183,13 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::Mulaw
                 | TranscodePreset::Adx
                 | TranscodePreset::Adpcm
+                | TranscodePreset::Alaw
+                | TranscodePreset::Speex
+                | TranscodePreset::Pcm8
+                | TranscodePreset::Adpcmms
+                | TranscodePreset::G722
+                | TranscodePreset::Ra144
+                | TranscodePreset::Nelly
                 | TranscodePreset::Gif
                 | TranscodePreset::Prores
                 | TranscodePreset::Dnxhd
@@ -180,6 +214,19 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                     | TranscodePreset::Eac3
                     | TranscodePreset::Tta
                     | TranscodePreset::Dca
+                    | TranscodePreset::Aiff
+                    | TranscodePreset::Pcm24
+                    | TranscodePreset::Pcm32f
+                    | TranscodePreset::Mulaw
+                    | TranscodePreset::Adx
+                    | TranscodePreset::Adpcm
+                    | TranscodePreset::Alaw
+                    | TranscodePreset::Speex
+                    | TranscodePreset::Pcm8
+                    | TranscodePreset::Adpcmms
+                    | TranscodePreset::G722
+                    | TranscodePreset::Ra144
+                    | TranscodePreset::Nelly
             )
         {
             return Err(Error::input(
@@ -216,7 +263,14 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         | TranscodePreset::Pcm32f
         | TranscodePreset::Mulaw
         | TranscodePreset::Adx
-        | TranscodePreset::Adpcm => audio_only(&args, g, preset),
+        | TranscodePreset::Adpcm
+        | TranscodePreset::Alaw
+        | TranscodePreset::Speex
+        | TranscodePreset::Pcm8
+        | TranscodePreset::Adpcmms
+        | TranscodePreset::G722
+        | TranscodePreset::Ra144
+        | TranscodePreset::Nelly => audio_only(&args, g, preset),
         TranscodePreset::Gif => gif(&args, g),
         TranscodePreset::H264 => h264(&args, g),
         TranscodePreset::Hevc => hevc(&args, g),
@@ -257,8 +311,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Zmbv => {
             qt_era(&args, g, "zmbv", &["avi"], Some("rgb24"), Some("pcm_s16le"))
         }
-        TranscodePreset::Rv10 => qt_era(&args, g, "rv10", &["rm"], None, None),
-        TranscodePreset::Rv20 => qt_era(&args, g, "rv20", &["rm"], None, None),
+        TranscodePreset::Rv10 => qt_era(&args, g, "rv10", &["rm"], None, Some("real_144")),
+        TranscodePreset::Rv20 => qt_era(&args, g, "rv20", &["rm"], None, Some("real_144")),
         TranscodePreset::R210 => lossless(&args, g, "r210", &["mov"], Some("gbrp10le")),
         TranscodePreset::V308 => lossless(&args, g, "v308", &["mov"], Some("yuv444p")),
         TranscodePreset::Rpza => qt_era(
@@ -647,7 +701,7 @@ fn audio_only(
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_audio {
         return Err(Error::input(
-            "audio preset (mp3/aac/wav/flac/opus/ogg/alac/ac3/eac3/tta/dca/aiff/pcm24/pcm32f/mulaw/adx/adpcm): input has no audio",
+            "audio preset (mp3/aac/wav/flac/opus/ogg/alac/ac3/eac3/tta/dca/aiff/pcm24/pcm32f/mulaw/adx/adpcm/alaw/speex/pcm8/adpcmms/g722/ra144/nelly): input has no audio",
         ));
     }
     let mut argv = ffmpeg_base(g.progress);
@@ -687,6 +741,15 @@ fn audio_only(
             TranscodePreset::Mulaw => argv.extend(["-c:a", "pcm_mulaw", "-ar", "8000", "-ac", "1"]),
             TranscodePreset::Adx => argv.extend(["-c:a", "adpcm_adx"]),
             TranscodePreset::Adpcm => argv.extend(["-c:a", "adpcm_ima_wav"]),
+            TranscodePreset::Alaw => argv.extend(["-c:a", "pcm_alaw", "-ar", "8000", "-ac", "1"]),
+            TranscodePreset::Speex => argv.extend(["-c:a", "libspeex"]),
+            TranscodePreset::Pcm8 => argv.extend(["-c:a", "pcm_u8"]),
+            TranscodePreset::Adpcmms => argv.extend(["-c:a", "adpcm_ms"]),
+            TranscodePreset::G722 => {
+                argv.extend(["-c:a", "adpcm_g722", "-ar", "16000", "-ac", "1"])
+            }
+            TranscodePreset::Ra144 => argv.extend(["-c:a", "real_144", "-ar", "8000", "-ac", "1"]),
+            TranscodePreset::Nelly => argv.extend(["-c:a", "nellymoser"]),
             _ => argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "192k")]),
         }
     }
@@ -1689,6 +1752,11 @@ fn qt_era(
             "transcode --preset {codec} has no crf/abitrate knobs — use --vbitrate"
         )));
     }
+    if acodec == Some("real_144") && (args.ar.is_some() || args.channels.is_some()) {
+        return Err(Error::input(
+            "RealAudio 1.0 is the 8kHz mono dial-up spec — drop --ar/--channels",
+        ));
+    }
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_video {
         return Err(Error::input(format!("{codec} preset: input has no video")));
@@ -1715,6 +1783,9 @@ fn qt_era(
             argv.extend(["-c:a", ac]);
             if ac == "libmp3lame" {
                 argv.extend(["-b:a", abitrate(args, "192k")]);
+            }
+            if ac == "real_144" {
+                argv.extend(["-ar", "8000", "-ac", "1"]);
             }
             if let Some(r) = args.ar {
                 argv.extend(["-ar", &r.to_string()]);
