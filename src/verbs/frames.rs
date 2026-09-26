@@ -19,7 +19,7 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
     paths::ensure_input(&args.input)?;
 
     let out_s = args.output.to_string_lossy().into_owned();
-    let template: PathBuf = if out_s.contains('%') {
+    let template: PathBuf = if out_s.contains('%') || args.update {
         PathBuf::from(out_s)
     } else {
         let ext = args
@@ -41,6 +41,17 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
     if args.untile.is_some() && (!args.at.is_empty() || args.count.is_some()) {
         return Err(Error::input(
             "--untile splits every frame (no --at/--count)",
+        ));
+    }
+    if args.update
+        && (!args.at.is_empty()
+            || args.count.is_some()
+            || args.nth.is_some()
+            || args.number.is_some()
+            || args.untile.is_some())
+    {
+        return Err(Error::input(
+            "--update keeps one always-latest still — drop --at/--count/--nth/--number/--untile",
         ));
     }
     let mut first_only = false;
@@ -201,6 +212,12 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(n) = frame_cap {
         argv.extend(["-frames:v", &n.to_string()]);
     }
+    if args.update {
+        argv.extend(["-update", "1"]);
+    }
+    if args.atomic {
+        argv.extend(["-atomic_writing", "1"]);
+    }
     argv.push(&template);
 
     let commands = engine::commands_of(std::slice::from_ref(&argv));
@@ -253,6 +270,8 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
             "untile": args.untile,
             "count": parts.len(),
             "files": names,
+            "update": args.update,
+            "atomic": args.atomic,
         }));
     Ok(c)
 }

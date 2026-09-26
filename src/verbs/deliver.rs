@@ -765,7 +765,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Taskrabbit
         | DeliverPlatform::Peopleperhour
         | DeliverPlatform::Toptal
-        | DeliverPlatform::Designs99 => (1920, 1080),
+        | DeliverPlatform::Designs99
+        | DeliverPlatform::G2
+        | DeliverPlatform::Capterra
+        | DeliverPlatform::Getapp
+        | DeliverPlatform::Softwareadvice
+        | DeliverPlatform::Trustradius
+        | DeliverPlatform::Trustpilot
+        | DeliverPlatform::Sitejabber
+        | DeliverPlatform::Gartner => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1532,6 +1540,14 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Peopleperhour => "peopleperhour",
         DeliverPlatform::Toptal => "toptal",
         DeliverPlatform::Designs99 => "99designs",
+        DeliverPlatform::G2 => "g2",
+        DeliverPlatform::Capterra => "capterra",
+        DeliverPlatform::Getapp => "getapp",
+        DeliverPlatform::Softwareadvice => "softwareadvice",
+        DeliverPlatform::Trustradius => "trustradius",
+        DeliverPlatform::Trustpilot => "trustpilot",
+        DeliverPlatform::Sitejabber => "sitejabber",
+        DeliverPlatform::Gartner => "gartner",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

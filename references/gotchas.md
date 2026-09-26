@@ -990,3 +990,7 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - `-hls_segment_size BYTES` can't split segments below `-hls_time` boundaries even on multi-keyframe sources — boundaries stay time/keyframe-driven on 4.4; dropped.
 - `-iods_audio_profile`/`-iods_video_profile` tune the iods atom's OD profiles (see `remux --iods` for the atom itself) and `-moov_size` reserves moov padding — too niche to verify meaningfully; not exposed.
 - `-metadata grouping=` writes the `©grp` atom on mp4/m4a/mov — ffprobe doesn't display it (byte-check `b'\xa9grp'`, same family as `tmpo`); the same key lands as a plain `grouping`/`GROUPING` tag on mp3/flac/mkv/ogg.
+- `-hls_fmp4_init_resend` is inert on 4.4 file output — media segments stay byte-identical with no embedded init copy (live-only resend machinery); not exposed.
+- `-omit_video_pes_length` shows no effect on mp4-family sources — video PES `packet_length` is already 0 by default; `-pes_payload_size` likewise left no observable byte change; not exposed.
+- matroska `-dash` errors "Invalid argument" on the stream-copy path, and `-default_mode infer/passthrough` only reshuffles dispositions ffkit already covers via `--sdh`/`--commentary`/`--dub`/`--original`; neither exposed.
+- `-hls_wrap N` on 4.4 collapses segment names to `seg_000` for every new segment past the wrap point (not a 0..N-1 cycle) — `hls --wrap` documents that behavior; it still caps a self-hosted live channel's file set.

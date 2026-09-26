@@ -46133,3 +46133,309 @@ fn r352_iods_fragindex_minfrag_extrawindow_nocache_platforms() {
         assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
     }
 }
+
+#[test]
+fn r353_update_atomic_service_tables_reserve_peak_wrap_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // frames --update: one always-latest still file, no _NNN suffix
+    let upd = dir.path().join("live.png");
+    let j = run_json(&[
+        "frames",
+        f.to_str().unwrap(),
+        "-o",
+        upd.to_str().unwrap(),
+        "--every",
+        "0.3",
+        "--update",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["update"], true, "{j}");
+    assert_eq!(
+        j["extra"]["files"].as_array().unwrap().len(),
+        1,
+        "--update keeps a single file"
+    );
+    assert!(upd.exists());
+    let out = ffkit()
+        .args([
+            "frames",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("u2.png").to_str().unwrap(),
+            "--update",
+            "--count",
+            "4",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        !out.status.success(),
+        "--update refuses multi-still selectors"
+    );
+
+    // frames --atomic: temp+rename per still (readers never see a half write)
+    let at = dir.path().join("at_%02d.png");
+    let j = run_json(&[
+        "frames",
+        f.to_str().unwrap(),
+        "-o",
+        at.to_str().unwrap(),
+        "--every",
+        "0.4",
+        "--atomic",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["atomic"], true, "{j}");
+    assert!(j["extra"]["files"].as_array().unwrap().len() >= 2);
+
+    // remux --service-type: SDT descriptor 0x48 type byte (0x19 = HDTV)
+    let svc = dir.path().join("svc.ts");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        svc.to_str().unwrap(),
+        "--service-type",
+        "0x19",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["service_type"], "0x19", "{j}");
+    let d = std::fs::read(&svc).unwrap();
+    let pos = d
+        .windows(3)
+        .position(|w| w == b"\x48\x12\x19")
+        .expect("SDT service descriptor 0x48 with type 0x19 should land");
+    assert!(pos > 0);
+
+    // remux --tables-version: PAT section version_number field
+    let tv = dir.path().join("tv.ts");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        tv.to_str().unwrap(),
+        "--tables-version",
+        "9",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let d = std::fs::read(&tv).unwrap();
+    let i = d
+        .windows(5)
+        .position(|w| w == b"\x00\xb0\x0d\x00\x01")
+        .expect("PAT section");
+    assert_eq!((d[i + 5] >> 1) & 0x1f, 9, "PAT version_number");
+
+    // remux --pat-period/--sdt-period/--pcr-period: denser table rebroadcast
+    let per = dir.path().join("per.ts");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        per.to_str().unwrap(),
+        "--pat-period",
+        "0.05",
+        "--sdt-period",
+        "0.05",
+        "--pcr-period",
+        "10",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let dp = std::fs::read(&per).unwrap();
+    let d0 = std::fs::read(&svc).unwrap();
+    let pat = |d: &[u8]| {
+        d.windows(5)
+            .filter(|w| *w == b"\x00\xb0\x0d\x00\x01")
+            .count()
+    };
+    let sdt = |d: &[u8]| d.windows(2).filter(|w| *w == b"\x42\xf0").count();
+    assert!(pat(&dp) > pat(&d0), "--pat-period densifies PAT");
+    assert!(sdt(&dp) > sdt(&d0), "--sdt-period densifies SDT");
+    let pcr = |d: &[u8]| {
+        (0..d.len().saturating_sub(188))
+            .step_by(188)
+            .filter(|&o| {
+                d[o] == 0x47
+                    && matches!((d[o + 3] >> 4) & 3, 2 | 3)
+                    && d[o + 4] > 6
+                    && (d[o + 5] & 0x10) != 0
+            })
+            .count()
+    };
+    assert!(pcr(&dp) > pcr(&d0), "--pcr-period densifies PCR stamps");
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x.mkv").to_str().unwrap(),
+            "--pat-period",
+            "0.05",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "TS table options are .ts/.m2ts only");
+
+    // remux --reserve-index: cues space reserved near the mkv head
+    let ri = dir.path().join("ri.mkv");
+    let r0 = dir.path().join("r0.mkv");
+    run_json(&["remux", f.to_str().unwrap(), "-o", r0.to_str().unwrap()]);
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        ri.to_str().unwrap(),
+        "--reserve-index",
+        "4096",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["reserve_index"], 4096, "{j}");
+    let (a, b) = (
+        std::fs::metadata(&r0).unwrap().len(),
+        std::fs::metadata(&ri).unwrap().len(),
+    );
+    assert!(
+        b > a + 3000,
+        "reserved index space grows the file ({a} -> {b})"
+    );
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x.mp4").to_str().unwrap(),
+            "--reserve-index",
+            "4096",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "--reserve-index is mkv/webm only");
+
+    // remux peak params: levl envelope chunk responds to ppv/block/format
+    let p0 = dir.path().join("p0.wav");
+    let p1 = dir.path().join("p1.wav");
+    run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        p0.to_str().unwrap(),
+        "--audio",
+        "--peak",
+    ]);
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        p1.to_str().unwrap(),
+        "--audio",
+        "--peak",
+        "--peak-ppv",
+        "1",
+        "--peak-block-size",
+        "512",
+        "--peak-format",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let levl = |p: &Path| -> u32 {
+        let d = std::fs::read(p).unwrap();
+        let i = d.windows(4).position(|w| w == b"levl").expect("levl chunk");
+        u32::from_le_bytes(d[i + 4..i + 8].try_into().unwrap())
+    };
+    assert!(
+        levl(&p1) < levl(&p0),
+        "peak params reshape the envelope ({} vs {})",
+        levl(&p1),
+        levl(&p0)
+    );
+    for extra in ["--peak-ppv", "--peak-block-size", "--peak-format"] {
+        let out = ffkit()
+            .args([
+                "remux",
+                f.to_str().unwrap(),
+                "-o",
+                dir.path().join("x.wav").to_str().unwrap(),
+                "--audio",
+                extra,
+                "1",
+            ])
+            .output()
+            .unwrap();
+        assert!(!out.status.success(), "{extra} needs --peak");
+    }
+
+    // hls --wrap: bounded set of reused segment names (4.4 collapses to seg_000)
+    let hl = dir.path().join("hw");
+    std::fs::create_dir(&hl).unwrap();
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        hl.join("index.m3u8").to_str().unwrap(),
+        "--seg",
+        "0.5",
+        "--wrap",
+        "4",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(j["extra"]["wrap"], 4, "{j}");
+    let segs: Vec<_> = std::fs::read_dir(&hl)
+        .unwrap()
+        .filter_map(|e| {
+            let e = e.unwrap();
+            e.file_name()
+                .to_str()
+                .unwrap()
+                .ends_with(".ts")
+                .then(|| e.path())
+        })
+        .collect();
+    assert!(
+        segs.len() <= 4 && !segs.is_empty(),
+        "wrap caps segment filenames ({})",
+        segs.len()
+    );
+    let pl = std::fs::read_to_string(hl.join("index.m3u8")).unwrap();
+    assert!(pl.contains(".ts"), "playlist still references segments");
+    for flag in ["--single", "--time-names"] {
+        let out = ffkit()
+            .args([
+                "hls",
+                f.to_str().unwrap(),
+                "-o",
+                hl.join("x.m3u8").to_str().unwrap(),
+                "--wrap",
+                "4",
+                flag,
+            ])
+            .output()
+            .unwrap();
+        assert!(!out.status.success(), "--wrap conflicts with {flag}");
+    }
+
+    // +8 platforms: B2B software-review targets, 16:9 1920x1080
+    for p in [
+        "g2",
+        "capterra",
+        "getapp",
+        "softwareadvice",
+        "trustradius",
+        "trustpilot",
+        "sitejabber",
+        "gartner",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["width"], 1920, "{p}: {pj}");
+    }
+}

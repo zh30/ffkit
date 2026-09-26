@@ -2927,6 +2927,22 @@ pub enum DeliverPlatform {
     /// 99designs contest/portfolio video 16:9
     #[value(name = "99designs")]
     Designs99,
+    /// G2 product-review video 16:9
+    G2,
+    /// Capterra software-review video 16:9
+    Capterra,
+    /// GetApp app-review video 16:9
+    Getapp,
+    /// Software Advice buyer-guide video 16:9
+    Softwareadvice,
+    /// TrustRadius B2B-review video 16:9
+    Trustradius,
+    /// Trustpilot review-profile video 16:9
+    Trustpilot,
+    /// Sitejabber review-profile video 16:9
+    Sitejabber,
+    /// Gartner/analyst-colateral video 16:9
+    Gartner,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6008,6 +6024,11 @@ pub struct RemuxArgs {
     /// number the service lists under; .ts/.m2ts only)
     #[arg(long)]
     pub service_id: Option<u32>,
+    /// Service type in the .ts SDT descriptor (-mpegts_service_type —
+    /// 0x01 digital TV, 0x19 HDTV, 0x02 digital radio, 0x16 data; hex
+    /// or decimal; .ts/.m2ts only)
+    #[arg(long = "service-type")]
+    pub service_type: Option<String>,
     /// Transport stream ID (-mpegts_transport_stream_id — multiplex
     /// identity for DVB ingest; .ts/.m2ts only)
     #[arg(long)]
@@ -6036,6 +6057,23 @@ pub struct RemuxArgs {
     /// BD PID plan: video 0x1011, audio 0x1100; .ts/.m2ts targets only)
     #[arg(long)]
     pub m2ts: bool,
+    /// PAT/PMT/SDT table version number (-tables_version 0-31 — mark a
+    /// table set revision so ingest monitors notice the change;
+    /// .ts/.m2ts only)
+    #[arg(long = "tables-version")]
+    pub tables_version: Option<u32>,
+    /// Seconds between PAT reemissions (-pat_period — tighten table
+    /// rebroadcast for broadcast ingest; .ts/.m2ts only)
+    #[arg(long = "pat-period")]
+    pub pat_period: Option<f64>,
+    /// Seconds between SDT reemissions (-sdt_period — tighten the
+    /// channel-label table's cadence; .ts/.m2ts only)
+    #[arg(long = "sdt-period")]
+    pub sdt_period: Option<f64>,
+    /// Milliseconds between PCR stamps (-pcr_period — denser program
+    /// clock references for strict receivers; .ts/.m2ts only)
+    #[arg(long = "pcr-period")]
+    pub pcr_period: Option<u32>,
     /// CMAF-interoperable fragmented mp4 (-movflags +cmaf — one chunk
     /// pack playable as both HLS fMP4 and DASH; mp4/mov targets only)
     #[arg(long)]
@@ -6097,6 +6135,11 @@ pub struct RemuxArgs {
     /// early when it exceeds N bytes; mkv/webm targets only)
     #[arg(long = "cluster-size")]
     pub cluster_size: Option<u64>,
+    /// Reserve N bytes for the cues index near the file head
+    /// (-reserve_index_space — mkvpropedit can rewrite the seek table
+    /// later without shifting media; mkv/webm archive masters)
+    #[arg(long = "reserve-index")]
+    pub reserve_index: Option<u64>,
     /// Copy global metadata tags from FILE (-map_metadata — apply a
     /// tagged template's title/artist/comment keys to the repack)
     #[arg(long = "meta-from", value_name = "FILE")]
@@ -6121,6 +6164,20 @@ pub struct RemuxArgs {
     /// chunk DAWs and ingest QC read for fast waveform/loudness display)
     #[arg(long)]
     pub peak: bool,
+    /// Peaks per stored value in the levl chunk (-peak_ppv 1|2 — 2
+    /// stores min+max pairs for a symmetric waveform display; needs
+    /// --peak; .wav only)
+    #[arg(long = "peak-ppv")]
+    pub peak_ppv: Option<u32>,
+    /// Samples per peak-envelope block (-peak_block_size — smaller
+    /// blocks give a denser levl envelope; needs --peak; .wav only)
+    #[arg(long = "peak-block-size")]
+    pub peak_block_size: Option<u64>,
+    /// levl envelope domain (-peak_format 0 samples | 1 frames — pair
+    /// with --peak-block-size for frame-counted envelopes; needs
+    /// --peak; .wav only)
+    #[arg(long = "peak-format")]
+    pub peak_format: Option<u32>,
     /// Force an RF64 header on .wav outputs even under 4GB (-rf64 always
     /// — strict broadcast specs that want RF64 from the first byte)
     #[arg(long)]
@@ -6730,6 +6787,16 @@ pub struct FramesArgs {
     /// breaks a contact-sheet/mosaic back into per-tile stills (untile)
     #[arg(long)]
     pub untile: Option<String>,
+    /// Keep overwriting the same -o file with the latest still (image2
+    /// -update 1 — an always-fresh preview frame for dashboards/OBS
+    /// overlays/watch folders; plain -o path, no %d needed)
+    #[arg(long)]
+    pub update: bool,
+    /// Write each still to a temp file then rename (image2
+    /// -atomic_writing — readers never see a half-written frame;
+    /// pairs with --update)
+    #[arg(long)]
+    pub atomic: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -7167,6 +7234,12 @@ pub struct HlsArgs {
     /// Segments kept in a --live playlist (default 6)
     #[arg(long)]
     pub live_window: Option<u32>,
+    /// Wrap segment filenames after N segments (-hls_wrap — a
+    /// self-hosted live channel reuses a bounded set of names instead
+    /// of filling the disk; on ffmpeg 4.4 the set collapses to
+    /// seg_000; pairs with --live, refuses --time-names/--single)
+    #[arg(long)]
+    pub wrap: Option<u32>,
     /// Master playlist filename inside a --ladder output dir
     /// (-master_pl_name, default master.m3u8 — multi-channel ABR dirs
     /// each get their own master)
