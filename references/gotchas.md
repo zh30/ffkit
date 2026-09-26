@@ -906,3 +906,5 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - `mulaw` is a fixed-spec preset: G.711 IS 8kHz mono telephony — `--ar`/`--channels` are refused upfront (the `.au` muxer would accept other rates, but a "G.711" output that isn't 8k mono is a lie).
 - `.rm` DOES hold audio — real_144 (RealAudio 1.0, 8kHz mono only) is the one encoder the 4.4 rm muxer accepts; that's why rv10/rv20 ship ra_144 audio now. There is still no `.mp1` muxer on 4.4 (mp1 only lives inside .mpg).
 - Pinned-rate telephony presets (mulaw/alaw/g722/ra144) refuse `--ar`/`--channels` upfront — a "G.711" file that isn't 8kHz mono is a spec lie even though .au accepts other rates.
+- `aptx` silently resamples to 48kHz — that's aptX's native rate, not a bug; `sbc` keeps your rate. Both ship raw elementary streams (.aptx/.sbc muxers), so nothing but ffprobe/ffmpeg can read them back.
+- `g723` is pinned 8kHz mono like the G.711 pair — G.723.1 has no other legal rate, so --ar/--channels are refused upfront. Raw G.723.1 files use .tco/.rco extensions.

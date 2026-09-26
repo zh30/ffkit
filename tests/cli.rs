@@ -42280,3 +42280,68 @@ fn r328_telephony_era_audio_food_platforms() {
         assert_eq!(j["probe"]["height"], 1080, "{p}: {j}");
     }
 }
+
+#[test]
+fn r329_bluetooth_archival_audio_fintech_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    for (preset, file, expect_a) in [
+        ("wv", "r329.wv", "wavpack"),
+        ("mp2", "r329.mp2", "mp2"),
+        ("caf", "r329.caf", "pcm_s16be"),
+        ("w64", "r329.w64", "pcm_s24le"),
+        ("voc", "r329.voc", "pcm_s16le"),
+        ("aptx", "r329.aptx", "aptx"),
+        ("sbc", "r329.sbc", "sbc"),
+        ("g723", "r329.tco", "g723_1"),
+    ] {
+        let o = dir.path().join(file);
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            preset,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{preset}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["acodec"], expect_a, "{preset}: {j}");
+        assert_eq!(j["probe"]["has_video"], false, "{preset}: {j}");
+    }
+    // pinned-rate spec refuses overrides
+    let bad = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "g723",
+        "--ar",
+        "44100",
+        "-o",
+        dir.path().join("r329-bad.tco").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "g723 --ar: {bad}");
+    for p in [
+        "robinhood",
+        "etoro",
+        "webull",
+        "coinbase",
+        "binance",
+        "kraken",
+        "public",
+    ] {
+        let o = dir.path().join(format!("r329-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{p}: {j}");
+    }
+}

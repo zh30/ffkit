@@ -1472,6 +1472,30 @@ pub enum TranscodePreset {
     /// Nellymoser Asao audio-only in .flv (Flash-era voice codec)
     #[value(name = "nelly")]
     Nelly,
+    /// WavPack lossless audio-only in .wv (audiophile lossless archival)
+    #[value(name = "wv")]
+    Wv,
+    /// MPEG Layer II audio-only in .mp2 (broadcast/DAB-era audio)
+    #[value(name = "mp2")]
+    Mp2,
+    /// Apple CAF big-endian PCM audio-only in .caf (GarageBand/Logic interchange)
+    #[value(name = "caf")]
+    Caf,
+    /// Sony Wave64 24-bit PCM audio-only in .w64 (>4GB long recordings)
+    #[value(name = "w64")]
+    W64,
+    /// Creative Voice PCM audio-only in .voc (DOS-era game audio)
+    #[value(name = "voc")]
+    Voc,
+    /// aptX audio-only in .aptx (Bluetooth codec delivery)
+    #[value(name = "aptx")]
+    Aptx,
+    /// SBC audio-only in .sbc (Bluetooth A2DP baseline codec)
+    #[value(name = "sbc")]
+    Sbc,
+    /// G.723.1 audio-only in .tco, pinned 8kHz mono (VoIP-era codec)
+    #[value(name = "g723")]
+    G723,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2444,6 +2468,20 @@ pub enum DeliverPlatform {
     Zomato,
     /// Meituan restaurant-listing video (CN)
     Meituan,
+    /// Robinhood fintech promo video (US)
+    Robinhood,
+    /// eToro social-trading promo video (global)
+    Etoro,
+    /// Webull trading-platform promo video (US/CN)
+    Webull,
+    /// Coinbase crypto promo video (US/global)
+    Coinbase,
+    /// Binance crypto promo video (global)
+    Binance,
+    /// Kraken crypto promo video (US/EU)
+    Kraken,
+    /// Public.com investing promo video (US)
+    Public,
 }
 
 #[derive(clap::Args, Debug)]

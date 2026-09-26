@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.356.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset wv` — WavPack lossless audio-only in .wv (audiophile archival); `--preset mp2` — MPEG Layer II in .mp2 (broadcast/DAB-era audio); `--preset caf` — Apple CAF PCM-BE in .caf (GarageBand/Logic interchange); `--preset w64` — Sony Wave64 24-bit PCM in .w64 (the >4GB WAV sibling — long recordings); `--preset voc` — Creative Voice PCM in .voc (DOS-era game audio); `--preset aptx`/`sbc` — Bluetooth codecs in .aptx/.sbc (aptX resamples to its native 48k); `--preset g723` — G.723.1 in .tco pinned 8kHz mono (VoIP-era codec; joins the pinned-rate refusal gate with mulaw/alaw/g722/ra144)
+- `deliver --platform` +7: robinhood, etoro, webull, coinbase, binance, kraken, public (fintech promo videos 16:9 1920x1080)
+
 ## [0.355.0] — 2026-09-25
 
 ### Added

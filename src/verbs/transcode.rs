@@ -39,6 +39,14 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                         | TranscodePreset::G722
                         | TranscodePreset::Ra144
                         | TranscodePreset::Nelly
+                        | TranscodePreset::Wv
+                        | TranscodePreset::Mp2
+                        | TranscodePreset::Caf
+                        | TranscodePreset::W64
+                        | TranscodePreset::Voc
+                        | TranscodePreset::Aptx
+                        | TranscodePreset::Sbc
+                        | TranscodePreset::G723
                 )
         )
     {
@@ -53,10 +61,11 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | Some(TranscodePreset::Alaw)
                 | Some(TranscodePreset::G722)
                 | Some(TranscodePreset::Ra144)
+                | Some(TranscodePreset::G723)
         )
     {
         return Err(Error::input(
-            "G.711/G.722/RealAudio are pinned-rate telephony specs — drop --ar/--channels",
+            "G.711/G.722/G.723/RealAudio are pinned-rate telephony specs — drop --ar/--channels",
         ));
     }
     let ext = args
@@ -122,6 +131,14 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::G722
                 | TranscodePreset::Ra144
                 | TranscodePreset::Nelly
+                | TranscodePreset::Wv
+                | TranscodePreset::Mp2
+                | TranscodePreset::Caf
+                | TranscodePreset::W64
+                | TranscodePreset::Voc
+                | TranscodePreset::Aptx
+                | TranscodePreset::Sbc
+                | TranscodePreset::G723
         )
     {
         return Err(Error::input("--range applies to video presets only"));
@@ -159,6 +176,14 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::G722
                 | TranscodePreset::Ra144
                 | TranscodePreset::Nelly
+                | TranscodePreset::Wv
+                | TranscodePreset::Mp2
+                | TranscodePreset::Caf
+                | TranscodePreset::W64
+                | TranscodePreset::Voc
+                | TranscodePreset::Aptx
+                | TranscodePreset::Sbc
+                | TranscodePreset::G723
         )
     {
         return Err(Error::input("--field-order applies to video presets only"));
@@ -190,6 +215,14 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::G722
                 | TranscodePreset::Ra144
                 | TranscodePreset::Nelly
+                | TranscodePreset::Wv
+                | TranscodePreset::Mp2
+                | TranscodePreset::Caf
+                | TranscodePreset::W64
+                | TranscodePreset::Voc
+                | TranscodePreset::Aptx
+                | TranscodePreset::Sbc
+                | TranscodePreset::G723
                 | TranscodePreset::Gif
                 | TranscodePreset::Prores
                 | TranscodePreset::Dnxhd
@@ -227,6 +260,14 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                     | TranscodePreset::G722
                     | TranscodePreset::Ra144
                     | TranscodePreset::Nelly
+                    | TranscodePreset::Wv
+                    | TranscodePreset::Mp2
+                    | TranscodePreset::Caf
+                    | TranscodePreset::W64
+                    | TranscodePreset::Voc
+                    | TranscodePreset::Aptx
+                    | TranscodePreset::Sbc
+                    | TranscodePreset::G723
             )
         {
             return Err(Error::input(
@@ -270,7 +311,15 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         | TranscodePreset::Adpcmms
         | TranscodePreset::G722
         | TranscodePreset::Ra144
-        | TranscodePreset::Nelly => audio_only(&args, g, preset),
+        | TranscodePreset::Nelly
+        | TranscodePreset::Wv
+        | TranscodePreset::Mp2
+        | TranscodePreset::Caf
+        | TranscodePreset::W64
+        | TranscodePreset::Voc
+        | TranscodePreset::Aptx
+        | TranscodePreset::Sbc
+        | TranscodePreset::G723 => audio_only(&args, g, preset),
         TranscodePreset::Gif => gif(&args, g),
         TranscodePreset::H264 => h264(&args, g),
         TranscodePreset::Hevc => hevc(&args, g),
@@ -701,7 +750,7 @@ fn audio_only(
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_audio {
         return Err(Error::input(
-            "audio preset (mp3/aac/wav/flac/opus/ogg/alac/ac3/eac3/tta/dca/aiff/pcm24/pcm32f/mulaw/adx/adpcm/alaw/speex/pcm8/adpcmms/g722/ra144/nelly): input has no audio",
+            "audio preset (mp3/aac/wav/flac/opus/ogg/alac/ac3/eac3/tta/dca/aiff/pcm24/pcm32f/mulaw/adx/adpcm/alaw/speex/pcm8/adpcmms/g722/ra144/nelly/wv/mp2/caf/w64/voc/aptx/sbc/g723): input has no audio",
         ));
     }
     let mut argv = ffmpeg_base(g.progress);
@@ -750,6 +799,14 @@ fn audio_only(
             }
             TranscodePreset::Ra144 => argv.extend(["-c:a", "real_144", "-ar", "8000", "-ac", "1"]),
             TranscodePreset::Nelly => argv.extend(["-c:a", "nellymoser"]),
+            TranscodePreset::Wv => argv.extend(["-c:a", "wavpack"]),
+            TranscodePreset::Mp2 => argv.extend(["-c:a", "mp2", "-b:a", abitrate(args, "192k")]),
+            TranscodePreset::Caf => argv.extend(["-c:a", "pcm_s16be"]),
+            TranscodePreset::W64 => argv.extend(["-c:a", "pcm_s24le"]),
+            TranscodePreset::Voc => argv.extend(["-c:a", "pcm_s16le"]),
+            TranscodePreset::Aptx => argv.extend(["-c:a", "aptx"]),
+            TranscodePreset::Sbc => argv.extend(["-c:a", "sbc"]),
+            TranscodePreset::G723 => argv.extend(["-c:a", "g723_1", "-ar", "8000", "-ac", "1"]),
             _ => argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "192k")]),
         }
     }

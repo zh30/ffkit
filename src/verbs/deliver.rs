@@ -552,7 +552,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Grubhub
         | DeliverPlatform::Swiggy
         | DeliverPlatform::Zomato
-        | DeliverPlatform::Meituan => (1920, 1080),
+        | DeliverPlatform::Meituan
+        | DeliverPlatform::Robinhood
+        | DeliverPlatform::Etoro
+        | DeliverPlatform::Webull
+        | DeliverPlatform::Coinbase
+        | DeliverPlatform::Binance
+        | DeliverPlatform::Kraken
+        | DeliverPlatform::Public => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1335,6 +1342,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Swiggy => "swiggy",
         DeliverPlatform::Zomato => "zomato",
         DeliverPlatform::Meituan => "meituan",
+        DeliverPlatform::Robinhood => "robinhood",
+        DeliverPlatform::Etoro => "etoro",
+        DeliverPlatform::Webull => "webull",
+        DeliverPlatform::Coinbase => "coinbase",
+        DeliverPlatform::Binance => "binance",
+        DeliverPlatform::Kraken => "kraken",
+        DeliverPlatform::Public => "public",
         DeliverPlatform::Truthsocial => "truthsocial",
         DeliverPlatform::Gettr => "gettr",
         DeliverPlatform::Parler => "parler",
