@@ -42432,3 +42432,71 @@ fn r330_livevisual_intermediates_dating_platforms() {
         assert_eq!(j["probe"]["height"], 1920, "{p}: {j}");
     }
 }
+
+#[test]
+fn r331_telecom_elementary_short_still_publishing_platforms() {
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+    // raw telecom elementary — snapped canvas, video-only
+    for (preset, file, expect_v) in [
+        ("h261", "r331.h261", "h261"),
+        ("h263", "r331.h263", "h263"),
+        ("avui", "r331-avui.mov", "avui"),
+    ] {
+        let o = dir.path().join(file);
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            preset,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{preset}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["vcodec"], expect_v, "{preset}: {j}");
+    }
+    // avui snapped to the Meridien NTSC canvas
+    let j = run_json(&["probe", dir.path().join("r331-avui.mov").to_str().unwrap()]);
+    assert_eq!(j["probe"]["width"], 720, "avui: {j}");
+    assert_eq!(j["probe"]["height"], 486, "avui: {j}");
+    // raw elementary refuses audio-shaped flags
+    let bad = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "--preset",
+        "h263",
+        "--ar",
+        "44100",
+        "-o",
+        dir.path().join("r331-bad.h263").to_str().unwrap(),
+    ]);
+    assert_eq!(bad["status"], "failed", "h263 --ar: {bad}");
+    // frames --every wider than the clip still lands one still (was: 0 files)
+    let pat = dir.path().join("still_%03d.png");
+    let j = run_json(&["frames", f.to_str().unwrap(), "-o", pat.to_str().unwrap()]);
+    assert_eq!(j["status"], "ok", "frames default on 1s clip: {j}");
+    for p in [
+        "medium",
+        "ghost",
+        "wordpress",
+        "squarespace",
+        "wix",
+        "webflow",
+        "framer",
+    ] {
+        let o = dir.path().join(format!("r331-{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["width"], 1920, "{p}: {j}");
+        assert_eq!(j["probe"]["height"], 1080, "{p}: {j}");
+    }
+}

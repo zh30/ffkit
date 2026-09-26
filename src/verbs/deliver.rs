@@ -566,7 +566,14 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Coinbase
         | DeliverPlatform::Binance
         | DeliverPlatform::Kraken
-        | DeliverPlatform::Public => (1920, 1080),
+        | DeliverPlatform::Public
+        | DeliverPlatform::Medium
+        | DeliverPlatform::Ghost
+        | DeliverPlatform::Wordpress
+        | DeliverPlatform::Squarespace
+        | DeliverPlatform::Wix
+        | DeliverPlatform::Webflow
+        | DeliverPlatform::Framer => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1160,6 +1167,13 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Zoosk => "zoosk",
         DeliverPlatform::Badoo => "badoo",
         DeliverPlatform::Pof => "pof",
+        DeliverPlatform::Medium => "medium",
+        DeliverPlatform::Ghost => "ghost",
+        DeliverPlatform::Wordpress => "wordpress",
+        DeliverPlatform::Squarespace => "squarespace",
+        DeliverPlatform::Wix => "wix",
+        DeliverPlatform::Webflow => "webflow",
+        DeliverPlatform::Framer => "framer",
         DeliverPlatform::Brightcove => "brightcove",
         DeliverPlatform::Jwplayer => "jwplayer",
         DeliverPlatform::Kaltura => "kaltura",

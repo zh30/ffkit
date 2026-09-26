@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.358.0] — 2026-09-25
+
+### Added
+
+- `transcode --preset h261`/`h263` — raw telecom elementary streams in `.h261`/`.h263` (H.324 videoconference test vectors; snaps to the legal CIF-family canvas letterboxed, video-only)
+- `transcode --preset avui` — Avid Meridien uncompressed + PCM in `.mov` (broadcast capture-card ingest; snaps to 720x486 letterboxed, experimental encoder shipped with `-strict -2`). This closes the sweep — every video codec encodable on ffmpeg 4.4 now has a preset or a dedicated verb
+- `deliver --platform` +7: medium, ghost, wordpress, squarespace, wix, webflow, framer (publishing/CMS-embedded videos 16:9 1920x1080)
+
+### Fixed
+
+- `frames` on a clip shorter than `2×--every` wrote zero files (the fps filter emits round(duration×fps) frames) — now falls back to the first frame so a still always lands
+
 ## [0.357.0] — 2026-09-25
 
 ### Added

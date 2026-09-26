@@ -43,6 +43,7 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
             "--untile splits every frame (no --at/--count)",
         ));
     }
+    let mut first_only = false;
     let mut vf = match &args.untile {
         Some(u) => {
             let (c, r) = u
@@ -61,7 +62,16 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
             // to break a contact sheet or mosaic clip back into stills
             format!("untile=layout={cols}x{rows}")
         }
-        None => format!("fps=1/{}", args.every),
+        // fps emits round(duration*fps) stills — a clip shorter than
+        // 2*--every yields none; grab the first frame instead
+        None => {
+            if probe.duration * (1.0 / args.every) < 0.5 {
+                first_only = true;
+                "select='eq(n\\,0)'".to_string()
+            } else {
+                format!("fps=1/{}", args.every)
+            }
+        }
     };
     if !args.at.is_empty() {
         // --at: N seek+grab jobs, each its own output file
@@ -162,6 +172,9 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
             terms.push(format!("eq(n\\,{n})"));
         }
         vf = format!("select='{}'", terms.join("+"));
+        argv_vsync = Some("0");
+    }
+    if first_only && argv_vsync.is_none() {
         argv_vsync = Some("0");
     }
     // --count spreads N stills across ~95% of the clip (thumb --count spacing);

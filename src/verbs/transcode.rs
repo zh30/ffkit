@@ -449,6 +449,14 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Vc2 => qt_era(&args, g, "vc2", &["mov"], None, Some("pcm_s16le")),
         TranscodePreset::Magicyuv => lossless(&args, g, "magicyuv", &["avi"], None),
         TranscodePreset::R10k => lossless(&args, g, "r10k", &["mov"], Some("gbrp10le")),
+        TranscodePreset::H261 => raw_telecom(&args, g, "h261", &[(176, 144), (352, 288)]),
+        TranscodePreset::H263 => raw_telecom(
+            &args,
+            g,
+            "h263",
+            &[(128, 96), (176, 144), (352, 288), (704, 576), (1408, 1152)],
+        ),
+        TranscodePreset::Avui => avui(&args, g),
         TranscodePreset::Raw => lossless(&args, g, "rawvideo", &["avi", "mkv"], None),
     }
 }
@@ -1027,6 +1035,129 @@ fn hap(args: &TranscodeArgs, g: &Globals, format: &str) -> Result<Contract, Erro
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": format }));
+    Ok(c)
+}
+
+/// Raw elementary H.261/H.263 — QCIF/CIF-era videoconference test
+/// vectors (H.324 terminals, codec-conformance suites). Both codecs
+/// encode only a fixed set of picture sizes so the picture snaps to the
+/// legal canvas letterboxed (same snap as gpp's .3gp path), and a raw
+/// stream carries no audio — audio-shaped flags refuse instead of
+/// silently dropping.
+fn raw_telecom(
+    args: &TranscodeArgs,
+    g: &Globals,
+    codec: &str,
+    legal: &[(u32, u32)],
+) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != codec {
+        return Err(Error::input(format!(
+            "transcode --preset {codec} needs a .{codec} target, not .{ext}"
+        )));
+    }
+    if args.crf.is_some() || args.abitrate.is_some() || args.ar.is_some() || args.channels.is_some()
+    {
+        return Err(Error::input(format!(
+            "transcode --preset {codec} is a raw video stream — no crf/audio flags (drop --ar/--channels/--abitrate too)"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input(format!("{codec} preset: input has no video")));
+    }
+    let area = (probe.width.unwrap_or(176) as u64) * (probe.height.unwrap_or(144) as u64);
+    let (w, h) = legal
+        .iter()
+        .min_by_key(|(lw, lh)| ((lw * lh) as u64).abs_diff(area))
+        .copied()
+        .unwrap();
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    argv.extend([
+        "-vf",
+        &format!("scale=w={w}:h={h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2"),
+    ]);
+    argv.extend(["-c:v", codec]);
+    if let Some(b) = &args.vbitrate {
+        argv.extend(["-b:v", b]);
+    }
+    if let Some(n) = args.gop {
+        argv.extend(["-g", &n.to_string()]);
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": codec }));
+    Ok(c)
+}
+
+/// Avid Meridien uncompressed + PCM in .mov — the broadcast capture-card
+/// ingest spec (Avid Unity/ISIS-era decks). Meridien accepts only
+/// 720x486 (NTSC) and 720x576 (PAL) so the picture snaps to the NTSC
+/// canvas letterboxed; the encoder is experimental on 4.4 so the preset
+/// ships -strict -2. Uncompressed: bitrate/gop flags refuse.
+fn avui(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if ext != "mov" {
+        return Err(Error::input(format!(
+            "transcode --preset avui needs a .mov target, not .{ext}"
+        )));
+    }
+    if args.vbitrate.is_some()
+        || args.crf.is_some()
+        || args.abitrate.is_some()
+        || args.gop.is_some()
+    {
+        return Err(Error::input(
+            "transcode --preset avui is uncompressed intra-frame — bitrate/crf/gop flags don't apply",
+        ));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("avui preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?"]);
+    if probe.has_audio {
+        argv.extend(["-map", "0:a?"]);
+    }
+    argv.extend([
+        "-vf",
+        "scale=w=720:h=486:force_original_aspect_ratio=decrease,pad=720:486:(ow-iw)/2:(oh-ih)/2",
+    ]);
+    argv.extend(["-c:v", "avui", "-strict", "-2"]);
+    if probe.has_audio {
+        argv.extend(["-c:a", "pcm_s16le"]);
+        if let Some(r) = args.ar {
+            argv.extend(["-ar", &r.to_string()]);
+        }
+        if let Some(ch) = args.channels {
+            argv.extend(["-ac", &ch.to_string()]);
+        }
+    }
+    if let Some(fps) = args.fps {
+        argv.extend(["-r", &fps.to_string()]);
+    }
+    argv.push(&args.output);
+    let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "avui" }));
     Ok(c)
 }
 

@@ -1520,6 +1520,15 @@ pub enum TranscodePreset {
     /// Meridian Lossless Packing audio-only in .mlp (HD-DVD era lossless — experimental encoder, -strict -2)
     #[value(name = "mlp")]
     Mlp,
+    /// H.261 raw elementary in .h261 (QCIF/CIF videoconference test vectors — snaps to legal canvas, video-only)
+    #[value(name = "h261")]
+    H261,
+    /// H.263 raw elementary in .h263 (H.324 videoconference test vectors — snaps to legal canvas, video-only)
+    #[value(name = "h263")]
+    H263,
+    /// Avid Meridien uncompressed + PCM in .mov (broadcast capture-card ingest — snaps to 720x486, experimental -strict -2)
+    #[value(name = "avui")]
+    Avui,
 }
 
 #[derive(clap::Args, Debug)]
@@ -2520,6 +2529,20 @@ pub enum DeliverPlatform {
     Badoo,
     /// Plenty of Fish dating profile video (US/global)
     Pof,
+    /// Medium article-embedded video (global)
+    Medium,
+    /// Ghost publication video (self-hosted publishing)
+    Ghost,
+    /// WordPress post-embedded video (global CMS)
+    Wordpress,
+    /// Squarespace site-embedded video (global)
+    Squarespace,
+    /// Wix site-embedded video (global)
+    Wix,
+    /// Webflow site-embedded video (global)
+    Webflow,
+    /// Framer site/prototype video (global)
+    Framer,
 }
 
 #[derive(clap::Args, Debug)]
