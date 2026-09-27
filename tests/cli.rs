@@ -47420,3 +47420,317 @@ fn r358_packets_wrap_slack_manifest_negts_skipinit_hash_atframes_platforms() {
         assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
     }
 }
+
+#[test]
+fn r359_vp9_h264rgb_s302_h263p_manifestprefix_incrementtc_playbackrate_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // transcode --preset vp9: libvpx-vp9 + libopus in .webm
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("v9.webm").to_str().unwrap(),
+        "--preset",
+        "vp9",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let pj = run_json(&["probe", dir.path().join("v9.webm").to_str().unwrap()]);
+    let codecs: Vec<&str> = pj["probe"]["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["codec"].as_str().unwrap())
+        .collect();
+    assert!(codecs.contains(&"vp9"), "{codecs:?}");
+    assert!(codecs.contains(&"opus"), "{codecs:?}");
+    // wrong container refuses
+    let out = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("v9.mp4").to_str().unwrap(),
+            "--preset",
+            "vp9",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // transcode --preset h264rgb: RGB-space lossless capture (gbrp pix_fmt)
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("rgb.mp4").to_str().unwrap(),
+        "--preset",
+        "h264rgb",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let pj = run_json(&["probe", dir.path().join("rgb.mp4").to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][0]["codec"], "h264");
+    assert_eq!(pj["probe"]["streams"][0]["pix_fmt"], "gbrp");
+
+    // transcode --preset s302: SMPTE 302M AES3 carriage in .ts
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("s.ts").to_str().unwrap(),
+        "--preset",
+        "s302",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let pj = run_json(&["probe", dir.path().join("s.ts").to_str().unwrap()]);
+    let a = pj["probe"]["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["codec"] == "s302m")
+        .expect("s302m stream");
+    assert_eq!(a["sample_rate"], 48000);
+    assert_eq!(a["channels"], 2);
+    // AES3 gates: channel count, bitrate, rate, container
+    for extra in [
+        vec!["--channels", "1"],
+        vec!["--abitrate", "128k"],
+        vec!["--ar", "44100"],
+    ] {
+        let mut av: Vec<String> = vec![
+            "transcode".into(),
+            f.display().to_string(),
+            "-o".into(),
+            dir.path().join("sx.ts").display().to_string(),
+            "--preset".into(),
+            "s302".into(),
+        ];
+        av.extend(extra.iter().map(|s| s.to_string()));
+        let out = ffkit()
+            .args(av.iter().map(|s| s.as_str()))
+            .output()
+            .unwrap();
+        assert!(!out.status.success(), "{extra:?}");
+    }
+    let out = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("s.mp4").to_str().unwrap(),
+            "--preset",
+            "s302",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // transcode --preset h263p: h263+ v2 in .mkv/.avi (.3gp/.mp4/.flv have no tag)
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("h2.mkv").to_str().unwrap(),
+        "--preset",
+        "h263p",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let pj = run_json(&["probe", dir.path().join("h2.mkv").to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][0]["codec"], "h263");
+    let out = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("h2.3gp").to_str().unwrap(),
+            "--preset",
+            "h263p",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // split --manifest-prefix: entries reference the published base path
+    let j = run_json(&[
+        "split",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("mp.mp4").to_str().unwrap(),
+        "--every",
+        "0.5",
+        "--copy",
+        "--manifest",
+        dir.path().join("pl.m3u8").to_str().unwrap(),
+        "--manifest-prefix",
+        "cdn/vod/",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let pl = std::fs::read_to_string(dir.path().join("pl.m3u8")).unwrap();
+    assert!(pl.contains("cdn/vod/mp_00.mp4"), "{pl}");
+    // needs --manifest
+    let out = ffkit()
+        .args([
+            "split",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("np.mp4").to_str().unwrap(),
+            "--every",
+            "0.5",
+            "--manifest-prefix",
+            "a/",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // split --increment-tc: continuous timecode across parts
+    let tc = dir.path().join("tc.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=320x240:rate=30:duration=4",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=4",
+            "-c:v",
+            "libx264",
+            "-g",
+            "15",
+            "-c:a",
+            "aac",
+            "-timecode",
+            "00:00:10:00",
+        ])
+        .arg(&tc)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&[
+        "split",
+        tc.to_str().unwrap(),
+        "-o",
+        dir.path().join("tcp.mov").to_str().unwrap(),
+        "--every",
+        "1",
+        "--copy",
+        "--increment-tc",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let part_tc = |n: usize| -> String {
+        let o = Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-show_entries",
+                "stream_tags=timecode",
+                "-of",
+                "csv",
+            ])
+            .arg(dir.path().join(format!("tcp_{n:02}.mov")))
+            .output()
+            .unwrap();
+        let s = String::from_utf8_lossy(&o.stdout);
+        s.lines()
+            .filter_map(|l| l.strip_prefix("stream,"))
+            .find(|v| !v.is_empty())
+            .unwrap_or("")
+            .to_string()
+    };
+    assert_eq!(part_tc(0), "00:00:10:00");
+    assert_eq!(part_tc(1), "00:00:11:02");
+    assert_eq!(part_tc(2), "00:00:12:01");
+    // gates: needs --copy and an input carrying a timecode track
+    let out = ffkit()
+        .args([
+            "split",
+            tc.to_str().unwrap(),
+            "-o",
+            dir.path().join("tcn.mov").to_str().unwrap(),
+            "--every",
+            "1",
+            "--increment-tc",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let out = ffkit()
+        .args([
+            "split",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("tcf.mov").to_str().unwrap(),
+            "--every",
+            "0.5",
+            "--copy",
+            "--increment-tc",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // dash --playback-min/--playback-max: trick-play ServiceDescription
+    let j = run_json(&[
+        "dash",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("pd").to_str().unwrap(),
+        "--playback-min",
+        "0.5",
+        "--playback-max",
+        "1.5",
+    ]);
+    assert_eq!(j["status"], "ok");
+    let mpd = std::fs::read_to_string(dir.path().join("pd/manifest.mpd")).unwrap();
+    assert!(
+        mpd.contains("PlaybackRate min=\"0.50\" max=\"1.50\""),
+        "{mpd}"
+    );
+    let out = ffkit()
+        .args([
+            "dash",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("pd2").to_str().unwrap(),
+            "--playback-min",
+            "3",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // +8 platforms: workplace comms & CRM embedded video, 16:9 1920x1080
+    for p in [
+        "slack",
+        "msteams",
+        "workplace",
+        "salesforce",
+        "hubspot",
+        "pipedrive",
+        "freshworks",
+        "attio",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
+    }
+}

@@ -430,6 +430,19 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
     if args.dvb {
         argv.extend(["-mpd_profile", "dvb_dash"]);
     }
+    for (rate, flag) in [
+        (args.playback_min, "-min_playback_rate"),
+        (args.playback_max, "-max_playback_rate"),
+    ] {
+        if let Some(r) = rate {
+            if !(r.is_finite() && (0.5..=1.5).contains(&r)) {
+                return Err(Error::input(format!(
+                    "dash {flag} accepts 0.5..=1.5 on this ffmpeg"
+                )));
+            }
+            argv.extend([flag.to_string(), r.to_string()]);
+        }
+    }
     if args.no_timeline {
         argv.extend(["-use_timeline", "0"]);
     }
@@ -523,6 +536,8 @@ pub fn run(args: DashArgs, g: &Globals) -> Result<Contract, Error> {
         "extra_window": args.extra_window.unwrap_or(0),
         "init_name": args.init,
         "seg_name": args.seg_name,
+        "playback_min": args.playback_min,
+        "playback_max": args.playback_max,
         "no_timeline": args.no_timeline,
         "var_map": args.var_map,
         "segment_list": args.segment_list,

@@ -341,6 +341,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         | TranscodePreset::G723
         | TranscodePreset::Amr
         | TranscodePreset::Wma
+        | TranscodePreset::S302
         | TranscodePreset::Truehd
         | TranscodePreset::Mlp => audio_only(&args, g, preset),
         TranscodePreset::Gif => gif(&args, g),
@@ -367,6 +368,23 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             None,
             Some("libvorbis"),
         ),
+        TranscodePreset::Vp9 => qt_era(
+            &args,
+            g,
+            "libvpx-vp9",
+            &["webm", "mkv"],
+            None,
+            Some("libopus"),
+        ),
+        TranscodePreset::H264rgb => qt_era(
+            &args,
+            g,
+            "libx264rgb",
+            &["mp4", "mkv", "mov"],
+            None,
+            Some("aac"),
+        ),
+        TranscodePreset::H263p => qt_era(&args, g, "h263p", &["mkv", "avi"], None, Some("aac")),
         TranscodePreset::Gpp => gpp(&args, g),
         TranscodePreset::Flv => flv(&args, g),
         TranscodePreset::Theora => theora(&args, g),
@@ -931,6 +949,44 @@ fn audio_only(
                 argv.extend(["-c:a", "libopencore_amrnb", "-ar", "8000", "-ac", "1"])
             }
             TranscodePreset::Wma => argv.extend(["-c:a", "wmav2", "-b:a", abitrate(args, "192k")]),
+            TranscodePreset::S302 => {
+                // AES3 carriage: fixed 48kHz, 2/4/6/8 channels only, ts family
+                let ext = args
+                    .output
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
+                if !matches!(ext.as_str(), "ts" | "m2ts") {
+                    return Err(Error::input(format!(
+                        "transcode --preset s302 needs a .ts/.m2ts target, not .{ext}"
+                    )));
+                }
+                if args.abitrate.is_some() {
+                    return Err(Error::input(
+                        "s302m is fixed-rate AES3 carriage — drop --abitrate",
+                    ));
+                }
+                if args.ar.is_some() && args.ar != Some(48000) {
+                    return Err(Error::input("s302m is 48kHz AES3 — drop --ar"));
+                }
+                let ch = args.channels.unwrap_or(2);
+                if !matches!(ch, 2 | 4 | 6 | 8) {
+                    return Err(Error::input(
+                        "s302m carries 2/4/6/8 AES3 channels — drop --channels or pick one of those",
+                    ));
+                }
+                argv.extend([
+                    "-c:a",
+                    "s302m",
+                    "-strict",
+                    "-2",
+                    "-ar",
+                    "48000",
+                    "-ac",
+                    &ch.to_string(),
+                ]);
+            }
             TranscodePreset::Truehd => argv.extend(["-c:a", "truehd", "-strict", "-2"]),
             TranscodePreset::Mlp => argv.extend(["-c:a", "mlp", "-strict", "-2"]),
             _ => argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "192k")]),
@@ -2643,9 +2699,12 @@ fn qt_era(
                 .join("/")
         )));
     }
-    if (args.crf.is_some() && !matches!(codec, "libx264" | "libvpx-vp9" | "libvpx"))
+    if (args.crf.is_some() && !matches!(codec, "libx264" | "libvpx-vp9" | "libvpx" | "libx264rgb"))
         || (args.abitrate.is_some()
-            && !matches!(acodec, Some("libmp3lame") | Some("aac") | Some("libvorbis")))
+            && !matches!(
+                acodec,
+                Some("libmp3lame") | Some("aac") | Some("libvorbis") | Some("libopus")
+            ))
     {
         return Err(Error::input(format!(
             "transcode --preset {codec} has no crf/abitrate knobs — use --vbitrate"
@@ -2683,6 +2742,10 @@ fn qt_era(
     if let Some(p) = pix_fmt {
         argv.extend(["-pix_fmt", p]);
     }
+    if codec == "libx264rgb" && args.crf.is_none() {
+        // RGB screen capture defaults to lossless; --crf picks graded quality
+        argv.extend(["-qp", "0"]);
+    }
     if let Some(b) = &args.vbitrate {
         argv.extend(["-b:v", b]);
     }
@@ -2703,6 +2766,9 @@ fn qt_era(
                 argv.extend(["-b:a", abitrate(args, "192k")]);
             }
             if ac == "aac" && args.abitrate.is_some() {
+                argv.extend(["-b:a", abitrate(args, "128k")]);
+            }
+            if ac == "libopus" {
                 argv.extend(["-b:a", abitrate(args, "128k")]);
             }
             if ac == "real_144" {

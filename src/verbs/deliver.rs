@@ -813,7 +813,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Clickup
         | DeliverPlatform::Basecamp
         | DeliverPlatform::Linear
-        | DeliverPlatform::Shortcut => (1920, 1080),
+        | DeliverPlatform::Shortcut
+        | DeliverPlatform::Slack
+        | DeliverPlatform::Msteams
+        | DeliverPlatform::Workplace
+        | DeliverPlatform::Salesforce
+        | DeliverPlatform::Hubspot
+        | DeliverPlatform::Pipedrive
+        | DeliverPlatform::Freshworks
+        | DeliverPlatform::Attio => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1636,6 +1644,14 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Basecamp => "basecamp",
         DeliverPlatform::Linear => "linear",
         DeliverPlatform::Shortcut => "shortcut",
+        DeliverPlatform::Slack => "slack",
+        DeliverPlatform::Msteams => "msteams",
+        DeliverPlatform::Workplace => "workplace",
+        DeliverPlatform::Salesforce => "salesforce",
+        DeliverPlatform::Hubspot => "hubspot",
+        DeliverPlatform::Pipedrive => "pipedrive",
+        DeliverPlatform::Freshworks => "freshworks",
+        DeliverPlatform::Attio => "attio",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

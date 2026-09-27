@@ -1025,3 +1025,9 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - mp4-family muxers normalize a negative `-output_ts_offset` through the edit list — only mkv/webm carry a real negative `start_time`, so `--fix-negative-ts` salvage applies to matroska captures, not mp4 ones.
 - mp4 chapters must start at time 0 — a first mark sitting >0.05s in gets pulled to 0. `chapter --at-frames` lists should carry a `0|title` mark (same rule as `--at`).
 - `-hls_version` / `hls_playlist_type vod|event` are not in the 4.4 HLS muxer option set (and `EXT-X-PLAYLIST-TYPE` is already VOD on static packs / EVENT under `--live`); `negative_cts_offsets` writes `elst` on standard fixtures either way — unobservable, not exposed.
+
+- `-segment_list_flags +live` still writes `#EXT-X-ENDLIST` on file output on 4.4 — no observable effect; not exposed.
+- `-availability_time_offset` does not exist on the 4.4 dash muxer, and `-update_period`/`-target_latency` write nothing on file output (live-edge machinery only). `-min_playback_rate`/`-max_playback_rate` DO land — that's `dash --playback-min/--playback-max` (ServiceDescription PlaybackRate trick-play window).
+- `s302m` is an experimental encoder (`-strict -2`) and demands 48kHz + 2/4/6/8 channels; mpegts warns it muxes as a private-data stream — ffprobe still reads it back as `s302m`. That's `transcode --preset s302`.
+- `h263p` has no codec tag on .3gp/.mp4/.flv on 4.4 — only .mkv/.avi carry it, so `transcode --preset h263p` refuses the rest.
+- `-increment_tc` (`split --increment-tc`) warns "Could not increment global timecode" when the input carries no tc track — and tmcd is a data track that only survives the `-c copy` path, so the flag needs `--copy` and `probe.timecode` present.
