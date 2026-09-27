@@ -591,6 +591,11 @@ pub struct SplitArgs {
     /// keyframe on --copy, forced exact on the re-encode path)
     #[arg(long, value_delimiter = ',')]
     pub at_frames: Vec<u32>,
+    /// -break_non_keyframes — allow segment boundaries on non-keyframe
+    /// frames (tighter --every windows at the cost of decode-sloppy starts;
+    /// needs a re-encode split — --copy snaps boundaries to keyframes anyway)
+    #[arg(long)]
+    pub non_keyframes: bool,
     /// Prefix every entry in the --manifest index with this string
     /// (-segment_list_entry_prefix — a CDN base path or staging dir so the
     /// playlist references the published URLs, not the local filenames;
@@ -761,6 +766,11 @@ pub struct ExtractArgs {
     /// source, scene-jump scouting without decoding the whole file)
     #[arg(long)]
     pub keyframes: bool,
+    /// Dump the raw data stream to a binary file (-f data — telemetry/
+    /// GPX/sensor payloads muxed into .ts dumps; --track N picks the Nth
+    /// data stream)
+    #[arg(long)]
+    pub data: bool,
     /// Animated WebP clip instead of a still (libwebp — smaller than GIF,
     /// keeps alpha natively; --bounce works too)
     #[arg(long)]
@@ -1151,6 +1161,10 @@ pub enum SharpenEngine {
     Cas,
     /// Unsharp clamped to a blurred base (maskedclamp) — strongest, zero halo
     Halo,
+    /// deconvolve — reverses a known gaussian blur instead of just boosting
+    /// edges (real deblur sharpening: split+gblur impulse+deconvolve chain;
+    /// --amount scales the assumed blur radius)
+    Deconv,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -1329,6 +1343,14 @@ pub struct TranscodeArgs {
     /// quality for visual-diff/codec-A/B test material; h264/proxy only)
     #[arg(long)]
     pub qp: Option<u32>,
+    /// Fragmented MP4 output — moof/mfra fragments instead of one big moov
+    /// (streaming-ready master files; mp4/mov/m4v/m4a output only)
+    #[arg(long)]
+    pub frag: bool,
+    /// Stop the encode at the shortest input stream (-shortest — audio bed
+    /// shorter than the video? the output ends with it instead of padding)
+    #[arg(long)]
+    pub shortest: bool,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -1747,6 +1769,10 @@ pub enum TranscodePreset {
     /// and archive interchange; .mxf forces 48kHz PCM audio)
     #[value(name = "jpeg2000")]
     Jpeg2000,
+    /// aptX HD audio-only in .aptxhd (high-def Bluetooth codec delivery —
+    /// the 576kbps big sibling of aptx; audio only)
+    #[value(name = "aptxhd")]
+    Aptxhd,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3283,6 +3309,30 @@ pub enum DeliverPlatform {
     /// Tolstoy interactive-video upload 16:9
     #[value(name = "tolstoy")]
     Tolstoy,
+    /// Tonara practice-video upload 16:9
+    #[value(name = "tonara")]
+    Tonara,
+    /// Playground Sessions course upload 16:9
+    #[value(name = "playgroundsessions")]
+    Playgroundsessions,
+    /// Musicca theory-lesson upload 16:9
+    #[value(name = "musicca")]
+    Musicca,
+    /// Melodics practice-app video upload 16:9
+    #[value(name = "melodics")]
+    Melodics,
+    /// Trala violin-lesson video upload 16:9
+    #[value(name = "trala")]
+    Trala,
+    /// Modacity practice-log video upload 16:9
+    #[value(name = "modacity")]
+    Modacity,
+    /// Piano Marvel lesson video upload 16:9
+    #[value(name = "pianomarvel")]
+    Pianomarvel,
+    /// Tonebase masterclass video upload 16:9
+    #[value(name = "tonebase")]
+    Tonebase,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3346,6 +3396,9 @@ pub enum GlitchEngine {
     /// random — frame-order scramble within a rolling cache (digital chaos;
     /// --strength scales the cache depth 2..200)
     Random,
+    /// scroll — wraparound pixel shift, the whole frame slides sideways
+    /// (signal-slip / bad-sync glitch; --strength scales px/frame)
+    Scroll,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5893,6 +5946,12 @@ pub struct ChannelArgs {
     /// With --mode merge: second track interleaved after this one's channels
     #[arg(long)]
     pub with: Option<PathBuf>,
+    /// With --mode order: comma list of source channel indexes per output
+    /// channel ("1,0" swaps stereo L/R; "0,1,4,5,2,3" fixes a swapped
+    /// L/R surround pair on a 5.1 bed). Re-encodes — stream copy can't
+    /// reorder samples
+    #[arg(long)]
+    pub order: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
@@ -5956,6 +6015,10 @@ pub enum ChannelMode {
     /// stereowiden — dedicated M/S widener (delay+feedback+crossfeed): wider
     /// stereo image on mono-safe terms; --amount 0..1 scales crossfeed 0.05..0.8
     Stereowiden,
+    /// order — raw channel re-order by index (-map_channel: works on
+    /// unlabeled 5.1/quad beds where channelmap can't name channels;
+    /// --order "1,0" swaps L/R, "5,4,3,2,1,0" reverses a 5.1)
+    Order,
 }
 
 #[derive(clap::Args, Debug)]
@@ -7045,6 +7108,15 @@ pub struct LevelsArgs {
     /// Output white point 0-1
     #[arg(long, default_value_t = 1.0)]
     pub out_max: f64,
+    /// Auto-levels instead of manual points (normalize filter — stretches
+    /// each frame's darkest/brightest pixels to black/white; rescues flat
+    /// washed footage. Ignores --in/--out points)
+    #[arg(long)]
+    pub auto: bool,
+    /// With --auto: temporal smoothing of the measured range 0..INT_MAX —
+    /// higher = steadier grade, no per-frame flicker (default 50)
+    #[arg(long)]
+    pub smoothing: Option<u32>,
     /// Remap only from this time (needs --dur)
     #[arg(long)]
     pub at: Option<String>,
@@ -9192,6 +9264,10 @@ pub enum BlurEngine {
     /// keeping outlines; lt=0 thresholds weak gradients so text edges
     /// survive; ffmpeg ≥4.4)
     Smart,
+    /// tmix — temporal frame-mixing blur (adjacent frames averaged
+    /// together: dreamy motion smear, ghosting on fast action;
+    /// --strength scales the window 2..16 frames)
+    Tmix,
 }
 
 #[derive(clap::Args, Debug)]

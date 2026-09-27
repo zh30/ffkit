@@ -46,6 +46,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                         | TranscodePreset::W64
                         | TranscodePreset::Voc
                         | TranscodePreset::Aptx
+                        | TranscodePreset::Aptxhd
                         | TranscodePreset::Sbc
                         | TranscodePreset::G723
                         | TranscodePreset::Truehd
@@ -82,6 +83,19 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         "webm" => TranscodePreset::Webm,
         _ => TranscodePreset::H264,
     });
+    if args.frag {
+        let ok_ext = matches!(ext.as_str(), "mp4" | "mov" | "m4v" | "m4a" | "3gp" | "3g2");
+        if !ok_ext {
+            return Err(Error::input(format!(
+                "transcode --frag writes mp4-family fragments — output .mp4/.mov/.m4v/.m4a (not .{ext})"
+            )));
+        }
+        if !matches!(preset, TranscodePreset::H264 | TranscodePreset::Proxy) {
+            return Err(Error::input(
+                "transcode --frag only applies to the h264/proxy encode paths — use `remux --frag` for stream-copy repacks",
+            ));
+        }
+    }
 
     let x264spec = args.profile.is_some()
         || args.level.is_some()
@@ -184,6 +198,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::W64
                 | TranscodePreset::Voc
                 | TranscodePreset::Aptx
+                | TranscodePreset::Aptxhd
                 | TranscodePreset::Sbc
                 | TranscodePreset::G723
                 | TranscodePreset::Truehd
@@ -232,6 +247,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::W64
                 | TranscodePreset::Voc
                 | TranscodePreset::Aptx
+                | TranscodePreset::Aptxhd
                 | TranscodePreset::Sbc
                 | TranscodePreset::G723
                 | TranscodePreset::Truehd
@@ -274,6 +290,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 | TranscodePreset::W64
                 | TranscodePreset::Voc
                 | TranscodePreset::Aptx
+                | TranscodePreset::Aptxhd
                 | TranscodePreset::Sbc
                 | TranscodePreset::G723
                 | TranscodePreset::Truehd
@@ -322,6 +339,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                     | TranscodePreset::W64
                     | TranscodePreset::Voc
                     | TranscodePreset::Aptx
+                    | TranscodePreset::Aptxhd
                     | TranscodePreset::Sbc
                     | TranscodePreset::G723
                     | TranscodePreset::Truehd
@@ -377,6 +395,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         | TranscodePreset::W64
         | TranscodePreset::Voc
         | TranscodePreset::Aptx
+        | TranscodePreset::Aptxhd
         | TranscodePreset::Sbc
         | TranscodePreset::G723
         | TranscodePreset::Amr
@@ -569,7 +588,7 @@ fn proxy(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
     if args.copy_video {
-        argv.extend(["-c:v", "copy", "-movflags", "+faststart"]);
+        argv.extend(["-c:v", "copy", "-movflags", movflags(args)]);
     } else {
         argv.extend([
             "-c:v",
@@ -581,7 +600,7 @@ fn proxy(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "-pix_fmt",
             "yuv420p",
             "-movflags",
-            "+faststart",
+            movflags(args),
         ]);
         x264spec_push(&mut argv, args);
         let mut vf = String::from("scale=w='min(960,iw)':h=-2");
@@ -603,6 +622,9 @@ fn proxy(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     cap_bitrate(&mut argv, &args.vbitrate);
     ar_ac(&mut argv, args);
     gop_push(&mut argv, args);
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({"proxy": true, "copy_video": args.copy_video}));
@@ -675,7 +697,7 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
                 "-pix_fmt",
                 "yuv420p",
                 "-movflags",
-                "+faststart",
+                movflags(args),
             ]);
             x264spec_push(&mut argv, args);
             let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
@@ -698,6 +720,9 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     cap_bitrate(&mut argv, &args.vbitrate);
     ar_ac(&mut argv, args);
     gop_push(&mut argv, args);
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -751,6 +776,9 @@ fn hevc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     cap_bitrate(&mut argv, &args.vbitrate);
     ar_ac(&mut argv, args);
     gop_push(&mut argv, args);
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -802,6 +830,9 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     cap_bitrate(&mut argv, &args.vbitrate);
     ar_ac(&mut argv, args);
     gop_push(&mut argv, args);
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -851,6 +882,9 @@ fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     cap_bitrate(&mut argv, &args.vbitrate);
     ar_ac(&mut argv, args);
     gop_push(&mut argv, args);
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -904,6 +938,9 @@ fn jpeg2000(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     cap_bitrate(&mut argv, &args.vbitrate);
     gop_push(&mut argv, args);
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({ "preset": "jpeg2000", "timelimit": args.timelimit })))
@@ -968,6 +1005,17 @@ fn gif(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     result
 }
 
+/// mp4-family -movflags: --frag swaps faststart for the fMP4 fragment trio.
+/// (+frag_keyframe alone writes mfra but no moof on 4.4 — the trio with
+/// empty_moov+default_base_moof is what actually fragments.)
+fn movflags(args: &TranscodeArgs) -> &'static str {
+    if args.frag {
+        "+frag_keyframe+empty_moov+default_base_moof"
+    } else {
+        "+faststart"
+    }
+}
+
 /// Audio-only delivery: -vn + one codec. `--copy-audio` stream-copies instead
 /// of re-encoding (e.g. mp4 → mp3 keeps nothing — copy only fits same-codec).
 fn audio_only(
@@ -978,7 +1026,7 @@ fn audio_only(
     let probe = engine::probe_or_err(&args.input, g)?;
     if !probe.has_audio {
         return Err(Error::input(
-            "audio preset (mp3/aac/wav/flac/opus/ogg/alac/ac3/eac3/tta/dca/aiff/pcm24/pcm32f/mulaw/adx/adpcm/alaw/speex/pcm8/adpcmms/g722/ra144/nelly/wv/mp2/caf/w64/voc/aptx/sbc/g723/truehd/mlp): input has no audio",
+            "audio preset (mp3/aac/wav/flac/opus/ogg/alac/ac3/eac3/tta/dca/aiff/pcm24/pcm32f/mulaw/adx/adpcm/alaw/speex/pcm8/adpcmms/g722/ra144/nelly/wv/mp2/caf/w64/voc/aptx/aptxhd/sbc/g723/truehd/mlp): input has no audio",
         ));
     }
     let mut argv = ffmpeg_base(g.progress);
@@ -1041,6 +1089,7 @@ fn audio_only(
             TranscodePreset::W64 => argv.extend(["-c:a", "pcm_s24le"]),
             TranscodePreset::Voc => argv.extend(["-c:a", "pcm_s16le"]),
             TranscodePreset::Aptx => argv.extend(["-c:a", "aptx"]),
+            TranscodePreset::Aptxhd => argv.extend(["-c:a", "aptx_hd"]),
             TranscodePreset::Sbc => argv.extend(["-c:a", "sbc"]),
             TranscodePreset::G723 => argv.extend(["-c:a", "g723_1", "-ar", "8000", "-ac", "1"]),
             TranscodePreset::Amr => {
@@ -1120,6 +1169,9 @@ fn audio_only(
     }
     ar_ac(&mut argv, args);
     gop_push(&mut argv, args);
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     Ok(c.with_extra(json!({"audio_only": true})))
@@ -1195,6 +1247,9 @@ fn prores(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     cap_bitrate(&mut argv, &args.vbitrate);
     ar_ac(&mut argv, args);
     gop_push(&mut argv, args);
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -1255,6 +1310,9 @@ fn dnxhd(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     ar_ac(&mut argv, args);
     gop_push(&mut argv, args);
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
@@ -1322,6 +1380,9 @@ fn hap(args: &TranscodeArgs, g: &Globals, format: &str) -> Result<Contract, Erro
     }
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
+    }
+    if args.shortest {
+        argv.extend(["-shortest"]);
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -1393,6 +1454,9 @@ fn raw_telecom(
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
     }
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": codec, "timelimit": args.timelimit }));
@@ -1449,6 +1513,9 @@ fn framemd5(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.input);
     argv.extend(["-map", "0:v?", "-map", "0:a?"]);
     argv.extend(["-f", "framemd5"]);
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     // a framemd5 listing is text, not media — ffprobe can't read it back
     let mut c = engine::write_job_raw("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -1506,6 +1573,9 @@ fn framecrc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.input);
     argv.extend(["-map", "0:v?", "-map", "0:a?"]);
     argv.extend(["-f", "framecrc"]);
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     // a framecrc listing is text, not media — ffprobe can't read it back
     let mut c = engine::write_job_raw("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -1556,6 +1626,9 @@ fn ffmeta(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
     argv.extend(["-map_metadata", "0", "-f", "ffmetadata"]);
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     // an .ffmeta sidecar is text, not media — ffprobe can't read it back
     let mut c = engine::write_job_raw("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -1619,6 +1692,9 @@ fn hash_receipt(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push(&args.input);
     argv.extend(["-map", "0", "-c", "copy"]);
     argv.extend(["-f", "hash", "-hash", algo]);
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     // a hash receipt is a text line, not media — ffprobe can't read it back
     let mut c = engine::write_job_raw("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -1675,6 +1751,9 @@ fn y4m(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
+    }
+    if args.shortest {
+        argv.extend(["-shortest"]);
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -1743,6 +1822,9 @@ fn avui(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
     }
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "avui", "timelimit": args.timelimit }));
@@ -1800,6 +1882,9 @@ fn mxf(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
+    }
+    if args.shortest {
+        argv.extend(["-shortest"]);
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -1881,6 +1966,9 @@ fn gxf(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if probe.has_audio {
         argv.extend(["-c:a", "pcm_s16le", "-ar", "48000", "-ac", "1"]);
     }
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "gxf", "timelimit": args.timelimit }));
@@ -1961,6 +2049,9 @@ fn ffv1_container(
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
     }
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": preset, "timelimit": args.timelimit }));
@@ -2008,6 +2099,9 @@ fn mpeg2(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
+    }
+    if args.shortest {
+        argv.extend(["-shortest"]);
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -2057,6 +2151,9 @@ fn mpeg1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
     }
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "mpeg1", "timelimit": args.timelimit }));
@@ -2104,6 +2201,9 @@ fn xvid(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
+    }
+    if args.shortest {
+        argv.extend(["-shortest"]);
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -2158,6 +2258,9 @@ fn flv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
     }
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "flv", "timelimit": args.timelimit }));
@@ -2205,6 +2308,9 @@ fn theora(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
+    }
+    if args.shortest {
+        argv.extend(["-shortest"]);
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -2264,6 +2370,9 @@ fn gpp(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
+    }
+    if args.shortest {
+        argv.extend(["-shortest"]);
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -2332,6 +2441,9 @@ fn dv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if probe.has_audio {
         argv.extend(["-c:a", "pcm_s16le", "-ar", "48000", "-ac", "2"]);
     }
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "dv", "timelimit": args.timelimit }));
@@ -2389,6 +2501,9 @@ fn mjpeg(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
+    }
+    if args.shortest {
+        argv.extend(["-shortest"]);
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -2460,6 +2575,9 @@ fn amv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-c:a", "adpcm_ima_amv", "-block_size", "882"]);
         argv.extend(["-ar", "22050", "-ac", "1"]);
     }
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "amv", "timelimit": args.timelimit }));
@@ -2508,6 +2626,9 @@ fn msmpeg4(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
+    }
+    if args.shortest {
+        argv.extend(["-shortest"]);
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -2561,6 +2682,9 @@ fn mpeg4(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
     }
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "mpeg4", "timelimit": args.timelimit }));
@@ -2609,6 +2733,9 @@ fn wmv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
     }
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "wmv", "timelimit": args.timelimit }));
@@ -2646,6 +2773,9 @@ fn apng(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     argv.extend(["-map", "0:v?", "-f", "apng", "-plays", "0"]);
     if let Some(fps) = args.fps {
         argv.extend(["-vf", &format!("fps={fps}")]);
+    }
+    if args.shortest {
+        argv.extend(["-shortest"]);
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -2790,6 +2920,9 @@ fn qtrle(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
     }
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "qtrle", "timelimit": args.timelimit }));
@@ -2851,6 +2984,9 @@ fn v210(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
+    }
+    if args.shortest {
+        argv.extend(["-shortest"]);
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -2924,6 +3060,9 @@ fn lossless(
     }
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
+    }
+    if args.shortest {
+        argv.extend(["-shortest"]);
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
@@ -3047,6 +3186,9 @@ fn qt_era(
     if ext == "smjpg" {
         argv.extend(["-f", "smjpeg"]);
     }
+    if args.shortest {
+        argv.extend(["-shortest"]);
+    }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": codec, "timelimit": args.timelimit }));
@@ -3121,6 +3263,9 @@ fn roq(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
+    }
+    if args.shortest {
+        argv.extend(["-shortest"]);
     }
     argv.push(&args.output);
     let mut c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;

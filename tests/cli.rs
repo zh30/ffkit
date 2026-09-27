@@ -48459,3 +48459,223 @@ fn r362_x264_params_qp_probe_window_omit_endlist_engines_platforms() {
         assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
     }
 }
+
+#[test]
+fn r363_frag_shortest_aptxhd_nonkeyframes_data_longname_engines_order_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // probe.format_long_name: readable container name lands next to the
+    // demuxer short-name list
+    let j = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(j["probe"]["format_long_name"], "QuickTime / MOV", "{j}");
+
+    // transcode --frag: moof+mfra boxes land on the encode path
+    let o = dir.path().join("frag.mp4");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--frag",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let bytes = std::fs::read(&o).unwrap();
+    assert!(
+        bytes.windows(4).any(|w| w == b"moof"),
+        "--frag wrote no moof box"
+    );
+    // --frag is mp4-family encode-path only
+    let out = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x.mkv").to_str().unwrap(),
+            "--frag",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // transcode --shortest is accepted on the encode path
+    let o = dir.path().join("sh.mp4");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--shortest",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+
+    // --preset aptxhd: aptX HD elementary audio
+    let o = dir.path().join("a.aptxhd");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--preset",
+        "aptxhd",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert!(o.exists());
+
+    // split --non-keyframes: boundaries may land mid-GOP
+    let sd = dir.path().join("nk_%02d.mp4");
+    let j = run_json(&[
+        "split",
+        f.to_str().unwrap(),
+        "--every",
+        "0.5",
+        "--non-keyframes",
+        "-o",
+        sd.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+
+    // extract --data: data stream payload dumped raw
+    let bin = dir.path().join("payload.bin");
+    std::fs::write(&bin, b"ffkit-telemetry-payload").unwrap();
+    let ts = dir.path().join("data.ts");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "data",
+            "-i",
+        ])
+        .arg(&bin)
+        .args(["-map", "0", "-c", "copy", "-f", "mpegts"])
+        .arg(&ts)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let dump = dir.path().join("dump.bin");
+    let j = run_json(&[
+        "extract",
+        ts.to_str().unwrap(),
+        "--data",
+        "-o",
+        dump.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    assert_eq!(std::fs::read(&dump).unwrap(), b"ffkit-telemetry-payload");
+    // extract --data gates: no data stream → clean refusal
+    let out = ffkit()
+        .args([
+            "extract",
+            f.to_str().unwrap(),
+            "--data",
+            "-o",
+            dir.path().join("none.bin").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // channel --mode order: L/R swap actually swaps
+    let wav = dir.path().join("st.wav");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.5",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=660:duration=0.5",
+            "-filter_complex",
+            "[0:a][1:a]amerge=inputs=2",
+        ])
+        .arg(&wav)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let ord = dir.path().join("ord.wav");
+    let j = run_json(&[
+        "channel",
+        wav.to_str().unwrap(),
+        "--mode",
+        "order",
+        "--order",
+        "1,0",
+        "-o",
+        ord.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", ord.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["channels"], 2, "{pj}");
+
+    // levels --auto + --smoothing gate
+    let o = dir.path().join("lv.mp4");
+    let j = run_json(&[
+        "levels",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--auto",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let out = ffkit()
+        .args([
+            "levels",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("lv2.mp4").to_str().unwrap(),
+            "--smoothing",
+            "10",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // new filter engines run on 4.4
+    for (verb, args) in [
+        ("blur", vec!["--engine", "tmix"]),
+        ("glitch", vec!["--engine", "scroll"]),
+        ("sharpen", vec!["--engine", "deconv"]),
+    ] {
+        let o = dir.path().join(format!("{verb}.mp4"));
+        let mut a = vec![verb, f.to_str().unwrap(), "-o", o.to_str().unwrap()];
+        a.extend(args);
+        let j = run_json(&a);
+        assert_eq!(j["status"], "ok", "{verb}: {j}");
+    }
+
+    // deliver --platform: the 8 new music-education targets
+    for p in [
+        "tonara",
+        "playgroundsessions",
+        "musicca",
+        "melodics",
+        "trala",
+        "modacity",
+        "pianomarvel",
+        "tonebase",
+    ] {
+        let o = dir.path().join(format!("{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "--platform",
+            p,
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        assert_eq!(j["probe"]["width"].as_u64().unwrap(), 1920, "{p}: {j}");
+    }
+}

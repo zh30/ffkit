@@ -10,12 +10,23 @@ use serde_json::json;
 pub fn run(args: LevelsArgs, g: &crate::cli::Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     engine::need_video(&probe, "levels")?;
+    if args.smoothing.is_some() && !args.auto {
+        return Err(Error::input("--smoothing needs --auto"));
+    }
     let (i0, i1) = (args.in_min.clamp(-1.0, 1.0), args.in_max.clamp(-1.0, 1.0));
     let (o0, o1) = (args.out_min.clamp(0.0, 1.0), args.out_max.clamp(0.0, 1.0));
-    // same remap on r/g/b keeps hue; colorlevels takes -1..1 input points
-    let mut vf = format!(
-        "colorlevels=rimin={i0}:gimin={i0}:bimin={i0}:rimax={i1}:gimax={i1}:bimax={i1}:romin={o0}:gomin={o0}:bomin={o0}:romax={o1}:gomax={o1}:bomax={o1}"
-    );
+    let mut vf = if args.auto {
+        // normalize: auto-stretch each frame's measured min/max to
+        // black/white — flat lifted footage rescue without manual points.
+        // smoothing damps frame-to-frame flicker of the measured range.
+        let sm = args.smoothing.unwrap_or(50);
+        format!("normalize=smoothing={sm}")
+    } else {
+        // same remap on r/g/b keeps hue; colorlevels takes -1..1 input points
+        format!(
+            "colorlevels=rimin={i0}:gimin={i0}:bimin={i0}:rimax={i1}:gimax={i1}:bimax={i1}:romin={o0}:gomin={o0}:bomin={o0}:romax={o1}:gomax={o1}:bomax={o1}"
+        )
+    };
     if let Some(s) = &args.at {
         let win = crate::time::enable_expr(s, args.dur, probe.duration)?;
         vf = format!("{vf}:enable='{win}'");
@@ -37,6 +48,7 @@ pub fn run(args: LevelsArgs, g: &crate::cli::Globals) -> Result<Contract, Error>
     Ok(c.with_extra(json!({
         "in": [i0, i1],
         "out": [o0, o1],
+        "auto": args.auto,
         "filter": vf,
     })))
 }
