@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.390.0] — 2026-09-27
+
+### Added
+
+- `transcode --frag` — fragmented MP4 on the encode path (+frag_keyframe+empty_moov+default_base_moof; h264/proxy presets, mp4-family outputs; stream-copy stays on `remux --frag`)
+- `transcode --shortest` — `-shortest` on every transcode path (music-bed audio ends with the video; ~1-2s muxer flush overshoot on file outputs is ffmpeg's, documented)
+- `transcode --preset aptxhd` — aptX HD audio-only `.aptxhd` (high-def Bluetooth delivery; the extension auto-selects the aptx_hd muxer)
+- `split --non-keyframes` — `-break_non_keyframes 1` lets segment boundaries land mid-GOP (tighter `--every` windows; part starts decode-sloppy until the next keyframe)
+- `extract --data` — dumps a telemetry/GPS/sensor `data` stream to raw payload bytes (`-f data`; `--track N` picks the Nth data stream)
+- `probe.format_long_name` — readable container name ("QuickTime / MOV") alongside the demuxer short-name list
+- `levels --auto` — `normalize` per-frame range stretch (flat lifted-footage rescue); `--smoothing` damps frame-to-frame flicker (default 50)
+- `blur --engine tmix` — temporal frame-mixing blur (`tmix`; `--sigma` scales a 2-16-frame window — motion smear, locked shots stay clean)
+- `sharpen --engine deconv` — deconvolution deblur (split+gblur impulse+`deconvolve`; reverses a known gaussian blur, `--amount` scales the assumed radius; no `--at` window)
+- `glitch --engine scroll` — wraparound pixel drift (`scroll`; `--strength` maps to a fraction-of-width shift per frame)
+- `channel --mode order --order 1,0` — raw per-channel re-order by index (`-map_channel`; re-encode only — stream copy ignores it)
+- `deliver --platform` +8 music-education targets: `tonara`, `playgroundsessions`, `musicca`, `melodics`, `trala`, `modacity`, `pianomarvel`, `tonebase` — all 16:9 1920x1080 → 687 targets
+
 ## [0.389.0] — 2026-09-27
 
 ### Added

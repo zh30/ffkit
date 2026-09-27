@@ -403,6 +403,62 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
             "attachments": n_att,
         })));
     }
+    // --data: rip a telemetry/data stream — GoPro GPS + sensors, drone
+    // flight logs, subtitle-adjacent payloads. -f data dumps the raw
+    // payload bytes (no container), so --track picks the Nth data stream.
+    if args.data {
+        if args.audio
+            || args.subs
+            || args.gif
+            || args.webp
+            || args.alpha
+            || args.transparent
+            || args.keyframes
+            || args.cover
+            || args.chapter.is_some()
+            || args.attachment.is_some()
+            || args.all
+            || args.lang.is_some()
+            || args.from.is_some()
+            || args.to.is_some()
+            || args.at.is_some()
+        {
+            return Err(Error::input(
+                "extract --data rips a data stream — drop the other modes",
+            ));
+        }
+        let probe = engine::probe_or_err(&args.input, g)?;
+        let n_data = probe.streams.iter().filter(|s| s.kind == "data").count();
+        if n_data == 0 {
+            return Err(Error::input(
+                "extract --data: input has no data streams (telemetry payloads ride as kind=data)",
+            ));
+        }
+        let t = args.track.unwrap_or(0);
+        if t as usize >= n_data {
+            return Err(Error::input(format!(
+                "extract --data --track {t}: input has {n_data} data stream(s)"
+            )));
+        }
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend([
+            "-map",
+            format!("0:d:{t}").as_str(),
+            "-c",
+            "copy",
+            "-f",
+            "data",
+        ]);
+        argv.push(&args.output);
+        // raw payload bytes — ffprobe can't read it back, so no probe pass
+        let c = engine::write_job_raw("extract", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(serde_json::json!({
+            "data": true,
+            "index": t,
+            "data_streams": n_data,
+        })));
+    }
     // --cover: pull embedded cover art — the attached_pic video stream's
     // single packet IS the image file (mjpeg → .jpg bytes, png → .png)
     if args.cover {

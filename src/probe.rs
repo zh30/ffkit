@@ -55,6 +55,10 @@ pub struct Probe {
     pub size_bytes: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>,
+    /// Human-readable container name ("QuickTime / MOV", "MPEG-TS") —
+    /// probe.format is the demuxer short name, this is the display label.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format_long_name: Option<String>,
     pub variable_frame_rate_suspected: bool,
     #[serde(default, skip_serializing_if = "is_zero")]
     pub subtitle_streams: u32,
@@ -721,6 +725,8 @@ struct FfprobeFormat {
     #[serde(default)]
     format_name: Option<String>,
     #[serde(default)]
+    format_long_name: Option<String>,
+    #[serde(default)]
     bit_rate: Option<String>,
     #[serde(default)]
     nb_programs: Option<u32>,
@@ -928,7 +934,8 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
             .as_ref()
             .and_then(|f| f.size.as_deref())
             .and_then(|s| s.parse().ok()),
-        format: parsed.format.and_then(|f| f.format_name),
+        format: parsed.format.as_ref().and_then(|f| f.format_name.clone()),
+        format_long_name: parsed.format.and_then(|f| f.format_long_name),
         variable_frame_rate_suspected: vfr,
         subtitle_streams: parsed
             .streams

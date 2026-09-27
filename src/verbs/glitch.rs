@@ -45,6 +45,14 @@ pub fn run(args: GlitchArgs, g: &Globals) -> Result<Contract, Error> {
             let f = (args.strength * 10.0).clamp(2.0, 200.0).round() as i32;
             format!("random=frames={f}")
         }
+        // scroll: wraparound pixel slide — the whole frame drifts sideways
+        // (signal-slip / bad-sync look). scroll's h/v is a per-frame
+        // fraction of frame width (-1..1), so --strength maps to ~5%
+        // increments: 3 → 0.15, anything past 20 pins the ends.
+        crate::cli::GlitchEngine::Scroll => {
+            let v = (args.strength * 0.05).clamp(-1.0, 1.0);
+            format!("scroll=h={v:.2}")
+        }
     };
 
     let mut argv = ffmpeg_base(g.progress);
@@ -69,6 +77,7 @@ pub fn run(args: GlitchArgs, g: &Globals) -> Result<Contract, Error> {
             crate::cli::GlitchEngine::Pixels => "shufflepixels",
             crate::cli::GlitchEngine::Swaprect => "swaprect",
             crate::cli::GlitchEngine::Random => "random",
+            crate::cli::GlitchEngine::Scroll => "scroll",
         },
     })))
 }

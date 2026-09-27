@@ -19,9 +19,36 @@ pub fn run(args: SharpenArgs, g: &Globals) -> Result<Contract, Error> {
     let base = match args.engine {
         SharpenEngine::Unsharp => format!("unsharp=5:5:{}:5:5:0.0", args.amount),
         SharpenEngine::Cas => format!("cas=strength={:.2}", (args.amount / 2.0).min(1.0)),
-        // maskedclamp graph built below — placeholder
-        SharpenEngine::Halo => String::new(),
+        // maskedclamp / deconvolve graphs built below — placeholders
+        SharpenEngine::Halo | SharpenEngine::Deconv => String::new(),
     };
+    if matches!(args.engine, SharpenEngine::Deconv) {
+        // deconvolution sharpen: reverse an assumed gaussian blur. The PSF
+        // is a gblur of the frame itself — planes=7 hits luma+chroma, noise
+        // floor avoids amplifying sensor noise on flat areas.
+        if args.at.is_some() || args.dur.is_some() {
+            return Err(Error::input(
+                "deconvolve has no timeline support — drop --at/--dur (full-clip only)",
+            ));
+        }
+        let sig = (args.amount / 3.0).clamp(0.5, 4.0);
+        let fc = format!(
+            "[0:v]split[m][s];[s]gblur=sigma={sig:.2}[imp];[m][imp]deconvolve=planes=7:impulse=all:noise=1e-4[v]"
+        );
+        argv.extend(["-filter_complex", &fc, "-map", "[v]", "-map", "0:a?"]);
+        argv.extend([
+            "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+        ]);
+        if probe.has_audio {
+            argv.extend(["-c:a", "copy"]);
+        }
+        argv.push(&args.output);
+        let c = engine::write_job("sharpen", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(json!({
+            "amount": args.amount,
+            "engine": "deconv",
+        })));
+    }
     if matches!(args.engine, SharpenEngine::Halo) {
         // halo-free sharpen: unsharp the original, then clamp each pixel to
         // the blurred base ±strength — edges can't overshoot into halos.
@@ -84,6 +111,7 @@ pub fn run(args: SharpenArgs, g: &Globals) -> Result<Contract, Error> {
             SharpenEngine::Unsharp => "unsharp",
             SharpenEngine::Cas => "cas",
             SharpenEngine::Halo => "maskedclamp",
+            SharpenEngine::Deconv => "deconvolve",
         },
     })))
 }

@@ -43,6 +43,13 @@ pub fn run(args: BlurArgs, g: &Globals) -> Result<Contract, Error> {
             let r = (args.sigma / 2.0).clamp(0.5, 5.0);
             format!("smartblur=lr={r:.1}:lt=0")
         }
+        // tmix: temporal blend — averages --sigma frames' worth of neighbors
+        // together. A blur that smears across TIME (dreamy motion trails on
+        // moving edges; locked-off shots stay clean)
+        crate::cli::BlurEngine::Tmix => {
+            let f = (args.sigma * 2.0).round().clamp(2.0, 16.0) as u32;
+            format!("tmix=frames={f}")
+        }
     };
     let vf = match &args.at {
         Some(s) => format!(
@@ -73,6 +80,7 @@ pub fn run(args: BlurArgs, g: &Globals) -> Result<Contract, Error> {
             crate::cli::BlurEngine::Box => "boxblur",
             crate::cli::BlurEngine::Avg => "avgblur",
             crate::cli::BlurEngine::Smart => "smartblur",
+            crate::cli::BlurEngine::Tmix => "tmix",
         },
     })))
 }

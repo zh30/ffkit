@@ -177,6 +177,68 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
             "with": other.display().to_string(),
         })));
     }
+    if args.mode == ChannelMode::Order {
+        // -map_channel: raw channel re-order by index — bypasses pan/
+        // channelmap layouts entirely, so it reorders >2ch layouts that
+        // those filters can't express. On a re-encode only: stream copy
+        // (-c:a copy) silently ignores -map_channel.
+        let spec = args.order.as_deref().ok_or_else(|| {
+            Error::input(
+                "--mode order needs --order \"1,0\" — one source channel index per output channel",
+            )
+        })?;
+        let astream = probe
+            .streams
+            .iter()
+            .find(|s| s.kind == "audio")
+            .ok_or_else(|| Error::input("channel --mode order needs an audio stream"))?;
+        let aidx = astream.index;
+        let nch = astream.channels.unwrap_or(2);
+        let mut order: Vec<u32> = Vec::new();
+        for part in spec.split(',') {
+            let c: u32 = part
+                .trim()
+                .parse()
+                .map_err(|_| Error::input(format!("--order '{part}' isn't a channel index")))?;
+            if c >= nch {
+                return Err(Error::input(format!(
+                    "--order channel {c}: this track has {nch} channel(s) (indexes 0..{})",
+                    nch - 1
+                )));
+            }
+            order.push(c);
+        }
+        if order.is_empty() {
+            return Err(Error::input("--order needs at least one channel index"));
+        }
+        let mut argv = ffmpeg_base(g.progress);
+        argv.push("-i");
+        argv.push(&args.input);
+        for c in &order {
+            argv.extend(["-map_channel", format!("0.{aidx}.{c}").as_str()]);
+        }
+        argv.extend(["-map", "0:v?", "-ac", order.len().to_string().as_str()]);
+        if probe.has_video {
+            argv.extend(["-c:v", "copy"]);
+        }
+        let ext = args
+            .output
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if ext == "wav" {
+            argv.extend(["-c:a", "pcm_s16le"]);
+        } else {
+            argv.extend(["-c:a", "aac"]);
+        }
+        argv.push(&args.output);
+        let c = engine::write_job("channel", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(json!({
+            "mode": "Order",
+            "order": order,
+        })));
+    }
     let af = match args.mode {
         // single-mic voice recorded on one ear → copy ch0 to all
         ChannelMode::Dualmono => "pan=stereo|FL<c0|FR<c0".to_string(),
@@ -265,7 +327,11 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
         ChannelMode::Earwax => {
             "aformat=channel_layouts=stereo:sample_rates=44100,earwax".to_string()
         }
-        ChannelMode::Split | ChannelMode::Bands | ChannelMode::Sync | ChannelMode::Merge => {
+        ChannelMode::Split
+        | ChannelMode::Bands
+        | ChannelMode::Sync
+        | ChannelMode::Merge
+        | ChannelMode::Order => {
             unreachable!("handled above")
         }
     };

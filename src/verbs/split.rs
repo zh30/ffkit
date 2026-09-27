@@ -40,9 +40,10 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             || args.manifest_prefix.is_some()
             || args.increment_tc
             || args.clock
+            || args.non_keyframes
         {
             return Err(Error::input(
-                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest/--start/--wrap/--slack/--at-frames/--manifest-prefix/--increment-tc/--clock)",
+                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest/--start/--wrap/--slack/--at-frames/--manifest-prefix/--increment-tc/--clock/--non-keyframes)",
             ));
         }
         engine::need_video(&probe, "split --black")?;
@@ -405,6 +406,9 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         }
         // boundaries may land up to SEC early inside the window
         argv.extend(["-segment_time_delta".to_string(), s.to_string()]);
+    }
+    if args.non_keyframes {
+        argv.extend(["-break_non_keyframes".to_string(), "1".to_string()]);
     }
     if args.increment_tc {
         if !args.copy {
