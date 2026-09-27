@@ -37,9 +37,11 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             || args.wrap.is_some()
             || args.slack.is_some()
             || !args.at_frames.is_empty()
+            || args.manifest_prefix.is_some()
+            || args.increment_tc
         {
             return Err(Error::input(
-                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest/--start/--wrap/--slack/--at-frames)",
+                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest/--start/--wrap/--slack/--at-frames/--manifest-prefix/--increment-tc)",
             ));
         }
         engine::need_video(&probe, "split --black")?;
@@ -367,6 +369,12 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             "-segment_list_type".to_string(),
             kind.to_string(),
         ]);
+        if let Some(p) = &args.manifest_prefix {
+            // entries reference the published base path, not local files
+            argv.extend(["-segment_list_entry_prefix".to_string(), p.clone()]);
+        }
+    } else if args.manifest_prefix.is_some() {
+        return Err(Error::input("split --manifest-prefix needs --manifest"));
     }
     if let Some(w) = args.wrap {
         if w == 0 {
@@ -381,6 +389,20 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         }
         // boundaries may land up to SEC early inside the window
         argv.extend(["-segment_time_delta".to_string(), s.to_string()]);
+    }
+    if args.increment_tc {
+        if !args.copy {
+            return Err(Error::input(
+                "split --increment-tc needs --copy (the timecode track is a data stream — it only carries over on the stream-copy path)",
+            ));
+        }
+        if probe.timecode.is_none() {
+            return Err(Error::input(
+                "split --increment-tc: input carries no timecode track",
+            ));
+        }
+        // each part's tmcd resumes where the previous part ended
+        argv.extend(["-increment_tc", "1"]);
     }
     argv.extend(["-reset_timestamps", "1"]);
     argv.push(&template);
@@ -441,6 +463,8 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             "start": args.start.unwrap_or(0),
             "wrap": args.wrap,
             "slack": args.slack,
+            "manifest_prefix": args.manifest_prefix,
+            "increment_tc": args.increment_tc,
             "at_frames": args.at_frames,
             "cuts": cuts,
             "parts": names,

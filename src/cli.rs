@@ -583,6 +583,19 @@ pub struct SplitArgs {
     /// keyframe on --copy, forced exact on the re-encode path)
     #[arg(long, value_delimiter = ',')]
     pub at_frames: Vec<u32>,
+    /// Prefix every entry in the --manifest index with this string
+    /// (-segment_list_entry_prefix — a CDN base path or staging dir so the
+    /// playlist references the published URLs, not the local filenames;
+    /// needs --manifest)
+    #[arg(long)]
+    pub manifest_prefix: Option<String>,
+    /// Carry a continuous timecode track across parts (-increment_tc —
+    /// each part's tmcd picks up where the previous ended instead of
+    /// restarting at the source start: archive/broadcast chunking keeps a
+    /// readable running TC; needs --copy and an input that carries a
+    /// timecode track)
+    #[arg(long)]
+    pub increment_tc: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1635,6 +1648,26 @@ pub enum TranscodePreset {
     /// libraries, Zune/iRiver-era player uploads; audio only)
     #[value(name = "wma")]
     Wma,
+    /// VP9 + Opus in .webm/.mkv — the modern open-codec pair YouTube and
+    /// MSE/Shaka players expect (--crf picks quality; no --vbitrate = true
+    /// constant-quality mode)
+    #[value(name = "vp9")]
+    Vp9,
+    /// RGB-space H.264 lossless screen capture in .mp4/.mkv/.mov
+    /// (libx264rgb — no chroma subsample: crisp UI/text pixels; -qp 0
+    /// lossless by default, --crf for graded quality)
+    #[value(name = "h264rgb")]
+    H264rgb,
+    /// SMPTE 302M AES3 carriage audio in .ts/.m2ts (broadcast ingest —
+    /// packs PCM as AES3 frames, 2/4/6/8 channels at 48kHz; experimental
+    /// -strict -2; audio only)
+    #[value(name = "s302")]
+    S302,
+    /// H.263+ v2 in .mkv/.avi (improved h263 — better error resilience and
+    /// quality for legacy videoconference archives; .3gp/.mp4/.flv have no
+    /// codec tag for it on 4.4, so those refuse)
+    #[value(name = "h263p")]
+    H263p,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3076,6 +3109,29 @@ pub enum DeliverPlatform {
     Linear,
     /// Shortcut story attachment video 16:9
     Shortcut,
+    /// Slack channel/canvas video post 16:9
+    Slack,
+    /// Microsoft Teams channel/meeting-recap video 16:9
+    #[value(name = "msteams")]
+    Msteams,
+    /// Meta Workplace feed video post 16:9
+    #[value(name = "workplace")]
+    Workplace,
+    /// Salesforce record/Chatter embedded video 16:9
+    #[value(name = "salesforce")]
+    Salesforce,
+    /// HubSpot CRM/deal embedded video 16:9
+    #[value(name = "hubspot")]
+    Hubspot,
+    /// Pipedrive deal-attachment video 16:9
+    #[value(name = "pipedrive")]
+    Pipedrive,
+    /// Freshworks ticket/CRM embedded video 16:9
+    #[value(name = "freshworks")]
+    Freshworks,
+    /// Attio record embedded video 16:9
+    #[value(name = "attio")]
+    Attio,
 }
 
 #[derive(clap::Args, Debug)]
@@ -7653,6 +7709,16 @@ pub struct DashArgs {
     /// --window)
     #[arg(long)]
     pub extra_window: Option<u32>,
+    /// Advertise a trick-play rate window in the manifest's
+    /// ServiceDescription (-min_playback_rate/-max_playback_rate — tells
+    /// players the pack plays clean at speeds between MIN and MAX: review
+    /// scrubbing 0.5–2x, digest playback; 0.5..=1.5 on this ffmpeg)
+    #[arg(long)]
+    pub playback_min: Option<f64>,
+    /// Fast end of the advertised trick-play window (see --playback-min;
+    /// 0.5..=1.5)
+    #[arg(long)]
+    pub playback_max: Option<f64>,
 }
 
 #[derive(clap::Args, Debug)]

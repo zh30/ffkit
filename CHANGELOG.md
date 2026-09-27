@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.386.0] — 2026-09-26
+
+### Added
+
+- `transcode --preset vp9` — VP9 + Opus in .webm/.mkv (the modern open-codec pair YouTube and MSE/Shaka players expect; `--crf` picks quality, no `--vbitrate` = true constant-quality)
+- `transcode --preset h264rgb` — RGB-space lossless H.264 in .mp4/.mkv/.mov (libx264rgb — no chroma subsample, crisp UI/text capture; `-qp 0` by default, `--crf` for graded quality)
+- `transcode --preset s302` — SMPTE 302M AES3 audio carriage in .ts/.m2ts (broadcast ingest — fixed 48kHz, 2/4/6/8 channels; experimental `-strict -2`)
+- `transcode --preset h263p` — H.263+ v2 in .mkv/.avi (legacy videoconference archives — .3gp/.mp4/.flv have no codec tag for it on 4.4)
+- `split --manifest-prefix STR` — prepend a base path to every manifest entry (`-segment_list_entry_prefix` — the playlist references published CDN URLs, not local files; needs `--manifest`)
+- `split --increment-tc` — continuous timecode track across parts (`-increment_tc` — each part's tmcd resumes where the previous ended; needs `--copy` and an input timecode track)
+- `dash --playback-min`/`--playback-max` — trick-play rate window in the manifest ServiceDescription (`-min_playback_rate`/`-max_playback_rate` — players know the pack scrubs clean at 0.5–1.5x)
+- `deliver --platform` +8 workplace-comms & CRM targets: slack / msteams / workplace / salesforce / hubspot / pipedrive / freshworks / attio videos 16:9 1920x1080 (655 platform targets)
+
 ## [0.385.0] — 2026-09-26
 
 ### Added
