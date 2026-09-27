@@ -837,7 +837,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Boxcast
         | DeliverPlatform::Wowza
         | DeliverPlatform::Dacast
-        | DeliverPlatform::Churchonline => (1920, 1080),
+        | DeliverPlatform::Churchonline
+        | DeliverPlatform::Bombbomb
+        | DeliverPlatform::Covideo
+        | DeliverPlatform::Dubb
+        | DeliverPlatform::Sendspark
+        | DeliverPlatform::Warmwelcome
+        | DeliverPlatform::Hippovideo
+        | DeliverPlatform::Vadootv
+        | DeliverPlatform::Tolstoy => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1684,6 +1692,14 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Wowza => "wowza",
         DeliverPlatform::Dacast => "dacast",
         DeliverPlatform::Churchonline => "churchonline",
+        DeliverPlatform::Bombbomb => "bombbomb",
+        DeliverPlatform::Covideo => "covideo",
+        DeliverPlatform::Dubb => "dubb",
+        DeliverPlatform::Sendspark => "sendspark",
+        DeliverPlatform::Warmwelcome => "warmwelcome",
+        DeliverPlatform::Hippovideo => "hippovideo",
+        DeliverPlatform::Vadootv => "vadootv",
+        DeliverPlatform::Tolstoy => "tolstoy",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

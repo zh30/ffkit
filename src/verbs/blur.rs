@@ -36,6 +36,13 @@ pub fn run(args: BlurArgs, g: &Globals) -> Result<Contract, Error> {
             let s = (args.sigma / 2.0).round().clamp(1.0, 1024.0) as u32;
             format!("avgblur=sizeX={s}:planes=15")
         }
+        // smartblur: luma_radius 0.1-5 (halve sigma like avgblur);
+        // lt=0 blurs weak gradients and keeps edges — the edge-aware
+        // member of the family
+        crate::cli::BlurEngine::Smart => {
+            let r = (args.sigma / 2.0).clamp(0.5, 5.0);
+            format!("smartblur=lr={r:.1}:lt=0")
+        }
     };
     let vf = match &args.at {
         Some(s) => format!(
@@ -65,6 +72,7 @@ pub fn run(args: BlurArgs, g: &Globals) -> Result<Contract, Error> {
             crate::cli::BlurEngine::Directional => "dblur",
             crate::cli::BlurEngine::Box => "boxblur",
             crate::cli::BlurEngine::Avg => "avgblur",
+            crate::cli::BlurEngine::Smart => "smartblur",
         },
     })))
 }

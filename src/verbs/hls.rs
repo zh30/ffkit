@@ -594,6 +594,10 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         // end tag — the playlist stays joinable mid-write
         flags.push("delete_segments");
         flags.push("omit_endlist");
+    } else if args.omit_endlist {
+        // raw omit_endlist without --live's windowing — a pack that a
+        // later pass re-opens and appends onto
+        flags.push("omit_endlist");
     }
     if args.date {
         flags.push("program_date_time");

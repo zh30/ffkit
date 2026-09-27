@@ -35,15 +35,29 @@ pub fn run(cli: Cli) -> Result<Contract, Error> {
         Cmd::Doctor => doctor::run(&g),
         Cmd::Probe {
             input,
+            from,
+            to,
             frames,
             packets,
         } => {
-            let mut p = probe::probe(&input, g.timeout)?;
+            let mut opts: Vec<String> = Vec::new();
+            if from.is_some() || to.is_some() {
+                let f = from.unwrap_or(0.0);
+                if f < 0.0 || to.is_some_and(|t| t <= f) {
+                    return Err(Error::input("probe --from must be >= 0 and < --to"));
+                }
+                let spec = match to {
+                    Some(t) => format!("{f:.3}%{t:.3}"),
+                    None => format!("{f:.3}%"),
+                };
+                opts = vec!["-read_intervals".to_string(), spec];
+            }
+            let mut p = probe::probe_with_opts(&input, g.timeout, &opts)?;
             if frames {
-                p.frames = probe::probe_frames(&input, g.timeout)?;
+                p.frames = probe::probe_frames_opts(&input, g.timeout, &opts)?;
             }
             if packets {
-                p.packets = probe::probe_packets(&input, g.timeout)?;
+                p.packets = probe::probe_packets_opts(&input, g.timeout, &opts)?;
             }
             Ok(Contract::ok("probe", Some(paths::display(&input)), Some(p)))
         }
