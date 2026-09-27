@@ -47734,3 +47734,346 @@ fn r359_vp9_h264rgb_s302_h263p_manifestprefix_incrementtc_playbackrate_platforms
         assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
     }
 }
+
+#[test]
+fn r360_keyat_frames_frame_clock_streamid_framecrc_ffmeta_spdif_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // transcode --keyat: force keyframes at exact timestamps (stacks with -g)
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("k.mp4").to_str().unwrap(),
+        "--keyat",
+        "0.5",
+        "--gop",
+        "60",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let out = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v",
+            "-show_frames",
+            "-of",
+            "compact",
+            dir.path().join("k.mp4").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    let txt = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        txt.lines()
+            .any(|l| l.contains("key_frame=1") && l.contains("pkt_pts_time=0.500000")),
+        "{txt}"
+    );
+
+    // gates: --keyat needs re-encode, needs an encode preset, needs a number list
+    for args in [
+        vec![
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("k2.mp4").to_str().unwrap(),
+            "--keyat",
+            "0.5",
+            "--copy-video",
+        ],
+        vec![
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("k3.mp3").to_str().unwrap(),
+            "--preset",
+            "mp3",
+            "--keyat",
+            "0.5",
+        ],
+        vec![
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("k4.mp4").to_str().unwrap(),
+            "--keyat",
+            "abc",
+        ],
+    ] {
+        let out = ffkit().args(&args).output().unwrap();
+        assert!(!out.status.success(), "{args:?}");
+    }
+
+    // conform --frames: spec-sample rendering — only N decoded frames
+    let j = run_json(&[
+        "conform",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("cf.mp4").to_str().unwrap(),
+        "--size",
+        "160x120",
+        "--frames",
+        "10",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let out = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-count_packets",
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "stream=nb_read_packets",
+            "-of",
+            "csv=p=0",
+            dir.path().join("cf.mp4").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "10");
+
+    // extract --frame: decoded-frame-index still
+    let j = run_json(&[
+        "extract",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("f10.png").to_str().unwrap(),
+        "--frame",
+        "10",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", dir.path().join("f10.png").to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][0]["codec"], "png", "{pj}");
+    assert_eq!(pj["probe"]["streams"][0]["width"], 320, "{pj}");
+
+    // gates: --frame conflicts --at, and refuses non-image ext
+    for args in [
+        vec![
+            "extract",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x.png").to_str().unwrap(),
+            "--frame",
+            "10",
+            "--at",
+            "0.5",
+        ],
+        vec![
+            "extract",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("x.mp4").to_str().unwrap(),
+            "--frame",
+            "10",
+        ],
+    ] {
+        let out = ffkit().args(&args).output().unwrap();
+        assert!(!out.status.success(), "{args:?}");
+    }
+
+    // split --clock: strftime part names land on disk (needs interior boundaries → 3s source)
+    let long = dir.path().join("long.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=3:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=3",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&long)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let j = run_json(&[
+        "split",
+        long.to_str().unwrap(),
+        "-o",
+        dir.path().join("seg_%H-%M-%S.mp4").to_str().unwrap(),
+        "--every",
+        "1",
+        "--clock",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let clocked = std::fs::read_dir(dir.path())
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .any(|e| {
+            let n = e.file_name().to_string_lossy().to_string();
+            n.starts_with("seg_") && n.ends_with(".mp4") && n.contains('-')
+        });
+    assert!(clocked, "no strftime-named part");
+
+    // gates: template needs %, conflicts --start/--wrap
+    for args in [
+        vec![
+            "split",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("plain.mp4").to_str().unwrap(),
+            "--every",
+            "1",
+            "--clock",
+        ],
+        vec![
+            "split",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("seg_%H.mp4").to_str().unwrap(),
+            "--every",
+            "1",
+            "--clock",
+            "--start",
+            "2",
+        ],
+    ] {
+        let out = ffkit().args(&args).output().unwrap();
+        assert!(!out.status.success(), "{args:?}");
+    }
+
+    // remux --streamid: explicit PID plan reads back through probe.streams[].stream_id
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("s.ts").to_str().unwrap(),
+        "--streamid",
+        "0:0x1ff,1:0x101",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", dir.path().join("s.ts").to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][0]["stream_id"], "0x1ff", "{pj}");
+    assert_eq!(pj["probe"]["streams"][1]["stream_id"], "0x101", "{pj}");
+
+    // gates: .ts only, PID range, pair shape
+    for args in [
+        vec![
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("s.mkv").to_str().unwrap(),
+            "--streamid",
+            "0:0x1ff",
+        ],
+        vec![
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("s2.ts").to_str().unwrap(),
+            "--streamid",
+            "0:0x9999",
+        ],
+        vec![
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("s3.ts").to_str().unwrap(),
+            "--streamid",
+            "junk",
+        ],
+    ] {
+        let out = ffkit().args(&args).output().unwrap();
+        assert!(!out.status.success(), "{args:?}");
+    }
+
+    // transcode --preset framecrc: per-frame CRC32 text manifest
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("f.framecrc").to_str().unwrap(),
+        "--preset",
+        "framecrc",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let body = std::fs::read_to_string(dir.path().join("f.framecrc")).unwrap();
+    assert!(body.contains("0x"), "{body}");
+
+    // transcode --preset ffmeta: container metadata sidecar
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("m.ffmeta").to_str().unwrap(),
+        "--preset",
+        "ffmeta",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let body = std::fs::read_to_string(dir.path().join("m.ffmeta")).unwrap();
+    assert!(body.contains(";FFMETADATA1"), "{body}");
+
+    // transcode --preset spdif: IEC-61937 AC3 bitstream, pinned 48kHz
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("out.spdif").to_str().unwrap(),
+        "--preset",
+        "spdif",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", dir.path().join("out.spdif").to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][0]["codec"], "ac3", "{pj}");
+    assert_eq!(pj["probe"]["streams"][0]["sample_rate"], 48000, "{pj}");
+
+    // gate: spdif rate is receiver-defined 48k
+    let out = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("o2.spdif").to_str().unwrap(),
+            "--preset",
+            "spdif",
+            "--ar",
+            "44100",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // +8 platforms: social schedulers, 16:9 1920x1080
+    for p in [
+        "buffer",
+        "hootsuite",
+        "later",
+        "metricool",
+        "loomly",
+        "socialbee",
+        "planoly",
+        "sendible",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
+    }
+}

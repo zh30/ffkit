@@ -95,6 +95,34 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "transcode --profile/--level/--bf/--tune are x264 encode flags — h264/proxy presets only",
         ));
     }
+    if let Some(k) = &args.keyat {
+        if args.copy_video {
+            return Err(Error::input(
+                "transcode --keyat needs a re-encode — drop --copy-video",
+            ));
+        }
+        if !matches!(
+            preset,
+            TranscodePreset::Proxy
+                | TranscodePreset::H264
+                | TranscodePreset::Hevc
+                | TranscodePreset::Webm
+                | TranscodePreset::Av1
+                | TranscodePreset::Prores
+                | TranscodePreset::Dnxhd
+        ) {
+            return Err(Error::input(
+                "transcode --keyat works on the h264/hevc/webm/av1/prores/dnxhd/proxy encode paths",
+            ));
+        }
+        for t in k.split(',') {
+            if t.trim().parse::<f64>().ok().filter(|v| *v >= 0.0).is_none() {
+                return Err(Error::input(format!(
+                    "transcode --keyat wants comma-separated timestamps (seconds) — got '{t}'"
+                )));
+            }
+        }
+    }
     if args.alpha
         && !matches!(
             preset,
@@ -342,6 +370,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         | TranscodePreset::Amr
         | TranscodePreset::Wma
         | TranscodePreset::S302
+        | TranscodePreset::Spdif
         | TranscodePreset::Truehd
         | TranscodePreset::Mlp => audio_only(&args, g, preset),
         TranscodePreset::Gif => gif(&args, g),
@@ -500,6 +529,8 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Smjpeg => qt_era(&args, g, "mjpeg", &["smjpg"], None, Some("pcm_s16le")),
         TranscodePreset::Nut => ffv1_container(&args, g, "nut", "nut"),
         TranscodePreset::Framemd5 => framemd5(&args, g),
+        TranscodePreset::Framecrc => framecrc(&args, g),
+        TranscodePreset::Ffmeta => ffmeta(&args, g),
         TranscodePreset::Hash => hash_receipt(&args, g),
         TranscodePreset::Y4m => y4m(&args, g),
         TranscodePreset::Raw => lossless(&args, g, "rawvideo", &["avi", "mkv"], None),
@@ -949,6 +980,34 @@ fn audio_only(
                 argv.extend(["-c:a", "libopencore_amrnb", "-ar", "8000", "-ac", "1"])
             }
             TranscodePreset::Wma => argv.extend(["-c:a", "wmav2", "-b:a", abitrate(args, "192k")]),
+            TranscodePreset::Spdif => {
+                // IEC-61937 digital-out bitstream: AC3 payload at the
+                // receiver-defined 48kHz only
+                let ext = args
+                    .output
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
+                if ext != "spdif" {
+                    return Err(Error::input(format!(
+                        "transcode --preset spdif needs a .spdif target, not .{ext}"
+                    )));
+                }
+                if args.ar.is_some() && args.ar != Some(48000) {
+                    return Err(Error::input(
+                        "transcode --preset spdif runs at the receiver-defined 48kHz — drop --ar",
+                    ));
+                }
+                argv.extend([
+                    "-c:a",
+                    "ac3",
+                    "-ar",
+                    "48000",
+                    "-b:a",
+                    abitrate(args, "192k"),
+                ]);
+            }
             TranscodePreset::S302 => {
                 // AES3 carriage: fixed 48kHz, 2/4/6/8 channels only, ts family
                 let ext = args
@@ -1327,6 +1386,113 @@ fn framemd5(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     // a framemd5 listing is text, not media — ffprobe can't read it back
     let mut c = engine::write_job_raw("transcode", &[&args.input], &args.output, vec![argv], g)?;
     c = c.with_extra(json!({ "preset": "framemd5", "timelimit": args.timelimit }));
+    Ok(c)
+}
+
+/// Per-frame CRC32 manifest (-f framecrc — bit-exact archive-ingest QC:
+/// one CRC line per decoded frame per stream, so a later re-decode must
+/// produce the identical listing. framemd5's older sibling — same per-
+/// frame idea with CRC32s and a fixed two-column row instead of MD5s.
+/// The output is a text manifest, not media — codec/rate flags refuse.
+fn framecrc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if !matches!(ext.as_str(), "framecrc" | "txt") {
+        return Err(Error::input(format!(
+            "transcode --preset framecrc needs a .framecrc/.txt target, not .{ext}"
+        )));
+    }
+    if args.crf.is_some()
+        || args.fps.is_some()
+        || args.width.is_some()
+        || args.copy_audio
+        || args.copy_video
+        || args.alpha
+        || args.vbitrate.is_some()
+        || args.abitrate.is_some()
+        || args.ar.is_some()
+        || args.channels.is_some()
+        || args.gop.is_some()
+    {
+        return Err(Error::input(
+            "transcode --preset framecrc writes a checksum manifest — codec/rate flags don't apply",
+        ));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video && !probe.has_audio {
+        return Err(Error::input(
+            "framecrc preset: input has no media streams to checksum",
+        ));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?", "-map", "0:a?"]);
+    argv.extend(["-f", "framecrc"]);
+    argv.push(&args.output);
+    // a framecrc listing is text, not media — ffprobe can't read it back
+    let mut c = engine::write_job_raw("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "framecrc", "timelimit": args.timelimit }));
+    Ok(c)
+}
+
+/// Metadata forensics export (-f ffmetadata — the container's full
+/// metadata and chapter set dumped to FFmpeg's ;FFMETADATA1 text format:
+/// audit what a master actually carries before re-editing with
+/// `meta`/`chapter`. The output is a text sidecar, not media —
+/// codec/rate flags refuse.
+fn ffmeta(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if !matches!(ext.as_str(), "ffmeta" | "txt") {
+        return Err(Error::input(format!(
+            "transcode --preset ffmeta needs a .ffmeta/.txt target, not .{ext}"
+        )));
+    }
+    if args.crf.is_some()
+        || args.fps.is_some()
+        || args.width.is_some()
+        || args.copy_audio
+        || args.copy_video
+        || args.alpha
+        || args.vbitrate.is_some()
+        || args.abitrate.is_some()
+        || args.ar.is_some()
+        || args.channels.is_some()
+        || args.gop.is_some()
+    {
+        return Err(Error::input(
+            "transcode --preset ffmeta writes a metadata sidecar — codec/rate flags don't apply",
+        ));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map_metadata", "0", "-f", "ffmetadata"]);
+    argv.push(&args.output);
+    // an .ffmeta sidecar is text, not media — ffprobe can't read it back
+    let mut c = engine::write_job_raw("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    c = c.with_extra(json!({ "preset": "ffmeta", "timelimit": args.timelimit }));
     Ok(c)
 }
 
@@ -2459,6 +2625,9 @@ pub(crate) fn transcode_profile_name(p: crate::cli::TranscodeProfile) -> &'stati
 fn gop_push(argv: &mut Argv, args: &TranscodeArgs) {
     if let Some(n) = args.gop {
         argv.extend(["-g", &n.to_string()]);
+    }
+    if let Some(k) = &args.keyat {
+        argv.extend(["-force_key_frames", k]);
     }
 }
 

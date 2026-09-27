@@ -551,6 +551,52 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("extract --track needs --audio or --subs"));
     }
 
+    // --frame N: pull the decoded frame at index N — the VFX/QC grab the
+    // timestamp guesses can't hit (decodes from the head; timestamp-free)
+    if let Some(nf) = args.frame {
+        if args.at.is_some()
+            || args.gif
+            || args.webp
+            || args.bounce
+            || args.dur.is_some()
+            || args.fps.is_some()
+            || args.colors.is_some()
+            || args.audio
+            || args.subs
+            || args.alpha
+            || args.keyframes
+            || args.cover
+            || args.chapter.is_some()
+            || args.attachment.is_some()
+            || args.all
+            || args.track.is_some()
+            || args.lang.is_some()
+            || args.from.is_some()
+            || args.to.is_some()
+        {
+            return Err(Error::input(
+                "extract --frame pulls one still by frame index — drop the other modes",
+            ));
+        }
+        if !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "webp") {
+            return Err(Error::input(
+                "extract --frame needs a still output (.png/.jpg/.webp)",
+            ));
+        }
+        let probe = engine::probe_or_err(&args.input, g)?;
+        engine::need_video(&probe, "extract")?;
+        let mut vf = format!("select='eq(n\\,{nf})'");
+        if let Some(w) = args.width {
+            vf.push_str(&format!(",scale={w}:-2"));
+        }
+        argv.push("-i");
+        argv.push(&args.input);
+        argv.extend(["-vf", vf.as_str(), "-vsync", "0", "-frames:v", "1"]);
+        argv.push(&args.output);
+        let c = engine::write_job("extract", &[&args.input], &args.output, vec![argv], g)?;
+        return Ok(c.with_extra(serde_json::json!({ "frame": nf })));
+    }
+
     // comma --at on a still output: one frame per timepoint → `<stem>_N.<ext>`
     if !args.gif && !args.webp {
         if let Some(raw) = &args.at {

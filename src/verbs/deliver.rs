@@ -821,7 +821,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Hubspot
         | DeliverPlatform::Pipedrive
         | DeliverPlatform::Freshworks
-        | DeliverPlatform::Attio => (1920, 1080),
+        | DeliverPlatform::Attio
+        | DeliverPlatform::Buffer
+        | DeliverPlatform::Hootsuite
+        | DeliverPlatform::Later
+        | DeliverPlatform::Metricool
+        | DeliverPlatform::Loomly
+        | DeliverPlatform::Socialbee
+        | DeliverPlatform::Planoly
+        | DeliverPlatform::Sendible => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1652,6 +1660,14 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Pipedrive => "pipedrive",
         DeliverPlatform::Freshworks => "freshworks",
         DeliverPlatform::Attio => "attio",
+        DeliverPlatform::Buffer => "buffer",
+        DeliverPlatform::Hootsuite => "hootsuite",
+        DeliverPlatform::Later => "later",
+        DeliverPlatform::Metricool => "metricool",
+        DeliverPlatform::Loomly => "loomly",
+        DeliverPlatform::Socialbee => "socialbee",
+        DeliverPlatform::Planoly => "planoly",
+        DeliverPlatform::Sendible => "sendible",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",
