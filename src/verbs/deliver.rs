@@ -853,7 +853,15 @@ pub fn run(args: DeliverArgs, g: &Globals) -> Result<Contract, Error> {
         | DeliverPlatform::Trala
         | DeliverPlatform::Modacity
         | DeliverPlatform::Pianomarvel
-        | DeliverPlatform::Tonebase => (1920, 1080),
+        | DeliverPlatform::Tonebase
+        | DeliverPlatform::Hirevue
+        | DeliverPlatform::Sparkhire
+        | DeliverPlatform::Vidcruiter
+        | DeliverPlatform::Myinterview
+        | DeliverPlatform::Willo
+        | DeliverPlatform::Recruitee
+        | DeliverPlatform::Breezyhr
+        | DeliverPlatform::Workable => (1920, 1080),
         _ => (1080, 1920),
     };
     let mut vf = format!(
@@ -1716,6 +1724,14 @@ fn platform_name(p: DeliverPlatform) -> &'static str {
         DeliverPlatform::Modacity => "modacity",
         DeliverPlatform::Pianomarvel => "pianomarvel",
         DeliverPlatform::Tonebase => "tonebase",
+        DeliverPlatform::Hirevue => "hirevue",
+        DeliverPlatform::Sparkhire => "sparkhire",
+        DeliverPlatform::Vidcruiter => "vidcruiter",
+        DeliverPlatform::Myinterview => "myinterview",
+        DeliverPlatform::Willo => "willo",
+        DeliverPlatform::Recruitee => "recruitee",
+        DeliverPlatform::Breezyhr => "breezyhr",
+        DeliverPlatform::Workable => "workable",
         DeliverPlatform::Indeed => "indeed",
         DeliverPlatform::Glassdoor => "glassdoor",
         DeliverPlatform::Ziprecruiter => "ziprecruiter",

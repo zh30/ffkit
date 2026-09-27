@@ -614,6 +614,17 @@ pub struct SplitArgs {
     /// same-second cuts collapse to the same name — keep --every ≥1s)
     #[arg(long)]
     pub clock: bool,
+    /// Rolling manifest: keep only the newest N entries in the --manifest
+    /// index (-segment_list_size — part files stay on disk but the audit
+    /// list stays bounded; pairs with --wrap for a fully rolling record)
+    #[arg(long)]
+    pub manifest_window: Option<u32>,
+    /// Which stream drives cut decisions (-reference_stream: default video
+    /// snaps boundaries to keyframes; "a" cuts on audio-frame edges —
+    /// tighter --every windows when the GOP is long or the picture is a
+    /// still (podcasts, music visualizers)
+    #[arg(long, value_name = "V|A|N")]
+    pub ref_stream: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1300,6 +1311,11 @@ pub struct TranscodeArgs {
     /// pipeline can retry or flag the source)
     #[arg(long)]
     pub timelimit: Option<f64>,
+    /// Per-frame encode stats sidecar file (-vstats_file — frame/q/size/
+    /// running-bitrate rows per encoded frame: bitrate-investment QC,
+    /// "which scene ate the budget"; empty on pure stream-copy passes)
+    #[arg(long, value_name = "FILE")]
+    pub vstats: Option<PathBuf>,
     /// x264 encode profile — device-compat ingest specs (baseline for old
     /// phones/car/kiosk players; h264/proxy encodes only, conflicts with
     /// --copy-video and every non-x264 preset)
@@ -3333,6 +3349,30 @@ pub enum DeliverPlatform {
     /// Tonebase masterclass video upload 16:9
     #[value(name = "tonebase")]
     Tonebase,
+    /// HireVue on-demand interview + assessment video upload 16:9
+    #[value(name = "hirevue")]
+    Hirevue,
+    /// Spark Hire one-way video-interview upload 16:9
+    #[value(name = "sparkhire")]
+    Sparkhire,
+    /// VidCruiter structured-interview video upload 16:9
+    #[value(name = "vidcruiter")]
+    Vidcruiter,
+    /// myInterview candidate video upload 16:9
+    #[value(name = "myinterview")]
+    Myinterview,
+    /// Willo async-interview video upload 16:9
+    #[value(name = "willo")]
+    Willo,
+    /// Recruitee careers-site/ATS video upload 16:9
+    #[value(name = "recruitee")]
+    Recruitee,
+    /// Breezy HR candidate video answers upload 16:9
+    #[value(name = "breezyhr")]
+    Breezyhr,
+    /// Workable ATS video-interview upload 16:9
+    #[value(name = "workable")]
+    Workable,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6198,6 +6238,11 @@ pub struct RemuxArgs {
     /// stream-friendly container for HLS/DASH/live pipelines)
     #[arg(long)]
     pub frag: bool,
+    /// Global sidx index box with --frag (+global_sidx — the segment index
+    /// CMAF players and DASH packagers use for byte-range seeks; needs
+    /// --frag, mp4/mov only)
+    #[arg(long)]
+    pub sidx: bool,
     /// Drop subtitle and data streams in the repack (clean deliverable —
     /// mkv with embedded subs → bare mp4)
     #[arg(long)]
@@ -6344,6 +6389,12 @@ pub struct RemuxArgs {
     /// times on capture files (players that can't seek negative ts)
     #[arg(long)]
     pub offset: Option<f64>,
+    /// Re-clock every input stream by SEC (-itsoffset — negative values
+    /// pull the clock earlier). Unlike --offset which only relabels the
+    /// output, --shift moves the clock before demux so --from/--to keep
+    /// measuring against the original timeline
+    #[arg(long, allow_hyphen_values = true)]
+    pub shift: Option<f64>,
     /// Keep + reorder audio tracks by per-type index (comma list: `1,0`
     /// swaps the first two tracks, unlisted tracks are dropped) — players
     /// that only play track 0 need the program mix first
@@ -7761,6 +7812,11 @@ pub struct HlsArgs {
     /// Segments kept in a --live playlist (default 6)
     #[arg(long)]
     pub live_window: Option<u32>,
+    /// With --live: keep N unlisted segments on disk behind the rolling
+    /// manifest (-hls_delete_threshold — an archive tail that stays
+    /// reachable by URL after it scrolls off the playlist; needs --live)
+    #[arg(long)]
+    pub keep: Option<u32>,
     /// Wrap segment filenames after N segments (-hls_wrap — a
     /// self-hosted live channel reuses a bounded set of names instead
     /// of filling the disk; on ffmpeg 4.4 the set collapses to

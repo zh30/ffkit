@@ -1065,3 +1065,13 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - `scroll`'s `h`/`v` args are -1..1 fractions of the frame dimension **per frame**, not pixels — `h=6` errors "out of range". `glitch --engine scroll` maps `--strength` onto ~5%/frame steps.
 - `normalize` with `smoothing=0` flickers — every frame stretches to its own measured range; keep `--smoothing` ≥1 (50 default) for footage that scans.
 - Dedupe notes: `-hls_playlist_type vod|event` ships already as `hls`' auto VOD/EVENT tagging; `probe.streams[].channels` + `codec_tag` (string) shipped earlier; `meta --lyrics` exists (file embed); `vdenoise --engine atadenoise` exists; `trail --mode light` already is lagfun (`decay=`); `frames -o seq_%03d.dpx` works by extension alone — no extra flag needed. Not re-added.
+
+- `-audio_preload MS` on the mpegts muxer accepts the parameter on 4.4 but the resulting file sizes are non-monotonic across 0/100/200/500ms — the preload buffer is not observable on file output. Not exposed.
+- The `+eit` mpegts flag does not exist on 4.4's flag enum ("Undefined constant") — EIT event tables are a 5.x+ addition. Not exposed.
+- `-segment_header_filename` fails "muxer does not support non seekable output" on mp4-family targets and produces a 0-byte file on .ts — the segment muxer's header-file path is unusable in this pair on 4.4. Not exposed.
+- `+write_btrt` is not a movflag on 4.4 — the btrt bitrate atom is written by default when the encoder reports a bitrate. Nothing to toggle.
+- `-mov_gamma` on the mov muxer writes zero `gama` atoms on 4.4 — a dead option, not exposed.
+- `grayworld`, `midequalizer`, `mix`, `dfpwm`, `aspectralstats`, `aentropy`, `adynamicsmooth`, `apsyclip`, `virtualbass`, `sofalizer` filters/encoders are absent on 4.4 (5.x+ additions); `arnndn` needs an external model file it can't ship. Dropped.
+- `.scc`/`.mps` subtitle *writes* fail "Output file does not contain any stream" on 4.4 — the scc/microdvd encoders are registered but unreachable by name (scc input reads fine). Reads only.
+- `frames -o seq.%03d.EXT` accepts any image extension on 4.4 (ppm/xbm/pfm all encode via image2) — no format gate was needed, and `dash --frag`/`dash --sidx`/`scan` sat+hue means were already shipped; deduped, not re-added.
+- `-itsoffset` clamps negative shifts to 0 on mp4-family output (the elst normalizes it) — use .mkv when a genuinely negative timeline must survive.
