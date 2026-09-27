@@ -5,6 +5,16 @@ use crate::contract::Contract;
 use crate::engine::{self, ffmpeg_base};
 use crate::error::Error;
 use crate::spawn::Argv;
+/// ffmpeg base args + the optional encode-stats sidecar — -vstats_file is
+/// a global option, so it can go on every arm that encodes.
+fn transcode_base(args: &TranscodeArgs, g: &Globals) -> Argv {
+    let mut argv = ffmpeg_base(g.progress);
+    if let Some(vs) = &args.vstats {
+        argv.extend(["-vstats_file".to_string(), vs.display().to_string()]);
+    }
+    argv
+}
+
 pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if args.gop.is_some() && args.copy_video {
         return Err(Error::input(
@@ -577,7 +587,7 @@ fn proxy(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         return Err(Error::input("proxy preset: input has no video"));
     }
     let crf = args.crf.unwrap_or(28);
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -673,7 +683,7 @@ fn interlace_tag(args: &TranscodeArgs) -> String {
 fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     let crf = args.crf.unwrap_or(23);
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -730,7 +740,7 @@ fn h264(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
 fn hevc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     let crf = args.crf.unwrap_or(28);
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -786,7 +796,7 @@ fn hevc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
 fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     let crf = args.crf.unwrap_or(32);
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -842,7 +852,7 @@ fn webm(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
 fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let probe = engine::probe_or_err(&args.input, g)?;
     let crf = args.crf.unwrap_or(35).to_string();
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -907,7 +917,7 @@ fn jpeg2000(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("jpeg2000 preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         argv.extend([
             "-timelimit".to_string(),
@@ -958,7 +968,7 @@ fn gif(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let fps = args.fps.unwrap_or(10).clamp(1, 30);
     let width = args.width.unwrap_or(480).clamp(16, 1920);
     let scale = format!("fps={fps},scale={width}:-2:flags=lanczos");
-    let mut gen = ffmpeg_base(g.progress);
+    let mut gen = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         gen.extend([
@@ -975,7 +985,7 @@ fn gif(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     ]);
     gen.push(&palette_path);
 
-    let mut use_p = ffmpeg_base(g.progress);
+    let mut use_p = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         use_p.extend([
@@ -1029,7 +1039,7 @@ fn audio_only(
             "audio preset (mp3/aac/wav/flac/opus/ogg/alac/ac3/eac3/tta/dca/aiff/pcm24/pcm32f/mulaw/adx/adpcm/alaw/speex/pcm8/adpcmms/g722/ra144/nelly/wv/mp2/caf/w64/voc/aptx/aptxhd/sbc/g723/truehd/mlp): input has no audio",
         ));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -1190,7 +1200,7 @@ fn prores(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "prores preset wants a .mov output (ProRes + PCM in MOV)",
         ));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -1269,7 +1279,7 @@ fn dnxhd(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "dnxhd preset wants a .mov output (DNxHR + PCM in MOV)",
         ));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -1342,7 +1352,7 @@ fn hap(args: &TranscodeArgs, g: &Globals, format: &str) -> Result<Contract, Erro
     if !probe.has_video {
         return Err(Error::input(format!("{format} preset: input has no video")));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -1429,7 +1439,7 @@ fn raw_telecom(
         .min_by_key(|(lw, lh)| ((lw * lh) as u64).abs_diff(area))
         .copied()
         .unwrap();
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -1501,7 +1511,7 @@ fn framemd5(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "framemd5 preset: input has no media streams to checksum",
         ));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -1562,7 +1572,7 @@ fn framecrc(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "framecrc preset: input has no media streams to checksum",
         ));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         argv.extend([
             "-timelimit".to_string(),
@@ -1616,7 +1626,7 @@ fn ffmeta(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "transcode --preset ffmeta writes a metadata sidecar — codec/rate flags don't apply",
         ));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         argv.extend([
             "-timelimit".to_string(),
@@ -1680,7 +1690,7 @@ fn hash_receipt(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
             "hash preset: input has no media streams to checksum",
         ));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -1734,7 +1744,7 @@ fn y4m(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("y4m preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -1791,7 +1801,7 @@ fn avui(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("avui preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -1856,7 +1866,7 @@ fn mxf(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("mxf preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -1939,7 +1949,7 @@ fn gxf(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     } else {
         (720, 480, "30000/1001")
     };
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2025,7 +2035,7 @@ fn ffv1_container(
             "transcode --preset {preset}: input has no video"
         )));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2076,7 +2086,7 @@ fn mpeg2(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("mpeg2 preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2127,7 +2137,7 @@ fn mpeg1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("mpeg1 preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2178,7 +2188,7 @@ fn xvid(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("xvid preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2234,7 +2244,7 @@ fn flv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("flv preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2285,7 +2295,7 @@ fn theora(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("theora preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2343,7 +2353,7 @@ fn gpp(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         .min_by_key(|(lw, lh)| ((lw * lh) as u64).abs_diff(area))
         .copied()
         .unwrap();
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2419,7 +2429,7 @@ fn dv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("dv preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2469,7 +2479,7 @@ fn mjpeg(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("mjpeg preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2550,7 +2560,7 @@ fn amv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("amv preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2600,7 +2610,7 @@ fn msmpeg4(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("msmpeg4 preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2655,7 +2665,7 @@ fn mpeg4(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("mpeg4 preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2709,7 +2719,7 @@ fn wmv(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("wmv preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2760,7 +2770,7 @@ fn apng(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("apng preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2889,7 +2899,7 @@ fn qtrle(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("qtrle preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -2958,7 +2968,7 @@ fn v210(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if !probe.has_video {
         return Err(Error::input("v210 preset: input has no video"));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -3028,7 +3038,7 @@ fn lossless(
     if !probe.has_video {
         return Err(Error::input(format!("{codec} preset: input has no video")));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -3121,7 +3131,7 @@ fn qt_era(
     if !probe.has_video {
         return Err(Error::input(format!("{codec} preset: input has no video")));
     }
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([
@@ -3239,7 +3249,7 @@ fn roq(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     };
     let w = pow2(probe.width.unwrap_or(256));
     let h = pow2(probe.height.unwrap_or(256));
-    let mut argv = ffmpeg_base(g.progress);
+    let mut argv = transcode_base(args, g);
     if let Some(t) = args.timelimit {
         // wall-clock encode cap — batch safety valve for runaway jobs
         argv.extend([

@@ -41,9 +41,11 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             || args.increment_tc
             || args.clock
             || args.non_keyframes
+            || args.manifest_window.is_some()
+            || args.ref_stream.is_some()
         {
             return Err(Error::input(
-                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest/--start/--wrap/--slack/--at-frames/--manifest-prefix/--increment-tc/--clock/--non-keyframes)",
+                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest/--manifest-window/--start/--wrap/--slack/--at-frames/--manifest-prefix/--increment-tc/--clock/--non-keyframes/--ref-stream)",
             ));
         }
         engine::need_video(&probe, "split --black")?;
@@ -390,8 +392,14 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             // entries reference the published base path, not local files
             argv.extend(["-segment_list_entry_prefix".to_string(), p.clone()]);
         }
-    } else if args.manifest_prefix.is_some() {
-        return Err(Error::input("split --manifest-prefix needs --manifest"));
+        if let Some(w) = args.manifest_window {
+            // rolling index — only the newest N entries stay listed
+            argv.extend(["-segment_list_size".to_string(), w.to_string()]);
+        }
+    } else if args.manifest_prefix.is_some() || args.manifest_window.is_some() {
+        return Err(Error::input(
+            "split --manifest-prefix/--manifest-window need --manifest",
+        ));
     }
     if let Some(w) = args.wrap {
         if w == 0 {
@@ -406,6 +414,17 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         }
         // boundaries may land up to SEC early inside the window
         argv.extend(["-segment_time_delta".to_string(), s.to_string()]);
+    }
+    if let Some(rs) = &args.ref_stream {
+        // stream specifier driving cut decisions: v/a/s/d or stream index
+        let ok =
+            matches!(rs.as_str(), "v" | "a" | "s" | "d") || rs.chars().all(|c| c.is_ascii_digit());
+        if !ok {
+            return Err(Error::input(format!(
+                "split --ref-stream wants v/a/s/d or a stream index — got '{rs}'"
+            )));
+        }
+        argv.extend(["-reference_stream".to_string(), rs.clone()]);
     }
     if args.non_keyframes {
         argv.extend(["-break_non_keyframes".to_string(), "1".to_string()]);

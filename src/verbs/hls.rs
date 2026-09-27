@@ -217,6 +217,11 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     if args.live_window.is_some() && !args.live {
         return Err(Error::input("--live-window needs --live"));
     }
+    if args.keep.is_some() && !args.live {
+        return Err(Error::input(
+            "--keep is the archive tail behind the rolling playlist — needs --live",
+        ));
+    }
     if args.epoch && args.start.is_some() {
         return Err(Error::input(
             "--epoch derives the start index itself — drop --start",
@@ -644,6 +649,11 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(w) = args.wrap {
         argv.extend(["-hls_wrap".to_string(), w.to_string()]);
+    }
+    if let Some(k) = args.keep {
+        // archive tail behind the rolling manifest — players can still
+        // reach scrolled-off segments by URL for a while
+        argv.extend(["-hls_delete_threshold".to_string(), k.to_string()]);
     }
     if args.time_names {
         argv.extend(["-strftime".to_string(), "1".to_string()]);

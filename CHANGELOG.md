@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.391.0] — 2026-09-27
+
+### Added
+
+- `remux --sidx` — global `sidx` segment-index box inside a `--frag` pack (`+global_sidx`; CMAF players / DASH packagers byte-range seek off it; mp4/mov only)
+- `remux --shift SEC` — `-itsoffset` applied to every read of the input (input-side clock shift, incl. the `--audio-delay`/`--video-delay` re-reads; unlike `--offset` it moves the demux timeline so `--from`/`--to` keep measuring against the original; negative values clamp to 0 on mp4 via elst)
+- `transcode --vstats FILE` — `-vstats_file` per-frame encode stats sidecar (frame/q/f_size/running-bitrate rows: which scene ate the bitrate budget; empty on pure stream-copy paths)
+- `split --manifest-window N` — `-segment_list_size N` keeps only the newest N entries in a `--manifest` index (rolling parts index; part files stay on disk; needs `--manifest`)
+- `split --ref-stream V|A|N` — `-reference_stream` picks which stream drives cut boundaries (`a` cuts on audio-frame edges instead of snapping to video keyframes)
+- `hls --keep N` — `-hls_delete_threshold N` keeps N scrolled-off segments on disk behind the rolling `--live` playlist (an archive tail still reachable by URL; needs `--live`)
+- `deliver --platform` +8 recruiting/async video-interview targets: `hirevue`, `sparkhire`, `vidcruiter`, `myinterview`, `willo`, `recruitee`, `breezyhr`, `workable` — all 16:9 1920x1080 → 695 targets
+
 ## [0.390.0] — 2026-09-27
 
 ### Added

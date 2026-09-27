@@ -261,6 +261,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(n) = args.skip_init {
             argv.extend(["-skip_initial_bytes".to_string(), n.to_string()]);
         }
+        if let Some(s) = args.shift {
+            // input-side clock shift — every read of args.input (incl. the
+            // --audio-delay/--video-delay re-read) gets the same -itsoffset
+            argv.extend(["-itsoffset".to_string(), s.to_string()]);
+        }
     };
     salvage_input(&mut argv);
     argv.push("-i");
@@ -706,6 +711,11 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if args.min_frag.is_some() && !args.frag {
         return Err(Error::input(
             "remux --min-frag floors fragment spacing — needs --frag (mp4/mov only)",
+        ));
+    }
+    if args.sidx && !args.frag {
+        return Err(Error::input(
+            "remux --sidx writes a global segment index — needs --frag (mp4/mov only)",
         ));
     }
     if args.tmcd {
@@ -1761,6 +1771,10 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         let mut mf = "frag_keyframe+empty_moov+default_base_moof".to_string();
         if args.frag_frame {
             mf.push_str("+frag_every_frame");
+        }
+        if args.sidx {
+            // global segment index box — CMAF byte-range seeking
+            mf.push_str("+global_sidx");
         }
         argv.extend(["-movflags", mf.as_str()]);
         if args.prft {

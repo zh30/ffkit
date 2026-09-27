@@ -48679,3 +48679,234 @@ fn r363_frag_shortest_aptxhd_nonkeyframes_data_longname_engines_order_platforms(
         assert_eq!(j["probe"]["width"].as_u64().unwrap(), 1920, "{p}: {j}");
     }
 }
+
+#[test]
+fn r364_sidx_shift_vstats_manifest_refstream_keep_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // remux --frag --sidx: a global sidx segment-index box lands
+    let base = dir.path().join("b.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        base.to_str().unwrap(),
+        "--frag",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let n_base = std::fs::read(&base)
+        .unwrap()
+        .windows(4)
+        .filter(|w| *w == b"sidx")
+        .count();
+    let o = dir.path().join("sx.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--frag",
+        "--sidx",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let n_sidx = std::fs::read(&o)
+        .unwrap()
+        .windows(4)
+        .filter(|w| *w == b"sidx")
+        .count();
+    assert!(
+        n_sidx > n_base,
+        "--sidx added no sidx box: {n_base} -> {n_sidx}"
+    );
+    // gate: --sidx without --frag is a usage error
+    let out = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("g.mp4").to_str().unwrap(),
+            "--sidx",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // remux --shift: -itsoffset moves the input clock — start_time jumps
+    let o = dir.path().join("shift.mp4");
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--shift",
+        "2",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let st = j["probe"]["streams"][0]["start_time"]
+        .as_f64()
+        .unwrap_or(0.0);
+    assert!(st > 1.0, "--shift start_time {st}");
+
+    // transcode --vstats: per-frame encode stats rows land in the sidecar
+    let vs = dir.path().join("stats.txt");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("v.mp4").to_str().unwrap(),
+        "--vstats",
+        vs.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let rows = std::fs::read_to_string(&vs).unwrap();
+    assert!(rows.lines().count() > 10, "vstats rows: {}", rows.len());
+
+    // split --manifest --manifest-window: index keeps only the newest N
+    let man = dir.path().join("parts.csv");
+    let sd = dir.path().join("seg_%02d.mp4");
+    let j = run_json(&[
+        "split",
+        f.to_str().unwrap(),
+        "--every",
+        "0.5",
+        "--manifest",
+        man.to_str().unwrap(),
+        "--manifest-window",
+        "1",
+        "-o",
+        sd.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let lines = std::fs::read_to_string(&man)
+        .unwrap()
+        .lines()
+        .map(|l| l.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(lines.len(), 1, "manifest window rows {lines:?}");
+    // files stay on disk — only the index scrolls
+    let segs = std::fs::read_dir(dir.path())
+        .unwrap()
+        .filter(|e| {
+            e.as_ref()
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with("seg_")
+        })
+        .count();
+    assert!(segs > 1, "window trimmed files: {segs}");
+
+    // split --ref-stream a: cuts follow audio frame edges, still slices
+    let sd = dir.path().join("rs_%02d.mp4");
+    let j = run_json(&[
+        "split",
+        f.to_str().unwrap(),
+        "--every",
+        "0.5",
+        "--ref-stream",
+        "a",
+        "-o",
+        sd.to_str().unwrap(),
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+
+    // hls --live --keep: an archive tail stays behind the rolling manifest
+    // (needs several segments — a longer fixture than the 1s default)
+    let long_src = dir.path().join("long.mp4");
+    let st = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=3:size=320x240:rate=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=3",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&long_src)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let hd = dir.path().join("keep_hls");
+    std::fs::create_dir(&hd).unwrap();
+    let m = hd.join("master.m3u8");
+    let j = run_json(&[
+        "hls",
+        long_src.to_str().unwrap(),
+        "-o",
+        m.to_str().unwrap(),
+        "--seg",
+        "0.5",
+        "--live",
+        "--live-window",
+        "1",
+        "--keep",
+        "5",
+        "--independent",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let segs = std::fs::read_dir(&hd)
+        .unwrap()
+        .filter(|e| {
+            e.as_ref()
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .ends_with(".ts")
+        })
+        .count();
+    assert!(segs > 1, "--keep archive tail not kept: {segs}");
+    // gate: --keep without --live is a usage error
+    let out = ffkit()
+        .args([
+            "hls",
+            f.to_str().unwrap(),
+            "-o",
+            hd.join("x.m3u8").to_str().unwrap(),
+            "--keep",
+            "5",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // +8 recruiting/interview platforms: 16:9 canvas
+    for p in [
+        "hirevue",
+        "sparkhire",
+        "vidcruiter",
+        "myinterview",
+        "willo",
+        "recruitee",
+        "breezyhr",
+        "workable",
+    ] {
+        let o = dir.path().join(format!("{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}: {j}");
+        assert_eq!(j["probe"]["width"].as_u64().unwrap(), 1920, "{p}: {j}");
+    }
+}
