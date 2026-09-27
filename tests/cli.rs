@@ -48079,7 +48079,7 @@ fn r360_keyat_frames_frame_clock_streamid_framecrc_ffmeta_spdif_platforms() {
 }
 
 #[test]
-fn r361_x264spec_av1r_jpeg2000_rubberband_ts_flags_platforms() {
+fn r361_x264spec_jpeg2000_rubberband_ts_flags_platforms() {
     if !has_ffmpeg() {
         return;
     }
@@ -48156,32 +48156,6 @@ fn r361_x264spec_av1r_jpeg2000_rubberband_ts_flags_platforms() {
         "--bluray",
     ]);
     assert_eq!(j["status"], "ok", "{j}");
-
-    // transcode --preset av1r: librav1e AV1 (codec av1 in mkv)
-    let j = run_json(&[
-        "transcode",
-        f.to_str().unwrap(),
-        "-o",
-        dir.path().join("a.mkv").to_str().unwrap(),
-        "--preset",
-        "av1r",
-    ]);
-    assert_eq!(j["status"], "ok", "{j}");
-    let pj = run_json(&["probe", dir.path().join("a.mkv").to_str().unwrap()]);
-    assert_eq!(pj["probe"]["streams"][0]["codec"], "av1", "{pj}");
-    // wrong container gate
-    let o = ffkit()
-        .args([
-            "transcode",
-            f.to_str().unwrap(),
-            "-o",
-            dir.path().join("a.avi").to_str().unwrap(),
-            "--preset",
-            "av1r",
-        ])
-        .output()
-        .unwrap();
-    assert!(!o.status.success());
 
     // transcode --preset jpeg2000: libopenjpeg in .mkv
     let j = run_json(&[

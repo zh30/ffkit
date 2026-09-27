@@ -1723,10 +1723,6 @@ pub enum TranscodePreset {
     /// receivers decode; audio only)
     #[value(name = "spdif")]
     Spdif,
-    /// librav1e AV1 + Opus/AAC in .mp4/.mkv/.webm — the faster AV1 encoder
-    /// (--crf maps to rav1e's 0-255 quantizer, ~80 is balanced)
-    #[value(name = "av1r")]
-    Av1r,
     /// JPEG 2000 + AAC/PCM in .mkv/.mp4/.mxf (libopenjpeg — digital-cinema
     /// and archive interchange; .mxf forces 48kHz PCM audio)
     #[value(name = "jpeg2000")]

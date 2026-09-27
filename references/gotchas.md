@@ -1044,5 +1044,5 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - `eia_608`/`cc_dec` is decoder-only on 4.4 — there is no CC encoder to synthesize a captioned fixture with, so closed-caption *insertion* can't be tested (detection already ships as `probe.streams[].closed_captions`).
 - `siti` / `dialoguenhance` / `headphone` filters are absent on 4.4 (headphone also needs an external HRTF stream pair — even where it exists it can't run on a plain stereo file).
 - `hls --single` / `dash --single` / `dash --webm` / gpp `.3g2` / `vdenoise --engine removegrain` / `legalize --flash` / `eq` (superequalizer) were already shipped in earlier rounds — candidates that re-surface in the gap sweep are deduped, not re-added.
-- `librav1e` quantizer runs 0-255 (`-qp`), not the 0-63 `--crf` scale ffkit shows elsewhere — `av1r` multiplies `--crf` ×4 so the knob keeps the same direction (bigger = smaller file).
+- `librav1e` is not in Ubuntu 22.04's ffmpeg 4.4 build (apt) — the rav1e-backed `av1r` preset verified on Homebrew 4.4.8 but failed on stock ffmpeg, so it was dropped. The `av1` preset (libaom) already covers AV1 delivery; note rav1e's `-qp` runs 0-255, not the 0-63 `--crf` scale.
 - JPEG 2000 into `.mxf` requires 48kHz audio — mxf muxer errors "only 48khz is implemented" on anything else; `transcode --preset jpeg2000` forces pcm_s16le/48000 there.

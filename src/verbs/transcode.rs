@@ -536,7 +536,6 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Framemd5 => framemd5(&args, g),
         TranscodePreset::Framecrc => framecrc(&args, g),
         TranscodePreset::Ffmeta => ffmeta(&args, g),
-        TranscodePreset::Av1r => av1r(&args, g),
         TranscodePreset::Jpeg2000 => jpeg2000(&args, g),
         TranscodePreset::Hash => hash_receipt(&args, g),
         TranscodePreset::Y4m => y4m(&args, g),
@@ -847,71 +846,6 @@ fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     gop_push(&mut argv, args);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
-}
-
-/// librav1e AV1 — the faster AV1 encoder path (libaom crawls on 4.x).
-/// --crf maps onto rav1e's 0-255 quantizer; ~80 is a balanced default.
-fn av1r(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
-    let ext = args
-        .output
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_lowercase();
-    if !matches!(ext.as_str(), "mp4" | "mkv" | "webm") {
-        return Err(Error::input(format!(
-            "transcode --preset av1r needs a .mp4/.mkv/.webm target, not .{ext}"
-        )));
-    }
-    let probe = engine::probe_or_err(&args.input, g)?;
-    if !probe.has_video {
-        return Err(Error::input("av1r preset: input has no video"));
-    }
-    let qp = (args.crf.unwrap_or(20) as u32 * 4).min(255);
-    let mut argv = ffmpeg_base(g.progress);
-    if let Some(t) = args.timelimit {
-        argv.extend([
-            "-timelimit".to_string(),
-            format!("{:.0}", t.max(0.0).ceil()),
-        ]);
-    }
-    argv.push("-i");
-    argv.push(&args.input);
-    argv.extend([
-        "-map",
-        "0:v?",
-        "-map",
-        "0:a?",
-        "-c:v",
-        "librav1e",
-        "-qp",
-        &qp.to_string(),
-        "-speed",
-        "6",
-        "-pix_fmt",
-        "yuv420p",
-    ]);
-    let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
-    if let Some(fps) = args.fps {
-        vf.push_str(&format!(",fps={fps}"));
-    }
-    vf.push_str(range_tag(args));
-    vf.push_str(&interlace_tag(args));
-    vf.push_str(field_tag(args));
-    argv.extend(["-vf", &vf]);
-    if args.copy_audio {
-        argv.extend(["-c:a", "copy"]);
-    } else if ext == "webm" {
-        argv.extend(["-c:a", "libopus", "-b:a", abitrate(args, "128k")]);
-    } else {
-        argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "192k")]);
-    }
-    cap_bitrate(&mut argv, &args.vbitrate);
-    ar_ac(&mut argv, args);
-    gop_push(&mut argv, args);
-    argv.push(&args.output);
-    let c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
-    Ok(c.with_extra(json!({ "preset": "av1r", "timelimit": args.timelimit })))
 }
 
 /// JPEG 2000 via libopenjpeg — digital-cinema / archive interchange.

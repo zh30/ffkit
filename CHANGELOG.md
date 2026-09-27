@@ -9,7 +9,6 @@
 - `transcode --refs N` — reference-frame cap on the x264 encode (`-refs` — low-power/old-hardware decoders cap reference frames; h264/proxy presets only, `probe.streams[].refs` reads it back)
 - `transcode --nal-hrd cbr|vbr|none` — write VBV/HRD buffering signaling (`-nal-hrd` — broadcast ingest validators check it; .mp4 coerces cbr to vbr, pair with `--vbitrate` for real CBR)
 - `transcode --bluray` — Blu-ray player compatibility workarounds on the x264 encode (`-bluray-compat` — BD disc/master ingest specs; h264/proxy only)
-- `transcode --preset av1r` — librav1e AV1 + Opus/AAC in .mp4/.mkv/.webm (the faster AV1 encoder — `--crf` scales onto rav1e's 0-255 quantizer)
 - `transcode --preset jpeg2000` — JPEG 2000 + AAC/PCM in .mkv/.mp4/.mxf (libopenjpeg — digital-cinema and archive interchange; .mxf forces 48kHz PCM audio)
 - `tempo --engine rubberband` — phase-vocoder retime (music/podcast masters — smoother than atempo at big factors; whole-file only, refuses `--at`)
 - `remux --system-b` — conform the TS to System B (DVB) instead of System A (ATSC) (`-mpegts_flags +system_b` — .ts/.m2ts targets only)
