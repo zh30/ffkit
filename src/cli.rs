@@ -1296,6 +1296,19 @@ pub struct TranscodeArgs {
     /// pipelines; h264/proxy presets only
     #[arg(long)]
     pub tune: Option<TranscodeTune>,
+    /// Reference frame cap on the x264 encode (-refs N — low-power/old
+    /// hardware decoders cap reference frames; h264/proxy presets only)
+    #[arg(long)]
+    pub refs: Option<u32>,
+    /// Signal VBV/HRD buffering in the bitstream (-nal-hrd — broadcast
+    /// ingest validators check it; h264/proxy presets only. On .mp4 the
+    /// encoder coerces cbr to vbr — pair with --vbitrate for real CBR)
+    #[arg(long, value_enum)]
+    pub nal_hrd: Option<NalHrd>,
+    /// Blu-ray player compatibility workarounds on the x264 encode
+    /// (-bluray-compat — BD disc/master ingest specs; h264/proxy only)
+    #[arg(long)]
+    pub bluray: bool,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -1316,6 +1329,17 @@ pub enum TranscodeTune {
     Psnr,
     /// Ssim — objective-metric tune (analysis encodes)
     Ssim,
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+pub enum NalHrd {
+    /// Signal VBV/HRD buffering for CBR playout (broadcast/satellite
+    /// ingest validators check it; needs a --vbitrate cap to mean CBR)
+    Cbr,
+    /// Signal HRD parameters on a VBR stream
+    Vbr,
+    /// Strip HRD signaling (playback-only files don't need it)
+    None,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -1699,6 +1723,14 @@ pub enum TranscodePreset {
     /// receivers decode; audio only)
     #[value(name = "spdif")]
     Spdif,
+    /// librav1e AV1 + Opus/AAC in .mp4/.mkv/.webm — the faster AV1 encoder
+    /// (--crf maps to rav1e's 0-255 quantizer, ~80 is balanced)
+    #[value(name = "av1r")]
+    Av1r,
+    /// JPEG 2000 + AAC/PCM in .mkv/.mp4/.mxf (libopenjpeg — digital-cinema
+    /// and archive interchange; .mxf forces 48kHz PCM audio)
+    #[value(name = "jpeg2000")]
+    Jpeg2000,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3187,6 +3219,30 @@ pub enum DeliverPlatform {
     /// Sendible client-approval video 16:9
     #[value(name = "sendible")]
     Sendible,
+    /// Subsplash church-app video upload 16:9
+    #[value(name = "subsplash")]
+    Subsplash,
+    /// Planning Center church-service video upload 16:9
+    #[value(name = "planningcenter")]
+    Planningcenter,
+    /// SermonAudio ministry broadcast upload 16:9
+    #[value(name = "sermonaudio")]
+    Sermonaudio,
+    /// Resi church-livestream platform upload 16:9
+    #[value(name = "resi")]
+    Resi,
+    /// BoxCast church broadcast upload 16:9
+    #[value(name = "boxcast")]
+    Boxcast,
+    /// Wowza streaming-engine ingest upload 16:9
+    #[value(name = "wowza")]
+    Wowza,
+    /// Dacast OTT-platform video upload 16:9
+    #[value(name = "dacast")]
+    Dacast,
+    /// Church Online Platform sermon video 16:9
+    #[value(name = "churchonline")]
+    Churchonline,
 }
 
 #[derive(clap::Args, Debug)]
@@ -5956,6 +6012,18 @@ pub struct TempoArgs {
     /// Window length in seconds (default: to the end)
     #[arg(long)]
     pub dur: Option<f64>,
+    /// Stretch engine: atempo (fast, default) | rubberband (phase-vocoder
+    /// quality — audible polish on music/voice at big ratios)
+    #[arg(long, value_enum)]
+    pub engine: Option<TempoEngine>,
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+pub enum TempoEngine {
+    /// ffmpeg atempo — fast, chunkier artifacts past ~1.5x
+    Atempo,
+    /// librubberband — phase-vocoder quality stretch (slower)
+    Rubberband,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6455,6 +6523,19 @@ pub struct RemuxArgs {
     /// .ts/.m2ts targets only)
     #[arg(long = "initial-discontinuity")]
     pub initial_discontinuity: bool,
+    /// Conform the TS to System B (DVB) instead of System A (ATSC) —
+    /// -mpegts_flags +system_b; .ts/.m2ts targets only
+    #[arg(long = "system-b")]
+    pub system_b: bool,
+    /// Minimum PES packet payload bytes (-pes_payload_size, default 2930
+    /// — legacy decoder ingest grouping; .ts/.m2ts targets only)
+    #[arg(long = "pes-payload")]
+    pub pes_payload: Option<u32>,
+    /// Interleave buffer cap in packets (-max_muxing_queue_size — raise
+    /// it when copy-muxing throws 'Too many packets buffered' on densely
+    /// interleaved sources; generic output option, any container)
+    #[arg(long = "mux-queue")]
+    pub mux_queue: Option<u32>,
     /// TS-native timestamp mode (-mpegts_copyts — keep the transport
     /// stream's own pts/dts instead of re-basing them; needs --copy-ts;
     /// .ts/.m2ts targets only)

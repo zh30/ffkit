@@ -48077,3 +48077,232 @@ fn r360_keyat_frames_frame_clock_streamid_framecrc_ffmeta_spdif_platforms() {
         assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
     }
 }
+
+#[test]
+fn r361_x264spec_av1r_jpeg2000_rubberband_ts_flags_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // transcode --refs: cap reference frames (probe reads refs back)
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("r.mp4").to_str().unwrap(),
+        "--refs",
+        "1",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", dir.path().join("r.mp4").to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][0]["refs"], 1, "{pj}");
+
+    // gates: x264-spec flags need h264/proxy + a re-encode
+    for args in [
+        vec![
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("g1.mp4").to_str().unwrap(),
+            "--refs",
+            "2",
+            "--copy-video",
+        ],
+        vec![
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("g2.mp4").to_str().unwrap(),
+            "--refs",
+            "2",
+            "--preset",
+            "vp9",
+        ],
+        vec![
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("g3.mp4").to_str().unwrap(),
+            "--nal-hrd",
+            "cbr",
+            "--preset",
+            "prores",
+        ],
+        vec![
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("g4.mp4").to_str().unwrap(),
+            "--bluray",
+            "--preset",
+            "hevc",
+        ],
+    ] {
+        let o = ffkit().args(&args).output().unwrap();
+        assert!(!o.status.success(), "{args:?}");
+    }
+
+    // --nal-hrd vbr + --bluray on h264: encode runs clean (annexb SEI
+    // verified at bench time; here we just assert the file lands)
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("bd.mp4").to_str().unwrap(),
+        "--nal-hrd",
+        "vbr",
+        "--bluray",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+
+    // transcode --preset av1r: librav1e AV1 (codec av1 in mkv)
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("a.mkv").to_str().unwrap(),
+        "--preset",
+        "av1r",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", dir.path().join("a.mkv").to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][0]["codec"], "av1", "{pj}");
+    // wrong container gate
+    let o = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("a.avi").to_str().unwrap(),
+            "--preset",
+            "av1r",
+        ])
+        .output()
+        .unwrap();
+    assert!(!o.status.success());
+
+    // transcode --preset jpeg2000: libopenjpeg in .mkv
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("j.mkv").to_str().unwrap(),
+        "--preset",
+        "jpeg2000",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", dir.path().join("j.mkv").to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][0]["codec"], "jpeg2000", "{pj}");
+
+    // tempo --engine rubberband: whole-file retime, audio ~1.34s on 1s@1.5x
+    // (needs a >1s source — synth a 2s tone inline)
+    let tone = dir.path().join("tone.m4a");
+    let o = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=2",
+            "-c:a",
+            "aac",
+        ])
+        .arg(&tone)
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    let j = run_json(&[
+        "tempo",
+        tone.to_str().unwrap(),
+        "-o",
+        dir.path().join("rb.m4a").to_str().unwrap(),
+        "--factor",
+        "1.5",
+        "--engine",
+        "rubberband",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let pj = run_json(&["probe", dir.path().join("rb.m4a").to_str().unwrap()]);
+    let ad = pj["probe"]["streams"][0]["duration"].as_f64().unwrap();
+    assert!((ad - 1.34).abs() < 0.25, "rubberband audio dur {ad}");
+    // rubberband refuses windowed --at
+    let o = ffkit()
+        .args([
+            "tempo",
+            tone.to_str().unwrap(),
+            "-o",
+            dir.path().join("rb2.m4a").to_str().unwrap(),
+            "--factor",
+            "1.5",
+            "--engine",
+            "rubberband",
+            "--at",
+            "0.5",
+        ])
+        .output()
+        .unwrap();
+    assert!(!o.status.success());
+
+    // remux --system-b/--pes-payload: TS muxer flags land on .ts
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("sb.ts").to_str().unwrap(),
+        "--system-b",
+        "--pes-payload",
+        "4096",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    // non-.ts gate
+    let o = ffkit()
+        .args([
+            "remux",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("sb.mp4").to_str().unwrap(),
+            "--system-b",
+        ])
+        .output()
+        .unwrap();
+    assert!(!o.status.success());
+    // remux --mux-queue: generic output opt passes through
+    let j = run_json(&[
+        "remux",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("mq.mp4").to_str().unwrap(),
+        "--mux-queue",
+        "2048",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+
+    // +8 platforms: faith/ministry streaming, 16:9 1920x1080
+    for p in [
+        "subsplash",
+        "planningcenter",
+        "sermonaudio",
+        "resi",
+        "boxcast",
+        "wowza",
+        "dacast",
+        "churchonline",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
+    }
+}
