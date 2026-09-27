@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.388.0] — 2026-09-26
+
+### Added
+
+- `transcode --refs N` — reference-frame cap on the x264 encode (`-refs` — low-power/old-hardware decoders cap reference frames; h264/proxy presets only, `probe.streams[].refs` reads it back)
+- `transcode --nal-hrd cbr|vbr|none` — write VBV/HRD buffering signaling (`-nal-hrd` — broadcast ingest validators check it; .mp4 coerces cbr to vbr, pair with `--vbitrate` for real CBR)
+- `transcode --bluray` — Blu-ray player compatibility workarounds on the x264 encode (`-bluray-compat` — BD disc/master ingest specs; h264/proxy only)
+- `transcode --preset jpeg2000` — JPEG 2000 + AAC/PCM in .mkv/.mp4/.mxf (libopenjpeg — digital-cinema and archive interchange; .mxf forces 48kHz PCM audio)
+- `tempo --engine rubberband` — phase-vocoder retime (music/podcast masters — smoother than atempo at big factors; whole-file only, refuses `--at`)
+- `remux --system-b` — conform the TS to System B (DVB) instead of System A (ATSC) (`-mpegts_flags +system_b` — .ts/.m2ts targets only)
+- `remux --pes-payload N` — minimum PES packet payload bytes (`-pes_payload_size`, default 2930 — legacy decoder ingest grouping; .ts/.m2ts only)
+- `remux --mux-queue N` — interleave buffer cap in packets (`-max_muxing_queue_size` — raise it when copy-muxing throws 'Too many packets buffered' on densely interleaved sources; any container)
+- `deliver --platform` +8 faith/ministry & OTT streaming targets: subsplash / planningcenter / sermonaudio / resi / boxcast / wowza / dacast / churchonline videos 16:9 1920x1080 (671 platform targets)
+
 ## [0.387.0] — 2026-09-26
 
 ### Added

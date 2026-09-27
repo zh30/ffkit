@@ -83,16 +83,21 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         _ => TranscodePreset::H264,
     });
 
-    let x264spec =
-        args.profile.is_some() || args.level.is_some() || args.bf.is_some() || args.tune.is_some();
+    let x264spec = args.profile.is_some()
+        || args.level.is_some()
+        || args.bf.is_some()
+        || args.tune.is_some()
+        || args.refs.is_some()
+        || args.nal_hrd.is_some()
+        || args.bluray;
     if x264spec && args.copy_video {
         return Err(Error::input(
-            "transcode --profile/--level/--bf/--tune need a re-encode — drop --copy-video",
+            "transcode --profile/--level/--bf/--tune/--refs/--nal-hrd/--bluray need a re-encode — drop --copy-video",
         ));
     }
     if x264spec && !matches!(preset, TranscodePreset::H264 | TranscodePreset::Proxy) {
         return Err(Error::input(
-            "transcode --profile/--level/--bf/--tune are x264 encode flags — h264/proxy presets only",
+            "transcode --profile/--level/--bf/--tune/--refs/--nal-hrd/--bluray are x264 encode flags — h264/proxy presets only",
         ));
     }
     if let Some(k) = &args.keyat {
@@ -531,6 +536,7 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         TranscodePreset::Framemd5 => framemd5(&args, g),
         TranscodePreset::Framecrc => framecrc(&args, g),
         TranscodePreset::Ffmeta => ffmeta(&args, g),
+        TranscodePreset::Jpeg2000 => jpeg2000(&args, g),
         TranscodePreset::Hash => hash_receipt(&args, g),
         TranscodePreset::Y4m => y4m(&args, g),
         TranscodePreset::Raw => lossless(&args, g, "rawvideo", &["avi", "mkv"], None),
@@ -840,6 +846,60 @@ fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     gop_push(&mut argv, args);
     argv.push(&args.output);
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
+}
+
+/// JPEG 2000 via libopenjpeg — digital-cinema / archive interchange.
+/// .mxf forces pcm_s16le @48k (the only audio rate mxf implements).
+fn jpeg2000(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
+    let ext = args
+        .output
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if !matches!(ext.as_str(), "mkv" | "mp4" | "mxf") {
+        return Err(Error::input(format!(
+            "transcode --preset jpeg2000 needs a .mkv/.mp4/.mxf target, not .{ext}"
+        )));
+    }
+    let probe = engine::probe_or_err(&args.input, g)?;
+    if !probe.has_video {
+        return Err(Error::input("jpeg2000 preset: input has no video"));
+    }
+    let mut argv = ffmpeg_base(g.progress);
+    if let Some(t) = args.timelimit {
+        argv.extend([
+            "-timelimit".to_string(),
+            format!("{:.0}", t.max(0.0).ceil()),
+        ]);
+    }
+    argv.push("-i");
+    argv.push(&args.input);
+    argv.extend(["-map", "0:v?", "-map", "0:a?", "-c:v", "libopenjpeg"]);
+    if let Some(c) = args.crf {
+        // libopenjpeg -q:v is the quality knob (lower = better)
+        argv.extend(["-q:v", &c.min(63).to_string()]);
+    }
+    let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
+    if let Some(fps) = args.fps {
+        vf.push_str(&format!(",fps={fps}"));
+    }
+    vf.push_str(range_tag(args));
+    vf.push_str(&interlace_tag(args));
+    vf.push_str(field_tag(args));
+    argv.extend(["-vf", &vf]);
+    if args.copy_audio {
+        argv.extend(["-c:a", "copy"]);
+    } else if ext == "mxf" {
+        argv.extend(["-c:a", "pcm_s16le", "-ar", "48000"]);
+    } else {
+        argv.extend(["-c:a", "aac", "-b:a", abitrate(args, "192k")]);
+    }
+    cap_bitrate(&mut argv, &args.vbitrate);
+    gop_push(&mut argv, args);
+    argv.push(&args.output);
+    let c = engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)?;
+    Ok(c.with_extra(json!({ "preset": "jpeg2000", "timelimit": args.timelimit })))
 }
 
 fn gif(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
@@ -2598,6 +2658,22 @@ fn x264spec_push(argv: &mut Argv, args: &TranscodeArgs) {
     }
     if let Some(t) = args.tune {
         argv.extend(["-tune", transcode_tune_name(t)]);
+    }
+    if let Some(n) = args.refs {
+        argv.extend(["-refs", &n.to_string()]);
+    }
+    if let Some(h) = args.nal_hrd {
+        argv.extend([
+            "-nal-hrd",
+            match h {
+                crate::cli::NalHrd::Cbr => "cbr",
+                crate::cli::NalHrd::Vbr => "vbr",
+                crate::cli::NalHrd::None => "none",
+            },
+        ]);
+    }
+    if args.bluray {
+        argv.extend(["-bluray-compat", "1"]);
     }
 }
 

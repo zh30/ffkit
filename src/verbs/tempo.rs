@@ -22,18 +22,29 @@ pub fn run(args: TempoArgs, g: &Globals) -> Result<Contract, Error> {
     if args.dur.is_some() && args.at.is_none() {
         return Err(Error::input("--dur requires --at"));
     }
-    // atempo accepts at most 2x per instance on old ffmpeg — chain segments.
+    let rubberband = matches!(args.engine, Some(crate::cli::TempoEngine::Rubberband));
+    if rubberband && args.at.is_some() {
+        return Err(Error::input(
+            "tempo --engine rubberband retimes the whole file — windowed --at stays on atempo",
+        ));
+    }
     let mut af = String::new();
-    let mut f = args.factor;
-    while f > 2.0 {
-        af.push_str("atempo=2.0,");
-        f /= 2.0;
+    if rubberband {
+        // one rubberband instance handles the whole range — no chaining
+        af.push_str(&format!("rubberband=tempo={:.4}", args.factor));
+    } else {
+        // atempo accepts at most 2x per instance on old ffmpeg — chain segments.
+        let mut f = args.factor;
+        while f > 2.0 {
+            af.push_str("atempo=2.0,");
+            f /= 2.0;
+        }
+        while f < 0.5 {
+            af.push_str("atempo=0.5,");
+            f /= 0.5;
+        }
+        af.push_str(&format!("atempo={f:.4}"));
     }
-    while f < 0.5 {
-        af.push_str("atempo=0.5,");
-        f /= 0.5;
-    }
-    af.push_str(&format!("atempo={f:.4}"));
 
     let mut argv = ffmpeg_base(g.progress);
     argv.push("-i");
@@ -82,5 +93,6 @@ pub fn run(args: TempoArgs, g: &Globals) -> Result<Contract, Error> {
     Ok(c.with_extra(json!({
         "factor": args.factor,
         "duration": probe.duration / args.factor,
+        "engine": if rubberband { "rubberband" } else { "atempo" },
     })))
 }

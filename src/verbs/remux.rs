@@ -484,12 +484,14 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         || args.latm
         || args.pat_pmt_frames
         || args.initial_discontinuity
+        || args.system_b
+        || args.pes_payload.is_some()
         || args.ts_copyts
         || args.m2ts)
         && !matches!(ext.as_str(), "ts" | "m2ts" | "mts")
     {
         return Err(Error::input(
-            "remux transport-stream options (--service-name/--provider/--service-id/--service-type/--tsid/--network-id/--start-pid/--pmt-pid/--streamid/--tables-version/--pat-period/--sdt-period/--pcr-period/--resend-headers/--latm/--pat-pmt-frames/--initial-discontinuity/--ts-copyts/--m2ts) write TS SI tables and PID plans — .ts/.m2ts targets only",
+            "remux transport-stream options (--service-name/--provider/--service-id/--service-type/--tsid/--network-id/--start-pid/--pmt-pid/--streamid/--tables-version/--pat-period/--sdt-period/--pcr-period/--resend-headers/--latm/--pat-pmt-frames/--initial-discontinuity/--system-b/--pes-payload/--ts-copyts/--m2ts) write TS SI tables and PID plans — .ts/.m2ts targets only",
         ));
     }
     if let Some(v) = args.tables_version {
@@ -853,6 +855,8 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             || args.latm
             || args.pat_pmt_frames
             || args.initial_discontinuity
+            || args.system_b
+            || args.pes_payload.is_some()
             || args.ts_copyts
             || args.empty_hdlr_name
             || args.no_editlist
@@ -1980,8 +1984,14 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     if args.initial_discontinuity {
         ts_flags.push("initial_discontinuity");
     }
+    if args.system_b {
+        ts_flags.push("system_b");
+    }
     if !ts_flags.is_empty() {
         argv.extend(["-mpegts_flags".to_string(), ts_flags.join("+")]);
+    }
+    if let Some(v) = args.pes_payload {
+        argv.extend(["-pes_payload_size".to_string(), v.to_string()]);
     }
     if args.m2ts {
         argv.extend(["-mpegts_m2ts_mode".to_string(), "1".to_string()]);
@@ -2044,6 +2054,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if args.bitexact {
         argv.push("-bitexact");
+    }
+    if let Some(n) = args.mux_queue {
+        argv.extend(["-max_muxing_queue_size".to_string(), n.to_string()]);
     }
     if args.no_chapters {
         argv.extend(["-map_chapters", "-1"]);
@@ -2129,6 +2142,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     extra["no_flv_meta"] = json!(args.no_flv_meta);
     extra["pat_pmt_frames"] = json!(args.pat_pmt_frames);
     extra["initial_discontinuity"] = json!(args.initial_discontinuity);
+    extra["system_b"] = json!(args.system_b);
+    extra["pes_payload"] = json!(args.pes_payload);
+    extra["mux_queue"] = json!(args.mux_queue);
     extra["ts_copyts"] = json!(args.ts_copyts);
     extra["empty_hdlr_name"] = json!(args.empty_hdlr_name);
     extra["no_editlist"] = json!(args.no_editlist);
