@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.389.0] — 2026-09-27
+
+### Added
+
+- `transcode --x264-params k=v:k=v` — raw x264 private-option pass-through (`-x264-params` — encoder tuning beyond the named flags; h264/proxy presets only)
+- `transcode --qp N` — constant-quantizer encode (`-qp` — the CQP alternative to `--crf`; the two are mutually exclusive; h264/proxy only)
+- `probe --from SEC`/`--to SEC` — bound the scan window (`-read_intervals` — audit a suspicious stretch without scanning the whole master; applies to streams/`--frames`/`--packets` alike)
+- `probe.streams[]` +3 fields: `bits_per_sample` (coded audio bit depth — pcm_s24→24, 24-bit master ingest QC; 0 on float codecs like aac), `start_pts` (first-packet pts in the stream's own time_base — negative-ts masters at full precision), `stream_tag_count` (per-stream metadata keys present)
+- `hls --omit-endlist` — leave the playlist open without `--live`'s windowing (no EXT-X-ENDLIST — a draft/preview pack a later pass re-opens and appends onto)
+- `denoise --engine nlm` — non-local-means denoiser (anlmdn — slowest engine, gentlest on speech detail)
+- `blur --engine smart` — edge-aware smartblur (smooths skin/backgrounds while outlines keep)
+- `deliver --platform` +8 sales & personalized-video hosting targets: bombbomb / covideo / dubb / sendspark / warmwelcome / hippovideo / vadootv / tolstoy videos 16:9 1920x1080 (679 platform targets)
+
 ## [0.388.0] — 2026-09-26
 
 ### Added

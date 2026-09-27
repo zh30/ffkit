@@ -59,6 +59,7 @@ pub fn run(args: DenoiseArgs, g: &Globals) -> Result<Contract, Error> {
     let has_wavel = doctor::list_filters()
         .map(|f| f.contains("afwtdn"))
         .unwrap_or(false);
+    let use_nlm = matches!(args.engine, crate::cli::DenoiseEngine::Nlm);
     let use_wavel = match args.engine {
         crate::cli::DenoiseEngine::Auto => has_wavel,
         crate::cli::DenoiseEngine::Wavel => {
@@ -69,9 +70,14 @@ pub fn run(args: DenoiseArgs, g: &Globals) -> Result<Contract, Error> {
             }
             true
         }
-        crate::cli::DenoiseEngine::Fftdn => false,
+        crate::cli::DenoiseEngine::Fftdn | crate::cli::DenoiseEngine::Nlm => false,
     };
-    let mut af = if use_wavel {
+    let mut af = if use_nlm {
+        // anlmdn non-local means — patch-wise similarity; keep p/r tiny
+        // (they're seconds, not samples) and scale s with strength
+        let s = 0.0005 + 0.01 * args.strength;
+        format!("anlmdn=s={s:.5}:p=0.002:r=0.002:m=11")
+    } else if use_wavel {
         let sigma = 0.02 + 0.06 * args.strength;
         format!("afwtdn=sigma={sigma:.3}")
     } else {

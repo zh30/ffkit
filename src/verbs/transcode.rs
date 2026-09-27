@@ -89,15 +89,22 @@ pub fn run(args: TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         || args.tune.is_some()
         || args.refs.is_some()
         || args.nal_hrd.is_some()
-        || args.bluray;
+        || args.bluray
+        || args.x264_params.is_some()
+        || args.qp.is_some();
     if x264spec && args.copy_video {
         return Err(Error::input(
-            "transcode --profile/--level/--bf/--tune/--refs/--nal-hrd/--bluray need a re-encode — drop --copy-video",
+            "transcode --profile/--level/--bf/--tune/--refs/--nal-hrd/--bluray/--x264-params/--qp need a re-encode — drop --copy-video",
         ));
     }
     if x264spec && !matches!(preset, TranscodePreset::H264 | TranscodePreset::Proxy) {
         return Err(Error::input(
-            "transcode --profile/--level/--bf/--tune/--refs/--nal-hrd/--bluray are x264 encode flags — h264/proxy presets only",
+            "transcode --profile/--level/--bf/--tune/--refs/--nal-hrd/--bluray/--x264-params/--qp are x264 encode flags — h264/proxy presets only",
+        ));
+    }
+    if args.qp.is_some() && args.crf.is_some() {
+        return Err(Error::input(
+            "transcode --qp and --crf are both rate-control modes — pick one",
         ));
     }
     if let Some(k) = &args.keyat {
@@ -2674,6 +2681,12 @@ fn x264spec_push(argv: &mut Argv, args: &TranscodeArgs) {
     }
     if args.bluray {
         argv.extend(["-bluray-compat", "1"]);
+    }
+    if let Some(x) = &args.x264_params {
+        argv.extend(["-x264-params", x]);
+    }
+    if let Some(q) = args.qp {
+        argv.extend(["-qp", &q.to_string()]);
     }
 }
 

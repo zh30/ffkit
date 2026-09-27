@@ -1046,3 +1046,11 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - `hls --single` / `dash --single` / `dash --webm` / gpp `.3g2` / `vdenoise --engine removegrain` / `legalize --flash` / `eq` (superequalizer) were already shipped in earlier rounds — candidates that re-surface in the gap sweep are deduped, not re-added.
 - `librav1e` is not in Ubuntu 22.04's ffmpeg 4.4 build (apt) — the rav1e-backed `av1r` preset verified on Homebrew 4.4.8 but failed on stock ffmpeg, so it was dropped. The `av1` preset (libaom) already covers AV1 delivery; note rav1e's `-qp` runs 0-255, not the 0-63 `--crf` scale.
 - JPEG 2000 into `.mxf` requires 48kHz audio — mxf muxer errors "only 48khz is implemented" on anything else; `transcode --preset jpeg2000` forces pcm_s16le/48000 there.
+- `-min_buffer_time MS` writes no DVB/TS timing difference on a file output on 4.4 — it only steers the muxer's realtime scheduling, not the muxed bytes. Not exposed.
+- The `gradients` lavfi source duplicates `gen`'s default source — a `--engine gradients` flag would be an alias of the default, not a new mode. Not added.
+- The `+nit` mpegts flag builds the Network Information Table, but it carries no fields beyond `network_id` — which `--network-id`/`--tsid` already stamp on the SDT. Not exposed.
+- `-hls_flags atclocktime` requires `-strftime 1` wall-clock segment names, and the clocking contract already ships as `hls --time-names`; on a plain pack it is a silent no-op. Not added.
+- `-profile:a aac_low`/`aac_he` on the built-in aac encoder does nothing useful on 4.4 — the encoder only implements the LC profile, so the flag validates then produces LC anyway. AAC-LC is the deliverable.
+- x265's private `sei`/`sar`/`overscan` params are unreachable from `transcode` on 4.4 — ffkit gates `-x265-params` to the x264 spec path only; x265 ingest specs route through `--copy-video` or a raw `graph`.
+- `anlmdn`'s `om` (output mode) param does not exist on 4.4 — the filter exposes s/p/r/m only; `denoise --engine nlm` maps `--strength` onto `s` and keeps the tiny p/r patch windows fixed.
+- `hls --enc-key` was considered but `--key`/`--key-uri`/`--enc-iv` already cover the AES-128 key surface; `gen --engine gradients` and `remux --ts-copyts` dedupe to existing flags (gradients is `gen`'s default source; ts-copyts is `--copy-ts` on .ts). Deduped, not added.

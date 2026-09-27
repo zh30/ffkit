@@ -48280,3 +48280,182 @@ fn r361_x264spec_jpeg2000_rubberband_ts_flags_platforms() {
         assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
     }
 }
+
+// RSI round 362: x264-params/qp encoder pass-through, probe --from/--to
+// windowed scans + bits_per_sample/start_pts/stream_tag_count fields,
+// hls --omit-endlist standalone, denoise nlm engine, blur smart engine,
+// and 8 sales-video platforms.
+#[test]
+fn r362_x264_params_qp_probe_window_omit_endlist_engines_platforms() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = fixture(dir.path());
+
+    // transcode --qp: constant-quantizer mode lands (x264 reads it)
+    let o = dir.path().join("qp.mp4");
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        o.to_str().unwrap(),
+        "--qp",
+        "20",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    // --qp and --crf are both rate-control modes — mutually exclusive
+    let out = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("qpcrf.mp4").to_str().unwrap(),
+            "--qp",
+            "20",
+            "--crf",
+            "23",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    // x264-spec flags need h264/proxy — qp on vp9 is rejected upfront
+    let out = ffkit()
+        .args([
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            dir.path().join("qpv.mp4").to_str().unwrap(),
+            "--qp",
+            "20",
+            "--preset",
+            "vp9",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // transcode --x264-params: raw x264 private opts pass through
+    let j = run_json(&[
+        "transcode",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("xp.mp4").to_str().unwrap(),
+        "--x264-params",
+        "scenecut=0:weightp=0",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+
+    // probe --from/--to: windowed read_intervals scan — fewer packets
+    let full = run_json(&["probe", f.to_str().unwrap(), "--packets"]);
+    let win = run_json(&[
+        "probe",
+        f.to_str().unwrap(),
+        "--from",
+        "0.2",
+        "--to",
+        "0.4",
+        "--packets",
+    ]);
+    let nf = full["probe"]["packets"].as_array().unwrap().len();
+    let nw = win["probe"]["packets"].as_array().unwrap().len();
+    assert!(
+        nw < nf,
+        "windowed scan should see fewer packets: {nw} < {nf}"
+    );
+    // gates: --from must precede --to
+    let out = ffkit()
+        .args(["probe", f.to_str().unwrap(), "--from", "0.9", "--to", "0.1"])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // probe streams[]: bits_per_sample + start_pts + stream_tag_count
+    let pj = run_json(&["probe", f.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][0]["start_pts"], 0, "{pj}");
+    assert!(
+        pj["probe"]["streams"][0]["stream_tag_count"]
+            .as_u64()
+            .unwrap()
+            > 0,
+        "{pj}"
+    );
+    // pcm_s24le reports its true bit depth
+    let wav = dir.path().join("a24.wav");
+    let st = std::process::Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.5",
+            "-c:a",
+            "pcm_s24le",
+        ])
+        .arg(&wav)
+        .output()
+        .unwrap();
+    assert!(st.status.success());
+    let pj = run_json(&["probe", wav.to_str().unwrap()]);
+    assert_eq!(pj["probe"]["streams"][0]["bits_per_sample"], 24, "{pj}");
+
+    // hls --omit-endlist: playlist stays "open" without --live
+    let hd = dir.path().join("hls_omit");
+    let j = run_json(&[
+        "hls",
+        f.to_str().unwrap(),
+        "-o",
+        hd.to_str().unwrap(),
+        "--omit-endlist",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+    let playlist = std::fs::read_to_string(hd.join("index.m3u8")).unwrap();
+    assert!(!playlist.contains("EXT-X-ENDLIST"), "{playlist}");
+
+    // denoise --engine nlm: anlmdn non-local means on 4.4
+    let j = run_json(&[
+        "denoise",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("nlm.mp4").to_str().unwrap(),
+        "--engine",
+        "nlm",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+
+    // blur --engine smart: edge-aware smartblur
+    let j = run_json(&[
+        "blur",
+        f.to_str().unwrap(),
+        "-o",
+        dir.path().join("smart.mp4").to_str().unwrap(),
+        "--engine",
+        "smart",
+    ]);
+    assert_eq!(j["status"], "ok", "{j}");
+
+    // +8 platforms: sales/personalized-video hosting, 16:9 1920x1080
+    for p in [
+        "bombbomb",
+        "covideo",
+        "dubb",
+        "sendspark",
+        "warmwelcome",
+        "hippovideo",
+        "vadootv",
+        "tolstoy",
+    ] {
+        let o = dir.path().join(format!("pf_{p}.mp4"));
+        let j = run_json(&[
+            "deliver",
+            f.to_str().unwrap(),
+            "-o",
+            o.to_str().unwrap(),
+            "--platform",
+            p,
+        ]);
+        assert_eq!(j["status"], "ok", "{p}");
+        let pj = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["streams"][0]["width"], 1920, "{p}");
+    }
+}

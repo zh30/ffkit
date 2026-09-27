@@ -64,6 +64,14 @@ pub enum Cmd {
     Probe {
         /// Media file
         input: PathBuf,
+        /// Start probing T seconds in (skips decoding the head of the file —
+        /// spot-check a chapter deep inside a multi-hour master)
+        #[arg(long)]
+        from: Option<f64>,
+        /// Stop probing at T seconds (with --from it bounds the window;
+        /// alone it reads only the head — fast format sniff on huge files)
+        #[arg(long)]
+        to: Option<f64>,
         /// Also dump per-frame detail (key_frame/pict_type/interlace
         /// flags per decoded frame — forensic QC on masters)
         #[arg(long)]
@@ -994,6 +1002,9 @@ pub enum DenoiseEngine {
     Wavel,
     /// afftdn spectral — works on every ffmpeg build
     Fftdn,
+    /// anlmdn non-local means — slowest but gentlest on speech detail
+    /// (mains hum and room-tone beds, dialog clarity; ffmpeg ≥4.4)
+    Nlm,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1309,6 +1320,15 @@ pub struct TranscodeArgs {
     /// (-bluray-compat — BD disc/master ingest specs; h264/proxy only)
     #[arg(long)]
     pub bluray: bool,
+    /// Raw x264 private options (-x264-params "k=v:k=v" — knobs the named
+    /// flags don't reach: scenecut, weightp, min-keyint, rc-lookahead;
+    /// h264/proxy presets only)
+    #[arg(long, value_name = "K=V:K=V")]
+    pub x264_params: Option<String>,
+    /// Constant-quantizer encode instead of rate control (-qp N — fixed
+    /// quality for visual-diff/codec-A/B test material; h264/proxy only)
+    #[arg(long)]
+    pub qp: Option<u32>,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -3239,6 +3259,30 @@ pub enum DeliverPlatform {
     /// Church Online Platform sermon video 16:9
     #[value(name = "churchonline")]
     Churchonline,
+    /// BombBomb video-email sales upload 16:9
+    #[value(name = "bombbomb")]
+    Bombbomb,
+    /// Covideo sales-prospecting video upload 16:9
+    #[value(name = "covideo")]
+    Covideo,
+    /// Dubb sales-video landing upload 16:9
+    #[value(name = "dubb")]
+    Dubb,
+    /// Sendspark personalized sales video upload 16:9
+    #[value(name = "sendspark")]
+    Sendspark,
+    /// Warm Welcome video-bubble upload 16:9
+    #[value(name = "warmwelcome")]
+    Warmwelcome,
+    /// Hippo Video sales-personalization upload 16:9
+    #[value(name = "hippovideo")]
+    Hippovideo,
+    /// Vadootv ad-free hosting upload 16:9
+    #[value(name = "vadootv")]
+    Vadootv,
+    /// Tolstoy interactive-video upload 16:9
+    #[value(name = "tolstoy")]
+    Tolstoy,
 }
 
 #[derive(clap::Args, Debug)]
@@ -7632,6 +7676,11 @@ pub struct HlsArgs {
     /// validators that reject fractional EXTINF)
     #[arg(long)]
     pub round_durations: bool,
+    /// Omit #EXT-X-ENDLIST so the playlist stays "open" — preview/draft
+    /// packs that a later pass re-opens and appends to (raw omit_endlist
+    /// on its own, without --live's delete_segments windowing)
+    #[arg(long)]
+    pub omit_endlist: bool,
     /// Sliding-window live playlist: keeps only the newest --live-window
     /// segments (delete_segments + omit_endlist) — self-hosted live channel
     /// fed while the input is still being written
@@ -9139,6 +9188,10 @@ pub enum BlurEngine {
     /// avgblur — area-average box blur (lightest kernel; pixel-art-safe
     /// when strength stays small, huge radii for washes)
     Avg,
+    /// smartblur — edge-aware blur (smooths skin/backgrounds while
+    /// keeping outlines; lt=0 thresholds weak gradients so text edges
+    /// survive; ffmpeg ≥4.4)
+    Smart,
 }
 
 #[derive(clap::Args, Debug)]

@@ -251,11 +251,24 @@ impl From<RawPacket> for ProbePacket {
 
 /// `ffprobe -show_packets` — per-packet dump for `probe --packets`.
 pub fn probe_packets(path: &Path, timeout: Duration) -> Result<Vec<ProbePacket>, Error> {
+    probe_packets_opts(path, timeout, &[])
+}
+
+/// `ffprobe -show_packets` with extra demuxer opts ahead of the input
+/// (e.g. `-read_intervals` to scan only a time window).
+pub fn probe_packets_opts(
+    path: &Path,
+    timeout: Duration,
+    opts: &[String],
+) -> Result<Vec<ProbePacket>, Error> {
     if !path.to_string_lossy().contains("://") {
         crate::paths::ensure_input(path)?;
     }
     let mut argv = Argv::ffprobe();
     argv.extend(["-print_format", "json", "-show_packets", "-v", "error"]);
+    for o in opts {
+        argv.push(o);
+    }
     argv.push(path);
     let spawned = spawn::run(&argv, timeout, false)?;
     let spawned = spawn::require_ok(&argv, spawned)?;
@@ -272,11 +285,24 @@ pub fn probe_packets(path: &Path, timeout: Duration) -> Result<Vec<ProbePacket>,
 
 /// `ffprobe -show_frames` — per-decoded-frame dump for `probe --frames`.
 pub fn probe_frames(path: &Path, timeout: Duration) -> Result<Vec<ProbeFrame>, Error> {
+    probe_frames_opts(path, timeout, &[])
+}
+
+/// `ffprobe -show_frames` with extra demuxer opts ahead of the input
+/// (e.g. `-read_intervals` to scan only a time window).
+pub fn probe_frames_opts(
+    path: &Path,
+    timeout: Duration,
+    opts: &[String],
+) -> Result<Vec<ProbeFrame>, Error> {
     if !path.to_string_lossy().contains("://") {
         crate::paths::ensure_input(path)?;
     }
     let mut argv = Argv::ffprobe();
     argv.extend(["-print_format", "json", "-show_frames", "-v", "error"]);
+    for o in opts {
+        argv.push(o);
+    }
     argv.push(path);
     let spawned = spawn::run(&argv, timeout, false)?;
     let spawned = spawn::require_ok(&argv, spawned)?;
@@ -470,6 +496,19 @@ pub struct ProbeStream {
     /// MPEG-4 part 10" — friendly label for manifests and QC reports)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub codec_long_name: Option<String>,
+    /// Coded bit depth per sample (audio — the codec's own resolution:
+    /// pcm_s16→16, pcm_s24→24, 0 on float codecs like aac fltp. QC for
+    /// 24-bit master ingest claims vs the actual stream)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bits_per_sample: Option<u32>,
+    /// First packet pts in the stream's own time_base (integer form of
+    /// start_time — catches negative-timestamp masters at full precision)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_pts: Option<i64>,
+    /// Per-stream metadata tag count (language/handler_name/vendor_id
+    /// live here — nonzero means the muxer wrote stream-level metadata)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream_tag_count: Option<u32>,
     /// Mux timescale (1/90000 mpegts vs 1/15360 mp4) — packet pts math
     /// QC: a remux that re-times without scaling shifts every stamp
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -606,6 +645,10 @@ struct FfprobeStream {
     chroma_location: Option<String>,
     #[serde(default)]
     bits_per_raw_sample: Option<String>,
+    #[serde(default)]
+    bits_per_sample: Option<u32>,
+    #[serde(default)]
+    start_pts: Option<i64>,
     #[serde(default)]
     has_b_frames: Option<u32>,
     #[serde(default)]
@@ -989,6 +1032,9 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
                 refs: s.refs,
                 closed_captions: s.closed_captions.map(|v| v == 1),
                 codec_long_name: s.codec_long_name.clone(),
+                bits_per_sample: s.bits_per_sample,
+                start_pts: s.start_pts,
+                stream_tag_count: s.tags.as_ref().map(|t| t.len() as u32),
                 time_base: s.time_base.clone().filter(|t| t.as_str() != "N/A"),
                 forced: s
                     .disposition
