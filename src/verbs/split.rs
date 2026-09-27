@@ -39,9 +39,10 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             || !args.at_frames.is_empty()
             || args.manifest_prefix.is_some()
             || args.increment_tc
+            || args.clock
         {
             return Err(Error::input(
-                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest/--start/--wrap/--slack/--at-frames/--manifest-prefix/--increment-tc)",
+                "split --black stands alone (no --every/--at/--scenes/--size/--parts/--silence/--chapters/--subs/--fade/--copy/--manifest/--start/--wrap/--slack/--at-frames/--manifest-prefix/--increment-tc/--clock)",
             ));
         }
         engine::need_video(&probe, "split --black")?;
@@ -233,6 +234,18 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         None => None,
     };
     let out_s = args.output.to_string_lossy().into_owned();
+    if args.clock {
+        if !out_s.contains('%') {
+            return Err(Error::input(
+                "split --clock names parts by wall clock — the output needs strftime tokens (e.g. seg_%Y-%m-%d_%H-%M-%S.mp4)",
+            ));
+        }
+        if args.start.is_some() || args.wrap.is_some() {
+            return Err(Error::input(
+                "split --clock uses clock names — --start/--wrap are counter-based and don't apply",
+            ));
+        }
+    }
     let template: PathBuf = if out_s.contains('%') {
         PathBuf::from(out_s)
     } else {
@@ -333,6 +346,9 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         }
     }
     argv.extend(["-f", "segment"]);
+    if args.clock {
+        argv.extend(["-strftime", "1"]);
+    }
     if !args.at_frames.is_empty() {
         let frames_list = args
             .at_frames
@@ -418,7 +434,7 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         return Ok(Contract::failed("split", &e).with_commands(commands));
     }
 
-    let parts = collect_parts(&template)?;
+    let parts = collect_parts(&template, args.clock)?;
     if parts.is_empty() {
         return Err(Error::verification(format!(
             "split wrote no parts matching {}",
@@ -465,6 +481,7 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
             "slack": args.slack,
             "manifest_prefix": args.manifest_prefix,
             "increment_tc": args.increment_tc,
+            "clock": args.clock,
             "at_frames": args.at_frames,
             "cuts": cuts,
             "parts": names,
@@ -587,7 +604,7 @@ fn black_split(
 }
 
 // List files matching the template's printf pattern: "<pre><digits><post>".
-fn collect_parts(template: &Path) -> Result<Vec<PathBuf>, Error> {
+fn collect_parts(template: &Path, clock_names: bool) -> Result<Vec<PathBuf>, Error> {
     let dir = template
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -613,7 +630,13 @@ fn collect_parts(template: &Path) -> Result<Vec<PathBuf>, Error> {
         let Some(digits) = rest.strip_suffix(&post) else {
             continue;
         };
-        if !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()) {
+        let middle_ok = if clock_names {
+            // strftime names carry '-'/'_' separators, not a digit counter
+            !digits.is_empty()
+        } else {
+            !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit())
+        };
+        if middle_ok {
             parts.push(e.path());
         }
     }

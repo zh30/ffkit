@@ -75,10 +75,14 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         && args.dar.is_none()
         && !args.colr
         && args.gop.is_none()
+        && args.frames.is_none()
     {
         return Err(Error::input(
-            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf, --rotate DEG, --timescale N, --no-audio, --sar/--dar N:D, --colr, --gop N",
+            "nothing to conform — pass --size WxH, --fps N, --lufs L, --hold SEC, --even, --ar HZ, --channels N, --maxrate R, --profile/--level/--bf, --rotate DEG, --timescale N, --no-audio, --sar/--dar N:D, --colr, --gop N, --frames N",
         ));
+    }
+    if args.frames.is_some() && !has_video {
+        return Err(Error::input("conform --frames: input has no video stream"));
     }
     if args.no_audio {
         if !has_audio {
@@ -320,6 +324,9 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(gp) = args.gop {
             argv.extend(["-g".to_string(), gp.to_string()]);
         }
+        if let Some(nf) = args.frames {
+            argv.extend(["-frames:v".to_string(), nf.to_string()]);
+        }
     }
     if let Some(c) = args.crf {
         if c > 51 {
@@ -391,6 +398,7 @@ pub fn run(args: ConformArgs, g: &Globals) -> Result<Contract, Error> {
         "dar": args.dar,
         "colr": args.colr,
         "gop": args.gop,
+        "frames": args.frames,
     }));
     Ok(c)
 }

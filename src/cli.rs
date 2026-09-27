@@ -596,6 +596,11 @@ pub struct SplitArgs {
     /// timecode track)
     #[arg(long)]
     pub increment_tc: bool,
+    /// Output template is a strftime pattern, not a %0Nd counter
+    /// (-strftime 1 — parts named by wall clock: seg_%Y-%m-%d_%H-%M-%S.mp4;
+    /// same-second cuts collapse to the same name — keep --every ≥1s)
+    #[arg(long)]
+    pub clock: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -668,6 +673,10 @@ pub struct ExtractArgs {
     /// Timestamp for a still frame — `end` = last frame / last --dur seconds; comma list = one still per time
     #[arg(long)]
     pub at: Option<String>,
+    /// Pull the decoded frame at this index as a still (VFX/QC grabs the
+    /// timestamp guesses can't hit — decodes from the head, frame-exact)
+    #[arg(long)]
+    pub frame: Option<u64>,
     /// Scale the still to this width (height follows aspect)
     #[arg(long)]
     pub width: Option<u32>,
@@ -1255,6 +1264,12 @@ pub struct TranscodeArgs {
     /// --copy-video and the audio presets)
     #[arg(long)]
     pub gop: Option<u32>,
+    /// Force keyframes at these timestamps (comma list, -force_key_frames —
+    /// VFX/handoff cuts and QC marks pinned on exact times; stacks with -g
+    /// cadence. Encodes only — refuses --copy-video and presets without a
+    /// video encode path)
+    #[arg(long)]
+    pub keyat: Option<String>,
     /// Abort the encode after SEC wall-clock seconds (-timelimit — batch
     /// safety valve for runaway transcodes; exits non-zero so the
     /// pipeline can retry or flag the source)
@@ -1668,6 +1683,22 @@ pub enum TranscodePreset {
     /// codec tag for it on 4.4, so those refuse)
     #[value(name = "h263p")]
     H263p,
+    /// FrameCRC manifest — one CRC32 line per decoded frame (-f framecrc —
+    /// bit-exact archive-ingest QC: a later re-decode must produce the same
+    /// CRCs; text output, codec/rate flags refuse)
+    #[value(name = "framecrc")]
+    Framecrc,
+    /// Metadata forensics sidecar — the container's full metadata and
+    /// chapters dumped to FFmpeg's .ffmeta text format (-f ffmetadata —
+    /// audit/re-edit source for the `meta`/`chapter` verbs; text output,
+    /// codec/rate flags refuse)
+    #[value(name = "ffmeta")]
+    Ffmeta,
+    /// IEC-61937 S/PDIF bitstream output — AC3 packed for home-theater
+    /// bit-perfect passthrough (.spdif — the digital-out cable format
+    /// receivers decode; audio only)
+    #[value(name = "spdif")]
+    Spdif,
 }
 
 #[derive(clap::Args, Debug)]
@@ -3132,6 +3163,30 @@ pub enum DeliverPlatform {
     /// Attio record embedded video 16:9
     #[value(name = "attio")]
     Attio,
+    /// Buffer queue preview video 16:9
+    #[value(name = "buffer")]
+    Buffer,
+    /// Hootsuite scheduled post video 16:9
+    #[value(name = "hootsuite")]
+    Hootsuite,
+    /// Later visual-planner post video 16:9
+    #[value(name = "later")]
+    Later,
+    /// Metricool scheduled post video 16:9
+    #[value(name = "metricool")]
+    Metricool,
+    /// Loomly post-builder video 16:9
+    #[value(name = "loomly")]
+    Loomly,
+    /// SocialBee category queue video 16:9
+    #[value(name = "socialbee")]
+    Socialbee,
+    /// Planoly grid-planner video 16:9
+    #[value(name = "planoly")]
+    Planoly,
+    /// Sendible client-approval video 16:9
+    #[value(name = "sendible")]
+    Sendible,
 }
 
 #[derive(clap::Args, Debug)]
@@ -6250,6 +6305,12 @@ pub struct RemuxArgs {
     /// program-map table slot; .ts/.m2ts only)
     #[arg(long)]
     pub pmt_pid: Option<u32>,
+    /// Explicit per-stream PID assignments (-streamid — comma list of
+    /// OUTPUT-INDEX:PID, e.g. 0:0x1ff,1:0x101; broadcast servers expect
+    /// fixed PIDs that --start-pid's auto-increment can't express;
+    /// .ts/.m2ts targets only, PID 32-8186/0x20-0x1ffa)
+    #[arg(long)]
+    pub streamid: Option<String>,
     /// Reemit PAT/PMT with every packet (-mpegts_flags resend_headers —
     /// join-in-progress playback on mid-stream captures; .ts/.m2ts only)
     #[arg(long)]
@@ -7829,6 +7890,11 @@ pub struct ConformArgs {
     /// broadcast ingest specs like "IDR at least every 2s")
     #[arg(long)]
     pub gop: Option<u32>,
+    /// Stop the spec pass after N decoded video frames (-frames:v —
+    /// spec-sample rendering: eyeball the first N frames of a 4K→1080
+    /// conform before committing the whole master)
+    #[arg(long)]
+    pub frames: Option<u32>,
     /// Abort the spec pass after SEC wall-clock seconds (-timelimit —
     /// batch safety valve for runaway conform jobs)
     #[arg(long)]

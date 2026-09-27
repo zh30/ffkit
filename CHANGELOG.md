@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.387.0] — 2026-09-26
+
+### Added
+
+- `transcode --keyat T1,T2` — force keyframes at exact timestamps (`-force_key_frames` — VFX/handoff cuts & QC marks pinned on times; stacks with `-g`; h264/hevc/webm/av1/prores/dnxhd/proxy encodes only)
+- `conform --frames N` — stop the spec pass after N decoded frames (`-frames:v` — spec-sample rendering before committing the whole master)
+- `extract --frame N` — still at decoded-frame index (`select='eq(n,N)'` + `-vsync 0` — frame-exact VFX/QC grabs; .png/.jpg/.jpeg/.webp)
+- `split --clock` — name parts by wall clock (`-strftime 1` — the output template carries strftime tokens like seg_%H-%M-%S.mp4; same-second cuts share a name, keep `--every` ≥1s)
+- `remux --streamid IDX:PID,...` — explicit per-stream PID assignments (broadcast servers expect fixed PIDs the auto-increment can't express — .ts/.m2ts only, PID 32-8186/0x20-0x1ffa)
+- `transcode --preset framecrc` — per-frame CRC32 manifest (.framecrc/.txt — bit-exact archive-ingest QC: a later re-decode must produce the same CRC listing; text, not media)
+- `transcode --preset ffmeta` — the container's metadata+chapters as an .ffmeta sidecar (`-map_metadata 0 -f ffmetadata` — audit what a master carries before re-editing; text, not media)
+- `transcode --preset spdif` — IEC-61937 S/PDIF AC3 bitstream in .spdif (the digital-out cable format receivers decode — 48kHz AC3, audio only)
+- `deliver --platform` +8 social-scheduler targets: buffer / hootsuite / later / metricool / loomly / socialbee / planoly / sendible videos 16:9 1920x1080 (663 platform targets)
+
 ## [0.386.0] — 2026-09-26
 
 ### Added

@@ -1031,3 +1031,9 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - `s302m` is an experimental encoder (`-strict -2`) and demands 48kHz + 2/4/6/8 channels; mpegts warns it muxes as a private-data stream — ffprobe still reads it back as `s302m`. That's `transcode --preset s302`.
 - `h263p` has no codec tag on .3gp/.mp4/.flv on 4.4 — only .mkv/.avi carry it, so `transcode --preset h263p` refuses the rest.
 - `-increment_tc` (`split --increment-tc`) warns "Could not increment global timecode" when the input carries no tc track — and tmcd is a data track that only survives the `-c copy` path, so the flag needs `--copy` and `probe.timecode` present.
+- `-ldash 1` produces a byte-identical MPD on file output on 4.4 — it only constrains live-manifest elements (availabilityTimeOffset & friends). Not exposed.
+- `.avif` stills can't be written on 4.4 — no AVIF muxer in this build, and the `libavif` single-image encoder path lands in a later ffmpeg. `extract --frame`/stills stay png/jpg/webp.
+- `probe --count` would duplicate `scan --packets` — both run ffprobe's `-count_packets` second pass; the packet-count QC already ships. Not added.
+- The `framehash` muxer exists on 4.4 (per-frame hash, `-hash sha256` & friends) but it is the framemd5+hash pair's job — per-frame manifest QC (`--preset framemd5`/`framecrc`) and whole-payload receipts (`--preset hash`) already cover it. Not exposed.
+- `split --clock` strftime names collapse when two boundaries land in the same second — `%H-%M-%S` granularity makes the later part overwrite the earlier one. Keep `--every` ≥1s; the name template can't see milliseconds on 4.4.
+- `-show_entries frame=key_frame,pts_time` prints nothing on 4.4 without `-show_frames` — the entries filter only selects fields of a section that is shown. Always pair it with `-show_frames`/`-show_packets`.

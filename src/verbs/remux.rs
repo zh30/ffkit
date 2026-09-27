@@ -475,6 +475,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         || args.network_id.is_some()
         || args.start_pid.is_some()
         || args.pmt_pid.is_some()
+        || args.streamid.is_some()
         || args.tables_version.is_some()
         || args.pat_period.is_some()
         || args.sdt_period.is_some()
@@ -488,7 +489,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         && !matches!(ext.as_str(), "ts" | "m2ts" | "mts")
     {
         return Err(Error::input(
-            "remux transport-stream options (--service-name/--provider/--service-id/--service-type/--tsid/--network-id/--start-pid/--pmt-pid/--tables-version/--pat-period/--sdt-period/--pcr-period/--resend-headers/--latm/--pat-pmt-frames/--initial-discontinuity/--ts-copyts/--m2ts) write TS SI tables and PID plans — .ts/.m2ts targets only",
+            "remux transport-stream options (--service-name/--provider/--service-id/--service-type/--tsid/--network-id/--start-pid/--pmt-pid/--streamid/--tables-version/--pat-period/--sdt-period/--pcr-period/--resend-headers/--latm/--pat-pmt-frames/--initial-discontinuity/--ts-copyts/--m2ts) write TS SI tables and PID plans — .ts/.m2ts targets only",
         ));
     }
     if let Some(v) = args.tables_version {
@@ -505,6 +506,38 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
                     "remux {flag} needs a PID in 32-8186 (got {p})"
                 )));
             }
+        }
+    }
+    let mut streamids: Vec<String> = Vec::new();
+    if let Some(spec) = &args.streamid {
+        for part in spec.split(',') {
+            let (idx_s, pid_s) = part.trim().split_once(':').ok_or_else(|| {
+                Error::input(format!(
+                    "remux --streamid wants OUTPUT-INDEX:PID pairs (e.g. 0:0x1ff,1:0x101) — got '{part}'"
+                ))
+            })?;
+            let idx = idx_s.parse::<u32>().map_err(|_| {
+                Error::input(format!(
+                    "remux --streamid index must be a stream number — got '{idx_s}'"
+                ))
+            })?;
+            let pid = if let Some(hex) = pid_s
+                .strip_prefix("0x")
+                .or_else(|| pid_s.strip_prefix("0X"))
+            {
+                u32::from_str_radix(hex, 16)
+                    .map_err(|_| Error::input(format!("remux --streamid bad hex PID '{pid_s}'")))?
+            } else {
+                pid_s
+                    .parse::<u32>()
+                    .map_err(|_| Error::input(format!("remux --streamid bad PID '{pid_s}'")))?
+            };
+            if !(32..=8186).contains(&pid) {
+                return Err(Error::input(format!(
+                    "remux --streamid PID out of range 32-8186/0x20-0x1ffa (got {pid_s})"
+                )));
+            }
+            streamids.push(format!("{idx}:{pid_s}"));
         }
     }
     if (args.cmaf || args.mdta || args.skip_trailer || args.isml || args.rtphint || args.colr)
@@ -1918,6 +1951,9 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
     }
     if let Some(p) = args.pmt_pid {
         argv.extend(["-mpegts_pmt_start_pid".to_string(), p.to_string()]);
+    }
+    for sid in &streamids {
+        argv.extend(["-streamid".to_string(), sid.clone()]);
     }
     if let Some(v) = args.tables_version {
         argv.extend(["-tables_version".to_string(), v.to_string()]);
