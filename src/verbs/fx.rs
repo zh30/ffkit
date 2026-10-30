@@ -55,7 +55,7 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
         // strength — the old dry/wet blend with the cutoff on the tone
         // itself added nothing on ffmpeg 7+. 4.4 has no `boost` and the
         // old blend still works there.
-        FxKind::Sub if engine::filter_help("asubboost").contains("boost") => format!(
+        FxKind::Sub if engine::filter_lists("asubboost", "boost") => format!(
             "asubboost=dry=1:wet=1:boost={:.2}:decay=0.8:cutoff=150:slope=0.5",
             1.0 + 3.0 * s
         ),

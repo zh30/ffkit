@@ -123,7 +123,7 @@ fn repaired_peak_db(input: &std::path::Path, af: &str, g: &Globals) -> Result<Op
 /// asoftclip's hard type (4.4) never needed it.
 fn symmetric_plateau() -> &'static str {
     static HARD: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    if *HARD.get_or_init(|| engine::filter_help("asoftclip").contains("hard")) {
+    if *HARD.get_or_init(|| engine::filter_lists("asoftclip", "hard")) {
         "aformat=sample_fmts=dbl,asoftclip=type=hard:threshold=0.99996,"
     } else {
         ""

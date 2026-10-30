@@ -47,7 +47,7 @@ pub fn run(args: DenoiseArgs, g: &Globals) -> Result<Contract, Error> {
         // mix as `o` already (measured on 9.0: tone kept, noise −21 dB);
         // the old negate-and-mix then cancels the voice. 4.4 has no `e` and
         // still needs the subtraction.
-        let cleaned_out = engine::filter_help("anlms").contains("error");
+        let cleaned_out = engine::filter_lists("anlms", "e");
         let fc = if cleaned_out {
             format!("[1:a][0:a]anlms=order={order}:mu=0.3:eps=0.0001[a]")
         } else {

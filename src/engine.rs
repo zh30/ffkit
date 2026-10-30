@@ -195,8 +195,20 @@ fn listed(cache: &std::sync::OnceLock<String>, flag: &str, name: &str) -> bool {
         .any(|l| l.split_whitespace().nth(1) == Some(name))
 }
 
-/// `ffmpeg -h filter=NAME` text, for options and modes that come and go
-/// between releases. Empty when ffmpeg cannot be asked.
+/// Whether filter `name` lists `token` as an option or a named option value
+/// in `ffmpeg -h filter=NAME` — the first word of a line, never a substring
+/// (`asubboost` itself contains "boost"). Options and modes come and go
+/// between releases.
+pub fn filter_lists(name: &str, token: &str) -> bool {
+    help_lists(&filter_help(name), token)
+}
+
+fn help_lists(help: &str, token: &str) -> bool {
+    help.lines()
+        .any(|l| l.split_whitespace().next() == Some(token))
+}
+
+/// `ffmpeg -h filter=NAME` text. Empty when ffmpeg cannot be asked.
 pub fn filter_help(name: &str) -> String {
     let mut argv = Argv::ffmpeg();
     argv.extend(["-h".to_string(), format!("filter={name}")]);
@@ -323,4 +335,21 @@ pub fn audio_window_for(
         n + 1
     ));
     Ok(fc)
+}
+
+#[cfg(test)]
+mod help_tests {
+    use super::help_lists;
+
+    #[test]
+    fn option_names_not_substrings() {
+        // 4.4's asubboost: the filter name and description say "boost",
+        // but there is no `boost` option
+        let h44 = "Filter asubboost\n  Boost subwoofer frequencies.\n\
+                   asubboost AVOptions:\n   dry  <double> ..F.A...... set dry gain\n";
+        assert!(!help_lists(h44, "boost"));
+        assert!(help_lists(h44, "dry"));
+        let h9 = "asubboost AVOptions:\n   boost  <double> ..F.A....T. set max boost\n";
+        assert!(help_lists(h9, "boost"));
+    }
 }
