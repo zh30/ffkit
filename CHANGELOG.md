@@ -30,6 +30,7 @@ Removed or changed upstream, now handled by version or capability:
 - `split --copy` cut one GOP late on ffmpeg 7+ (1 s parts came out 1.57 s): half a frame of `-segment_time_delta`, as the segment muxer docs advise for stream copy
 - `probe` reported 59.02 fps for a 60 fps clip on ffmpeg 7+ (the muxer stretches the last frame) and flagged it as VFR: a shortfall of at most one frame now reads as CFR
 - `probe.streams[].refs` / `closed_captions`: ffprobe 9 stopped reporting them; they are left out rather than guessed
+- `fx --kind sub` added no low end on ffmpeg 7+ (cutoff on the tone itself): where `asubboost` has `boost`, dry is kept whole, `boost` carries strength, cutoff 150 Hz; 4.4 (no `boost`) keeps the old blend
 - `denoise --engine nlm` is refused on ffmpeg 9: its `anlmdn` corrupts memory and crashes nondeterministically (`wavel`, the default, is unaffected)
 
 Missing from a build (minimal Homebrew ffmpeg), now a fallback instead of a failure:
@@ -40,7 +41,6 @@ Missing from a build (minimal Homebrew ffmpeg), now a fallback instead of a fail
 Bugs found on the way, wrong on every version:
 
 - `eq --allpass` / `--notch` and `fx --kind wah` passed a width in Hz without `width_type=h`, so ffmpeg read it as Q (`--allpass 110:200` became a Q-200 needle that dropped 2 dB of level)
-- `fx --kind sub` added no low end on ffmpeg 7+ (cutoff on the tone itself): dry kept whole, `boost` carries strength, cutoff 150 Hz
 - `frames --untile` wrote duplicate tiles (20 frames × 12 tiles gave 243 stills): passthrough sync
 - `eqviz --dur` applied `-t` to the wrong input once a second input existed
 

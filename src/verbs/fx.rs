@@ -51,11 +51,17 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
         FxKind::Muffled => format!("lowpass=f={:.0}", 2400.0 - 1900.0 * s),
         FxKind::Crystal => format!("crystalizer=i={:.1}:c=false", 1.0 + 4.0 * s),
         // sub-bass synthesis: a generated low octave rides under the mix.
-        // Dry stays whole and `boost` carries strength; a cutoff at the
-        // tone itself (100) let ffmpeg 7+ cancel the gain it added
-        FxKind::Sub => format!(
+        // Builds whose asubboost has `boost`: dry stays whole and boost carries
+        // strength — the old dry/wet blend with the cutoff on the tone
+        // itself added nothing on ffmpeg 7+. 4.4 has no `boost` and the
+        // old blend still works there.
+        FxKind::Sub if engine::filter_help("asubboost").contains("boost") => format!(
             "asubboost=dry=1:wet=1:boost={:.2}:decay=0.8:cutoff=150:slope=0.5",
             1.0 + 3.0 * s
+        ),
+        FxKind::Sub => format!(
+            "asubboost=dry=0.8:wet={:.2}:decay=0.8:cutoff=100:slope=0.5",
+            0.3 + 0.6 * s
         ),
         // headphone crossfeed: bleeds each ear slightly into the other so
         // long listening sessions feel speaker-like instead of hard-panned
