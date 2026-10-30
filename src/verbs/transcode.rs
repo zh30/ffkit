@@ -899,7 +899,8 @@ fn av1(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     engine::write_job("transcode", &[&args.input], &args.output, vec![argv], g)
 }
 
-/// JPEG 2000 via libopenjpeg — digital-cinema / archive interchange.
+/// JPEG 2000 via libopenjpeg (or ffmpeg's own encoder) — digital-cinema /
+/// archive interchange.
 /// .mxf forces pcm_s16le @48k (the only audio rate mxf implements).
 fn jpeg2000(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     let ext = args
@@ -926,9 +927,16 @@ fn jpeg2000(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     }
     argv.push("-i");
     argv.push(&args.input);
-    argv.extend(["-map", "0:v?", "-map", "0:a?", "-c:v", "libopenjpeg"]);
+    // ffmpeg's own jpeg2000 encoder when the build has no libopenjpeg —
+    // same codec on the wire, and it takes the same -q:v knob
+    let enc = if engine::has_encoder("libopenjpeg") {
+        "libopenjpeg"
+    } else {
+        "jpeg2000"
+    };
+    argv.extend(["-map", "0:v?", "-map", "0:a?", "-c:v", enc]);
     if let Some(c) = args.crf {
-        // libopenjpeg -q:v is the quality knob (lower = better)
+        // -q:v is the quality knob (lower = better)
         argv.extend(["-q:v", &c.min(63).to_string()]);
     }
     let mut vf = String::from("scale=trunc(iw/2)*2:trunc(ih/2)*2");
@@ -1063,7 +1071,8 @@ fn audio_only(
                 argv.extend(["-c:a", "libopus", "-b:a", abitrate(args, "128k")])
             }
             TranscodePreset::Ogg => {
-                argv.extend(["-c:a", "libvorbis", "-b:a", abitrate(args, "192k")])
+                argv.extend(engine::vorbis_args());
+                argv.extend(["-b:a", abitrate(args, "192k")])
             }
             TranscodePreset::Alac => argv.extend(["-c:a", "alac"]),
             TranscodePreset::Ac3 => argv.extend(["-c:a", "ac3", "-b:a", abitrate(args, "192k")]),
@@ -2202,7 +2211,14 @@ fn xvid(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
     if probe.has_audio {
         argv.extend(["-map", "0:a?"]);
     }
-    argv.extend(["-c:v", "libxvid", "-vtag", "xvid"]);
+    // ffmpeg's own mpeg4 encoder writes the same MPEG-4 ASP an Xvid deck
+    // reads when the build has no libxvid; the xvid fourcc is what they check
+    let enc = if engine::has_encoder("libxvid") {
+        "libxvid"
+    } else {
+        "mpeg4"
+    };
+    argv.extend(["-c:v", enc, "-vtag", "xvid"]);
     if let Some(n) = args.gop {
         argv.extend(["-g", &n.to_string()]);
     }
@@ -2314,7 +2330,7 @@ fn theora(args: &TranscodeArgs, g: &Globals) -> Result<Contract, Error> {
         argv.extend(["-g", &n.to_string()]);
     }
     if probe.has_audio {
-        argv.extend(["-c:a", "libvorbis"]);
+        argv.extend(engine::vorbis_args());
     }
     if let Some(fps) = args.fps {
         argv.extend(["-r", &fps.to_string()]);
@@ -3052,9 +3068,22 @@ fn lossless(
     if probe.has_audio {
         argv.extend(["-map", "0:a?"]);
     }
-    argv.extend(["-c:v", codec]);
-    if let Some(p) = pix_fmt {
-        argv.extend(["-pix_fmt", p]);
+    // ffmpeg 7 removed the v410/v308/ayuv encoders; rawvideo with the
+    // matching packed pix_fmt and QuickTime tag writes the same layout
+    let raw = match codec {
+        "v410" => Some(("v30xle", "v410")),
+        "v308" => Some(("vyu444", "v308")),
+        "ayuv" => Some(("uyva", "v408")),
+        _ => None,
+    }
+    .filter(|_| !engine::has_encoder(codec));
+    if let Some((pf, tag)) = raw {
+        argv.extend(["-c:v", "rawvideo", "-pix_fmt", pf, "-tag:v", tag]);
+    } else {
+        argv.extend(["-c:v", codec]);
+        if let Some(p) = pix_fmt {
+            argv.extend(["-pix_fmt", p]);
+        }
     }
     if let Some(n) = args.gop {
         argv.extend(["-g", &n.to_string()]);
@@ -3167,7 +3196,9 @@ fn qt_era(
         argv.extend(["-g", &n.to_string()]);
     }
     if probe.has_audio {
-        if let Some(ac) = acodec {
+        if acodec == Some("libvorbis") {
+            argv.extend(engine::vorbis_args());
+        } else if let Some(ac) = acodec {
             argv.extend(["-c:a", ac]);
             if ac == "libmp3lame" {
                 argv.extend(["-b:a", abitrate(args, "192k")]);

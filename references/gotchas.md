@@ -595,7 +595,7 @@ an atempo'd whole-file render would shift the window.
 - **`concat --chapters` marks come from probed durations** — cumulative `sum(d_i)` at 1ms timebase; transitions (overlap drift) and gaps (padding) would mis-title the joins, so they're refused rather than silently wrong.
 - **`live --no-audio` still needs the video guard first** — a no-video input fails `input has no video` before flag conflicts are checked; ordering matters when scripting around the error kinds.
 
-- **`select` + image2 needs `-vsync 0`** — dropping frames via `select='not(mod(n,N))'` into the image muxer under default cfr sync re-duplicates the survivors back into almost every slot; pass `-vsync 0` (passthrough) so only the selected frames land on disk (`frames --nth` does this for you).
+- **`select` + image2 needs `-vsync 0`** — dropping frames via `select='not(mod(n,N))'` into the image muxer under default cfr sync re-duplicates the survivors back into almost every slot; pass `-fps_mode passthrough` (`-vsync 0` before ffmpeg 5; ffmpeg 7+ removed `-vsync`) so only the selected frames land on disk (`frames --nth` does this for you).
 - **`-itsscale R` direction** — factor multiplies the *duration* (1.042 stretches PAL 25 to film 24 timing; 0.96 speeds it back up). It re-stamps input timestamps, so `-ss`/`-itsoffset` window arguments then read the scaled timeline — refuse them together rather than silently double-shift.
 - **`extract --chapter` re-encodes** — chapter boundaries rarely sit on keyframes; stream-copy would snap the start to the chapter's GOP head and include leading frames from the previous chapter. `-ss`+re-encode lands the start frame-accurate at the cost of one encode.
 
@@ -604,7 +604,7 @@ an atempo'd whole-file render would shift the window.
 
 - **A single-frame overlay input repeats its last frame at EOF** — `overlay`'s default eof_action is `repeat`, so feeding a rendered PNG as a bare `-i` (no `-loop`) still covers the whole target segment. That's exactly a per-slide caption sticker — no loop needed (slideshow --titles relies on it).
 - **`-metadata title=` ahead of `-f tee` lands on every destination** — the tee muxer forwards global metadata to each child, so one flag titles the pushed stream AND the `--record` archive (verified: FLV onMetaData + mp4 `title` tag both carried it).
-- **blend's 33 modes include no-op traps** — `normal` is just the top input passthrough (worthless as a choice); the useful stragglers are grainmerge/grainextract (film-grain composite), the `*128` neutral-128 variants, and/or/xor (channel logic), average/extremity/freeze/heat. `extract --keyframes` needs the same `-vsync 0` as `frames --nth` (select + image2 — the cfr re-duplication trap).
+- **blend's 33 modes include no-op traps** — `normal` is just the top input passthrough (worthless as a choice); the useful stragglers are grainmerge/grainextract (film-grain composite), the `*128` neutral-128 variants, and/or/xor (channel logic), average/extremity/freeze/heat. `extract --keyframes` needs the same passthrough sync (`-fps_mode passthrough`) as `frames --nth` (select + image2 — the cfr re-duplication trap).
 
 - **`metadata=print` writes `key=value`, not `key:value`** — scdet timestamps come out as `lavfi.scd.time=1.2` (equals sign). A parser anchored on `key:` never matches — scan --scenes shipped that latent bug (tested stderr? no: file=- goes to STDOUT while detect logs hit STDERR). Match `=` (and keep `:` as a fallback).
 - **scdet scores texture-change, not color-change** — a flat red→flat blue hard cut reads score 0 (the per-pixel difference is uniform → zero variance). Scene detection needs textured content; test fixtures must be testsrc2/smptebars-style, not `color=` flats.
@@ -1021,7 +1021,7 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 
 - `-segment_time_delta SEC` (`split --slack`) lets a boundary land **earlier** inside the window — dense-keyframe sources end up with more parts, not fewer. It's a tolerance for the muxer's keyframe pick, not a fuzzier `--every`.
 - `freezedetect` only reports a freeze once it **ends** — a freeze that runs to EOF never surfaces a `freeze_start`. To QC a suspected tail-frozen file, trim the tail first or check `probe --frames` deltas.
-- `-skip_initial_bytes N` is a **demuxer-side** read option — it goes ahead of `-i`, and `ffprobe` needs the same flag or a junk-prefixed file still fails the pre-flight probe (moov never reached). That's `remux --skip-init`.
+- `-skip_initial_bytes N` is a **demuxer-side** read option — it goes ahead of `-i`, and `ffprobe` needs the same flag or a junk-prefixed file still fails the pre-flight probe (moov never reached). On ffmpeg 9 it only re-bases the header parse: samples are still read at the original offsets (garbage NALs, video lost). `remux --skip-init` therefore reads through `subfile,,start,N,end,0,,:FILE`, which re-bases every offset (frame-identical salvage on 4.4 and 9); the pre-flight probe keeps `-skip_initial_bytes`, which is enough for headers.
 - mp4-family muxers normalize a negative `-output_ts_offset` through the edit list — only mkv/webm carry a real negative `start_time`, so `--fix-negative-ts` salvage applies to matroska captures, not mp4 ones.
 - mp4 chapters must start at time 0 — a first mark sitting >0.05s in gets pulled to 0. `chapter --at-frames` lists should carry a `0|title` mark (same rule as `--at`).
 - `-hls_version` / `hls_playlist_type vod|event` are not in the 4.4 HLS muxer option set (and `EXT-X-PLAYLIST-TYPE` is already VOD on static packs / EVENT under `--live`); `negative_cts_offsets` writes `elst` on standard fixtures either way — unobservable, not exposed.
@@ -1054,7 +1054,7 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - x265's private `sei`/`sar`/`overscan` params are unreachable from `transcode` on 4.4 — ffkit gates `-x265-params` to the x264 spec path only; x265 ingest specs route through `--copy-video` or a raw `graph`.
 - `anlmdn`'s `om` (output mode) param does not exist on 4.4 — the filter exposes s/p/r/m only; `denoise --engine nlm` maps `--strength` onto `s` and keeps the tiny p/r patch windows fixed.
 - `hls --enc-key` was considered but `--key`/`--key-uri`/`--enc-iv` already cover the AES-128 key surface; `gen --engine gradients` and `remux --ts-copyts` dedupe to existing flags (gradients is `gen`'s default source; ts-copyts is `--copy-ts` on .ts). Deduped, not added.
-- `-map_channel` is a silent no-op under `-c:a copy` — it only re-orders on the re-encode path, so `channel --mode order` always re-encodes (pcm_s16le on .wav, aac elsewhere). Verified via zero-crossing counts: copy produces identical channel content, encode swaps.
+- `-map_channel` is gone from ffmpeg 7 (and was a silent no-op under `-c:a copy` before that). `channel --mode order` reorders with `pan=Nc|c0=cX|…` and always re-encodes (pcm_s16le on .wav, aac elsewhere).
 - `-shortest` overshoots the shortest stream by the muxer's interleave flush window on file output (1s audio + 10s video → video lands ~2.4s, not 1.0s). Files shorter than the window just end at EOF. It bounds the *mux*, not the encode.
 - `-frag_keyframe` alone writes `mfra` but **zero** `moof` boxes — the fragmenting trio `+frag_keyframe+empty_moov+default_base_moof` is what actually fragments an mp4 on 4.4. That's what `transcode --frag` (and `remux --frag`) emit.
 - `sonic`/`sonicls` encoders write `.nut` fine under `-strict -2`, but `ffprobe -show_streams` crashes mid-dump on the output (it tries to init the experimental decoder for stream info) — a file ffkit can't probe-read-back can't ship as a preset. Dropped.
@@ -1075,3 +1075,19 @@ Phoenix `start,end,"text"` rows count in tenths of a second (20 = 2.0s — same 
 - `.scc`/`.mps` subtitle *writes* fail "Output file does not contain any stream" on 4.4 — the scc/microdvd encoders are registered but unreachable by name (scc input reads fine). Reads only.
 - `frames -o seq.%03d.EXT` accepts any image extension on 4.4 (ppm/xbm/pfm all encode via image2) — no format gate was needed, and `dash --frag`/`dash --sidx`/`scan` sat+hue means were already shipped; deduped, not re-added.
 - `-itsoffset` clamps negative shifts to 0 on mp4-family output (the elst normalizes it) — use .mkv when a genuinely negative timeline must survive.
+
+## ffmpeg 7–9: what changed under ffkit
+
+Checked on 9.0.2 against 4.4. ffkit picks the working spelling by version or by asking the build; raw `ffmpeg`/`graph` steps must do the same.
+
+- Removed options: `-vsync` (use `-fps_mode`, 5+), `-map_channel` (use `pan`), `-top` (use `setfield`), `-hls_wrap` (rolling `delete_segments` window). The `rotate` metadata tag no longer writes a display matrix (use the `-display_rotation` input option, 6+).
+- Removed encoders: v410 / v308 / ayuv. Same bytes from `-c:v rawvideo` with `-pix_fmt v30xle|vyu444|uyva -tag:v v410|v308|v408`.
+- `-color_primaries` / `-color_trc` as encoder options are ignored on 9; tag the frames with `setparams=color_primaries=…:color_trc=…` (works on 4.4 too).
+- `-skip_initial_bytes` re-bases the header parse only; samples are read at the old offsets. Read a prefixed file through `subfile,,start,N,end,0,,:FILE`.
+- Short CFR mp4s read `avg_frame_rate = r·N/(N+1)` (the muxer stretches the last frame): 60 frames at 60 fps report 59.02. Trust `r_frame_rate` when the gap is at most one frame.
+- ffprobe CSV appends an empty column on frames with side data (`1,` / `176.4,`): read the first field, never the whole line. Packet flags grew a third column (`K__`). `pkt_pts_time` is `pts_time`; `refs` and `closed_captions` are no longer reported.
+- Matroska shifts negative starts to 0 unless `-avoid_negative_ts disabled`.
+- The segment muxer needs `-segment_time_delta` (half a frame) on stream copy, or a keyframe sitting exactly on the cut time is skipped for the next one.
+- `anlms` default output is the cleaned mix (not the noise estimate). `anequalizer=curves=1` fails format negotiation. `adeclip` does nothing on a lopsided integer plateau (+32767 / −32768): clip both rails symmetrically first. `anlmdn` corrupts memory (crashes at random). An output `-t` with `-shortest` and `ebur128=video=1` can spin forever when no meter frame has been drawn: cut the window in-graph (`atrim`).
+- `-shortest` with a subtitle file among the inputs deadlocks ffmpeg 9's scheduler in about 15% of runs (all threads parked in the thread queues, 0% CPU, never exits). Leave `-shortest` out when muxing `.srt` inputs, and keep a timeout on any spawned ffmpeg.
+- Biquad filters (`allpass`, `bandreject`, `equalizer`, …) read `w` as Q unless `width_type=h` is given. This is not new, but easy to miss: a width meant in Hz becomes a needle.

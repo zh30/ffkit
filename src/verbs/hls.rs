@@ -466,8 +466,12 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             "hls".to_string(),
             "-hls_time".to_string(),
             format!("{:.3}", args.seg),
-            "-hls_playlist_type".to_string(),
-            "vod".to_string(),
+        ]);
+        // a wrap rolling window (ffmpeg 7+) only deletes in an untyped playlist
+        if args.wrap.is_none() || engine::muxer_has_option("hls", "hls_wrap") {
+            argv.extend(["-hls_playlist_type".to_string(), "vod".to_string()]);
+        }
+        argv.extend([
             "-hls_segment_filename".to_string(),
             dir.join(format!("{name_pfx}seg_%v_%03d.{seg_ext}"))
                 .display()
@@ -484,7 +488,18 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-hls_init_time".to_string(), format!("{:.3}", it)]);
         }
         if let Some(w) = args.wrap {
-            argv.extend(["-hls_wrap".to_string(), w.to_string()]);
+            if engine::muxer_has_option("hls", "hls_wrap") {
+                argv.extend(["-hls_wrap".to_string(), w.to_string()]);
+            } else {
+                // ffmpeg 7+: rolling window instead of reused names
+                let r = w.saturating_sub(args.keep.unwrap_or(1)).max(1);
+                argv.extend([
+                    "-hls_flags".to_string(),
+                    "delete_segments".to_string(),
+                    "-hls_list_size".to_string(),
+                    r.to_string(),
+                ]);
+            }
         }
         argv.extend(key_args.iter().cloned());
         argv.push(dir.join("v%v.m3u8").display().to_string());
@@ -584,8 +599,19 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         "hls".to_string(),
         "-hls_time".to_string(),
         format!("{:.3}", args.seg),
-        "-hls_playlist_type".to_string(),
-        if args.live { "event" } else { "vod" }.to_string(),
+    ]);
+    // ffmpeg 7 removed -hls_wrap; the bounded footprint comes from a
+    // rolling playlist that deletes segments behind itself instead
+    let wrap_roll = args
+        .wrap
+        .filter(|_| !engine::muxer_has_option("hls", "hls_wrap"));
+    if wrap_roll.is_none() {
+        argv.extend([
+            "-hls_playlist_type".to_string(),
+            if args.live { "event" } else { "vod" }.to_string(),
+        ]);
+    }
+    argv.extend([
         "-hls_segment_filename".to_string(),
         seg_tpl.display().to_string(),
     ]);
@@ -599,6 +625,8 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         // end tag — the playlist stays joinable mid-write
         flags.push("delete_segments");
         flags.push("omit_endlist");
+    } else if wrap_roll.is_some() {
+        flags.push("delete_segments");
     } else if args.omit_endlist {
         // raw omit_endlist without --live's windowing — a pack that a
         // later pass re-opens and appends onto
@@ -647,7 +675,7 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
         // pre-buffers instantly for click-to-play starts
         argv.extend(["-hls_init_time".to_string(), format!("{:.3}", it)]);
     }
-    if let Some(w) = args.wrap {
+    if let Some(w) = args.wrap.filter(|_| wrap_roll.is_none()) {
         argv.extend(["-hls_wrap".to_string(), w.to_string()]);
     }
     if let Some(k) = args.keep {
@@ -668,9 +696,14 @@ pub fn run(args: HlsArgs, g: &Globals) -> Result<Contract, Error> {
             format!("expr:gte(t,n_forced*{})", args.seg),
         ]);
     }
+    // on disk: the listed window plus the delete threshold (default 1)
+    let roll_win = wrap_roll.map(|w| w.saturating_sub(args.keep.unwrap_or(1)).max(1));
     if args.live {
         let win = args.live_window.unwrap_or(6);
+        let win = roll_win.map_or(win, |r| win.min(r));
         argv.extend(["-hls_list_size".to_string(), win.to_string()]);
+    } else if let Some(r) = roll_win {
+        argv.extend(["-hls_list_size".to_string(), r.to_string()]);
     }
     if let Some(n) = args.start {
         argv.extend(["-start_number".to_string(), n.to_string()]);

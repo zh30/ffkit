@@ -21,10 +21,18 @@ pub fn run(args: UpscaleArgs, g: &Globals) -> Result<Contract, Error> {
     let mut vf = match args.engine.unwrap_or(crate::cli::UpscaleEngine::Spline) {
         crate::cli::UpscaleEngine::Spline => {
             engine_name = "spline";
-            format!(
-                "zscale=w=trunc(iw*{:.4}/2)*2:h=trunc(ih*{:.4}/2)*2:filter=spline36",
-                args.factor, args.factor
-            )
+            if engine::has_filter("zscale") {
+                format!(
+                    "zscale=w=trunc(iw*{:.4}/2)*2:h=trunc(ih*{:.4}/2)*2:filter=spline36",
+                    args.factor, args.factor
+                )
+            } else {
+                // builds without libzimg: swscale's own spline kernel
+                format!(
+                    "scale=w=trunc(iw*{:.4}/2)*2:h=trunc(ih*{:.4}/2)*2:flags=spline",
+                    args.factor, args.factor
+                )
+            }
         }
         // pixel-art scalers take integer scales only — xbr does 2x/3x/4x,
         // super2xsai is fixed 2x (factor is snapped, not arbitrary)

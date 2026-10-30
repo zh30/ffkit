@@ -184,7 +184,7 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
         if !(1.0..=f).contains(&w) {
             return Err(Error::input("--notch WIDTH must be 1..=FREQ Hz"));
         }
-        chain.push(format!("bandreject=f={f:.0}:w={w:.0}"));
+        chain.push(format!("bandreject=f={f:.0}:width_type=h:w={w:.0}"));
     }
     // --brickwall LO,HI — afftfilt zero-phase FFT bandpass; the mirror
     // image of the passband must be kept too (real-signal symmetry)
@@ -312,7 +312,9 @@ pub fn run(args: EqArgs, g: &Globals) -> Result<Contract, Error> {
         if !(0.1..=99999.0).contains(&w) {
             return Err(Error::input("--allpass WIDTH must be 0.1..99999 Hz"));
         }
-        chain.push(format!("allpass=f={f:.0}:w={w:.0}"));
+        // width_type=h: WIDTH is Hz; the default reads it as Q (200 → a
+        // ringing needle that drops ~2 dB of level)
+        chain.push(format!("allpass=f={f:.0}:width_type=h:w={w:.0}"));
     }
     if bass != 0.0 {
         chain.push(format!("bass=g={}", bass));

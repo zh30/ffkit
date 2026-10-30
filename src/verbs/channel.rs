@@ -178,10 +178,9 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
         })));
     }
     if args.mode == ChannelMode::Order {
-        // -map_channel: raw channel re-order by index — bypasses pan/
-        // channelmap layouts entirely, so it reorders >2ch layouts that
-        // those filters can't express. On a re-encode only: stream copy
-        // (-c:a copy) silently ignores -map_channel.
+        // raw channel re-order by index through pan with a bare `Nc`
+        // count, so >2ch layouts with no named layout still reorder.
+        // Re-encode only: a stream copy cannot move channels.
         let spec = args.order.as_deref().ok_or_else(|| {
             Error::input(
                 "--mode order needs --order \"1,0\" — one source channel index per output channel",
@@ -214,10 +213,14 @@ pub fn run(args: ChannelArgs, g: &Globals) -> Result<Contract, Error> {
         let mut argv = ffmpeg_base(g.progress);
         argv.push("-i");
         argv.push(&args.input);
-        for c in &order {
-            argv.extend(["-map_channel", format!("0.{aidx}.{c}").as_str()]);
-        }
-        argv.extend(["-map", "0:v?", "-ac", order.len().to_string().as_str()]);
+        // pan, not -map_channel: that option is gone from ffmpeg 7
+        let pan = order
+            .iter()
+            .enumerate()
+            .map(|(o, c)| format!("|c{o}=c{c}"))
+            .collect::<String>();
+        argv.extend(["-map", "0:v?", "-map", format!("0:{aidx}").as_str()]);
+        argv.extend(["-af", format!("pan={}c{pan}", order.len()).as_str()]);
         if probe.has_video {
             argv.extend(["-c:v", "copy"]);
         }

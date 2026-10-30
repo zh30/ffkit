@@ -50,10 +50,12 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
         FxKind::Bass => format!("bass=g={:.1}:f=110", 2.0 + 10.0 * s),
         FxKind::Muffled => format!("lowpass=f={:.0}", 2400.0 - 1900.0 * s),
         FxKind::Crystal => format!("crystalizer=i={:.1}:c=false", 1.0 + 4.0 * s),
-        // sub-bass synthesis: a generated low octave rides under the mix
+        // sub-bass synthesis: a generated low octave rides under the mix.
+        // Dry stays whole and `boost` carries strength; a cutoff at the
+        // tone itself (100) let ffmpeg 7+ cancel the gain it added
         FxKind::Sub => format!(
-            "asubboost=dry=0.8:wet={:.2}:decay=0.8:cutoff=100:slope=0.5",
-            0.3 + 0.6 * s
+            "asubboost=dry=1:wet=1:boost={:.2}:decay=0.8:cutoff=150:slope=0.5",
+            1.0 + 3.0 * s
         ),
         // headphone crossfeed: bleeds each ear slightly into the other so
         // long listening sessions feel speaker-like instead of hard-panned
@@ -97,7 +99,7 @@ pub fn run(args: FxArgs, g: &Globals) -> Result<Contract, Error> {
                 ));
                 t += dt;
             }
-            format!("asendcmd=commands='{cmds}',equalizer=f={lo:.0}:w=300:g=12")
+            format!("asendcmd=commands='{cmds}',equalizer=f={lo:.0}:width_type=h:w=300:g=12")
         }
     };
     // --at/--dur: duck the dry feed to 0 inside the window, add the FX in its place.

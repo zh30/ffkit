@@ -258,18 +258,26 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         if args.fix_negative_ts {
             argv.extend(["-avoid_negative_ts".to_string(), "make_zero".to_string()]);
         }
-        if let Some(n) = args.skip_init {
-            argv.extend(["-skip_initial_bytes".to_string(), n.to_string()]);
-        }
         if let Some(s) = args.shift {
             // input-side clock shift — every read of args.input (incl. the
             // --audio-delay/--video-delay re-read) gets the same -itsoffset
             argv.extend(["-itsoffset".to_string(), s.to_string()]);
         }
     };
+    // --skip-init reads through the subfile protocol: ffmpeg 9 honours
+    // -skip_initial_bytes for the header but still seeks samples at the
+    // original offsets (garbage NALs); subfile re-bases every offset.
+    let input: std::ffi::OsString = match args.skip_init {
+        Some(n) => {
+            let mut u = std::ffi::OsString::from(format!("subfile,,start,{n},end,0,,:"));
+            u.push(args.input.as_os_str());
+            u
+        }
+        None => args.input.clone().into_os_string(),
+    };
     salvage_input(&mut argv);
     argv.push("-i");
-    argv.push(&args.input);
+    argv.push(&input);
     let mut ni = 1u32;
     let delay = args.audio_delay.or(args.video_delay);
     if let Some(d) = delay {
@@ -280,7 +288,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             argv.extend(["-itsoffset".into(), d.to_string()]);
             salvage_input(&mut argv);
             argv.push("-i");
-            argv.push(&args.input);
+            argv.push(&input);
             ni += 1;
         } else {
             if let Some(f) = args.from {
@@ -288,7 +296,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
             }
             salvage_input(&mut argv);
             argv.push("-i");
-            argv.push(&args.input);
+            argv.push(&input);
             ni += 1;
         }
     }
@@ -1300,6 +1308,7 @@ pub fn run(args: RemuxArgs, g: &Globals) -> Result<Contract, Error> {
         } else {
             let codec = match ext.as_str() {
                 "mp3" => "libmp3lame",
+                "ogg" | "oga" if !engine::has_encoder("libvorbis") => "libopus",
                 "ogg" | "oga" => "libvorbis",
                 "wav" | "aif" | "aiff" | "caf" => "pcm_s16le",
                 _ => "aac",

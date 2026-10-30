@@ -414,6 +414,16 @@ pub fn run(args: SplitArgs, g: &Globals) -> Result<Contract, Error> {
         }
         // boundaries may land up to SEC early inside the window
         argv.extend(["-segment_time_delta".to_string(), s.to_string()]);
+    } else if args.copy && args.at_frames.is_empty() {
+        // half a frame of slack, as the segment muxer docs advise for
+        // stream copy: ffmpeg 7+ puts the keyframe exactly on the cut time
+        // and without the slack skips it for the next GOP (1s cuts → 1.57s)
+        if let Some(fps) = probe.fps.filter(|f| *f > 0.0) {
+            argv.extend([
+                "-segment_time_delta".to_string(),
+                format!("{:.6}", 0.5 / fps),
+            ]);
+        }
     }
     if let Some(rs) = &args.ref_stream {
         // stream specifier driving cut decisions: v/a/s/d or stream index
