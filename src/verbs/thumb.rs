@@ -53,12 +53,7 @@ pub fn run(args: ThumbArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push(&args.input);
         // eq(n,0) keeps frame 0 — a no-cut clip still yields one still.
         argv.extend(["-vf", &format!("select='eq(n,0)+gt(scene,0.35)'{scale}")]);
-        // -fps_mode appeared in ffmpeg 5; 4.x spells it -vsync.
-        if engine::ffmpeg_major().unwrap_or(6) >= 5 {
-            argv.extend(["-fps_mode", "passthrough"]);
-        } else {
-            argv.extend(["-vsync", "passthrough"]);
-        }
+        engine::push_fps_mode(&mut argv, "passthrough");
         argv.push(&out);
         let first = Path::new(&out.replace("%02d", "01")).to_path_buf();
         let c = engine::write_job("thumb", &[&args.input], &first, vec![argv], g)?;

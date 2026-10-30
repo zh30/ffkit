@@ -43,9 +43,18 @@ pub fn run(args: DenoiseArgs, g: &Globals) -> Result<Contract, Error> {
         argv.push(&args.input);
         argv.push("-i");
         argv.push(r);
-        let fc = format!(
-            "[1:a][0:a]anlms=order={order}:mu=0.3:eps=0.0001[e];[e]volume=-1[neg];[0:a][neg]amix=inputs=2[a]"
-        );
+        // Builds whose anlms lists an `e` (error) out_mode emit the cleaned
+        // mix as `o` already (measured on 9.0: tone kept, noise −21 dB);
+        // the old negate-and-mix then cancels the voice. 4.4 has no `e` and
+        // still needs the subtraction.
+        let cleaned_out = engine::filter_lists("anlms", "e");
+        let fc = if cleaned_out {
+            format!("[1:a][0:a]anlms=order={order}:mu=0.3:eps=0.0001[a]")
+        } else {
+            format!(
+                "[1:a][0:a]anlms=order={order}:mu=0.3:eps=0.0001[e];[e]volume=-1[neg];[0:a][neg]amix=inputs=2[a]"
+            )
+        };
         argv.extend(["-filter_complex", &fc]);
         argv.extend(["-map", "[a]"]);
         if probe.has_video {
@@ -60,6 +69,14 @@ pub fn run(args: DenoiseArgs, g: &Globals) -> Result<Contract, Error> {
         .map(|f| f.contains("afwtdn"))
         .unwrap_or(false);
     let use_nlm = matches!(args.engine, crate::cli::DenoiseEngine::Nlm);
+    // anlmdn writes past its buffers on ffmpeg 9 (9.0.2: SIGSEGV in a later
+    // encoder or av_opt_free, nondeterministic on identical input). Refuse
+    // rather than swap engines behind an explicit choice.
+    if use_nlm && engine::ffmpeg_major().unwrap_or(0) >= 9 {
+        return Err(Error::input(
+            "denoise --engine nlm: ffmpeg 9's anlmdn corrupts memory and crashes; use --engine wavel (the default) or fftdn",
+        ));
+    }
     let use_wavel = match args.engine {
         crate::cli::DenoiseEngine::Auto => has_wavel,
         crate::cli::DenoiseEngine::Wavel => {

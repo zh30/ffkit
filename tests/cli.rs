@@ -80,6 +80,79 @@ fn has_filter(name: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn ffmpeg_major() -> u32 {
+    Command::new("ffmpeg")
+        .arg("-version")
+        .output()
+        .ok()
+        .and_then(|o| {
+            let out = String::from_utf8_lossy(&o.stdout).into_owned();
+            let ver = out.split_whitespace().nth(2)?.to_string();
+            ver.split(|c: char| !c.is_ascii_digit())
+                .next()?
+                .parse()
+                .ok()
+        })
+        .unwrap_or(7)
+}
+
+/// `-fps_mode` from ffmpeg 5, the only spelling left from 7; 4.4 (CI) has `-vsync`
+fn fps_mode_flag() -> &'static str {
+    if ffmpeg_major() >= 5 {
+        "-fps_mode"
+    } else {
+        "-vsync"
+    }
+}
+
+fn has_encoder(name: &str) -> bool {
+    Command::new("ffmpeg")
+        .args(["-hide_banner", "-encoders"])
+        .output()
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .any(|l| l.split_whitespace().nth(1) == Some(name))
+        })
+        .unwrap_or(false)
+}
+
+fn has_protocol(name: &str) -> bool {
+    Command::new("ffmpeg")
+        .args(["-hide_banner", "-protocols"])
+        .output()
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .any(|l| l.trim() == name)
+        })
+        .unwrap_or(false)
+}
+
+/// Probe check for a video encoder ffmpeg 7 removed (v410/v308/ayuv):
+/// ffkit then writes rawvideo with the packed pix_fmt and QuickTime tag.
+fn assert_video_codec(j: &Value, enc: &str, want_v: &str, want_pf: &str, ctx: &str) {
+    let raw = match enc {
+        "v410" => Some(("v30xle", "v410")),
+        "v308" => Some(("vyu444", "v308")),
+        "ayuv" => Some(("uyva", "v408")),
+        _ => None,
+    }
+    .filter(|_| !has_encoder(enc));
+    let Some((pf, tag)) = raw else {
+        assert_eq!(j["probe"]["vcodec"], want_v, "{ctx}: {j}");
+        assert_eq!(j["probe"]["pix_fmt"], want_pf, "{ctx}: {j}");
+        return;
+    };
+    assert_eq!(j["probe"]["vcodec"], "rawvideo", "{ctx}: {j}");
+    assert_eq!(j["probe"]["pix_fmt"], pf, "{ctx}: {j}");
+    let v = j["probe"]["streams"]
+        .as_array()
+        .and_then(|a| a.iter().find(|s| s["kind"] == "video"))
+        .unwrap_or_else(|| panic!("{ctx}: no video stream {j}"));
+    assert_eq!(v["codec_tag"], tag, "{ctx}: {j}");
+}
+
 fn fixture(dir: &Path) -> PathBuf {
     let out = dir.join("f.mp4");
     let status = Command::new("ffmpeg")
@@ -1741,6 +1814,176 @@ fn pipeline_expect_mismatch_keeps_file() {
     assert_eq!(v["verified"], false, "{v}");
     assert_eq!(v["extra"]["expect"]["ok"], false, "{v}");
     assert!(out.metadata().unwrap().len() > 0);
+}
+
+fn measured_fixture(dir: &Path, name: &str, video: &str) -> PathBuf {
+    let out = dir.join(name);
+    let status = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            video,
+        ])
+        .args(["-f", "lavfi", "-i", "sine=frequency=440:duration=3"])
+        .args([
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+        ])
+        .arg(&out)
+        .status()
+        .expect("spawn ffmpeg");
+    assert!(status.success(), "ffmpeg fixture failed");
+    out
+}
+
+fn measured_plan(dir: &Path, input: &Path, out: &Path) -> PathBuf {
+    let plan_path = dir.join("plan.json");
+    let plan = serde_json::json!({
+        "goal": "-16 LUFS copy, no dead picture",
+        "input": input.to_str().unwrap(),
+        "expect": {
+            "lufs": -16, "lufs_tol": 1, "true_peak_max": -1,
+            "max_black": 0.5, "max_freeze": 0.5,
+            "av_drift_max": 0.1, "vcodec": "h264", "fps": 30, "ssim_min": 0.95
+        },
+        "steps": [{
+            "tool": "loudnorm",
+            "argv": ["$src", "-I", "-16", "-o", out.to_str().unwrap()]
+        }]
+    });
+    std::fs::write(&plan_path, serde_json::to_string(&plan).unwrap()).unwrap();
+    plan_path
+}
+
+fn failed_keys(v: &Value) -> Vec<String> {
+    v["extra"]["expect"]["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|c| c["ok"] != true)
+        .map(|c| c["key"].as_str().unwrap().to_string())
+        .collect()
+}
+
+#[test]
+fn pipeline_measured_expect_passes_clean_output() {
+    if !has_ffmpeg() || !has_filter("ebur128") || !has_filter("freezedetect") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = measured_fixture(
+        dir.path(),
+        "src.mp4",
+        "testsrc=duration=3:size=320x240:rate=30",
+    );
+    let out = dir.path().join("out.mp4");
+    let plan = measured_plan(dir.path(), &f, &out);
+    let v = run_json(&["pipeline", plan.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert!(failed_keys(&v).is_empty(), "{v}");
+    assert_eq!(v["verified"], true, "{v}");
+}
+
+#[test]
+fn pipeline_measured_expect_catches_black_head() {
+    if !has_ffmpeg() || !has_filter("ebur128") || !has_filter("freezedetect") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = measured_fixture(
+        dir.path(),
+        "src.mp4",
+        "color=black:s=320x240:r=30:d=1[b];testsrc=duration=2:size=320x240:rate=30[t];[b][t]concat",
+    );
+    let out = dir.path().join("out.mp4");
+    let plan = measured_plan(dir.path(), &f, &out);
+    let v = run_json(&["pipeline", plan.to_str().unwrap()]);
+    assert_eq!(v["status"], "ok", "{v}");
+    assert_eq!(v["verified"], false, "{v}");
+    let failed = failed_keys(&v);
+    assert!(failed.contains(&"max_black".to_string()), "{v}");
+    assert!(failed.contains(&"max_freeze".to_string()), "{v}");
+    assert!(!failed.contains(&"lufs".to_string()), "{v}");
+    assert!(out.metadata().unwrap().len() > 0);
+}
+
+#[test]
+fn pipeline_measured_expect_fails_wrong_loudness() {
+    if !has_ffmpeg() || !has_filter("ebur128") {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = measured_fixture(
+        dir.path(),
+        "src.mp4",
+        "testsrc=duration=3:size=320x240:rate=30",
+    );
+    let out = dir.path().join("out.mp4");
+    let plan_path = dir.path().join("plan.json");
+    let plan = serde_json::json!({
+        "goal": "podcast loudness, but the plan forgot to normalize",
+        "input": f.to_str().unwrap(),
+        "expect": { "lufs": -16 },
+        "steps": [{ "tool": "cut", "argv": ["$src", "--start", "0", "--end", "3", "-o", out.to_str().unwrap()] }]
+    });
+    std::fs::write(&plan_path, serde_json::to_string(&plan).unwrap()).unwrap();
+    let v = run_json(&["pipeline", plan_path.to_str().unwrap()]);
+    assert_eq!(v["verified"], false, "{v}");
+    assert_eq!(failed_keys(&v), vec!["lufs".to_string()], "{v}");
+}
+
+#[test]
+fn pipeline_ssim_refuses_changed_timeline() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let f = measured_fixture(
+        dir.path(),
+        "src.mp4",
+        "testsrc=duration=3:size=320x240:rate=30",
+    );
+    let out = dir.path().join("out.mp4");
+    let plan_path = dir.path().join("plan.json");
+    let plan = serde_json::json!({
+        "goal": "a second, compared to a 3s source",
+        "input": f.to_str().unwrap(),
+        "expect": { "ssim_min": 0.5 },
+        "steps": [{ "tool": "cut", "argv": ["$src", "--start", "0", "--end", "1", "-o", out.to_str().unwrap()] }]
+    });
+    std::fs::write(&plan_path, serde_json::to_string(&plan).unwrap()).unwrap();
+    let v = run_json(&["pipeline", plan_path.to_str().unwrap()]);
+    assert_eq!(v["verified"], false, "{v}");
+    let got = v["extra"]["expect"]["checks"][0]["got"]
+        .as_str()
+        .unwrap_or("");
+    assert!(got.contains("not comparable"), "{v}");
+}
+
+#[test]
+fn pipeline_rejects_unknown_expect_key() {
+    let dir = tempfile::tempdir().unwrap();
+    let plan_path = dir.path().join("plan.json");
+    let plan = serde_json::json!({
+        "goal": "typo must not pass silently",
+        "expect": { "luf": -14 },
+        "steps": [{ "tool": "cut", "argv": ["x.mp4", "-o", "y.mp4"] }]
+    });
+    std::fs::write(&plan_path, serde_json::to_string(&plan).unwrap()).unwrap();
+    let v = run_json(&["pipeline", plan_path.to_str().unwrap()]);
+    assert_eq!(v["status"], "failed", "{v}");
+    let msg = v["error"]["message"].as_str().unwrap_or("");
+    assert!(msg.contains("luf"), "{v}");
 }
 
 #[test]
@@ -13756,7 +13999,10 @@ fn meter_window_seeks_and_caps() {
         .collect::<Vec<_>>()
         .join(" ");
     assert!(cmds.contains("-ss"), "{cmds}");
-    assert!(cmds.contains("-t"), "{cmds}");
+    // window cut in-graph (an output -t spins ffmpeg 9 on short meters)
+    assert!(cmds.contains("atrim=duration=0.400"), "{cmds}");
+    let d = v["probe"]["duration"].as_f64().unwrap_or(0.0);
+    assert!((d - 0.4).abs() < 0.15, "meter window {d}s: {v}");
 }
 
 #[test]
@@ -16169,26 +16415,28 @@ fn censor_multi_region_and_subs_burn_si() {
         .status()
         .unwrap();
     assert!(st.success());
-    let burned = dir.path().join("burned.mp4");
-    let v = run_json(&[
-        "subs",
-        multi.to_str().unwrap(),
-        "-o",
-        burned.to_str().unwrap(),
-        "--burn-si",
-        "1",
-    ]);
-    assert_eq!(v["status"], "ok", "{v}");
-    assert!(burned.is_file());
-    let oob = run_json(&[
-        "subs",
-        multi.to_str().unwrap(),
-        "-o",
-        dir.path().join("oob.mp4").to_str().unwrap(),
-        "--burn-si",
-        "9",
-    ]);
-    assert_eq!(oob["status"], "failed", "{oob}");
+    if has_filter("subtitles") {
+        let burned = dir.path().join("burned.mp4");
+        let v = run_json(&[
+            "subs",
+            multi.to_str().unwrap(),
+            "-o",
+            burned.to_str().unwrap(),
+            "--burn-si",
+            "1",
+        ]);
+        assert_eq!(v["status"], "ok", "{v}");
+        assert!(burned.is_file());
+        let oob = run_json(&[
+            "subs",
+            multi.to_str().unwrap(),
+            "-o",
+            dir.path().join("oob.mp4").to_str().unwrap(),
+            "--burn-si",
+            "9",
+        ]);
+        assert_eq!(oob["status"], "failed", "{oob}");
+    }
 }
 
 #[test]
@@ -16303,27 +16551,29 @@ fn deliver_fps_subs_margin_hls_poster() {
     assert!(cmds.contains("fps=60"), "{cmds}");
 
     // subs --margin lifts the burned captions
-    let srt = dir.path().join("c.srt");
-    std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,800\nHELLO\n").unwrap();
-    let v = run_json(&[
-        "subs",
-        a.to_str().unwrap(),
-        "-o",
-        dir.path().join("s.mp4").to_str().unwrap(),
-        "--burn",
-        srt.to_str().unwrap(),
-        "--margin",
-        "120",
-    ]);
-    assert_eq!(v["status"], "ok", "{v}");
-    let cmds = v["commands"][0]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|c| c.as_str().unwrap())
-        .collect::<Vec<_>>()
-        .join(" ");
-    assert!(cmds.contains("MarginV=120"), "{cmds}");
+    if has_filter("subtitles") {
+        let srt = dir.path().join("c.srt");
+        std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:00,800\nHELLO\n").unwrap();
+        let v = run_json(&[
+            "subs",
+            a.to_str().unwrap(),
+            "-o",
+            dir.path().join("s.mp4").to_str().unwrap(),
+            "--burn",
+            srt.to_str().unwrap(),
+            "--margin",
+            "120",
+        ]);
+        assert_eq!(v["status"], "ok", "{v}");
+        let cmds = v["commands"][0]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c.as_str().unwrap())
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(cmds.contains("MarginV=120"), "{cmds}");
+    }
 
     // hls --poster writes a jpg next to the playlist
     let v = run_json(&[
@@ -17259,33 +17509,35 @@ fn subs_encoding_gbk_and_deliver_subs() {
     let src = fixture(dir.path());
     let srt = dir.path().join("c.srt");
     std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:01,500\nHELLO\n").unwrap();
-    let d = dir.path().join("d.mp4");
-    let v = run_json(&[
-        "deliver",
-        src.to_str().unwrap(),
-        "-o",
-        d.to_str().unwrap(),
-        "--platform",
-        "square",
-        "--subs",
-        srt.to_str().unwrap(),
-    ]);
-    assert_eq!(v["status"], "ok", "{v}");
-    let vf = v["commands"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .flat_map(|c| {
-            c.as_array()
-                .unwrap()
-                .iter()
-                .map(|a| a.as_str().unwrap_or(""))
-        })
-        .find(|a| a.contains("subtitles="))
-        .unwrap_or("")
-        .to_string();
-    assert!(vf.contains("subtitles=filename="), "{vf}");
-    assert_eq!(v["probe"]["width"].as_u64(), Some(1080));
+    if has_filter("subtitles") {
+        let d = dir.path().join("d.mp4");
+        let v = run_json(&[
+            "deliver",
+            src.to_str().unwrap(),
+            "-o",
+            d.to_str().unwrap(),
+            "--platform",
+            "square",
+            "--subs",
+            srt.to_str().unwrap(),
+        ]);
+        assert_eq!(v["status"], "ok", "{v}");
+        let vf = v["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|c| {
+                c.as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|a| a.as_str().unwrap_or(""))
+            })
+            .find(|a| a.contains("subtitles="))
+            .unwrap_or("")
+            .to_string();
+        assert!(vf.contains("subtitles=filename="), "{vf}");
+        assert_eq!(v["probe"]["width"].as_u64(), Some(1080));
+    }
 }
 
 #[test]
@@ -20346,8 +20598,10 @@ fn smooth_vaguedenoise_and_channel_ambience() {
             .unwrap();
         String::from_utf8_lossy(&o.stderr)
             .lines()
-            .find(|l| l.contains("max_volume"))
-            .and_then(|l| l.split("max_volume:").nth(1))
+            // mean, not peak: AAC's stereo coding moves peaks by ~3 dB
+            // (5.2 dB cut read as 2.0 on ffmpeg 9) while the mean holds
+            .find(|l| l.contains("mean_volume"))
+            .and_then(|l| l.split("mean_volume:").nth(1))
             .and_then(|s| s.trim().trim_end_matches(" dB").parse().ok())
             .unwrap()
     };
@@ -20879,35 +21133,37 @@ fn declip_reverb_ir_channel_surround() {
     }
     let dir = tempfile::tempdir().unwrap();
 
-    // declip: a hard-clipped sine keeps fewer saturated samples after repair
+    // declip: a sine clipped flat (~30% of samples on the rails, like an
+    // overdriven recording) loses its plateaus after repair. The plateau
+    // length is the measure: a repaired wave is no longer flat on top, and
+    // a gain change alone cannot shorten a run of identical samples.
     let clipped = dir.path().join("clipped.wav");
     let st = Command::new("ffmpeg")
         .args(["-y", "-v", "error", "-f", "lavfi", "-i"])
         .arg("sine=frequency=440:duration=1")
-        .args(["-af", "alimiter=limit=0.2,volume=4"])
+        .args(["-af", "volume=9", "-c:a", "pcm_s16le"])
         .arg(&clipped)
         .status()
         .unwrap();
     assert!(st.success());
-    let clipped_frac = |p: &std::path::Path| -> f64 {
+    let longest_flat = |p: &std::path::Path| -> usize {
         let o = Command::new("ffmpeg")
             .args(["-v", "error", "-i"])
             .arg(p)
             .args(["-f", "s16le", "-ac", "1", "-"])
             .output()
             .unwrap();
-        let n = o.stdout.len() / 2;
-        if n == 0 {
-            return -1.0;
+        let s: Vec<i16> = o
+            .stdout
+            .chunks_exact(2)
+            .map(|w| i16::from_le_bytes([w[0], w[1]]))
+            .collect();
+        let (mut best, mut cur) = (0usize, 1usize);
+        for w in s.windows(2) {
+            cur = if w[0] == w[1] { cur + 1 } else { 1 };
+            best = best.max(cur);
         }
-        let mut hit = 0usize;
-        for w in o.stdout.chunks_exact(2) {
-            let s = i16::from_le_bytes([w[0], w[1]]) as i32;
-            if s.abs() >= 32500 {
-                hit += 1;
-            }
-        }
-        hit as f64 / n as f64
+        best
     };
     let fixed = dir.path().join("fixed.wav");
     let v = run_json(&[
@@ -20917,12 +21173,15 @@ fn declip_reverb_ir_channel_surround() {
         fixed.to_str().unwrap(),
     ]);
     assert_eq!(v["status"], "ok", "{v}");
-    let before = clipped_frac(&clipped);
-    let after = clipped_frac(&fixed);
+    let before = longest_flat(&clipped);
+    let after = longest_flat(&fixed);
     assert!(
-        before > 0.1 && after < before * 0.9,
-        "declip should cut saturated-sample fraction {before} -> {after}"
+        before >= 8 && after * 2 <= before,
+        "declip should break up the clipped plateaus: {before} -> {after} samples"
     );
+    // the rebuilt peaks rise above full scale; they must not be clipped
+    // flat again on the way into 16-bit PCM
+    assert!(v["extra"]["headroom_db"].as_f64().is_some(), "{v}");
 
     // reverb --ir: convolution against an impulse response rings the tail
     // past the dry source's end (output is dry + IR length)
@@ -22435,9 +22694,13 @@ fn grade_lut_hald_skin_scan_idet() {
             "-f",
             "lavfi",
             "-i",
-            "testsrc=rate=25,tinterlace=4",
+            "testsrc=rate=50,tinterlace=4",
             "-t",
             "1",
+            // near-lossless: at the default crf, newer x264 smooths the
+            // field combing away and idet calls most frames undetermined
+            "-crf",
+            "10",
             "-y",
         ])
         .arg(&inter)
@@ -22654,6 +22917,9 @@ fn tonemap_telecine_premult() {
             "testsrc=rate=25",
             "-frames:v",
             "5",
+            // setparams tags the frames; ffmpeg 9 ignores the encoder options
+            "-vf",
+            "setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc",
             "-color_primaries",
             "bt2020",
             "-color_trc",
@@ -24052,13 +24318,16 @@ fn dotcrawl_scope_data_glitch_planes_delogo_image() {
     assert_eq!(v["status"], "ok", "{v}");
     assert_eq!(v["extra"]["filter"], "shuffleplanes", "{v}");
     // testsrc2 with rotated channels should differ wildly from source frame
-    let px = |p: &std::path::Path| -> u32 {
-        let out = Command::new("ffmpeg")
-            .args(["-v", "error", "-i"])
+    // a coloured patch (newer testsrc is black at the corner), compared
+    // byte by byte: a channel rotation keeps the R+G+B sum, so a summed
+    // checksum cannot see it
+    let px = |p: &std::path::Path| -> Vec<u8> {
+        Command::new("ffmpeg")
+            .args(["-v", "error", "-nostdin", "-i"])
             .arg(p)
             .args([
                 "-vf",
-                "crop=32:32:5:5,format=rgb24",
+                "crop=32:32:100:100,format=rgb24",
                 "-frames:v",
                 "1",
                 "-f",
@@ -24066,11 +24335,21 @@ fn dotcrawl_scope_data_glitch_planes_delogo_image() {
                 "-",
             ])
             .output()
-            .unwrap();
-        // pixel checksum — channel rotation changes it wholesale
-        out.stdout.iter().map(|&b| b as u32).sum::<u32>()
+            .unwrap()
+            .stdout
     };
-    assert_ne!(px(&src), px(&o));
+    let (a, b) = (px(&src), px(&o));
+    assert_eq!(a.len(), 32 * 32 * 3);
+    let moved = a
+        .iter()
+        .zip(&b)
+        .filter(|(x, y)| x.abs_diff(**y) > 40)
+        .count();
+    assert!(
+        moved * 3 > a.len(),
+        "planes should rotate channels: {moved}/{}",
+        a.len()
+    );
 
     let o = dir.path().join("sd.mp4");
     let v = run_json(&[
@@ -25356,7 +25635,7 @@ fn stabilize_vidstab_vdenoise_rg_wb_greyedge_scan_vfr_epx_earwax_scope_drift() {
                 "testsrc=size=160x120:rate=30:duration=2",
                 "-vf",
                 "select=lt(mod(n\\,3)\\,2)",
-                "-vsync",
+                fps_mode_flag(),
                 "vfr",
                 "-pix_fmt",
                 "yuv420p",
@@ -28206,7 +28485,13 @@ fn r237_overlay_modes_channels_scale_frag() {
         s("-of"),
         s("csv=p=0"),
     ]);
-    let y: f64 = px.lines().next().unwrap().trim().parse().unwrap_or(0.0);
+    // first field: ffprobe 7+ appends an empty side-data column (`176.4,`)
+    let y: f64 = px
+        .lines()
+        .next()
+        .and_then(|l| l.split(',').next())
+        .and_then(|v| v.trim().parse().ok())
+        .unwrap_or(0.0);
     assert!(y > 150.0, "dodge self-blend should lift luma hard, got {y}");
     let j = run_json(&[
         "overlay",
@@ -30066,7 +30351,9 @@ fn r244_vertical_gop_preset_stripmeta_multilang_test() {
     let idx: Vec<usize> = keys
         .lines()
         .enumerate()
-        .filter(|(_, l)| l.trim() == "1")
+        // first field only: ffprobe 7+ appends an empty side-data column
+        // to frames that carry side data (`1,`)
+        .filter(|(_, l)| l.split(',').next().map(str::trim) == Some("1"))
         .map(|(i, _)| i)
         .collect();
     // g=15 → frame 0 key, extra keys land inside the window (x264's
@@ -30833,77 +31120,79 @@ fn r247_dash_encrypt_webp_x_linkedin_test() {
 
     // extract --webp: animated WebP — RIFF ANIM + ANMF frames (4.4's
     // decoder can't read ANMF, so verify the container structure)
-    let wp = d.join("anim.webp");
-    let j = run_json(&[
-        "extract",
-        &f.to_string_lossy(),
-        "-o",
-        &wp.to_string_lossy(),
-        "--webp",
-        "--dur",
-        "0.5",
-        "--fps",
-        "10",
-    ]);
-    assert_eq!(j["status"], "ok", "{}", j["error"]);
-    let raw = std::fs::read(&wp).unwrap();
-    assert_eq!(&raw[0..4], b"RIFF");
-    assert_eq!(&raw[8..12], b"WEBP");
-    let anmf = raw.windows(4).filter(|w| *w == b"ANMF").count();
-    assert!(anmf >= 3, "expected several ANMF frames, got {anmf}");
-    assert!(raw.windows(4).any(|w| w == b"ANIM"));
-    // alpha input keeps ALPH subchunks inside frames
-    let amov = d.join("alpha.mov");
-    let o = ffmpeg(&[
-        s("-hide_banner"),
-        s("-loglevel"),
-        s("error"),
-        s("-y"),
-        s("-f"),
-        s("lavfi"),
-        s("-i"),
-        s("color=c=black@0:size=64x64:d=1,format=rgba[bg];color=c=red:size=20x20:d=1,format=rgba[fg];[bg][fg]overlay=22:22"),
-        s("-c:v"),
-        s("qtrle"),
-        amov.to_string_lossy().into_owned(),
-    ]);
-    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
-    let awp = d.join("aw.webp");
-    let j = run_json(&[
-        "extract",
-        &amov.to_string_lossy(),
-        "-o",
-        &awp.to_string_lossy(),
-        "--webp",
-        "--dur",
-        "0.5",
-        "--width",
-        "64",
-    ]);
-    assert_eq!(j["status"], "ok", "{}", j["error"]);
-    let raw = std::fs::read(&awp).unwrap();
-    assert!(
-        raw.windows(4).any(|w| w == b"ALPH"),
-        "alpha webp lacks ALPH"
-    );
-    // --bounce works on webp (palindrome ≈ 2x frames)
-    let bw = d.join("b.webp");
-    let j = run_json(&[
-        "extract",
-        &f.to_string_lossy(),
-        "-o",
-        &bw.to_string_lossy(),
-        "--webp",
-        "--bounce",
-        "--dur",
-        "0.4",
-        "--fps",
-        "10",
-    ]);
-    assert_eq!(j["status"], "ok", "{}", j["error"]);
-    let raw = std::fs::read(&bw).unwrap();
-    let anmf = raw.windows(4).filter(|w| *w == b"ANMF").count();
-    assert!(anmf >= 7, "bounce should ~double frames, got {anmf}");
+    if has_encoder("libwebp") {
+        let wp = d.join("anim.webp");
+        let j = run_json(&[
+            "extract",
+            &f.to_string_lossy(),
+            "-o",
+            &wp.to_string_lossy(),
+            "--webp",
+            "--dur",
+            "0.5",
+            "--fps",
+            "10",
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        let raw = std::fs::read(&wp).unwrap();
+        assert_eq!(&raw[0..4], b"RIFF");
+        assert_eq!(&raw[8..12], b"WEBP");
+        let anmf = raw.windows(4).filter(|w| *w == b"ANMF").count();
+        assert!(anmf >= 3, "expected several ANMF frames, got {anmf}");
+        assert!(raw.windows(4).any(|w| w == b"ANIM"));
+        // alpha input keeps ALPH subchunks inside frames
+        let amov = d.join("alpha.mov");
+        let o = ffmpeg(&[
+            s("-hide_banner"),
+            s("-loglevel"),
+            s("error"),
+            s("-y"),
+            s("-f"),
+            s("lavfi"),
+            s("-i"),
+            s("color=c=black@0:size=64x64:d=1,format=rgba[bg];color=c=red:size=20x20:d=1,format=rgba[fg];[bg][fg]overlay=22:22"),
+            s("-c:v"),
+            s("qtrle"),
+            amov.to_string_lossy().into_owned(),
+        ]);
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+        let awp = d.join("aw.webp");
+        let j = run_json(&[
+            "extract",
+            &amov.to_string_lossy(),
+            "-o",
+            &awp.to_string_lossy(),
+            "--webp",
+            "--dur",
+            "0.5",
+            "--width",
+            "64",
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        let raw = std::fs::read(&awp).unwrap();
+        assert!(
+            raw.windows(4).any(|w| w == b"ALPH"),
+            "alpha webp lacks ALPH"
+        );
+        // --bounce works on webp (palindrome ≈ 2x frames)
+        let bw = d.join("b.webp");
+        let j = run_json(&[
+            "extract",
+            &f.to_string_lossy(),
+            "-o",
+            &bw.to_string_lossy(),
+            "--webp",
+            "--bounce",
+            "--dur",
+            "0.4",
+            "--fps",
+            "10",
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        let raw = std::fs::read(&bw).unwrap();
+        let anmf = raw.windows(4).filter(|w| *w == b"ANMF").count();
+        assert!(anmf >= 7, "bounce should ~double frames, got {anmf}");
+    }
     // conflicts
     let j = run_json(&[
         "extract",
@@ -30977,51 +31266,57 @@ fn r248_live_srt_hevc_subs_circle_test() {
     }
 
     // live --to srt://: an ffmpeg SRT listener receives mpegts (0x47 sync)
-    let recv = d.join("recv.ts");
-    let port = {
-        let sock = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
-        let p = sock.local_addr().unwrap().port();
-        drop(sock);
-        p
-    };
-    let mut listener = Command::new("ffmpeg")
-        .args([
-            "-v",
-            "error",
-            "-i",
-            &format!("srt://127.0.0.1:{port}?mode=listener"),
-            "-c",
-            "copy",
-            "-f",
-            "mpegts",
-        ])
-        .arg(&recv)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .expect("ffmpeg srt listener");
-    std::thread::sleep(std::time::Duration::from_millis(1500));
-    let j = run_json(&[
-        "live",
-        &f.to_string_lossy(),
-        "--to",
-        &format!("srt://127.0.0.1:{port}?mode=caller"),
-        "--until",
-        "1",
-    ]);
-    assert_eq!(j["status"], "ok", "{}", j["error"]);
-    assert_eq!(j["extra"]["format"], "mpegts");
-    assert_eq!(j["extra"]["codec"], "h264");
-    std::thread::sleep(std::time::Duration::from_millis(800));
-    let _ = listener.kill();
-    let _ = listener.wait();
-    let raw = std::fs::read(&recv).unwrap_or_default();
-    assert!(
-        raw.len() > 10000,
-        "expected mpegts bytes, got {}",
-        raw.len()
-    );
-    assert_eq!(raw[0], 0x47, "expected TS sync byte");
+    if has_protocol("srt") {
+        let recv = d.join("recv.ts");
+        let port = {
+            let sock = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+            let p = sock.local_addr().unwrap().port();
+            drop(sock);
+            p
+        };
+        let mut listener = Command::new("ffmpeg")
+            .args([
+                "-v",
+                "error",
+                "-i",
+                &format!("srt://127.0.0.1:{port}?mode=listener"),
+                "-c",
+                "copy",
+                "-f",
+                "mpegts",
+            ])
+            .arg(&recv)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("ffmpeg srt listener");
+        std::thread::sleep(std::time::Duration::from_millis(1500));
+        let j = run_json(&[
+            "live",
+            &f.to_string_lossy(),
+            "--to",
+            &format!("srt://127.0.0.1:{port}?mode=caller"),
+            "--until",
+            "1",
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        assert_eq!(j["extra"]["format"], "mpegts");
+        assert_eq!(j["extra"]["codec"], "h264");
+        // let the listener drain and close the file before stopping it
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while listener.try_wait().ok().flatten().is_none() && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        let _ = listener.kill();
+        let _ = listener.wait();
+        let raw = std::fs::read(&recv).unwrap_or_default();
+        assert!(
+            raw.len() > 10000,
+            "expected mpegts bytes, got {}",
+            raw.len()
+        );
+        assert_eq!(raw[0], 0x47, "expected TS sync byte");
+    }
 
     // live --codec hevc rides mpegts transports; the flv muxer is rejected
     let j = run_json(&[
@@ -31048,38 +31343,40 @@ fn r248_live_srt_hevc_subs_circle_test() {
     assert_eq!(j["status"], "failed");
 
     // live --subs: captions burn into the stream — diff-box lands bottom-center
-    let srt = d.join("cap.srt");
-    std::fs::write(&srt, "1\n00:00:00,100 --> 00:00:02,000\nLIVE CAPTION\n").unwrap();
-    let arch = d.join("arch.mp4");
-    let j = run_json(&[
-        "live",
-        &f.to_string_lossy(),
-        "--subs",
-        &srt.to_string_lossy(),
-        "--to",
-        "udp://127.0.0.1:49997",
-        "--record",
-        &arch.to_string_lossy(),
-        "--until",
-        "1",
-    ]);
-    assert_eq!(j["status"], "ok", "{}", j["error"]);
-    assert_eq!(j["extra"]["subs"], true);
-    let bb = ffmpeg(&[
-        s("-v"),
-        s("error"),
-        s("-i"),
-        arch.to_string_lossy().into_owned(),
-        s("-i"),
-        f.to_string_lossy().into_owned(),
-        s("-filter_complex"),
-        s("[0][1]blend=all_mode=difference,bbox=min_val=30,metadata=print:file=-"),
-        s("-f"),
-        s("null"),
-        s("-"),
-    ]);
-    let meta = String::from_utf8_lossy(&bb.stdout).into_owned();
-    assert!(meta.contains("lavfi.bbox.x1="), "{meta}");
+    if has_filter("subtitles") {
+        let srt = d.join("cap.srt");
+        std::fs::write(&srt, "1\n00:00:00,100 --> 00:00:02,000\nLIVE CAPTION\n").unwrap();
+        let arch = d.join("arch.mp4");
+        let j = run_json(&[
+            "live",
+            &f.to_string_lossy(),
+            "--subs",
+            &srt.to_string_lossy(),
+            "--to",
+            "udp://127.0.0.1:49997",
+            "--record",
+            &arch.to_string_lossy(),
+            "--until",
+            "1",
+        ]);
+        assert_eq!(j["status"], "ok", "{}", j["error"]);
+        assert_eq!(j["extra"]["subs"], true);
+        let bb = ffmpeg(&[
+            s("-v"),
+            s("error"),
+            s("-i"),
+            arch.to_string_lossy().into_owned(),
+            s("-i"),
+            f.to_string_lossy().into_owned(),
+            s("-filter_complex"),
+            s("[0][1]blend=all_mode=difference,bbox=min_val=30,metadata=print:file=-"),
+            s("-f"),
+            s("null"),
+            s("-"),
+        ]);
+        let meta = String::from_utf8_lossy(&bb.stdout).into_owned();
+        assert!(meta.contains("lavfi.bbox.x1="), "{meta}");
+    }
 
     // deliver --platform circle: 640x640 Telegram video-note canvas + mono
     let co = d.join("co.mp4");
@@ -31272,6 +31569,10 @@ fn r249_dash_ladder_live_start_scan_hdr_remux_delay_test() {
         s("error"),
         s("-i"),
         f.to_string_lossy().into_owned(),
+        // setparams tags the frames; ffmpeg 9 ignores -color_primaries
+        // / -color_trc as encoder options
+        s("-vf"),
+        s("setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc"),
         s("-c:v"),
         s("libx264"),
         s("-t"),
@@ -32803,21 +33104,18 @@ fn r260_concat_chapters_probe_rotation_deliver_lufs_live_no_audio() {
 
     // probe.rotation: display-matrix QC + streams[].default
     let rot = d.join("rot.mp4");
-    let st = std::process::Command::new("ffmpeg")
-        .args([
-            "-y",
-            "-v",
-            "error",
-            "-i",
-            f.to_str().unwrap(),
-            "-c",
-            "copy",
-            "-metadata:s:v",
-            "rotate=90",
-            rot.to_str().unwrap(),
-        ])
-        .status()
-        .unwrap();
+    // the rotate tag stopped writing a display matrix in ffmpeg 7; the
+    // -display_rotation input option (6+) is the replacement
+    let mut cmd = std::process::Command::new("ffmpeg");
+    cmd.args(["-y", "-v", "error"]);
+    if ffmpeg_major() >= 6 {
+        cmd.args(["-display_rotation:v:0", "-90"]);
+    }
+    cmd.args(["-i", f.to_str().unwrap(), "-c", "copy"]);
+    if ffmpeg_major() < 6 {
+        cmd.args(["-metadata:s:v", "rotate=90"]);
+    }
+    let st = cmd.arg(&rot).status().unwrap();
     assert!(st.success());
     let j = run_json(&["probe", rot.to_str().unwrap()]);
     assert_eq!(j["status"], "ok");
@@ -33682,7 +33980,8 @@ fn r265_extract_all_remux_sub_lang_timer_utc_whatsapp_chapter_scenes() {
             "aac",
             "-c:s",
             "srt",
-            "-shortest",
+            // no -shortest: with subtitle inputs it deadlocks ffmpeg 9's
+            // scheduler ~15% of runs (every input here is 2s anyway)
         ])
         .arg(&dual)
         .status()
@@ -34227,11 +34526,21 @@ fn r266_extract_lang_window_countdown_utc_live_url_remux_sub_order() {
             "--until",
             "1",
         ]);
-        let _ = listener.kill();
-        let _ = listener.wait();
         if j["status"] == "ok" {
+            // let the listener see EOF and finish writing; killing it right
+            // away loses the file on a loaded machine (0 bytes written)
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+            while listener.try_wait().ok().flatten().is_none()
+                && std::time::Instant::now() < deadline
+            {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            let _ = listener.kill();
+            let _ = listener.wait();
             break;
         }
+        let _ = listener.kill();
+        let _ = listener.wait();
         let refused = j["error"]["message"]
             .as_str()
             .unwrap_or_default()
@@ -34336,7 +34645,8 @@ fn r267_xfade_full_set_slideshow_audio_fade_deliver_twitch_discord_live_crf_hls_
         ]);
         assert_eq!(j["status"], "ok", "concat --transition {t} failed: {j}");
         let dur: f64 = ast(&o).parse().unwrap();
-        assert!(dur > 1.5 && dur < 2.1, "{t} dur {dur}");
+        // 1s + 1s − 0.5s overlap = 1.5s; older AAC padding added a few ms
+        assert!(dur > 1.45 && dur < 2.1, "{t} dur {dur}");
     }
     // slideshow --audio-fade: longer tail fade on the bed
     let still = |name: &str, color: &str| -> PathBuf {
@@ -36952,6 +37262,9 @@ fn r286_colorspace_drop_platforms() {
             "lavfi",
             "-i",
             "testsrc2=s=320x240:d=1:r=30",
+            // setparams tags the frames; ffmpeg 9 ignores the encoder options
+            "-vf",
+            "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709",
             "-c:v",
             "libx264",
             "-pix_fmt",
@@ -37287,12 +37600,13 @@ fn r289_field_order_number_platforms() {
             "lavfi",
             "-i",
             "sine=frequency=440:duration=1",
+            // setfield, not -top: ffmpeg 7 removed -top
+            "-vf",
+            "setfield=tff",
             "-c:v",
             "mpeg2video",
             "-flags",
             "+ildct+ilme",
-            "-top",
-            "1",
             "-c:a",
             "aac",
         ])
@@ -37345,8 +37659,8 @@ fn r289_field_order_number_platforms() {
             f.to_str().unwrap(),
             "-vf",
             "select='eq(n\\,15)'",
-            "-vsync",
-            "0",
+            fps_mode_flag(),
+            "passthrough",
             "-frames:v",
             "1",
         ])
@@ -37412,6 +37726,10 @@ fn r290_color_hdr_loudnorm_platforms() {
             "lavfi",
             "-i",
             "sine=frequency=440:duration=1",
+            // setparams tags the frames; ffmpeg 9 ignores -color_primaries
+            // / -color_trc as encoder options
+            "-vf",
+            "setparams=color_primaries=bt2020:color_trc=smpte2084",
             "-c:v",
             "libx264",
             "-color_primaries",
@@ -37592,8 +37910,8 @@ fn r291_stream_qc_number_list_platforms() {
             f.to_str().unwrap(),
             "-vf",
             "select='eq(n\\,15)'",
-            "-vsync",
-            "0",
+            fps_mode_flag(),
+            "passthrough",
             "-frames:v",
             "1",
         ])
@@ -40184,25 +40502,27 @@ fn r315_gpp_stl_rt_conform_device_timebase_platforms() {
 
     // transcode --preset gpp -> h263/s263 + amr_nb 8kHz mono in .3gp;
     // h263's five legal canvas sizes snap 320x240 to 352x288 letterboxed
-    let gp = d.path().join("out.3gp");
-    let j = run_json(&[
-        "transcode",
-        f.to_str().unwrap(),
-        "-o",
-        gp.to_str().unwrap(),
-        "--preset",
-        "gpp",
-    ]);
-    assert_eq!(j["status"], "ok");
-    let p = run_json(&["probe", gp.to_str().unwrap()]);
-    let streams = p["probe"]["streams"].as_array().unwrap();
-    assert_eq!(streams[0]["codec"], "h263");
-    assert_eq!(streams[0]["codec_tag"], "s263");
-    assert_eq!(streams[0]["width"], 352);
-    assert_eq!(streams[0]["height"], 288);
-    assert_eq!(streams[1]["codec"], "amr_nb");
-    assert_eq!(streams[1]["sample_rate"], 8000);
-    assert_eq!(streams[1]["channels"], 1);
+    if has_encoder("libopencore_amrnb") {
+        let gp = d.path().join("out.3gp");
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            gp.to_str().unwrap(),
+            "--preset",
+            "gpp",
+        ]);
+        assert_eq!(j["status"], "ok");
+        let p = run_json(&["probe", gp.to_str().unwrap()]);
+        let streams = p["probe"]["streams"].as_array().unwrap();
+        assert_eq!(streams[0]["codec"], "h263");
+        assert_eq!(streams[0]["codec_tag"], "s263");
+        assert_eq!(streams[0]["width"], 352);
+        assert_eq!(streams[0]["height"], 288);
+        assert_eq!(streams[1]["codec"], "amr_nb");
+        assert_eq!(streams[1]["sample_rate"], 8000);
+        assert_eq!(streams[1]["channels"], 1);
+    }
     let bad = d.path().join("out.mp4");
     let j = run_json(&[
         "transcode",
@@ -40351,25 +40671,27 @@ fn r316_flv_theora_mps_sub_subviewer_chapters_platforms() {
     assert_eq!(j["status"], "failed");
 
     // transcode --preset theora — theora+vorbis open-web master
-    let th = d.path().join("out.ogv");
-    let j = run_json(&[
-        "transcode",
-        f.to_str().unwrap(),
-        "-o",
-        th.to_str().unwrap(),
-        "--preset",
-        "theora",
-    ]);
-    assert_eq!(j["status"], "ok");
-    let p = run_json(&["probe", th.to_str().unwrap()]);
-    let mut codecs: Vec<String> = p["probe"]["streams"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|s| s["codec"].as_str().unwrap().to_string())
-        .collect();
-    codecs.sort();
-    assert_eq!(codecs, ["theora", "vorbis"], "{codecs:?}");
+    if has_encoder("libtheora") {
+        let th = d.path().join("out.ogv");
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            th.to_str().unwrap(),
+            "--preset",
+            "theora",
+        ]);
+        assert_eq!(j["status"], "ok");
+        let p = run_json(&["probe", th.to_str().unwrap()]);
+        let mut codecs: Vec<String> = p["probe"]["streams"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s["codec"].as_str().unwrap().to_string())
+            .collect();
+        codecs.sort();
+        assert_eq!(codecs, ["theora", "vorbis"], "{codecs:?}");
+    }
 
     // subs --convert reads .mps — MPlayer start+DURATION lines via demuxer
     let mps = d.path().join("t.mps");
@@ -41862,8 +42184,7 @@ fn r323_uncompressed_realvideo_webinar_platforms() {
         ]);
         assert_eq!(j["status"], "ok", "{preset}: {j}");
         let j = run_json(&["probe", o.to_str().unwrap()]);
-        assert_eq!(j["probe"]["vcodec"], expect_v, "{preset}: {j}");
-        assert_eq!(j["probe"]["pix_fmt"], expect_pf, "{preset}: {j}");
+        assert_video_codec(&j, preset, expect_v, expect_pf, preset);
         if preset == "v410" || preset == "ayuv" {
             assert_eq!(j["probe"]["acodec"], "pcm_s16le", "{preset}: {j}");
         } else {
@@ -41933,8 +42254,7 @@ fn r324_uncompressed_rgb_stock_platforms() {
         ]);
         assert_eq!(j["status"], "ok", "{preset}: {j}");
         let j = run_json(&["probe", o.to_str().unwrap()]);
-        assert_eq!(j["probe"]["vcodec"], expect_v, "{preset}: {j}");
-        assert_eq!(j["probe"]["pix_fmt"], expect_pf, "{preset}: {j}");
+        assert_video_codec(&j, preset, expect_v, expect_pf, preset);
         assert_eq!(j["probe"]["acodec"], "pcm_s16le", "{preset}: {j}");
         let bad = run_json(&[
             "transcode",
@@ -42211,6 +42531,9 @@ fn r328_telephony_era_audio_food_platforms() {
         ("ra144", "r328.rm", "ra_144"),
         ("nelly", "r328.flv", "nellymoser"),
     ] {
+        if preset == "speex" && !has_encoder("libspeex") {
+            continue;
+        }
         let o = dir.path().join(file);
         let j = run_json(&[
             "transcode",
@@ -42358,6 +42681,9 @@ fn r330_livevisual_intermediates_dating_platforms() {
         ("magicyuv", "r330-magicyuv.avi", "magicyuv"),
         ("r10k", "r330-r10k.mov", "r10k"),
     ] {
+        if preset.starts_with("hap") && !has_encoder("hap") {
+            continue;
+        }
         let o = dir.path().join(file);
         let j = run_json(&[
             "transcode",
@@ -42373,20 +42699,22 @@ fn r330_livevisual_intermediates_dating_platforms() {
         assert_eq!(j["probe"]["acodec"], "pcm_s16le", "{preset}: {j}");
     }
     // hap --alpha carries rgba
-    let o = dir.path().join("r330-alpha.mov");
-    let j = run_json(&[
-        "transcode",
-        f.to_str().unwrap(),
-        "--preset",
-        "hap",
-        "--alpha",
-        "-o",
-        o.to_str().unwrap(),
-    ]);
-    assert_eq!(j["status"], "ok", "hap --alpha: {j}");
-    let j = run_json(&["probe", o.to_str().unwrap()]);
-    assert_eq!(j["probe"]["vcodec"], "hap", "hap --alpha: {j}");
-    assert_eq!(j["probe"]["streams"][0]["alpha"], true, "hap --alpha: {j}");
+    if has_encoder("hap") {
+        let o = dir.path().join("r330-alpha.mov");
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "--preset",
+            "hap",
+            "--alpha",
+            "-o",
+            o.to_str().unwrap(),
+        ]);
+        assert_eq!(j["status"], "ok", "hap --alpha: {j}");
+        let j = run_json(&["probe", o.to_str().unwrap()]);
+        assert_eq!(j["probe"]["vcodec"], "hap", "hap --alpha: {j}");
+        assert_eq!(j["probe"]["streams"][0]["alpha"], true, "hap --alpha: {j}");
+    }
     // experimental Blu-ray lossless audio
     for (preset, file, expect_a) in [("truehd", "r330.thd", "truehd"), ("mlp", "r330.mlp", "mlp")] {
         let o = dir.path().join(file);
@@ -45507,22 +45835,24 @@ fn r350_mpeg4_vp8_amr_dashseg_silent_meta_deliver() {
     assert!(!out.status.success(), "vp8 refuses non-webm/mkv targets");
 
     // transcode --preset amr: amr_nb 8kHz mono in .amr
-    let amr = dir.path().join("v.amr");
-    let j = run_json(&[
-        "transcode",
-        f.to_str().unwrap(),
-        "-o",
-        amr.to_str().unwrap(),
-        "--preset",
-        "amr",
-    ]);
-    assert_eq!(j["status"], "ok", "{j}");
-    let pj = run_json(&["probe", amr.to_str().unwrap()]);
-    assert_eq!(pj["probe"]["acodec"], "amr_nb", "{pj}");
-    let streams = pj["probe"]["streams"].as_array().unwrap();
-    let astream = streams.iter().find(|s| s["kind"] == "audio").unwrap();
-    assert_eq!(astream["sample_rate"], 8000, "{pj}");
-    assert_eq!(astream["channels"], 1, "{pj}");
+    if has_encoder("libopencore_amrnb") {
+        let amr = dir.path().join("v.amr");
+        let j = run_json(&[
+            "transcode",
+            f.to_str().unwrap(),
+            "-o",
+            amr.to_str().unwrap(),
+            "--preset",
+            "amr",
+        ]);
+        assert_eq!(j["status"], "ok", "{j}");
+        let pj = run_json(&["probe", amr.to_str().unwrap()]);
+        assert_eq!(pj["probe"]["acodec"], "amr_nb", "{pj}");
+        let streams = pj["probe"]["streams"].as_array().unwrap();
+        let astream = streams.iter().find(|s| s["kind"] == "audio").unwrap();
+        assert_eq!(astream["sample_rate"], 8000, "{pj}");
+        assert_eq!(astream["channels"], 1, "{pj}");
+    }
 
     // dash --segment-list: SegmentList+SegmentURL index, no SegmentTemplate
     let dd = dir.path().join("dseg");
@@ -46731,8 +47061,14 @@ fn r355_manifest_noeditlist_probefields_platforms() {
         v["codec_long_name"],
         "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10"
     );
-    assert!(v["refs"].as_u64().is_some(), "refs should read on h264");
-    assert_eq!(v["closed_captions"], false);
+    // ffprobe 9 no longer reports the decoder-side refs/closed_captions
+    // fields; probe then leaves them out rather than guessing
+    if ffmpeg_major() < 9 {
+        assert!(v["refs"].as_u64().is_some(), "refs should read on h264");
+        assert_eq!(v["closed_captions"], false);
+    } else {
+        assert!(v.get("refs").is_none_or(|r| r.is_u64()), "{v}");
+    }
 
     // +8 platforms: collectible/auction-marketplace listings, 16:9 1920x1080
     for p in [
@@ -47142,7 +47478,11 @@ fn r358_packets_wrap_slack_manifest_negts_skipinit_hash_atframes_platforms() {
     let pkts = j["probe"]["packets"].as_array().unwrap();
     assert!(pkts.len() >= 30, "{}", pkts.len());
     let v0 = pkts.iter().find(|x| x["media_type"] == "video").unwrap();
-    assert_eq!(v0["flags"], "K_");
+    // K_ on 4.4; ffmpeg 7+ adds a third (discard) column: K__
+    assert!(
+        v0["flags"].as_str().is_some_and(|f| f.starts_with('K')),
+        "{v0}"
+    );
     assert_eq!(v0["pts_time"], 0.0);
     assert!(v0["size"].as_u64().unwrap() > 0);
     assert!(pkts.iter().any(|x| x["media_type"] == "audio"));
@@ -47275,6 +47615,9 @@ fn r358_packets_wrap_slack_manifest_negts_skipinit_hash_atframes_platforms() {
             "copy",
             "-output_ts_offset",
             "-0.023",
+            // ffmpeg 7+ matroska shifts negative starts to 0 unless told not to
+            "-avoid_negative_ts",
+            "disabled",
         ])
         .arg(&neg)
         .status()
@@ -47771,7 +48114,8 @@ fn r360_keyat_frames_frame_clock_streamid_framecrc_ffmeta_spdif_platforms() {
     let txt = String::from_utf8_lossy(&out.stdout);
     assert!(
         txt.lines()
-            .any(|l| l.contains("key_frame=1") && l.contains("pkt_pts_time=0.500000")),
+            // pkt_pts_time on ≤5.x, pts_time after — the substring hits both
+            .any(|l| l.contains("key_frame=1") && l.contains("pts_time=0.500000")),
         "{txt}"
     );
 
@@ -48097,7 +48441,17 @@ fn r361_x264spec_jpeg2000_rubberband_ts_flags_platforms() {
     ]);
     assert_eq!(j["status"], "ok", "{j}");
     let pj = run_json(&["probe", dir.path().join("r.mp4").to_str().unwrap()]);
-    assert_eq!(pj["probe"]["streams"][0]["refs"], 1, "{pj}");
+    if pj["probe"]["streams"][0].get("refs").is_some() {
+        assert_eq!(pj["probe"]["streams"][0]["refs"], 1, "{pj}");
+    } else {
+        // ffprobe 9 drops refs; x264's own settings SEI records what it used
+        // (the SPS DPB size is not it — B-pyramid keeps that at 4)
+        let raw = std::fs::read(dir.path().join("r.mp4")).unwrap();
+        assert!(
+            raw.windows(7).any(|w| w == b" ref=1 "),
+            "x264 SEI lacks ref=1"
+        );
+    }
 
     // gates: x264-spec flags need h264/proxy + a re-encode
     for args in [
@@ -48189,20 +48543,22 @@ fn r361_x264spec_jpeg2000_rubberband_ts_flags_platforms() {
         .output()
         .unwrap();
     assert!(o.status.success());
-    let j = run_json(&[
-        "tempo",
-        tone.to_str().unwrap(),
-        "-o",
-        dir.path().join("rb.m4a").to_str().unwrap(),
-        "--factor",
-        "1.5",
-        "--engine",
-        "rubberband",
-    ]);
-    assert_eq!(j["status"], "ok", "{j}");
-    let pj = run_json(&["probe", dir.path().join("rb.m4a").to_str().unwrap()]);
-    let ad = pj["probe"]["streams"][0]["duration"].as_f64().unwrap();
-    assert!((ad - 1.34).abs() < 0.25, "rubberband audio dur {ad}");
+    if has_filter("rubberband") {
+        let j = run_json(&[
+            "tempo",
+            tone.to_str().unwrap(),
+            "-o",
+            dir.path().join("rb.m4a").to_str().unwrap(),
+            "--factor",
+            "1.5",
+            "--engine",
+            "rubberband",
+        ]);
+        assert_eq!(j["status"], "ok", "{j}");
+        let pj = run_json(&["probe", dir.path().join("rb.m4a").to_str().unwrap()]);
+        let ad = pj["probe"]["streams"][0]["duration"].as_f64().unwrap();
+        assert!((ad - 1.34).abs() < 0.25, "rubberband audio dur {ad}");
+    }
     // rubberband refuses windowed --at
     let o = ffkit()
         .args([
@@ -48421,7 +48777,14 @@ fn r362_x264_params_qp_probe_window_omit_endlist_engines_platforms() {
         "--engine",
         "nlm",
     ]);
-    assert_eq!(j["status"], "ok", "{j}");
+    if ffmpeg_major() >= 9 {
+        // anlmdn corrupts memory on ffmpeg 9 — refused, not attempted
+        assert_eq!(j["status"], "failed", "{j}");
+        let msg = j["error"]["message"].as_str().unwrap_or("");
+        assert!(msg.contains("anlmdn"), "{j}");
+    } else {
+        assert_eq!(j["status"], "ok", "{j}");
+    }
 
     // blur --engine smart: edge-aware smartblur
     let j = run_json(&[

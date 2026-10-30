@@ -1024,6 +1024,7 @@ pub enum DenoiseEngine {
     /// afftdn spectral — works on every ffmpeg build
     Fftdn,
     /// anlmdn non-local means — slowest but gentlest on speech detail
+    /// (refused on ffmpeg 9, where anlmdn corrupts memory)
     /// (mains hum and room-tone beds, dialog clarity; ffmpeg ≥4.4)
     Nlm,
 }
@@ -6470,9 +6471,9 @@ pub struct RemuxArgs {
     /// negative; refuses --copy-ts, which exists to keep stamps verbatim)
     #[arg(long)]
     pub fix_negative_ts: bool,
-    /// Skip N leading bytes before demuxing (-skip_initial_bytes —
-    /// damaged captures with garbage/padding prepended ahead of the
-    /// real container header)
+    /// Skip N leading bytes before demuxing (read through the subfile
+    /// protocol — damaged captures with garbage/padding prepended ahead
+    /// of the real container header)
     #[arg(long)]
     pub skip_init: Option<u64>,
 
@@ -8476,10 +8477,11 @@ pub struct MeterArgs {
     /// EBU meter scale 9..=18 (default 9 = -18..+9 LUFS window)
     #[arg(long, default_value_t = 9)]
     pub meter: u32,
-    /// Meter only from this time (`end` = last ~50ms; QC one slice)
+    /// Meter only from this time (`end` = the last 0.3s, the shortest
+    /// window ebur128 draws a meter frame in; QC one slice)
     #[arg(long)]
     pub at: Option<String>,
-    /// ..for this many seconds (default: to the end)
+    /// ..for this many seconds (default: to the end; at least 0.3)
     #[arg(long)]
     pub dur: Option<f64>,
 }

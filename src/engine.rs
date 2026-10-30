@@ -119,6 +119,8 @@ fn retarget_audio_codec(argvs: &mut [Argv], output: &Path) {
     {
         Some("wav") => "pcm_s16le",
         Some("flac") => "flac",
+        // Ogg Opus when the build has no libvorbis
+        Some("ogg") | Some("oga") if !has_encoder("libvorbis") => "libopus",
         Some("ogg") | Some("oga") => "libvorbis",
         Some("opus") => "libopus",
         Some("mp3") => "libmp3lame",
@@ -145,7 +147,13 @@ pub fn ffmpeg_base(progress: bool) -> Argv {
 }
 
 /// Major version of the ffmpeg on PATH (from `ffmpeg -version`), if parseable.
+/// Asked once per process.
 pub fn ffmpeg_major() -> Option<u32> {
+    static MAJOR: std::sync::OnceLock<Option<u32>> = std::sync::OnceLock::new();
+    *MAJOR.get_or_init(read_ffmpeg_major)
+}
+
+fn read_ffmpeg_major() -> Option<u32> {
     let mut argv = Argv::ffmpeg();
     argv.push("-version");
     let spawned = spawn::run(&argv, Duration::from_secs(10), false).ok()?;
@@ -158,6 +166,97 @@ pub fn ffmpeg_major() -> Option<u32> {
     ver.split(|c: char| !c.is_ascii_digit())
         .next()
         .and_then(|s| s.parse().ok())
+}
+
+/// Whether this ffmpeg build has encoder `name` (`ffmpeg -encoders`).
+/// Release notes drop encoders (v410/v308/ayuv in 7.0) and minimal builds
+/// leave out library ones (libwebp, libvorbis), so callers ask, not assume.
+pub fn has_encoder(name: &str) -> bool {
+    static LIST: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    listed(&LIST, "-encoders", name)
+}
+
+/// Whether this ffmpeg build has filter `name` (`ffmpeg -filters`);
+/// library filters (zscale, subtitles, vidstab*) are build options.
+pub fn has_filter(name: &str) -> bool {
+    static LIST: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    listed(&LIST, "-filters", name)
+}
+
+fn listed(cache: &std::sync::OnceLock<String>, flag: &str, name: &str) -> bool {
+    let list = cache.get_or_init(|| {
+        let mut argv = Argv::ffmpeg();
+        argv.push(flag);
+        spawn::run(&argv, Duration::from_secs(10), false)
+            .map(|s| String::from_utf8_lossy(&s.stdout).into_owned())
+            .unwrap_or_default()
+    });
+    list.lines()
+        .any(|l| l.split_whitespace().nth(1) == Some(name))
+}
+
+/// Whether filter `name` lists `token` as an option or a named option value
+/// in `ffmpeg -h filter=NAME` — the first word of a line, never a substring
+/// (`asubboost` itself contains "boost"). Options and modes come and go
+/// between releases.
+pub fn filter_lists(name: &str, token: &str) -> bool {
+    help_lists(&filter_help(name), token)
+}
+
+fn help_lists(help: &str, token: &str) -> bool {
+    help.lines()
+        .any(|l| l.split_whitespace().next() == Some(token))
+}
+
+/// `ffmpeg -h filter=NAME` text. Empty when ffmpeg cannot be asked.
+pub fn filter_help(name: &str) -> String {
+    let mut argv = Argv::ffmpeg();
+    argv.extend(["-h".to_string(), format!("filter={name}")]);
+    spawn::run(&argv, Duration::from_secs(10), false)
+        .map(|s| String::from_utf8_lossy(&s.stdout).into_owned())
+        .unwrap_or_default()
+}
+
+/// Vorbis audio args: libvorbis when the build has it, else ffmpeg's own
+/// experimental encoder, which only takes stereo.
+pub fn vorbis_args() -> Vec<&'static str> {
+    if has_encoder("libvorbis") {
+        vec!["-c:a", "libvorbis"]
+    } else {
+        vec!["-c:a", "vorbis", "-strict", "-2", "-ac", "2"]
+    }
+}
+
+/// Whether muxer `muxer` still accepts private option `opt`
+/// (`ffmpeg -h muxer=NAME`); options get removed between majors.
+pub fn muxer_has_option(muxer: &str, opt: &str) -> bool {
+    let mut argv = Argv::ffmpeg();
+    argv.extend(["-h".to_string(), format!("muxer={muxer}")]);
+    spawn::run(&argv, Duration::from_secs(10), false)
+        .map(|s| {
+            String::from_utf8_lossy(&s.stdout)
+                .lines()
+                .any(|l| l.split_whitespace().next() == Some(&format!("-{opt}")))
+        })
+        .unwrap_or(false)
+}
+
+/// Frame-rate sync mode in the spelling this ffmpeg accepts: `-fps_mode`
+/// (5+, the only one left from 7) or the old `-vsync` (4.x). Takes the
+/// `-vsync` numbers or the `-fps_mode` names.
+pub fn push_fps_mode(argv: &mut Argv, mode: &str) {
+    let name = match mode {
+        "0" => "passthrough",
+        "1" => "cfr",
+        "2" => "vfr",
+        "-1" => "auto",
+        m => m,
+    };
+    if ffmpeg_major().unwrap_or(7) >= 5 {
+        argv.extend(["-fps_mode", name]);
+    } else {
+        argv.extend(["-vsync", name]);
+    }
 }
 
 pub fn need_video(probe: &Probe, tool: &str) -> Result<(), Error> {
@@ -236,4 +335,21 @@ pub fn audio_window_for(
         n + 1
     ));
     Ok(fc)
+}
+
+#[cfg(test)]
+mod help_tests {
+    use super::help_lists;
+
+    #[test]
+    fn option_names_not_substrings() {
+        // 4.4's asubboost: the filter name and description say "boost",
+        // but there is no `boost` option
+        let h44 = "Filter asubboost\n  Boost subwoofer frequencies.\n\
+                   asubboost AVOptions:\n   dry  <double> ..F.A...... set dry gain\n";
+        assert!(!help_lists(h44, "boost"));
+        assert!(help_lists(h44, "dry"));
+        let h9 = "asubboost AVOptions:\n   boost  <double> ..F.A....T. set max boost\n";
+        assert!(help_lists(h9, "boost"));
+    }
 }

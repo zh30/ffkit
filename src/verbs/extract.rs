@@ -158,7 +158,8 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
         if let Some(w) = args.width {
             vf.push_str(&format!(",scale={w}:-2"));
         }
-        argv.extend(["-vsync", "0", "-vf", vf.as_str()]);
+        engine::push_fps_mode(&mut argv, "0");
+        argv.extend(["-vf", vf.as_str()]);
         argv.push(&template);
 
         let commands = engine::commands_of(std::slice::from_ref(&argv));
@@ -647,7 +648,9 @@ pub fn run(args: ExtractArgs, g: &Globals) -> Result<Contract, Error> {
         }
         argv.push("-i");
         argv.push(&args.input);
-        argv.extend(["-vf", vf.as_str(), "-vsync", "0", "-frames:v", "1"]);
+        argv.extend(["-vf", vf.as_str()]);
+        engine::push_fps_mode(&mut argv, "0");
+        argv.extend(["-frames:v", "1"]);
         argv.push(&args.output);
         let c = engine::write_job("extract", &[&args.input], &args.output, vec![argv], g)?;
         return Ok(c.with_extra(serde_json::json!({ "frame": nf })));

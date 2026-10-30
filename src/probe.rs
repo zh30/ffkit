@@ -489,11 +489,13 @@ pub struct ProbeStream {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has_b_frames: Option<u32>,
     /// Reference-frame count the encoder used (video — the encoder
-    /// complexity dial; QC for low-power decoders capping refs)
+    /// complexity dial; QC for low-power decoders capping refs). Absent
+    /// on ffprobe 9, which stopped reporting it
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refs: Option<u32>,
     /// Embedded CEA-608/708 captions in the video essence (broadcast
-    /// ingest QC — text-track deliverables still need subs separately)
+    /// ingest QC — text-track deliverables still need subs separately).
+    /// Absent on ffprobe 9, which stopped reporting it
     #[serde(skip_serializing_if = "Option::is_none")]
     pub closed_captions: Option<bool>,
     /// Full human-readable codec name (e.g. "H.264 / AVC / MPEG-4 AVC /
@@ -842,7 +844,21 @@ pub fn parse_ffprobe(raw: &str) -> Result<Probe, Error> {
     let audio = parsed.streams.iter().find(|s| s.codec_type == "audio");
 
     let r_fps = video.and_then(|v| parse_rate(v.r_frame_rate.as_deref()));
-    let avg_fps = video.and_then(|v| parse_rate(v.avg_frame_rate.as_deref()));
+    let mut avg_fps = video.and_then(|v| parse_rate(v.avg_frame_rate.as_deref()));
+    // ffmpeg 7+ muxers stretch the last frame's duration, so a short CFR
+    // clip reads avg = r·N/(N+1) (60 frames at 60fps → 59.02). A shortfall
+    // of at most one frame is that artifact, not variable rate.
+    if let (Some(r), Some(avg)) = (r_fps, avg_fps) {
+        let frames = video
+            .and_then(|v| v.nb_frames.as_deref())
+            .and_then(|n| n.parse::<f64>().ok())
+            .filter(|n| *n > 0.0);
+        if let Some(n) = frames {
+            if avg < r && r - avg <= r / n + 0.01 {
+                avg_fps = Some(r);
+            }
+        }
+    }
     let vfr = match (r_fps, avg_fps) {
         (Some(a), Some(b)) => (a - b).abs() > 0.05,
         _ => false,
@@ -1223,4 +1239,32 @@ fn file_has_encryption_atoms(path: &Path) -> bool {
     [b"sinf", b"encv", b"enca", b"schi"]
         .iter()
         .any(|t| buf.windows(4).any(|w| w == t.as_slice()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn video_json(avg: &str, nb_frames: &str) -> String {
+        format!(
+            r#"{{"streams":[{{"index":0,"codec_type":"video","codec_name":"h264","width":320,"height":240,
+            "r_frame_rate":"60/1","avg_frame_rate":"{avg}","nb_frames":"{nb_frames}"}}],
+            "format":{{"duration":"1.016667"}}}}"#
+        )
+    }
+
+    #[test]
+    fn stretched_last_frame_is_still_cfr() {
+        let p = parse_ffprobe(&video_json("3600/61", "60")).unwrap();
+        assert_eq!(p.fps, Some(60.0));
+        assert!(!p.variable_frame_rate_suspected);
+    }
+
+    #[test]
+    fn real_vfr_keeps_its_average() {
+        // 40 frames over ~1s against a 60fps base — a third dropped
+        let p = parse_ffprobe(&video_json("40/1", "40")).unwrap();
+        assert_eq!(p.fps, Some(40.0));
+        assert!(p.variable_frame_rate_suspected);
+    }
 }

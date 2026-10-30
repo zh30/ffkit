@@ -163,7 +163,10 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
         );
     }
     // --nth: every Nth frame — dataset/QC sampling by frame count, not seconds
-    let mut argv_vsync: Option<&str> = None;
+    // untile emits cols*rows frames per input frame on sub-frame timestamps;
+    // the image muxer's default cfr sync duplicates some (20 frames x 12
+    // tiles wrote 243 stills) — every tile exactly once needs passthrough
+    let mut argv_vsync: Option<&str> = args.untile.as_ref().map(|_| "0");
     if let Some(n) = args.nth {
         if n < 2 {
             return Err(Error::input("--nth wants N >= 2 (every Nth frame)"));
@@ -222,7 +225,7 @@ pub fn run(args: FramesArgs, g: &Globals) -> Result<Contract, Error> {
     argv.push("-i");
     argv.push(&args.input);
     if let Some(v) = argv_vsync {
-        argv.extend(["-vsync", v]);
+        engine::push_fps_mode(&mut argv, v);
     }
     argv.extend(["-vf", &vf]);
     if let Some(n) = frame_cap {

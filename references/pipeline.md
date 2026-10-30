@@ -40,7 +40,9 @@ Write this **after** you have proposed the scheme to the user. `goal` is the ori
 
 ## expect
 
-Checked against the **last** probe (and output path for `ext`). The file is kept either way. `verified` is true only when every check passes.
+Checked against the **last** output, re-probed from disk (not the step's own report). The file is kept either way. `verified` is true only when every check passes. Unknown keys are an error, so a typo cannot pass silently.
+
+Shape (ffprobe, instant):
 
 | key | meaning |
 |-----|---------|
@@ -49,7 +51,25 @@ Checked against the **last** probe (and output path for `ext`). The file is kept
 | `duration_gt` / `duration_lt` | seconds, exclusive |
 | `has_audio` / `has_video` | bool |
 | `ext` | `mp4`, `wav`, `png`, … (no dot needed) |
+| `fps` | frames per second (±0.02, so `29.97` matches 30000/1001) |
+| `vcodec` / `acodec` / `pix_fmt` | `h264`, `aac`, `yuv420p`, … |
+| `max_mb` | file size ceiling, MB (10⁶ bytes) |
+| `av_drift_max` | seconds; worst start or end gap between first video and audio track |
 
-No `expect` → `verified` follows the last step. Failed expect is not a crash; the report's `Check:` line must say the original task is not yet true.
+Signal (decodes the output once with ffmpeg's analyzers; costs about one playback at decode speed):
+
+| key | meaning |
+|-----|---------|
+| `lufs` (+ `lufs_tol`, default 1) | integrated loudness, EBU R128 (`ebur128`) |
+| `true_peak_max` | dBTP ceiling |
+| `max_black` | fail on any black stretch at least this many seconds (`blackdetect`) |
+| `max_freeze` | fail on any frozen-picture stretch at least this long (`freezedetect`) |
+| `ssim_min` | mean SSIM of output vs `input` (`ssim`). Only for re-encodes of the same timeline (`compress`, `transcode`); a changed duration fails as not comparable |
+
+Each row in `extra.expect.checks` is `{key, want, got, ok}`; `got` for black/freeze lists the offending ranges. Targets come from the user or [platforms.md](platforms.md), not from the verb's flags (a `loudnorm -I -16` step checked against `"lufs": -16` proves the verb, not the platform).
+
+Example for a Reel: `{"aspect": "9:16", "fps": 30, "vcodec": "h264", "lufs": -14, "true_peak_max": -1, "max_black": 0.5, "av_drift_max": 0.05}`.
+
+No `expect` → `verified` follows the last step. Failed expect is not a crash; the report's `Check:` line must say the original task is not yet true and quote the failing rows.
 
 Then `ffkit look` on the final picture. Report against `goal`, not against the last verb. More schemes: [recipes.md](recipes.md).

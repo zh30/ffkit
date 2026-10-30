@@ -11,6 +11,7 @@ pub mod font;
 pub mod graph;
 pub mod install;
 pub mod look;
+pub mod measure;
 pub mod paths;
 pub mod pipeline;
 pub mod probe;

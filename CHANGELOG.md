@@ -2,6 +2,55 @@
 
 ## [Unreleased]
 
+## [0.392.0] — 2026-10-27
+
+### Added
+
+- `pipeline` `expect` measured checks: `lufs` (+ `lufs_tol`), `true_peak_max`, `max_black`, `max_freeze`, `ssim_min` decode the final output once with ffmpeg's own analyzers (`ebur128`, `blackdetect`, `freezedetect`, `ssim`); shape checks `fps`, `vcodec`, `acodec`, `pix_fmt`, `max_mb`, `av_drift_max`. `ssim_min` refuses a changed timeline as not comparable instead of reporting a meaningless score
+
+### Changed
+
+- `pipeline` `expect` re-probes the file on disk instead of trusting the last step's own probe
+- `pipeline` rejects unknown `expect` keys, so a typo (`"luf"`) fails the plan instead of passing as `verified: true`
+- `SKILL.md` Hands table lists verbs only (102 KB → 17 KB); flags and their notes stay in `ffkit <verb> --help`, as AGENTS.md already required. The table is one Markdown table again (blank lines had split it)
+
+### Fixed — runs on the newest ffmpeg (9.0.2) as well as 4.4
+
+Removed or changed upstream, now handled by version or capability:
+
+- `-vsync` (gone in 7): `frames`, `extract`, `thumb` use `-fps_mode` on ffmpeg ≥5
+- `-map_channel` (gone in 7): `channel --mode order` reorders with `pan`
+- `-hls_wrap` (gone): `hls --wrap` keeps the same bounded footprint with a rolling `delete_segments` window
+- v410 / v308 / ayuv encoders (gone in 7): `transcode` writes rawvideo with the packed pix_fmt and QuickTime tag (`v30xle`/v410, `vyu444`/v308, `uyva`/v408)
+- `-skip_initial_bytes` on ffmpeg 9 re-bases only the header parse and reads samples at the old offsets (video lost): `remux --skip-init` reads through the `subfile` protocol (frame-identical salvage)
+- `anlms` on newer builds already emits the cleaned mix: `denoise --ref` no longer subtracts it a second time (which cancelled the voice)
+- `anequalizer` cannot open its curves pad on ffmpeg 9: `eqviz` draws the same response curve from an impulse through `showfreqs`
+- `adeclip` repairs nothing on integer PCM's lopsided ±full-scale plateau on ffmpeg 9: `declip` makes the plateau symmetric first, then measures the repaired peak and trims only the overshoot so 16-bit/AAC output does not clip it flat again (`extra.headroom_db`)
+- `meter` with a short `--dur` spun ffmpeg 9 forever (output `-t` + `-shortest` + ebur128 video): the window is cut in-graph with `atrim`, and is at least 0.3 s (the shortest window that draws a meter frame)
+- `split --copy` cut one GOP late on ffmpeg 7+ (1 s parts came out 1.57 s): half a frame of `-segment_time_delta`, as the segment muxer docs advise for stream copy
+- `probe` reported 59.02 fps for a 60 fps clip on ffmpeg 7+ (the muxer stretches the last frame) and flagged it as VFR: a shortfall of at most one frame now reads as CFR
+- `probe.streams[].refs` / `closed_captions`: ffprobe 9 stopped reporting them; they are left out rather than guessed
+- `fx --kind sub` added no low end on ffmpeg 7+ (cutoff on the tone itself): where `asubboost` has `boost`, dry is kept whole, `boost` carries strength, cutoff 150 Hz; 4.4 (no `boost`) keeps the old blend
+- `denoise --engine nlm` is refused on ffmpeg 9: its `anlmdn` corrupts memory and crashes nondeterministically (`wavel`, the default, is unaffected)
+
+Missing from a build (minimal Homebrew ffmpeg), now a fallback instead of a failure:
+
+- libvorbis → ffmpeg's own Vorbis encoder (stereo) for `vp8`/`theora`/`ogg`, Ogg Opus where `.ogg` was a default
+- libxvid → the native `mpeg4` encoder with the xvid fourcc; libopenjpeg → the native `jpeg2000` encoder; libzimg (`zscale`) → swscale's spline kernel for `upscale`
+
+Bugs found on the way, wrong on every version:
+
+- `eq --allpass` / `--notch` and `fx --kind wah` passed a width in Hz without `width_type=h`, so ffmpeg read it as Q (`--allpass 110:200` became a Q-200 needle that dropped 2 dB of level)
+- `frames --untile` wrote duplicate tiles (20 frames × 12 tiles gave 243 stills): passthrough sync
+- `eqviz --dur` applied `-t` to the wrong input once a second input existed
+
+Tests:
+
+- The suite passes on ffmpeg 9.0.2 (minimal Homebrew build) and keeps 4.4 (CI) paths. Sections that need an optional library (libass, libwebp, libspeex, hap, AMR, theora, rubberband, SRT) skip only themselves when the build lacks it; fixtures no longer use removed options (`-vsync`, `-top`, the `rotate` tag, encoder-side colour tags)
+- The intermittent hang of the parallel suite was one fixture: `-shortest` with `.srt` inputs deadlocks ffmpeg 9 in ~15% of runs (6/40 measured, 0/40 without it). Removed from that fixture
+- Live relay tests killed the receiving ffmpeg the moment the push returned; under full parallel load it had not written the file yet (0 bytes). They now wait for it to drain (10 s cap)
+- Assertions that tested a quirk instead of the behaviour were rewritten: channel rotation compared byte by byte (a summed checksum cannot see it), declip measured by plateau length, ambience by mean level (AAC moves peaks), ffprobe CSV read by first field (7+ appends a side-data column)
+
 ## [0.391.0] — 2026-09-27
 
 ### Added
