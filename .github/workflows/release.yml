@@ -1,8 +1,13 @@
 name: release
 
+# Was triggered on every push to main, including two macos-14 jobs. Changed
+# 2026-11-10 to v* tags / workflow_dispatch to cut Actions cost and to avoid
+# publishing a release from a plain main push. Apple Darwin artifacts still
+# need macos-14 and cannot be built on Linux.
 on:
   push:
-    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
